@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "/home/youssef/Desktop/CRAC2026/LidarTest.py", line 47, in <module>
+    run()
+  File "/home/youssef/Desktop/CRAC2026/LidarTest.py", line 28, in run
+    for scan in lidar.iter_scans():                                 # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
+  File "/usr/local/lib/python3.11/dist-packages/rplidar.py", line 357, in iter_scans
+    for new_scan, quality, angle, distance in iterator:
+  File "/usr/local/lib/python3.11/dist-packages/rplidar.py", line 300, in iter_measurments
+    status, error_code = self.get_health()
+                         ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/rplidar.py", line 245, in get_health
+    dsize, is_single, dtype = self._read_descriptor()
+                              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/rplidar.py", line 187, in _read_descriptor
+    raise RPLidarException('Descriptor length mismatch')
+rplidar.RPLidarException: Descriptor length mismatch
