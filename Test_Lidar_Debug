@@ -1,19 +1,31 @@
 import matplotlib.pyplot as plt
 from rplidar import RPLidar
 import numpy as np
+from collections import deque
+import threading
 import signal
 import sys
+import time
 
+# Configuration
 PORT_NAME = '/dev/ttyUSB1'
 BAUDRATE = 256000
+MAX_MEASURES = 3600  # taille maximale du buffer circulaire
 
-angles = []
-distances = []
+# Deques circulaires pour stocker les mesures
+angles_buffer = deque(maxlen=MAX_MEASURES)
+distances_buffer = deque(maxlen=MAX_MEASURES)
 
-# pour gérer Ctrl+C
+# Thread stop flag
+stop_event = threading.Event()
+
+# Objet Lidar global
+lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)
+
+# Gestion Ctrl+C et fermeture
 def signal_handler(sig, frame):
-    print("\nInterruption reçue, arrêt du Lidar...")
-    global lidar
+    print("\nArrêt demandé par l'utilisateur")
+    stop_event.set()
     try:
         lidar.stop()
         lidar.stop_motor()
@@ -25,33 +37,54 @@ def signal_handler(sig, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 
-# objet global lidar
-lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)
-lidar.start_motor()
+# Thread de lecture continue du Lidar
+def lidar_thread():
+    lidar.start_motor()
+    try:
+        for new_scan, quality, angle, distance in lidar.iter_measures(scan_type='express', max_buf_meas=500):
+            if stop_event.is_set():
+                break
+            if distance is not None and quality is not None and distance > 0 and quality > 0:
+                angles_buffer.append(np.radians(angle))
+                distances_buffer.append(distance)
+    except Exception as e:
+        print("Erreur dans le thread Lidar :", e)
+    finally:
+        lidar.stop()
+        lidar.stop_motor()
+        lidar.disconnect()
+        print("Lidar arrêté proprement")
 
-plt.ion()
-fig, ax = plt.subplots(subplot_kw={'projection':'polar'})
-ax.set_ylim(0,6000)
-ax.set_title("RPLIDAR A2M12 - Scan en temps réel")
-points, = ax.plot([],[], 'bo', markersize=2)
+# Thread graphique
+def plot_thread():
+    plt.ion()
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+    ax.set_ylim(0, 6000)
+    ax.set_title("RPLIDAR A2M12 - Scan en temps réel")
+    points, = ax.plot([], [], 'bo', markersize=2)
 
-refresh_rate = 20
-i = 0
-
-try:
-    for new_scan, quality, angle, distance in lidar.iter_measures(scan_type='express', max_buf_meas=500):
-        if distance is not None and quality is not None and distance > 0 and quality > 0:
-            angles.append(np.radians(angle))
-            distances.append(distance)
+    refresh_rate = 50  # nombre de mesures entre chaque rafraîchissement
+    i = 0
+    while not stop_event.is_set():
         i += 1
         if i % refresh_rate == 0:
-            points.set_data(angles, distances)
-            plt.pause(0.01)
-except Exception as e:
-    print("Erreur RPLidar :", e)
-finally:
-    print("Arrêt du Lidar...")
-    lidar.stop()
-    lidar.stop_motor()
-    lidar.disconnect()
-    plt.close()
+            # Récupérer un sous-échantillon pour éviter d'afficher tout
+            angles = list(angles_buffer)[-360:]       # dernier tour complet approx.
+            distances = list(distances_buffer)[-360:]
+            if angles and distances:
+                points.set_data(angles, distances)
+                plt.pause(0.01)
+    plt.close(fig)
+
+if __name__ == "__main__":
+    # Démarrer le thread Lidar
+    t_lidar = threading.Thread(target=lidar_thread, daemon=True)
+    t_lidar.start()
+
+    # Démarrer le thread graphique
+    t_plot = threading.Thread(target=plot_thread, daemon=True)
+    t_plot.start()
+
+    # Boucle principale attend que Ctrl+C soit pressé
+    while not stop_event.is_set():
+        time.sleep(0.1)
