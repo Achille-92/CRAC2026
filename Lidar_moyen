@@ -8,8 +8,8 @@ import time
 from collections import deque
 
 # Configuration
-PORT_NAME = '/dev/ttyUSB1'
-BAUDRATE = 115200       # Mode normal recommandé
+PORT_NAME = '/dev/ttyUSB0'
+BAUDRATE = 256000       # Mode normal recommandé
 MAX_MEASURES = 360      # buffer pour un tour complet
 
 # Buffers circulaires pour stocker les mesures
@@ -41,7 +41,7 @@ signal.signal(signal.SIGINT, signal_handler)
 def lidar_thread():
     lidar.start_motor()
     try:
-        for new_scan, quality, angle, distance in lidar.iter_measures(scan_type='normal', max_buf_meas=500):
+        for new_scan, quality, angle, distance in lidar.iter_measures(scan_type='normal', max_buf_meas=1000):
             if stop_event.is_set():
                 break
             if distance is not None and quality is not None and distance > 0 and quality > 0:
