@@ -1,5 +1,36 @@
-python3 -m pip install rplidar-roboticia --break-system-packages
-Defaulting to user installation because normal site-packages is not writeable
-Looking in indexes: https://pypi.org/simple, https://www.piwheels.org/simple
-Requirement already satisfied: rplidar-roboticia in /usr/local/lib/python3.11/dist-packages (0.9.5)
-Requirement already satisfied: pyserial in /usr/lib/python3/dist-packages (from rplidar-roboticia) (3.5)
+python3 -m pip uninstall -y rplidar rplidar-roboticia --break-system-packages
+WARNING: Skipping rplidar as it is not installed.
+Found existing installation: rplidar-roboticia 0.9.5
+Uninstalling rplidar-roboticia-0.9.5:
+ERROR: Exception:
+Traceback (most recent call last):
+  File "/usr/lib/python3.11/shutil.py", line 825, in move
+    os.rename(src, real_dst)
+PermissionError: [Errno 13] Permission non accordée: '/usr/local/lib/python3.11/dist-packages/__pycache__/' -> '/tmp/pip-uninstall-hao5xqrc'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/pip/_internal/cli/base_command.py", line 160, in exc_logging_wrapper
+    status = run_func(*args)
+             ^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/pip/_internal/commands/uninstall.py", line 105, in run
+    uninstall_pathset = req.uninstall(
+                        ^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/pip/_internal/req/req_install.py", line 664, in uninstall
+    uninstalled_pathset.remove(auto_confirm, verbose)
+  File "/usr/lib/python3/dist-packages/pip/_internal/req/req_uninstall.py", line 373, in remove
+    moved.stash(path)
+  File "/usr/lib/python3/dist-packages/pip/_internal/req/req_uninstall.py", line 271, in stash
+    renames(path, new_path)
+  File "/usr/lib/python3/dist-packages/pip/_internal/utils/misc.py", line 312, in renames
+    shutil.move(old, new)
+  File "/usr/lib/python3.11/shutil.py", line 843, in move
+    rmtree(src)
+  File "/usr/lib/python3.11/shutil.py", line 732, in rmtree
+    _rmtree_safe_fd(fd, path, onerror)
+  File "/usr/lib/python3.11/shutil.py", line 683, in _rmtree_safe_fd
+    onerror(os.unlink, fullname, sys.exc_info())
+  File "/usr/lib/python3.11/shutil.py", line 681, in _rmtree_safe_fd
+    os.unlink(entry.name, dir_fd=topfd)
+PermissionError: [Errno 13] Permission non accordée: 'rplidar.cpython-311.pyc'
