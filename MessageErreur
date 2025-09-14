@@ -1,43 +1,19 @@
-Erreur en mode normal : Descriptor length mismatch
-Passage en mode express...
-Traceback (most recent call last):
-  File "/home/youssef/Desktop/CRAC2026/LidarTest.py", line 46, in <module>
-    run(scan_type="normal")          # tentative en mode normal
-    ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/youssef/Desktop/CRAC2026/LidarTest.py", line 24, in run
-    for scan in lidar.iter_scans(scan_type=scan_type):
-  File "/usr/local/lib/python3.11/dist-packages/rplidar.py", line 446, in iter_scans
-    for new_scan, quality, angle, distance in iterator:
-  File "/usr/local/lib/python3.11/dist-packages/rplidar.py", line 383, in iter_measures
-    self.start(scan_type)
-  File "/usr/local/lib/python3.11/dist-packages/rplidar.py", line 319, in start
-    status, error_code = self.get_health()
-                         ^^^^^^^^^^^^^^^^^
-  File "/usr/local/lib/python3.11/dist-packages/rplidar.py", line 279, in get_health
-    dsize, is_single, dtype = self._read_descriptor()
-                              ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/lib/python3.11/dist-packages/rplidar.py", line 214, in _read_descriptor
-    raise RPLidarException('Descriptor length mismatch')
-rplidar.RPLidarException: Descriptor length mismatch
+Exception has occurred: RPLidarException
+Incorrect descriptor starting bytes
+  File "/home/youssef/Desktop/CRAC2026/LidarTest1.py", line 28, in run
+    for (_, angle, distance) in scan:                           #   Pour chaque Quality "_", angle et distance dans le scan
 
-During handling of the above exception, another exception occurred:
+                angles.append(np.radians(angle))                        #       Ajoute l'angle EN RADIANS dans la liste "angles"
 
-Traceback (most recent call last):
-  File "/home/youssef/Desktop/CRAC2026/LidarTest.py", line 50, in <module>
-    run(scan_type="express")         # fallback en mode express
-    ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/youssef/Desktop/CRAC2026/LidarTest.py", line 24, in run
-    for scan in lidar.iter_scans(scan_type=scan_type):
-  File "/usr/local/lib/python3.11/dist-packages/rplidar.py", line 446, in iter_scans
-    for new_scan, quality, angle, distance in iterator:
-  File "/usr/local/lib/python3.11/dist-packages/rplidar.py", line 383, in iter_measures
-    self.start(scan_type)
-  File "/usr/local/lib/python3.11/dist-packages/rplidar.py", line 319, in start
-    status, error_code = self.get_health()
-                         ^^^^^^^^^^^^^^^^^
-  File "/usr/local/lib/python3.11/dist-packages/rplidar.py", line 279, in get_health
-    dsize, is_single, dtype = self._read_descriptor()
-                              ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/lib/python3.11/dist-packages/rplidar.py", line 214, in _read_descriptor
-    raise RPLidarException('Descriptor length mismatch')
-rplidar.RPLidarException: Descriptor length mismatch
+                distances.append(distance)                              #       Ajoute la distance dans la liste "distances"
+
+
+
+            points.set_data(angles, distances)                          #   Ajoute dans la liste de points la distance et l'angle qui sont associés
+
+            plt.pause(0.01)                                             #   Met à jour la fenêtre graphique, ~100 fps (limité par 10 Hz du lidar)
+
+    except KeyboardInterrupt:                                           # Sauf en cas d'erreur d'interruption
+  File "/home/youssef/Desktop/CRAC2026/LidarTest1.py", line 47, in <module>
+    run()
+rplidar.RPLidarException: Incorrect descriptor starting bytes
