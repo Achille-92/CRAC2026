@@ -1,21 +1,76 @@
 from rplidar import RPLidar
+import threading
 
-PORT = '/dev/ttyUSB0'
+lidar_event = threading.Event()
 
-def run():
-    lidar = RPLidar(PORT, baudrate=115200)
+def lidar_scan():
+    dist_buff = deque(maxlen = 5)
+    stop = False
+    r_cpt = 0
+    r_treshold = 3
+    while lidar_event.is_set():
+        try :
+            for scan in lidar.iter_scans():
+                for (_, angle, distance) in scan:
+                    angle = angle % 360
+                    if not (
+                        (angle >= 300 or angle <= 60) or    # front ±60°
+                        (120 <= angle <= 240)):             # back ±60°
+                        continue
+                    with shared_variables_robot.our_lock:
+                        try:
+                            test_enemi_mid = (shared_variables_robot.our_plan_mid[0] + distance * math.cos(math.radians(shared_variables_robot.robot_angle + angle)),
+                                        shared_variables_robot.our_plan_mid[1] + distance * math.sin(math.radians(shared_variables_robot.robot_angle + angle)))
+                        except:
+                            test_enemi_mid = (-1,-1)
+                    if not (0<= test_enemi_mid[0] <= 3000 and 0 <= test_enemi_mid[1] <= 2000):
+                        continue
+                    else:
+                        with shared_variables_robot.our_lock:
+                            shared_variables_robot.ennemi_plan_mid = test_enemi_mid
+                            distance_adv = math.hypot((shared_variables_robot.ennemi_plan_mid[0] - shared_variables_robot.our_plan_mid[0]),
+                                                (shared_variables_robot.ennemi_plan_mid[1] - shared_variables_robot.our_plan_mid[1]))
+                        print(distance_adv)
+                    if  0 <= distance_adv <= 350:
+                        dist_buff.append(distance_adv)
+                        print(f"distance: {list(dist_buff)}")
+                        if len(dist_buff) == dist_buff.maxlen:
+                            if all(earlier > later for earlier, later in zip(dist_buff, list(dist_buff)[1:])):
+                                if not stop:
+                                    send_CAN(CAN_ID.CARTE_MAITRE)
+                                    stop = True
+                            else:
+                                dist_buff.clear()
+                        r_cpt = 0
+        except:
+            pass
 
-    try:
-        # On force le mode express
-        for scan in lidar.iter_scans(scan_type='express'):
-            print("--- Nouveau tour ---")
-            for quality, angle, distance in scan:
-                print(f"Angle: {angle:.2f}°, Dist: {distance:.1f} mm, Qualité: {quality}")
-    except Exception as e:
-        print("ERREUR:", type(e).__name__, e)
+
+if __name__ == "__main__":
+    try: 
+
+        lidar = RPLidar("/dev/ttyUSB0", baudrate=256000)
+        lidar.connect()
+        print(lidar.get_info())
+        lidar_event.set()
+        lidar.start_motor()
+
+        t_lidar = threading.Thread(target=lidar_scan, daemon=True) 
+
+        t_lidar.start()
+
+        while True:
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+        print("[SHUTDOWN] Stopping gracefully...")
+
     finally:
+        lidar_event.clear()
+        lidar.stop_motor()
         lidar.stop()
         lidar.disconnect()
 
-if __name__ == "__main__":
-    run()
+
+cd /home/youssef/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG ; /usr/bin/env /bin/python /home/youssef/.vscode/extensions/ms-python.debugpy-2025.10.0-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 60629 -- /home/youssef/Desktop/CRAC2026/LidarTest.py 
+{'model': 44, 'firmware': (1, 32), 'hardware': 6, 'serialnumber': '7AA6ED93C0EA98C6C2E29EF5887C4061'}
