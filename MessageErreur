@@ -1,5 +1,5 @@
-python3 - <<'PY'
-from rplidar import RPLidar
+youssef@youssef:~ $ python3 - <<'PY'
+> from rplidar import RPLidar
 PORT = '/dev/ttyUSB0'
 lidar = RPLidar(PORT, baudrate=115200)
 try:
@@ -12,4 +12,5 @@ except Exception as e:
 finally:
     lidar.stop()
     lidar.disconnect()
-PY
+> PY
+ERREUR pendant iter_measures(): RPLidarException Descriptor length mismatch
