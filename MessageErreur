@@ -1,31 +1,6 @@
-Exception has occurred: RPLidarException
-Incorrect descriptor starting bytes
-  File "/home/youssef/Desktop/CRAC2026/LidarTest1.py", line 32, in run
-    # Reset à chaque tour complet
-
-            angles = []
-
-            distances = []
-
-
-
-            # Stockage des mesures
-
-            for quality, angle, distance in scan:
-
-                if distance is not None and quality is not None and distance > 0 and quality > 0:  # filtre basique
-
-                    angles.append(np.radians(angle))
-
-                    distances.append(distance)
-
-
-
-            # Mise à jour graphique
-
-            points.set_data(angles, distances)
-
-            plt.pause(0.01)  # rafraîchissement ~100 fps (matplotlib limité)
-  File "/home/youssef/Desktop/CRAC2026/LidarTest1.py", line 60, in <module>
-    run()
-rplidar.RPLidarException: Incorrect descriptor starting bytes
+youssef@youssef:~/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG $  cd /home/youssef/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG ; /usr/bin/env /bin/python /home/youssef/.vscode/extensions/ms-python.debugpy-2025.10.0-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 50581 -- /home/youssef/Desktop/CRAC2026/LidarTest1.py 
+INFO : {'model': 44, 'firmware': (1, 32), 'hardware': 6, 'serialnumber': '7AA6ED93C0EA98C6C2E29EF5887C4061'}
+HEALTH : ('Good', 0)
+Too many bytes in the input buffer: 4095/500. Cleaning buffer...
+Erreur RPLidar : Incorrect descriptor starting bytes
+Arrêt du Lidar...
