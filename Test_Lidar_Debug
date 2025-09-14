@@ -1,25 +1,25 @@
 import matplotlib.pyplot as plt
 from rplidar import RPLidar
 import numpy as np
-from collections import deque
 import threading
 import signal
 import sys
 import time
+from collections import deque
 
 # Configuration
 PORT_NAME = '/dev/ttyUSB1'
-BAUDRATE = 256000
-MAX_MEASURES = 3600  # taille maximale du buffer circulaire
+BAUDRATE = 115200       # Mode normal recommandé
+MAX_MEASURES = 360      # buffer pour un tour complet
 
-# Deques circulaires pour stocker les mesures
+# Buffers circulaires pour stocker les mesures
 angles_buffer = deque(maxlen=MAX_MEASURES)
 distances_buffer = deque(maxlen=MAX_MEASURES)
 
-# Thread stop flag
+# Flag pour arrêter les threads
 stop_event = threading.Event()
 
-# Objet Lidar global
+# Lidar global
 lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)
 
 # Gestion Ctrl+C et fermeture
@@ -37,11 +37,11 @@ def signal_handler(sig, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 
-# Thread de lecture continue du Lidar
+# Thread lecture continue
 def lidar_thread():
     lidar.start_motor()
     try:
-        for new_scan, quality, angle, distance in lidar.iter_measures(scan_type='express', max_buf_meas=500):
+        for new_scan, quality, angle, distance in lidar.iter_measures(scan_type='normal', max_buf_meas=500):
             if stop_event.is_set():
                 break
             if distance is not None and quality is not None and distance > 0 and quality > 0:
@@ -55,36 +55,35 @@ def lidar_thread():
         lidar.disconnect()
         print("Lidar arrêté proprement")
 
-# Thread graphique
+# Thread affichage graphique
 def plot_thread():
     plt.ion()
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
     ax.set_ylim(0, 6000)
     ax.set_title("RPLIDAR A2M12 - Scan en temps réel")
-    points, = ax.plot([], [], 'bo', markersize=2)
+    points, = ax.plot([], [], 'bo', markersize=3)
 
-    refresh_rate = 50  # nombre de mesures entre chaque rafraîchissement
-    i = 0
+    refresh_rate = 10
+    counter = 0
     while not stop_event.is_set():
-        i += 1
-        if i % refresh_rate == 0:
-            # Récupérer un sous-échantillon pour éviter d'afficher tout
-            angles = list(angles_buffer)[-360:]       # dernier tour complet approx.
-            distances = list(distances_buffer)[-360:]
+        counter += 1
+        if counter % refresh_rate == 0:
+            angles = list(angles_buffer)
+            distances = list(distances_buffer)
             if angles and distances:
                 points.set_data(angles, distances)
                 plt.pause(0.01)
     plt.close(fig)
 
 if __name__ == "__main__":
-    # Démarrer le thread Lidar
+    # Démarrage du thread Lidar
     t_lidar = threading.Thread(target=lidar_thread, daemon=True)
     t_lidar.start()
 
-    # Démarrer le thread graphique
+    # Démarrage du thread graphique
     t_plot = threading.Thread(target=plot_thread, daemon=True)
     t_plot.start()
 
-    # Boucle principale attend que Ctrl+C soit pressé
+    # Boucle principale, attend Ctrl+C
     while not stop_event.is_set():
         time.sleep(0.1)
