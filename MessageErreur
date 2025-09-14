@@ -1,17 +1,15 @@
-youssef@youssef:~ $ python3 - <<'PY'
-> from rplidar import RPLidar, RPLidarException
-PORT = '/dev/ttyUSB0'   # adapte si nécessaire
+python3 - <<'PY'
+from rplidar import RPLidar
+PORT = '/dev/ttyUSB0'
+lidar = RPLidar(PORT, baudrate=115200)
 try:
-    lidar = RPLidar(PORT, baudrate=115200)
-    print('INFO:', lidar.get_info())
-    print('HEALTH:', lidar.get_health())
+    for i, meas in enumerate(lidar.iter_measures()):
+        print(i, meas)   # (new_scan, quality, angle, distance)
+        if i >= 50:
+            break
 except Exception as e:
-    print('ERREUR lors de l\'initialisation:', type(e).__name__, e)
+    print('ERREUR pendant iter_measures():', type(e).__name__, e)
 finally:
-    try:
-        lidar.stop()
-        lidar.disconnect()
-    except:
-        pass
-> PY
-SyntaxError: Non-UTF-8 code starting with '\xe9' in file <stdin> on line 2, but no encoding declared; see https://peps.python.org/pep-0263/ for details
+    lidar.stop()
+    lidar.disconnect()
+PY
