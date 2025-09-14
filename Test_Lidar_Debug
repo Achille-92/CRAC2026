@@ -1,0 +1,12 @@
+from rplidar import RPLidar
+
+lidar = RPLidar('/dev/ttyUSB0', baudrate=115200)
+
+try:
+    for i, (new_scan, quality, angle, distance) in enumerate(lidar.iter_measures()):
+        print(i, quality, angle, distance)
+        if i > 50:
+            break
+finally:
+    lidar.stop()
+    lidar.disconnect()
