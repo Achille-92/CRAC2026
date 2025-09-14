@@ -1,16 +1,7 @@
-youssef@youssef:~ $ python3 - <<'PY'
-> from rplidar import RPLidar
-PORT = '/dev/ttyUSB0'
-lidar = RPLidar(PORT, baudrate=115200)
-try:
-    for i, meas in enumerate(lidar.iter_measures()):
-        print(i, meas)   # (new_scan, quality, angle, distance)
-        if i >= 50:
-            break
-except Exception as e:
-    print('ERREUR pendant iter_measures():', type(e).__name__, e)
-finally:
-    lidar.stop()
-    lidar.disconnect()
-> PY
-ERREUR pendant iter_measures(): RPLidarException Descriptor length mismatch
+youssef@youssef:~/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG $  cd /home/youssef/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG ; /usr/bin/env /bin/python /home/youssef/.vscode/extensions/ms-python.debugpy-2025.10.0-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 60943 -- /home/youssef/Desktop/CRAC2026/LidarTest1.py 
+INFO : {'model': 44, 'firmware': (1, 32), 'hardware': 6, 'serialnumber': '7AA6ED93C0EA98C6C2E29EF5887C4061'}
+HEALTH : ('Good', 0)
+Too many bytes in the input buffer: 3950/3000. Cleaning buffer...
+Too many bytes in the input buffer: 3995/3000. Cleaning buffer...
+Arrêt du Lidar...
+Backend TkAgg is interactive backend. Turning interactive mode on.
