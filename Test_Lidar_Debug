@@ -1,48 +1,35 @@
-################## Librairies ##########################################
 import matplotlib.pyplot as plt
 from rplidar import RPLidar
 import numpy as np
-########################################################################
 
-# Port série du lidar (à adapter si besoin avec "dmesg | grep ttyUSB")
 PORT_NAME = '/dev/ttyUSB0'
-BAUDRATE = 256000   # vitesse correcte pour A2M12
+BAUDRATE = 256000
 
-# Listes globales accessibles par le programme principal
-angles = []
-distances = []
-
-################## Fonction run() ######################################
 def run():
-    global angles, distances
-
-    # Connexion au Lidar
     lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)
     print("INFO :", lidar.get_info())
     print("HEALTH :", lidar.get_health())
 
-    # Création de la figure polaire
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-    ax.set_ylim(0, 6000)  # portée max du lidar en mm
+    ax.set_ylim(0, 6000)
     ax.set_title("RPLIDAR A2M12 - Scan en temps réel")
     points, = ax.plot([], [], 'bo', markersize=2)
 
+    angles, distances = [], []
+    refresh_rate = 50  # on affiche toutes les 50 mesures
+
     try:
-        # Boucle de scans
-        for scan in lidar.iter_scans():
-            # Reset des listes à chaque tour complet
-            angles = []
-            distances = []
+        for i, (new_scan, quality, angle, distance) in enumerate(lidar.iter_measures()):
+            if distance > 0 and quality > 0:  # filtre de base
+                angles.append(np.radians(angle))
+                distances.append(distance)
 
-            # Récupération des mesures
-            for (_, angle, distance) in scan:
-                if distance > 0:  # ignorer mesures invalides
-                    angles.append(np.radians(angle))
-                    distances.append(distance)
+            if i % refresh_rate == 0:  # on ne rafraîchit pas à chaque mesure
+                points.set_data(angles, distances)
+                plt.pause(0.01)
 
-            # Mise à jour du graphique
-            points.set_data(angles, distances)
-            plt.pause(0.01)  # rafraîchit la fenêtre (≈100 fps)
+            if new_scan:  # nouveau tour → reset
+                angles, distances = [], []
 
     except KeyboardInterrupt:
         print("Arrêt demandé par l'utilisateur")
@@ -54,9 +41,5 @@ def run():
         lidar.disconnect()
         plt.close()
 
-########################################################################
-
-################## Lancement du programme principal ####################
 if __name__ == '__main__':
     run()
-########################################################################
