@@ -6,7 +6,7 @@ import numpy as np
 ########################################################################
 
 # Port série du lidar (vérifie avec dmesg | grep tty)
-PORT_NAME = '/dev/ttyUSB1'
+PORT_NAME = '/dev/ttyUSB0'
 BAUDRATE = 256000
 
 lidar = None
@@ -36,10 +36,11 @@ def run():
             for (quality, angle, distance) in scan:                           #   Pour chaque quality, angle et distance dans le scan
                 angles.append(np.radians(angle))                        #       Ajoute l'angle EN RADIANS dans la liste "angles"
                 distances.append(distance)                              #       Ajoute la distance dans la liste "distances"
-                print("Distance : ",distance, "   Angle : ",angle)
+                if distance < 400:
+                    print("Distance : ",distance, "   Angle : ",angle)
 
-            points.set_data(angles, distances)                          #   Ajoute dans la liste de points la distance et l'angle qui sont associés
-            plt.pause(0.01)                                             #   Met à jour la fenêtre graphique, ~100 fps (limité par 10 Hz du lidar)
+            #points.set_data(angles, distances)                          #   Ajoute dans la liste de points la distance et l'angle qui sont associés
+            #plt.pause(0.01)                                             #   Met à jour la fenêtre graphique, ~100 fps (limité par 10 Hz du lidar)
     except KeyboardInterrupt:                                           # Sauf en cas d'erreur d'interruption
         print("Arrêt demandé par l'utilisateur")                        
     finally:                                                            # À la fin 
@@ -54,5 +55,8 @@ def run():
 
 if __name__ == '__main__':
     run()
-
+else :
+    lidar.stop()                                                    #   On arrête le Lidar
+    lidar.stop_motor()
+    lidar.disconnect()                                              #   Et on le déconnecte
 ########################################################################
