@@ -1,12 +1,10 @@
-################## Librairies ##########################################
 import matplotlib.pyplot as plt
 from rplidar import RPLidar
 import numpy as np
-########################################################################
 
 PORT_NAME = '/dev/ttyUSB0'
 BAUDRATE = 256000
-MAX_BUFFER = 500  # limite du buffer pour éviter saturation
+MAX_BUFFER = 500
 
 angles = []
 distances = []
@@ -14,38 +12,37 @@ distances = []
 def run():
     global angles, distances
 
-    # Connexion au Lidar
     lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)
     print("INFO :", lidar.get_info())
-    print("HEALTH :", lidar.get_health())
+    print("HEALTH :", lidar.get_health())  # OK avant de démarrer le moteur
 
-    # Démarrage moteur
+    # Démarrage du moteur avant toute itération
     lidar.start_motor()
 
-    # Création de la figure polaire
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
-    ax.set_ylim(0, 6000)  # portée max du lidar en mm
+    ax.set_ylim(0, 6000)
     ax.set_title("RPLIDAR A2M12 - Scan en temps réel")
     points, = ax.plot([], [], 'bo', markersize=2)
 
     try:
+        # Boucle de scan express
         for scan in lidar.iter_scans(scan_type='express', max_buf_meas=MAX_BUFFER):
-            # Reset à chaque tour complet
             angles = []
             distances = []
 
-            # Stockage des mesures
             for quality, angle, distance in scan:
-                if distance > 0 and quality > 0:  # filtre basique
+                if distance is not None and quality is not None and distance > 0 and quality > 0:
                     angles.append(np.radians(angle))
                     distances.append(distance)
 
-            # Mise à jour graphique
             points.set_data(angles, distances)
-            plt.pause(0.01)  # rafraîchissement ~100 fps (matplotlib limité)
-    
+            plt.pause(0.01)
+
     except KeyboardInterrupt:
         print("Arrêt demandé par l'utilisateur")
+
+    except Exception as e:
+        print("Erreur RPLidar :", e)
 
     finally:
         print("Arrêt du Lidar...")
@@ -53,8 +50,6 @@ def run():
         lidar.stop_motor()
         lidar.disconnect()
         plt.close()
-
-########################################################################
 
 if __name__ == '__main__':
     run()
