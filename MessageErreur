@@ -1,25 +1,8 @@
-Exception has occurred: RPLidarException
-Incorrect descriptor starting bytes
-  File "/home/youssef/Desktop/CRAC2026/LidarTest1.py", line 22, in run
-    if distance > 0 and quality > 0:  # filtre de base
-
-                angles.append(np.radians(angle))
-
-                distances.append(distance)
-
-
-
-            if i % refresh_rate == 0:  # on ne rafraîchit pas à chaque mesure
-
-                points.set_data(angles, distances)
-
-                plt.pause(0.01)
-
-
-
-            if new_scan:  # nouveau tour → reset
-
-                angles, distances = [], []
-  File "/home/youssef/Desktop/CRAC2026/LidarTest1.py", line 45, in <module>
+Exception has occurred: TypeError
+'>' not supported between instances of 'NoneType' and 'int'
+  File "/home/youssef/Desktop/CRAC2026/LidarTest1.py", line 39, in run
+    if distance > 0 and quality > 0:  # filtre basique
+                        ^^^^^^^^^^^
+  File "/home/youssef/Desktop/CRAC2026/LidarTest1.py", line 60, in <module>
     run()
-rplidar.RPLidarException: Incorrect descriptor starting bytes
+TypeError: '>' not supported between instances of 'NoneType' and 'int'
