@@ -6,15 +6,22 @@ import numpy as np
 ########################################################################
 
 # Port série du lidar (vérifie avec dmesg | grep tty)
-PORT_NAME = '/dev/ttyUSB0'
+PORT_NAME = '/dev/ttyUSB1'
+BAUDRATE = 256000
 
-angles = []                                                 #   Création d'une liste pour les angles
-distances = []                                              #   Création d'une liste pour les distances
+lidar = None
+
+angles = []                                                             #   Création d'une liste pour les angles
+distances = []                                                          #   Création d'une liste pour les distances
 
 ################## Fonction run() ######################################
 def run():
-    lidar = RPLidar(PORT_NAME)                                          # Instanciation de l'objet "lidar" par la classe "RPLidar" en effectuant la connexion au port série
+    lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)                       # Instanciation de l'objet "lidar" par la classe "RPLidar" en effectuant la connexion au port série
     
+    print("INFO:", lidar.get_info())
+    print("HEALTH:", lidar.get_health())
+
+    lidar.start_motor()
     global angles, distances
 
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})          # Création d'une figure (fig) et de zone de dessin avec axes (ax), en précisant que l'on souhaite une projection polaire
@@ -25,10 +32,11 @@ def run():
     # "points, " récupère une liste de points qui pourra être mise à jour et exploitée.
     
     try:                                                                # On essaie
-        for scan in lidar.iter_scans():                                 # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
-            for (_, angle, distance) in scan:                           #   Pour chaque Quality "_", angle et distance dans le scan
+        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=1000): # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
+            for (quality, angle, distance) in scan:                           #   Pour chaque quality, angle et distance dans le scan
                 angles.append(np.radians(angle))                        #       Ajoute l'angle EN RADIANS dans la liste "angles"
                 distances.append(distance)                              #       Ajoute la distance dans la liste "distances"
+                print("Distance : ",distance, "   Angle : ",angle)
 
             points.set_data(angles, distances)                          #   Ajoute dans la liste de points la distance et l'angle qui sont associés
             plt.pause(0.01)                                             #   Met à jour la fenêtre graphique, ~100 fps (limité par 10 Hz du lidar)
@@ -36,6 +44,7 @@ def run():
         print("Arrêt demandé par l'utilisateur")                        
     finally:                                                            # À la fin 
         lidar.stop()                                                    #   On arrête le Lidar
+        lidar.stop_motor()
         lidar.disconnect()                                              #   Et on le déconnecte
 
 ########################################################################
