@@ -1,19 +1,25 @@
 Exception has occurred: RPLidarException
-Incorrect descriptor starting bytes
-  File "/home/youssef/Desktop/CRAC2026/LidarTest1.py", line 28, in run
-    for (_, angle, distance) in scan:                           #   Pour chaque Quality "_", angle et distance dans le scan
+Descriptor length mismatch
+  File "/home/youssef/Desktop/CRAC2026/LidarTest1.py", line 21, in run
+    if quality > 0:  # filtrer les mauvaises mesures
 
-                angles.append(np.radians(angle))                        #       Ajoute l'angle EN RADIANS dans la liste "angles"
+                angles.append(np.radians(angle))
 
-                distances.append(distance)                              #       Ajoute la distance dans la liste "distances"
+                distances.append(distance)
 
 
 
-            points.set_data(angles, distances)                          #   Ajoute dans la liste de points la distance et l'angle qui sont associés
+            # À chaque "new_scan=True", on a un nouveau tour → on rafraîchit l'affichage
 
-            plt.pause(0.01)                                             #   Met à jour la fenêtre graphique, ~100 fps (limité par 10 Hz du lidar)
+            if new_scan:
 
-    except KeyboardInterrupt:                                           # Sauf en cas d'erreur d'interruption
-  File "/home/youssef/Desktop/CRAC2026/LidarTest1.py", line 47, in <module>
+                points.set_data(angles, distances)
+
+                plt.pause(0.01)
+
+                angles = []
+
+                distances = []
+  File "/home/youssef/Desktop/CRAC2026/LidarTest1.py", line 41, in <module>
     run()
-rplidar.RPLidarException: Incorrect descriptor starting bytes
+rplidar.RPLidarException: Descriptor length mismatch
