@@ -1,12 +1,40 @@
-from rplidar import RPLidar
+from rplidar import RPLidar, RPLidarException
+import matplotlib.pyplot as plt
+import numpy as np
 
-lidar = RPLidar('/dev/ttyUSB0', baudrate=115200)
+PORT_NAME = '/dev/ttyUSB0'
 
-try:
-    for i, (new_scan, quality, angle, distance) in enumerate(lidar.iter_measures()):
-        print(i, quality, angle, distance)
-        if i > 50:
-            break
-finally:
-    lidar.stop()
-    lidar.disconnect()
+def run():
+    lidar = RPLidar(PORT_NAME, baudrate=115200)
+
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+    ax.set_ylim(0, 6000)
+    ax.set_title("RPLIDAR A2 - Scan EXPRESS en temps réel")
+    points, = ax.plot([], [], 'bo', markersize=2)
+
+    angles = []
+    distances = []
+
+    try:
+        # on force le mode express
+        for i, scan in enumerate(lidar.iter_scans(scan_type='express')):
+            for (_, angle, distance) in scan:
+                if distance > 0:
+                    angles.append(np.radians(angle))
+                    distances.append(distance)
+
+            points.set_data(angles, distances)
+            plt.pause(0.01)
+            angles = []
+            distances = []
+
+    except RPLidarException as e:
+        print("Erreur RPLidar:", e)
+    except KeyboardInterrupt:
+        print("Arrêt demandé par l'utilisateur")
+    finally:
+        lidar.stop()
+        lidar.disconnect()
+
+if __name__ == '__main__':
+    run()
