@@ -29,7 +29,7 @@ def run():
     global liste_points, x_robot, y_robot, angle_robot
     x_point = 0
     y_point = 0
-    cpt = 0
+    
     angle_total = 0
 
     try:                                                                # On essaie
@@ -39,9 +39,8 @@ def run():
                 x_point = distance * math.cos(np.radians(angle_total))
                 y_point = distance * math.sin(np.radians(angle_total))
                 if x_point >= 0 and x_point <= 3000 and y_point >= 0 and y_point <= 2000:
-                    liste_points[cpt] = (x_point+x_robot,y_point+y_robot)
-                print("Point N° ",cpt, " ",liste_points[cpt])
-                cpt = (cpt+1)%360
+                    liste_points[angle_total] = (x_point+x_robot,y_point+y_robot)
+                print("Point N° ",angle_total, " ",liste_points[angle_total])
 
     except KeyboardInterrupt:                                           # Sauf en cas d'erreur d'interruption
         print("Arrêt demandé par l'utilisateur")                        
