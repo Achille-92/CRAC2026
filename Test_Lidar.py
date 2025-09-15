@@ -16,6 +16,10 @@ angles = []                                                             #   Cré
 distances = []                                                          #   Création d'une liste pour les distances
 liste_points = [(0,0) for n in range(360)]
 
+x_robot = 100
+y_robot = 100
+angle_robot = 45
+
 ################## Fonction run() ######################################
 def run():
     lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)                       # Instanciation de l'objet "lidar" par la classe "RPLidar" en effectuant la connexion au port série
@@ -24,27 +28,22 @@ def run():
     print("HEALTH:", lidar.get_health())
 
     lidar.start_motor()
-    global angles, distances, liste_points
+    global angles, distances, liste_points, x_robot, y_robot, angle_robot
     x_point = 0
     y_point = 0
     cpt = 0
+    angle_total = 0
 
-    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})          # Création d'une figure (fig) et de zone de dessin avec axes (ax), en précisant que l'on souhaite une projection polaire
-    ax.set_ylim(0, 6000)  # portée max du lidar en mm                   # On définit la valeur max d'affichage du rayon "r", comme à 6000mm soit 6m
-    ax.set_title("RPLIDAR A2 - Scan en temps réel")                     # Ajout d'un titre au graphique
-    points, = ax.plot([], [], 'bo', markersize=2)                       
-    # On traçe des points sur la zone de dessin "ax". Rien au début ([] et []). "bo" et "markersize=2" pour indiquer des cercles bleus de taille 2
-    # "points, " récupère une liste de points qui pourra être mise à jour et exploitée.
-    
     try:                                                                # On essaie
         for scan in lidar.iter_scans(scan_type='express', max_buf_meas=1000): # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
             for (quality, angle, distance) in scan:                           #   Pour chaque quality, angle et distance dans le scan
                 angles.append(np.radians(angle))                        #       Ajoute l'angle EN RADIANS dans la liste "angles"
                 distances.append(distance)                              #       Ajoute la distance dans la liste "distances"
-                if distance < 1000:
-                    x_point = distance * math.cos(np.radians(angle))
-                    y_point = distance * math.sin(np.radians(angle))
-                    liste_points[cpt] = (x_point,y_point)
+                if distance < 400:
+                    angle_total = angle + angle_robot
+                    x_point = distance * math.cos(np.radians(angle_total))
+                    y_point = distance * math.sin(np.radians(angle_total))
+                    liste_points[cpt] = (x_point+x_robot,y_point+y_robot)
                     print(liste_points[cpt])
                     cpt = (cpt+1)%360
 
