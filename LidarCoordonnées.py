@@ -12,12 +12,10 @@ BAUDRATE = 256000
 
 lidar = None
 
-angles = []                                                             #   Création d'une liste pour les angles
-distances = []                                                          #   Création d'une liste pour les distances
 liste_points = [(0,0) for n in range(360)]
 
-x_robot = 100
-y_robot = 100
+x_robot = 300
+y_robot = 300
 angle_robot = 45
 
 ################## Fonction run() ######################################
@@ -28,7 +26,7 @@ def run():
     print("HEALTH:", lidar.get_health())
 
     lidar.start_motor()
-    global angles, distances, liste_points, x_robot, y_robot, angle_robot
+    global liste_points, x_robot, y_robot, angle_robot
     x_point = 0
     y_point = 0
     cpt = 0
@@ -37,15 +35,13 @@ def run():
     try:                                                                # On essaie
         for scan in lidar.iter_scans(scan_type='express', max_buf_meas=1000): # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
             for (quality, angle, distance) in scan:                           #   Pour chaque quality, angle et distance dans le scan
-                angles.append(np.radians(angle))                        #       Ajoute l'angle EN RADIANS dans la liste "angles"
-                distances.append(distance)                              #       Ajoute la distance dans la liste "distances"
-                if distance < 400:
-                    angle_total = angle + angle_robot
-                    x_point = distance * math.cos(np.radians(angle_total))
-                    y_point = distance * math.sin(np.radians(angle_total))
+                angle_total = (angle + angle_robot)%360
+                x_point = distance * math.cos(np.radians(angle_total))
+                y_point = distance * math.sin(np.radians(angle_total))
+                if x_point >= 0 and x_point <= 3000 and y_point >= 0 and y_point <= 2000:
                     liste_points[cpt] = (x_point+x_robot,y_point+y_robot)
-                    print(liste_points[cpt])
-                    cpt = (cpt+1)%360
+                print("Point N° ",cpt, " ",liste_points[cpt])
+                cpt = (cpt+1)%360
 
     except KeyboardInterrupt:                                           # Sauf en cas d'erreur d'interruption
         print("Arrêt demandé par l'utilisateur")                        
