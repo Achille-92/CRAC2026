@@ -1,4 +1,3 @@
-
 ################## Librairies ##########################################
 import matplotlib.pyplot as plt
 from rplidar import RPLidar
@@ -16,7 +15,7 @@ liste_points = [(0,0) for n in range(360)]
 
 x_robot = 300
 y_robot = 300
-angle_robot = 45
+angle_robot = 0
 
 ################## Fonction run() ######################################
 def run():
@@ -36,11 +35,13 @@ def run():
         for scan in lidar.iter_scans(scan_type='express', max_buf_meas=1000): # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
             for (quality, angle, distance) in scan:                           #   Pour chaque quality, angle et distance dans le scan
                 angle_total = (angle + angle_robot)%360
-                x_point = distance * math.cos(np.radians(angle_total))
-                y_point = distance * math.sin(np.radians(angle_total))
+                x_point = distance * math.sin(np.radians(angle_total))
+                y_point = distance * math.cos(np.radians(angle_total))
                 if x_point >= 0 and x_point <= 3000 and y_point >= 0 and y_point <= 2000:
-                    liste_points[angle_total] = (x_point+x_robot,y_point+y_robot)
-                print("Point N° ",angle_total, " ",liste_points[angle_total])
+                    liste_points[int(angle_total)] = (int(x_point+x_robot),int(y_point+y_robot))
+                    print("Point N° ",int(angle_total), " ",liste_points[int(angle_total)])
+                else :
+                    liste_points[int(angle_total)] = ("XXX","XXX")
 
     except KeyboardInterrupt:                                           # Sauf en cas d'erreur d'interruption
         print("Arrêt demandé par l'utilisateur")                        
