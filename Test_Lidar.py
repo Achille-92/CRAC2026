@@ -37,7 +37,7 @@ def run():
                 angles.append(np.radians(angle))                        #       Ajoute l'angle EN RADIANS dans la liste "angles"
                 distances.append(distance)                              #       Ajoute la distance dans la liste "distances"
                 if distance < 400:
-                    print("Distance : ",distance, "   Angle : ",angle)
+                    print("Distance : ",distance, "   Angle : ",int(angle))
 
             #points.set_data(angles, distances)                          #   Ajoute dans la liste de points la distance et l'angle qui sont associés
             #plt.pause(0.01)                                             #   Met à jour la fenêtre graphique, ~100 fps (limité par 10 Hz du lidar)
