@@ -1,5 +1,4 @@
 ################## Librairies ##########################################
-import matplotlib.pyplot as plt
 from rplidar import RPLidar
 import numpy as np
 import math
@@ -33,15 +32,21 @@ def run():
 
     try:                                                                # On essaie
         for scan in lidar.iter_scans(scan_type='express', max_buf_meas=1000): # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
-            for (quality, angle, distance) in scan:                           #   Pour chaque quality, angle et distance dans le scan
-                angle_total = (angle + angle_robot)%360
-                x_point = distance * math.sin(np.radians(angle_total))
-                y_point = distance * math.cos(np.radians(angle_total))
-                if x_point >= 0 and x_point <= 3000 and y_point >= 0 and y_point <= 2000:
-                    liste_points[int(angle_total)] = (int(x_point+x_robot),int(y_point+y_robot))
-                    print("Point N° ",int(angle_total), " ",liste_points[int(angle_total)])
-                else :
-                    liste_points[int(angle_total)] = ("XXX","XXX")
+            for (quality, angle, distance) in scan:
+                theta = angle              # angle mesuré par le Lidar
+                alpha = angle_robot        # orientation du robot
+                angle_total = (theta + alpha) % 360
+                
+                # Coordonnées globales
+                x_point = x_robot + distance * math.sin(math.radians(angle_total))
+                y_point = y_robot + distance * math.cos(math.radians(angle_total))
+                
+                # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
+                x_point = max(0, min(3000, int(x_point)))
+                y_point = max(0, min(2000, int(y_point)))
+                
+                liste_points[int(angle_total)] = (x_point, y_point)
+                print("Point N°", int(angle_total), liste_points[int(angle_total)])
 
     except KeyboardInterrupt:                                           # Sauf en cas d'erreur d'interruption
         print("Arrêt demandé par l'utilisateur")                        
