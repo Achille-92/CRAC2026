@@ -1,6 +1,5 @@
 ################## Librairies ##########################################
 from rplidar import RPLidar
-import numpy as np
 import math
 ########################################################################
 
@@ -32,14 +31,12 @@ def run():
 
     try:                                                                # On essaie
         for scan in lidar.iter_scans(scan_type='express', max_buf_meas=1000): # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
-            for (quality, angle, distance) in scan:
-                theta = angle              # angle mesuré par le Lidar
-                alpha = angle_robot        # orientation du robot
-                angle_total = (theta + alpha) % 360
+            for (quality, angle_point, distance) in scan:
                 
-                # Coordonnées globales
-                x_point = x_robot + distance * math.sin(math.radians(angle_total))
-                y_point = y_robot + distance * math.cos(math.radians(angle_total))
+                phi = math.radians(90 - angle_point)   # angle_point en degrés (Lidar)
+                angle_total = angle_robot + phi        # tout en radians    
+                x_point = x_robot + distance * math.cos(angle_total)
+                y_point = y_robot + distance * math.sin(angle_total)
                 
                 # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
                 x_point = max(0, min(3000, int(x_point)))
