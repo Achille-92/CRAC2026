@@ -17,7 +17,12 @@ x_robot = 300
 y_robot = 300
 angle_robot = 0
 
-plt.ion()
+fig, ax = plt.subplots()
+scat = ax.scatter([], [], s=5, c='blue')
+ax.set_xlim(0, 3000)
+ax.set_ylim(0, 2000)
+ax.set_aspect('equal')
+
 ################## Fonction run() ######################################
 def run():
     lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)                       # Instanciation de l'objet "lidar" par la classe "RPLidar" en effectuant la connexion au port série
@@ -33,8 +38,10 @@ def run():
     angle_total = 0
 
     try:                                                                # On essaie
+        tour = 0
         for scan in lidar.iter_scans(scan_type='express', max_buf_meas=1000): # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
-            
+            tour += 1
+            liste_points = []
             for (quality, angle, distance) in scan:
                 theta = angle              # angle mesuré par le Lidar
                 alpha = angle_robot        # orientation du robot
@@ -50,7 +57,9 @@ def run():
                 
                 liste_points[int(angle_total)] = (x_point, y_point)
                 print("Point N°", int(angle_total), liste_points[int(angle_total)])
-            afficher_points(liste_points)
+                
+            if tour % 5 == 0:   # affiche 1 tour sur 5
+                afficher_points(liste_points)
 
     except KeyboardInterrupt:                                           # Sauf en cas d'erreur d'interruption
         print("Arrêt demandé par l'utilisateur")                        
@@ -65,13 +74,8 @@ def run():
 def afficher_points(liste_points):
     xs = [p[0] for p in liste_points]
     ys = [p[1] for p in liste_points]
-    
-    plt.clf()                          # Efface le graphique précédent
-    plt.scatter(xs, ys, s=5, c='blue') # Affiche les points
-    plt.xlim(0, 3000)                  # Limites du repère
-    plt.ylim(0, 2000)
-    plt.gca().set_aspect('equal')      # Même échelle en X et Y
-    plt.pause(0.0001)                    # Met à jour le graphique sans bloquer
+    scat.set_offsets(np.c_[xs, ys])   # met à jour les données
+    plt.pause(0.01)
 
 ################## Lancement du programme principal ####################
 
