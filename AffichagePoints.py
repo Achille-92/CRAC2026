@@ -1,25 +1,12 @@
 import matplotlib.pyplot as plt
 
-# Exemple de liste de points
-points = [(1, 2), (2, 3), (3, 1), (4, 4)]
-# Point r
-x_r, y_r = 2.5, 2.5
-
-# Séparation des coordonnées pour matplotlib
-x_points, y_points = zip(*points)
-
-# Création de la figure
-plt.figure(figsize=(6,6), facecolor="white")
-
-# Affichage des points en bleu
-plt.scatter(x_points, y_points, color="blue", label="Points")
-
-# Affichage du point r en rouge
-plt.scatter([x_r], [y_r], color="red", label="Point r")
-
-# Optionnel : ajouter une grille et une légende
-plt.grid(True, linestyle="--", alpha=0.5)
-plt.legend()
-
-# Afficher la fenêtre
-plt.show()
+def afficher_points(liste_points):
+    xs = [p[0] for p in liste_points]
+    ys = [p[1] for p in liste_points]
+    
+    plt.clf()                          # Efface le graphique précédent
+    plt.scatter(xs, ys, s=5, c='blue') # Affiche les points
+    plt.xlim(0, 3000)                  # Limites du repère
+    plt.ylim(0, 2000)
+    plt.gca().set_aspect('equal')      # Même échelle en X et Y
+    plt.pause(0.01)                    # Met à jour le graphique sans bloquer
