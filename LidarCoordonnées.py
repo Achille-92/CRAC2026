@@ -32,18 +32,21 @@ def run():
     try:                                                                # On essaie
         for scan in lidar.iter_scans(scan_type='express', max_buf_meas=1000): # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
             for (quality, angle_point, distance) in scan:
-                
-                phi = math.radians(90 - angle_point)   # angle_point en degrés (Lidar)
-                angle_total = angle_robot + phi        # tout en radians    
+
+                # Conversion angle lidar → trigonométrique
+                phi = math.radians(90 - angle_point)   
+                angle_total = angle_robot + phi        
+            
+                # Coordonnées globales du point
                 x_point = x_robot + distance * math.cos(angle_total)
                 y_point = y_robot + distance * math.sin(angle_total)
-                
-                # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
-                x_point = max(0, min(3000, int(x_point)))
-                y_point = max(0, min(2000, int(y_point)))
-                
-                liste_points[int(angle_total)] = (x_point, y_point)
-                print("Point N°", int(angle_total), liste_points[int(angle_total)])
+            
+                # Conversion angle en degrés modulo 360 pour indexer la liste
+                index_angle = int(math.degrees(angle_total)) % 360
+            
+                liste_points[index_angle] = (x_point, y_point)
+                print(f"Point angle {index_angle}° : {liste_points[index_angle]}")
+
 
     except KeyboardInterrupt:                                           # Sauf en cas d'erreur d'interruption
         print("Arrêt demandé par l'utilisateur")                        
@@ -64,3 +67,4 @@ else :
     lidar.stop_motor()
     lidar.disconnect()                                              #   Et on le déconnecte
 ########################################################################
+
