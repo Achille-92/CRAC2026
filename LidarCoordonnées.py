@@ -1,6 +1,8 @@
 ################## Librairies ##########################################
 from rplidar import RPLidar
 import math
+import numpy as np
+import matplotlib.pyplot as plt
 ########################################################################
 
 # Port série du lidar (vérifie avec dmesg | grep tty)
@@ -11,9 +13,15 @@ lidar = None
 
 liste_points = [(0,0) for n in range(360)]
 
-x_robot = 300
-y_robot = 300
+x_robot = 1500
+y_robot = 1000
 angle_robot = 0
+
+fig, ax = plt.subplots()
+scat = ax.scatter([], [], s=5, c='blue')
+ax.set_xlim(0, 3000)
+ax.set_ylim(0, 2000)
+ax.set_aspect('equal')
 
 ################## Fonction run() ######################################
 def run():
@@ -30,23 +38,20 @@ def run():
     angle_total = 0
 
     try:                                                                # On essaie
-        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=1000): # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
+        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096): # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
             for (quality, angle_point, distance) in scan:
-
-                # Conversion angle lidar → trigonométrique
-                phi = math.radians(90 - angle_point)   
-                angle_total = angle_robot + phi        
-            
-                # Coordonnées globales du point
+                phi = math.radians(angle_point)   # angle_point en degrés (Lidar)
+                angle_total = angle_robot + phi        # tout en radians    
                 x_point = x_robot + distance * math.cos(angle_total)
-                y_point = y_robot + distance * math.sin(angle_total)
-            
-                # Conversion angle en degrés modulo 360 pour indexer la liste
-                index_angle = int(math.degrees(angle_total)) % 360
-            
-                liste_points[index_angle] = (x_point, y_point)
-                print(f"Point angle {index_angle}° : {liste_points[index_angle]}")
-
+                y_point = y_robot - distance * math.sin(angle_total)
+                
+                # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
+                x_point = max(0, min(3000, int(x_point)))
+                y_point = max(0, min(2000, int(y_point)))
+                
+                liste_points.append((x_point, y_point))
+                print("Point N°", len(liste_points), liste_points[-1])
+                afficher_points(liste_points)
 
     except KeyboardInterrupt:                                           # Sauf en cas d'erreur d'interruption
         print("Arrêt demandé par l'utilisateur")                        
@@ -57,6 +62,11 @@ def run():
 
 ########################################################################
 
+def afficher_points(liste_points):
+    xs = [p[0] for p in liste_points]
+    ys = [p[1] for p in liste_points]
+    scat.set_offsets(np.c_[xs, ys])   # met à jour les données
+    plt.pause(0.01)
 
 ################## Lancement du programme principal ####################
 
@@ -67,4 +77,3 @@ else :
     lidar.stop_motor()
     lidar.disconnect()                                              #   Et on le déconnecte
 ########################################################################
-
