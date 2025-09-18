@@ -10,14 +10,14 @@ from collections import deque
 # Port série du lidar (vérifie avec dmesg | grep tty)
 PORT_NAME = '/dev/ttyUSB0'
 BAUDRATE = 256000
-lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)                           # Instanciation de l'objet "lidar" par la classe "RPLidar" en effectuant la connexion au port série
 
-q = queue.Queue()                                                       # Création d'une Pile "q"
+lidar = None
+q = queue.Queue()
 
-liste_points = [(0,0) for n in range(360)]                              # Liste des coordonnées des points qui seront détectés
+liste_points = [(0,0) for n in range(360)]
 
-x_robot = 1500                                                          # Coordonnées et angle du robot, en mm et rad
-y_robot = 1000                                                          # Convention : x vers la droite, y vers le haut, origine : coin en bas à gauche, sens trigo
+x_robot = 1500
+y_robot = 1000
 angle_robot = 0
 
 fig, ax = plt.subplots()
@@ -29,29 +29,31 @@ ax.set_aspect('equal')
 
 ################## Fonction run() ######################################
 def run():
+    lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)                       # Instanciation de l'objet "lidar" par la classe "RPLidar" en effectuant la connexion au port série
     
     print("INFO:", lidar.get_info())
     print("HEALTH:", lidar.get_health())
 
+    lidar.start_motor()
     global liste_points, x_robot, y_robot, angle_robot
     x_point = 0
     y_point = 0
+    
     angle_total = 0
 
     try:                                                                # On essaie
-        lidar.start_motor()
-        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096):       # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
-            for (quality, angle_point, distance) in scan:                           # Pour chaque facteur de qualité, angle et distance dans le scan
-                phi = math.radians(angle_point)                                     # Converti l'angle du point en rad
-                angle_total = angle_robot + phi                                     # Somme l'angle du point et l'angle du robot   
-                x_point = x_robot + distance * math.cos(angle_total)                # Calcule les coordonnées du point en prenant en compte les coordoneés et l'angle du robot
+        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096): # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
+            for (quality, angle_point, distance) in scan:
+                phi = math.radians(angle_point)   # angle_point en degrés (Lidar)
+                angle_total = phi - math.radians(angle_robot)        # tout en radians    
+                x_point = x_robot + distance * math.cos(angle_total)
                 y_point = y_robot - distance * math.sin(angle_total)
                 
                 # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
-                x_point = max(0, min(3000, int(x_point)))                           # Sature les coordonées du point
+                x_point = max(0, min(3000, int(x_point)))
                 y_point = max(0, min(2000, int(y_point)))
                 
-                q.put((x_point, y_point))                                           # Ajoute le point dans la file
+                q.put((x_point, y_point))  # envoie le point dans la queue
 
 
     except KeyboardInterrupt:                                           # Sauf en cas d'erreur d'interruption
