@@ -4,6 +4,11 @@ import math
 import threading, queue
 from collections import deque
 
+import os
+import sys
+
+if './CRAC2026' not in sys.path:
+    sys.path.insert(0, './CRAC2026')
 import AffichagePiste
 ########################################################################
 
