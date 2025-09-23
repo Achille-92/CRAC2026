@@ -42,6 +42,7 @@ def calcul_points(stop_event):
     Argument : flag "stop_event"
     Modification : variables globales "pile_points"
 
+    Utilisation :
     Création de l'objet "lidar"
     Calcul de l'angle total et des coordonnées des points
     Saturation des valeurs pour les limites de l'aire de jeu, puis pour oublier les bords
@@ -87,10 +88,19 @@ def calcul_points(stop_event):
         lidar.disconnect()
 
 
-
-
-
 def calcul_ennemi(pile_points, stop_event):
+    """
+    Arguments : pile_points, flag stop_event
+    Modification : pile_points, x_ennemi, y_ennemi, angle_ennemi, v_ennemi, x_ennemi_prev, y_ennemi_prev, t_ennemi_prev
+
+    Utilisation :
+    Récupére le haut de la pile, puis le remet dedans
+    Moyenne les coordonées des points de la pile, donne x_ennemi et y_ennemi
+    Prends un instant "t_now"
+    Calcule la variation en x, y et en temps du robot ennemi
+    Calcule l'angle_ennemi en degrée, et la vitesse_ennemi en mm/s
+    Met à jour x_ennemi_prev, y_ennemi_prev, t_ennemi_prev pour la boucle suivante
+    """
     global x_ennemi, y_ennemi, angle_ennemi, v_ennemi
     global x_ennemi_prev, y_ennemi_prev, t_ennemi_prev
 
@@ -116,7 +126,7 @@ def calcul_ennemi(pile_points, stop_event):
                 dy = y_ennemi - y_ennemi_prev
                 dt = t_now - t_ennemi_prev
                 if dt > 0:
-                    angle_ennemi = math.atan2(dy, dx)
+                    angle_ennemi = math.degrees(math.atan2(dy, dx)) # degrées
                     v_ennemi = math.sqrt(dx**2 + dy**2) / dt  # mm/s
 
             # Mise à jour des positions et temps précédent
@@ -125,8 +135,17 @@ def calcul_ennemi(pile_points, stop_event):
             t_ennemi_prev = t_now
 
 
-
 def affichage(x_robot, y_robot, stop_event):
+    """
+    Arguments : x_robot, y_robot, flag stop_event
+    Modifications : robot_plot, ennemi_plot, ennemi_vecteur, fig, ax
+
+    Utilisation :
+    Créée la fenêtre graphique avec les légendes, et affiche notre robot
+    Affiche le robot, et le robot ennemi
+    Calcule puis affiche le vecteur direction
+    Refresh toutes les 10ms
+    """
     global x_ennemi, y_ennemi, angle_ennemi
     global robot_plot, ennemi_plot, ennemi_vecteur
 
@@ -145,7 +164,7 @@ def affichage(x_robot, y_robot, stop_event):
 
     while not stop_event.is_set():
         if x_ennemi is not None and y_ennemi is not None:
-            # Barycentre
+            # Robot ennemi
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
             # Robot
             robot_plot.set_offsets([[x_robot, y_robot]])
