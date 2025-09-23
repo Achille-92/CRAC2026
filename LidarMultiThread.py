@@ -45,15 +45,15 @@ def run():
         for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096): # scan = [(quality,distance,angle),(quality,distance,angle), ... ,(quality,distance,angle)] pour un tour entier
             for (quality, angle_point, distance) in scan:
                 phi = math.radians(angle_point)   # angle_point en degrés (Lidar)
-                angle_total = phi - math.radians(angle_robot)        # tout en radians    
+                angle_total = phi - math.radians(angle_robot) - math.radians(90)     # tout en radians    
                 x_point = x_robot + distance * math.cos(angle_total)
                 y_point = y_robot - distance * math.sin(angle_total)
                 
                 # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
                 x_point = max(0, min(3000, int(x_point)))
                 y_point = max(0, min(2000, int(y_point)))
-                
-                q.put((x_point, y_point))  # envoie le point dans la queue
+                if x_point >= 10 and x_point <= 2990 and y_point >= 10 and y_point <= 1990 :
+                    q.put((x_point, y_point))  # envoie le point dans la queue
 
 
     except KeyboardInterrupt:                                           # Sauf en cas d'erreur d'interruption
@@ -67,7 +67,7 @@ def run():
 
 
 def affichage():
-    buffer_points = deque(maxlen=2000)
+    buffer_points = deque(maxlen=50)
     while True:
         try:
             try:
