@@ -1,0 +1,194 @@
+################## Librairies ##########################################
+from rplidar import RPLidar
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+import threading, queue
+from collections import deque
+import time
+########################################################################
+
+# Port série et Baudrate du lidar
+PORT_NAME = '/dev/ttyUSB0'
+BAUDRATE = 256000
+
+# Création de l'objet Lidar, et de la Pile pile_points
+lidar = None
+pile_points = queue.Queue()
+
+# Coordonnées et angle de notre robot
+x_robot = 1500
+y_robot = 1000
+angle_robot = 0
+
+# Coordonnées, angle et vitesse du robot ennemi
+x_ennemi = 0
+y_ennemi = 0
+angle_ennemi = 0
+x_ennemi_prev = None
+y_ennemi_prev = None
+t_ennemi_prev = None
+v_ennemi = 0
+
+# Objets et variables pour la fenêtre graphique
+fig = None 
+ax = None
+robot_plot = None
+scat = None
+
+################## Fonction  ###########################################
+def calcul_points(stop_event):
+    """
+    Argument : flag "stop_event"
+    Modification : variables globales "pile_points"
+
+    Création de l'objet "lidar"
+    Calcul de l'angle total et des coordonnées des points
+    Saturation des valeurs pour les limites de l'aire de jeu, puis pour oublier les bords
+    """
+
+    lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)                       # connexion au Lidar
+    
+    print("INFO:", lidar.get_info())                                    # Affichage d'informations propres au Lidar
+    print("HEALTH:", lidar.get_health())
+
+    lidar.start_motor()                                                 # Démarrage du moteur du Lidar
+    global  x_robot, y_robot, angle_robot
+    x_point = 0
+    y_point = 0
+
+    try:
+        # On lit les scans tant que le stop_event n’est pas activé
+        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096):
+            if stop_event.is_set():   # si on demande l’arrêt → on sort
+                break
+
+            for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
+                phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
+                angle_total = phi - math.radians(angle_robot) - math.radians(90)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+
+                x_point = x_robot + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
+                y_point = y_robot - distance * math.sin(angle_total)
+
+                # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
+                x_point = max(0, min(3000, int(x_point)))
+                y_point = max(0, min(2000, int(y_point)))
+
+                if 10 <= x_point <= 2990 and 10 <= y_point <= 1990:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                    pile_points.put((x_point, y_point))
+
+    except Exception as e:                                                      # En cas d'exception on affiche l'erreur
+        print("Erreur dans le thread Lidar:", e)
+    finally:                                                                    # Et on arrête le Lidar
+        # Nettoyage du Lidar
+        print("Arrêt du Lidar...")
+        lidar.stop()
+        lidar.stop_motor()
+        lidar.disconnect()
+
+
+
+
+
+def calcul_ennemi(pile_points, stop_event):
+    global x_ennemi, y_ennemi, angle_ennemi, v_ennemi
+    global x_ennemi_prev, y_ennemi_prev, t_ennemi_prev
+
+    buffer_points = deque(maxlen=500)
+
+    while not stop_event.is_set():
+        try:
+            # Récupère un point du Lidar
+            p = pile_points.get(timeout=0.1)
+            buffer_points.append(p)
+        except queue.Empty:
+            pass
+
+        # Calcul barycentre, angle et vitesse
+        if buffer_points:
+            xs, ys = zip(*buffer_points)
+            x_ennemi = np.mean(xs)
+            y_ennemi = np.mean(ys)
+
+            t_now = time.time()
+            if x_ennemi_prev is not None and y_ennemi_prev is not None and t_ennemi_prev is not None:
+                dx = x_ennemi - x_ennemi_prev
+                dy = y_ennemi - y_ennemi_prev
+                dt = t_now - t_ennemi_prev
+                if dt > 0:
+                    angle_ennemi = math.atan2(dy, dx)
+                    v_ennemi = math.sqrt(dx**2 + dy**2) / dt  # mm/s
+
+            # Mise à jour des positions et temps précédent
+            x_ennemi_prev = x_ennemi
+            y_ennemi_prev = y_ennemi
+            t_ennemi_prev = t_now
+
+
+
+def affichage(x_robot, y_robot, stop_event):
+    global x_ennemi, y_ennemi, angle_ennemi
+    global robot_plot, ennemi_plot, ennemi_vecteur
+
+    fig, ax = plt.subplots()
+    plt.ion()
+    plt.show()
+
+    # Scatter pour les objets
+    robot_plot = ax.scatter([x_robot], [y_robot], s=50, c='red', marker='x')
+    ennemi_plot = ax.scatter([], [], s=50, c='green', marker='o')
+    ennemi_vecteur, = ax.plot([], [], c='orange', linewidth=2)
+
+    ax.set_xlim(0, 3000)
+    ax.set_ylim(0, 2000)
+    ax.set_aspect('equal')
+
+    while not stop_event.is_set():
+        if x_ennemi is not None and y_ennemi is not None:
+            # Barycentre
+            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
+            # Robot
+            robot_plot.set_offsets([[x_robot, y_robot]])
+            # Vecteur direction
+            L = 100
+            x_fin = x_ennemi + L * math.cos(angle_ennemi)
+            y_fin = y_ennemi + L * math.sin(angle_ennemi)
+            ennemi_vecteur.set_data([x_ennemi, x_fin], [y_ennemi, y_fin])
+
+        plt.pause(0.01)
+
+
+########################################################################
+
+################## Lancement du programme principal ####################
+
+if __name__ == '__main__':
+
+    stop_event = threading.Event()
+
+    # Thread Lidar
+    tache_lidar = threading.Thread(target=calcul_points, args=(stop_event), daemon=False)
+    # Thread calcul ennemi
+    tache_calcul = threading.Thread(target=calcul_ennemi, args=(pile_points, stop_event), daemon=False)
+    # Thread affichage
+    tache_affichage = threading.Thread(target=affichage, args=(x_robot, y_robot, stop_event), daemon=False)
+
+    tache_lidar.start()
+    tache_calcul.start()
+    tache_affichage.start()
+
+
+    try:
+        while True:
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        print("Arrêt demandé par l'utilisateur.")
+        stop_event.set()  # signal aux threads de s'arrêter
+        # Attente que chaque thread termine proprement
+        tache_lidar.join()
+        tache_calcul.join()
+        tache_affichage.join()
+        print("Programme terminé proprement.")
+
+
+########################################################################
