@@ -1,0 +1,14 @@
+youssef@youssef:~/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG $  cd /home/youssef/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG ; /usr/bin/env /bin/python /home/youssef/.vscode/extensions/ms-python.debugpy-2025.10.0-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 45461 -- /home/youssef/Desktop/CRAC2026/AffichagePoints.py 
+Exception in thread Thread-6 (calcul_points):
+Traceback (most recent call last):
+  File "/usr/lib/python3.11/threading.py", line 1038, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.11/threading.py", line 975, in run
+    self._target(*self._args, **self._kwargs)
+TypeError: __main__.calcul_points() argument after * must be an iterable, not Event
+/home/youssef/Desktop/CRAC2026/AffichagePoints.py:152: UserWarning: Starting a Matplotlib GUI outside of the main thread will likely fail.
+  fig, ax = plt.subplots()
+/home/youssef/Desktop/CRAC2026/AffichagePoints.py:154: UserWarning: Starting a Matplotlib GUI outside of the main thread will likely fail.
+  plt.show()
+/home/youssef/Desktop/CRAC2026/AffichagePoints.py:177: UserWarning: Starting a Matplotlib GUI outside of the main thread will likely fail.
+  plt.pause(0.01)
