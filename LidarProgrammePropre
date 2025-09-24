@@ -120,7 +120,7 @@ def calcul_ennemi(pile_points, stop_event):
             x_ennemi = np.mean(xs)
             y_ennemi = np.mean(ys)
 
-            t_now = time.time()
+            """t_now = time.time()
             if x_ennemi_prev is not None and y_ennemi_prev is not None and t_ennemi_prev is not None:
                 dx = x_ennemi - x_ennemi_prev
                 dy = y_ennemi - y_ennemi_prev
@@ -132,7 +132,7 @@ def calcul_ennemi(pile_points, stop_event):
             # Mise à jour des positions et temps précédent
             x_ennemi_prev = x_ennemi
             y_ennemi_prev = y_ennemi
-            t_ennemi_prev = t_now
+            t_ennemi_prev = t_now"""
 
 
 def affichage(x_robot, y_robot, stop_event):
@@ -169,10 +169,10 @@ def affichage(x_robot, y_robot, stop_event):
             # Robot
             robot_plot.set_offsets([[x_robot, y_robot]])
             # Vecteur direction
-            L = 100
+            """L = 100
             x_fin = x_ennemi + L * math.cos(angle_ennemi)
             y_fin = y_ennemi + L * math.sin(angle_ennemi)
-            ennemi_vecteur.set_data([x_ennemi, x_fin], [y_ennemi, y_fin])
+            ennemi_vecteur.set_data([x_ennemi, x_fin], [y_ennemi, y_fin])"""
 
         plt.pause(0.01)
 
@@ -186,11 +186,11 @@ if __name__ == '__main__':
     stop_event = threading.Event()
 
     # Thread Lidar
-    tache_lidar = threading.Thread(target=calcul_points, args=(stop_event), daemon=False)
+    tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
     # Thread calcul ennemi
-    tache_calcul = threading.Thread(target=calcul_ennemi, args=(pile_points, stop_event), daemon=False)
+    tache_calcul = threading.Thread(target=calcul_ennemi, args=(pile_points, stop_event,), daemon=False)
     # Thread affichage
-    tache_affichage = threading.Thread(target=affichage, args=(x_robot, y_robot, stop_event), daemon=False)
+    tache_affichage = threading.Thread(target=affichage, args=(x_robot, y_robot, stop_event,), daemon=False)
 
     tache_lidar.start()
     tache_calcul.start()
