@@ -14,8 +14,8 @@ BAUDRATE = 256000
 
 # Création de l'objet Lidar, et de la Pile pile_points
 lidar = None
-pile_affichage = queue.Queue()
-pile_calcul = queue.Queue()
+pile_affichage = queue.Queue(maxsize=1000)
+pile_calcul = queue.Queue(maxsize=500)
 
 # Coordonnées et angle de notre robot
 x_robot = 1500
@@ -25,14 +25,6 @@ angle_robot = 0
 # Coordonnées, angle et vitesse du robot ennemi
 x_ennemi = 0
 y_ennemi = 0
-angle_ennemi = 0
-v_ennemi = 0
-
-# Objets et variables pour la fenêtre graphique
-fig = None 
-ax = None
-robot_plot = None
-scat = None
 
 ################## Fonction  ###########################################
 def calcul_points(stop_event):
@@ -87,18 +79,14 @@ def calcul_points(stop_event):
         lidar.disconnect()
 
 
-def calcul_ennemi(pile_points, stop_event):
+def calcul_ennemi(stop_event):
     """
-    Arguments : pile_points, flag stop_event
-    Modification : pile_points, x_ennemi, y_ennemi, angle_ennemi, v_ennemi
+    Arguments : flag stop_event
+    Modification : pile_calcul, x_ennemi, y_ennemi
 
     Utilisation :
-    Récupére le haut de la pile, puis le remet dedans
+    Récupére le haut de la pile_calcul, puis le remet dedans
     Moyenne les coordonées des points de la pile, donne x_ennemi et y_ennemi
-    Prends un instant "t_now"
-    Calcule la variation en x, y et en temps du robot ennemi
-    Calcule l'angle_ennemi en degrée, et la vitesse_ennemi en mm/s
-    Met à jour x_ennemi_prev, y_ennemi_prev, t_ennemi_prev pour la boucle suivante
     """
     global x_ennemi, y_ennemi
 
@@ -107,7 +95,7 @@ def calcul_ennemi(pile_points, stop_event):
     while not stop_event.is_set():
         try:
             # Récupère un point du Lidar
-            p = pile_points.get(timeout=0.1)
+            p = pile_calcul.get(timeout=0.1)
             buffer_points.append(p)
         except queue.Empty:
             pass
@@ -119,19 +107,18 @@ def calcul_ennemi(pile_points, stop_event):
             y_ennemi = np.mean(ys)
 
 
-def affichage(x_robot, y_robot, stop_event):
+def affichage(stop_event):
     """
-    Arguments : x_robot, y_robot, flag stop_event
-    Modifications : robot_plot, ennemi_plot, ennemi_vecteur, fig, ax
+    Arguments : flag stop_event
+    Modifications : pile_affichage, robot_plot, ennemi_plot, fig, ax
 
     Utilisation :
     Créée la fenêtre graphique avec les légendes, et affiche notre robot
-    Affiche le robot, et le robot ennemi
-    Calcule puis affiche le vecteur direction
-    Refresh toutes les 10ms
+    Affiche le robot, les points détectés par le Lidar, et le barycentre du robot ennemi
+    Rafraichissement toutes les 10ms
     """
-    global x_ennemi, y_ennemi, angle_ennemi
-    global robot_plot, ennemi_plot, ennemi_vecteur
+    global x_ennemi, y_ennemi, x_robot, y_robot
+    # Objets et variables pour la fenêtre graphique
 
     fig, ax = plt.subplots()
     plt.ion()
@@ -140,7 +127,6 @@ def affichage(x_robot, y_robot, stop_event):
     # Scatter pour les objets
     robot_plot = ax.scatter([x_robot], [y_robot], s=50, c='red', marker='x')
     ennemi_plot = ax.scatter([], [], s=50, c='green', marker='o')
-    ennemi_vecteur, = ax.plot([], [], c='orange', linewidth=2)
     scat = ax.scatter([], [], s=5, c='blue', alpha=0.5)
 
     ax.set_xlim(0, 3000)
@@ -166,9 +152,8 @@ def affichage(x_robot, y_robot, stop_event):
             # met à jour la position du robot (fixe dans ton cas)
             robot_plot.set_offsets([[x_robot, y_robot]])
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
-            
-            fig.canvas.draw()
-            fig.canvas.flush_events()
+
+            time.sleep(0.01)
 
 
 ########################################################################
@@ -182,9 +167,9 @@ if __name__ == '__main__':
     # Thread Lidar
     tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
     # Thread calcul ennemi
-    tache_calcul = threading.Thread(target=calcul_ennemi, args=(pile_calcul, stop_event,), daemon=False)
+    tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
     # Thread affichage
-    tache_affichage = threading.Thread(target=affichage, args=(x_robot, y_robot, stop_event,), daemon=False)
+    tache_affichage = threading.Thread(target=affichage, args=(stop_event,), daemon=False)
 
     tache_lidar.start()
     tache_calcul.start()
