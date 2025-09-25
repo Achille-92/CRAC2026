@@ -1,6 +1,6 @@
-youssef@youssef:~/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG $  cd /home/youssef/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG ; /usr/bin/env /bin/python /home/youssef/.vscode/extensions/ms-python.debugpy-2025.10.0-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 39281 -- /home/youssef/Desktop/CRAC2026/AffichagePoints.py 
-INFO: {'model': 44, 'firmware': (1, 32), 'hardware': 6, 'serialnumber': '7AA6ED93C0EA98C6C2E29EF5887C4061'}
-HEALTH: ('Good', 0)
-Erreur dans le thread Lidar: Invalid checksum (bytearray(b'\xa2P\x1a?O1\x03\x00\xdd\xb34c6\xddW7_8\xdd\xeb8\xef8\xdd\xbb8\x978\xddS8\xef7\xdd\xff7\xcf7\xdd\xc37s7\xddG7\x137\xdd\xe76\xbf6\xdd\x9f6\x03\x00M\xb7\r\xa3\r4\x93\r\x93\r3\x8f\r1\xdd\xdb1\xe31\xdd\xfb1\x132\xddW'))
-Arrêt du Lidar...
-^CArrêt demandé par l'utilisateur.
+Exception has occurred: AttributeError
+'NoneType' object has no attribute 'scatter'
+  File "/home/youssef/Desktop/CRAC2026/AffichagePoints.py", line 127, in affichage
+    robot_plot = ax.scatter([x_robot], [y_robot], s=50, c='red', marker='x')
+                 ^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'scatter'
