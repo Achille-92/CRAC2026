@@ -117,53 +117,6 @@ def calcul_ennemi(stop_event):
             x_prec, y_prec = x_new, y_new
 
 
-def affichage(stop_event):
-    """
-    Arguments : flag stop_event
-    Modifications : pile_affichage, robot_plot, ennemi_plot, fig, ax
-
-    Utilisation :
-    Créée la fenêtre graphique avec les légendes, et affiche notre robot
-    Affiche le robot, les points détectés par le Lidar, et le barycentre du robot ennemi
-    Rafraichissement toutes les 10ms
-    """
-    global x_ennemi, y_ennemi, x_robot, y_robot, fig, ax
-
-
-    # Scatter pour les objets
-    robot_plot = ax.scatter([x_robot], [y_robot], s=50, c='red', marker='x')
-    ennemi_plot = ax.scatter([], [], s=50, c='green', marker='o')
-    scat = ax.scatter([], [], s=5, c='blue', alpha=0.5)
-
-    ax.set_xlim(0, 3000)
-    ax.set_ylim(0, 2000)
-    ax.set_aspect('equal')
-
-    buffer_points = deque(maxlen=500)
-
-    try:
-        p = pile_affichage.get(timeout=0.1)
-        buffer_points.append(p)
-    except queue.Empty:
-        pass
-
-    while not pile_affichage.empty():
-        buffer_points.append(pile_affichage.get_nowait())
-
-    if buffer_points:
-        xs, ys = zip(*buffer_points)
-        scat.set_offsets(np.c_[xs, ys])
-
-        # met à jour la position du robot (fixe dans ton cas)
-        robot_plot.set_offsets([[x_robot, y_robot]])
-        ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
-
-        time.sleep(0.01)
-
-        fig.canvas.draw()
-        fig.canvas.flush_events()
-
-
 ########################################################################
 
 ################## Lancement du programme principal ####################
