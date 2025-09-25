@@ -1,58 +1,33 @@
-if __name__ == '__main__':
-
-    stop_event = threading.Event()
-
-    # Objets et variables pour la fenêtre graphique
-    fig, ax = plt.subplots()
-    plt.ion()
-    plt.show()
-
-    # Scatter pour les objets
-    robot_plot = ax.scatter([x_robot], [y_robot], s=50, c='red', marker='x')
-    ennemi_plot = ax.scatter([], [], s=50, c='green', marker='o')
-    scat = ax.scatter([], [], s=5, c='blue', alpha=0.5)
-
-    ax.set_xlim(0, 3000)
-    ax.set_ylim(0, 2000)
-    ax.set_aspect('equal')
-
-    # Threads secondaires
-    tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
-    tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
-
-    tache_lidar.start()
-    tache_calcul.start()
+def calcul_ennemi(stop_event):
+    global x_ennemi, y_ennemi, angle_ennemi
 
     buffer_points = deque(maxlen=500)
+    x_prec, y_prec = None, None
+    angle_ennemi = 0  # initialisation
 
-    try:
-        while True:
-            # Récupérer les points d’affichage
-            try:
-                p = pile_affichage.get(timeout=0.01)
-                buffer_points.append(p)
-            except queue.Empty:
-                pass
+    while not stop_event.is_set():
+        try:
+            # Récupère un point du Lidar
+            p = pile_calcul.get(timeout=0.1)
+            buffer_points.append(p)
+        except queue.Empty:
+            pass
 
-            while not pile_affichage.empty():
-                buffer_points.append(pile_affichage.get_nowait())
+        # Calcul barycentre
+        if buffer_points:
+            xs, ys = zip(*buffer_points)
+            x_new = np.mean(xs)
+            y_new = np.mean(ys)
 
-            if buffer_points:
-                xs, ys = zip(*buffer_points)
-                scat.set_offsets(np.c_[xs, ys])
+            # Calcul direction si on a déjà un point précédent
+            if x_prec is not None and y_prec is not None:
+                dx = x_new - x_prec
+                dy = y_new - y_prec
+                if dx != 0 or dy != 0:  # éviter division par zéro
+                    angle_ennemi = math.degrees(math.atan2(dy, dx))
+                    if angle_ennemi < 0:
+                        angle_ennemi += 360
 
-            # Mettre à jour robot et ennemi
-            robot_plot.set_offsets([[x_robot, y_robot]])
-            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
-
-            fig.canvas.draw()
-            fig.canvas.flush_events()
-            time.sleep(0.01)
-
-    except KeyboardInterrupt:
-        print("Arrêt demandé par l'utilisateur.")
-        stop_event.set()  # signal aux threads de s'arrêter
-        # Attente que chaque thread termine proprement
-        tache_lidar.join()
-        tache_calcul.join()
-        print("Programme terminé proprement.")
+            # Mise à jour coordonnées actuelles
+            x_ennemi, y_ennemi = x_new, y_new
+            x_prec, y_prec = x_new, y_new
