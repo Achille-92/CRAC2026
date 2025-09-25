@@ -26,6 +26,9 @@ angle_robot = 0
 x_ennemi = 0
 y_ennemi = 0
 
+fig = None
+ax = None
+
 ################## Fonction  ###########################################
 def calcul_points(stop_event):
     """
@@ -107,7 +110,7 @@ def calcul_ennemi(stop_event):
             y_ennemi = np.mean(ys)
 
 
-def affichage(fig,ax):
+def affichage(stop_event):
     """
     Arguments : flag stop_event
     Modifications : pile_affichage, robot_plot, ennemi_plot, fig, ax
@@ -117,8 +120,7 @@ def affichage(fig,ax):
     Affiche le robot, les points détectés par le Lidar, et le barycentre du robot ennemi
     Rafraichissement toutes les 10ms
     """
-    global x_ennemi, y_ennemi, x_robot, y_robot
-    # Objets et variables pour la fenêtre graphique
+    global x_ennemi, y_ennemi, x_robot, y_robot, fig, ax
 
 
     # Scatter pour les objets
@@ -163,32 +165,31 @@ if __name__ == '__main__':
 
     stop_event = threading.Event()
 
-    fig, ax = plt.subplots()
-    plt.ion()
-    plt.show()
-
     # Thread Lidar
     tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
     # Thread calcul ennemi
     tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
     # Thread affichage
-    #tache_affichage = threading.Thread(target=affichage, args=(fig,ax), daemon=False)
+    tache_affichage = threading.Thread(target=affichage, args=(stop_event,), daemon=False)
 
     tache_lidar.start()
-    tache_calcul.start()
-    #tache_affichage.start()
+    #tache_calcul.start()
+    tache_affichage.start()
 
     try:
+        # Objets et variables pour la fenêtre graphique
+        fig, ax = plt.subplots()
+        plt.ion()
+        plt.show()
         while True:
-            affichage(fig,ax)
             time.sleep(0.1)
     except KeyboardInterrupt:
         print("Arrêt demandé par l'utilisateur.")
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
         tache_lidar.join()
-        tache_calcul.join()
-        #tache_affichage.join()
+        #tache_calcul.join()
+        tache_affichage.join()
         print("Programme terminé proprement.")
 
 
