@@ -90,7 +90,7 @@ def calcul_ennemi(stop_event):
     """
     global x_ennemi, y_ennemi
 
-    buffer_points = deque(maxlen=50)
+    buffer_points = deque(maxlen=500)
 
     while not stop_event.is_set():
         try:
@@ -130,7 +130,7 @@ def affichage(fig,ax):
     ax.set_ylim(0, 2000)
     ax.set_aspect('equal')
 
-    buffer_points = deque(maxlen=50)
+    buffer_points = deque(maxlen=500)
 
     try:
         p = pile_affichage.get(timeout=0.1)
@@ -151,6 +151,9 @@ def affichage(fig,ax):
 
         time.sleep(0.01)
 
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+
 
 ########################################################################
 
@@ -169,10 +172,11 @@ if __name__ == '__main__':
     # Thread calcul ennemi
     tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
     # Thread affichage
-    #tache_affichage = threading.Thread(target=affichage, args=(stop_event,fig,ax), daemon=False)
+    #tache_affichage = threading.Thread(target=affichage, args=(fig,ax), daemon=False)
 
     tache_lidar.start()
     tache_calcul.start()
+    #tache_affichage.start()
 
     try:
         while True:
@@ -184,6 +188,7 @@ if __name__ == '__main__':
         # Attente que chaque thread termine proprement
         tache_lidar.join()
         tache_calcul.join()
+        #tache_affichage.join()
         print("Programme terminé proprement.")
 
 
