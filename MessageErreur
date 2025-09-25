@@ -1,7 +1,6 @@
-youssef@youssef:~/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG $  cd /home/youssef/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG ; /usr/bin/env /bin/python /home/youssef/.vscode/extensions/ms-python.debugpy-2025.10.0-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 52033 -- /home/youssef/Desktop/CRAC2026/AffichagePoints.py 
-INFO: {'model': 44, 'firmware': (1, 32), 'hardware': 6, 'serialnumber': '7AA6ED93C0EA98C6C2E29EF5887C4061'}
-HEALTH: ('Good', 0)
-/home/youssef/Desktop/CRAC2026/AffichagePoints.py:123: UserWarning: Starting a Matplotlib GUI outside of the main thread will likely fail.
-  fig, ax = plt.subplots()
-/home/youssef/Desktop/CRAC2026/AffichagePoints.py:125: UserWarning: Starting a Matplotlib GUI outside of the main thread will likely fail.
-  plt.show()
+Exception has occurred: RuntimeError
+main thread is not in main loop
+  File "/home/youssef/Desktop/CRAC2026/AffichagePoints.py", line 125, in affichage
+    robot_plot = ax.scatter([x_robot], [y_robot], s=50, c='red', marker='x')
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: main thread is not in main loop
