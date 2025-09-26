@@ -14,7 +14,6 @@ BAUDRATE = 256000
 
 # Création de l'objet Lidar, et de la Pile pile_points
 lidar = None
-pile_affichage = queue.Queue(maxsize=1000)
 pile_calcul = queue.Queue(maxsize=500)
 
 # Coordonnées et angle de notre robot
@@ -69,7 +68,6 @@ def calcul_points(stop_event):
                 y_point = max(0, min(2000, int(y_point)))
 
                 if 1 <= x_point <= 2999 and 1 <= y_point <= 1999:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
-                    pile_affichage.put((x_point, y_point))
                     pile_calcul.put((x_point, y_point))
 
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
@@ -143,19 +141,6 @@ if __name__ == '__main__':
 
     try:
         while True:
-            # Récupérer les points d’affichage
-            try:
-                p = pile_affichage.get(timeout=0.01)
-                buffer_points.append(p)
-            except queue.Empty:
-                pass
-
-            while not pile_affichage.empty():
-                buffer_points.append(pile_affichage.get_nowait())
-
-            if buffer_points:
-                xs, ys = zip(*buffer_points)
-                #scat.set_offsets(np.c_[xs, ys])
 
             # Mettre à jour robot et ennemi
             robot_plot.set_offsets([[x_robot, y_robot]])
