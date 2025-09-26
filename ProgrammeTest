@@ -24,6 +24,7 @@ angle_robot = 0
 # Coordonnées, angle et vitesse du robot ennemi
 x_ennemi = 0
 y_ennemi = 0
+angle_ennemi = 0
 
 fig = None
 ax = None
@@ -166,7 +167,7 @@ if __name__ == '__main__':
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
 
             print(f"Ennemi: x={x_ennemi:.1f}, y={y_ennemi:.1f}, angle={angle_ennemi:.1f}°")
-            
+
             fig.canvas.draw()
             fig.canvas.flush_events()
             time.sleep(0.01)
