@@ -144,6 +144,7 @@ if __name__ == '__main__':
     # Scatter pour les objets
     robot_plot = ax.scatter([x_robot], [y_robot], s=50, c='red', marker='x')
     ennemi_plot = ax.scatter([], [], s=50, c='green', marker='o')
+    angle_text = ax.text(50, 1900, "", fontsize=12, color="green")
     scat = ax.scatter([], [], s=5, c='blue', alpha=0.5)
 
     ax.set_xlim(0, 3000)
@@ -166,7 +167,10 @@ if __name__ == '__main__':
             robot_plot.set_offsets([[x_robot, y_robot]])
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
 
-            print(f"Ennemi: x={x_ennemi:.1f}, y={y_ennemi:.1f}, angle={angle_ennemi:.1f}°")
+            if angle_ennemi is not None:
+                angle_text.set_text(f"Angle ennemi: {angle_ennemi:.1f}°")
+            else:
+                angle_text.set_text("Angle ennemi: --")
 
             fig.canvas.draw()
             fig.canvas.flush_events()
