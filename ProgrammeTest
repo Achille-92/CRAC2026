@@ -14,12 +14,11 @@ BAUDRATE = 256000
 
 # Création de l'objet Lidar, et de la Pile pile_points
 lidar = None
-pile_affichage = queue.Queue(maxsize=1000)
 pile_calcul = queue.Queue(maxsize=500)
 
 # Coordonnées et angle de notre robot
 x_robot = 130
-y_robot = 150
+y_robot = 130
 angle_robot = 0
 
 # Coordonnées, angle et vitesse du robot ennemi
@@ -53,13 +52,13 @@ def calcul_points(stop_event):
 
     try:
         # On lit les scans tant que le stop_event n’est pas activé
-        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=8192):
+        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096):
             if stop_event.is_set():   # si on demande l’arrêt → on sort
                 break
 
             for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
                 phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
-                angle_total = phi - math.radians(angle_robot) - math.radians(95)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+                angle_total = phi - math.radians(angle_robot) - math.radians(98)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
 
                 x_point = x_robot + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
                 y_point = y_robot - distance * math.sin(angle_total)
@@ -68,9 +67,8 @@ def calcul_points(stop_event):
                 x_point = max(0, min(3000, int(x_point)))
                 y_point = max(0, min(2000, int(y_point)))
 
-                #if 10 <= x_point <= 2990 and 10 <= y_point <= 1990:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
-                pile_affichage.put((x_point, y_point))
-                pile_calcul.put((x_point, y_point))
+                if 1 <= x_point <= 2999 and 1 <= y_point <= 1999:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                    pile_calcul.put((x_point, y_point))
 
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
         print("Erreur dans le thread Lidar:", e)
@@ -83,11 +81,19 @@ def calcul_points(stop_event):
 
 
 def calcul_ennemi(stop_event):
+    """
+    Arguments : flag stop_event
+    Modification : pile_calcul, x_ennemi, y_ennemi, angle_ennemi
+
+    Utilisation :
+    Récupère les points de la pile_calcul,
+    calcule le barycentre (x_ennemi, y_ennemi),
+    estime la direction de déplacement de l’ennemi.
+    """
     global x_ennemi, y_ennemi, angle_ennemi
 
     buffer_points = deque(maxlen=50)
-    x_prec, y_prec = None, None
-    angle_ennemi = 0  # initialisation
+    history = deque(maxlen=10)  # positions successives de l’ennemi
 
     while not stop_event.is_set():
         try:
@@ -100,21 +106,25 @@ def calcul_ennemi(stop_event):
         # Calcul barycentre
         if buffer_points:
             xs, ys = zip(*buffer_points)
-            x_new = np.mean(xs)
-            y_new = np.mean(ys)
+            x_ennemi = np.mean(xs)
+            y_ennemi = np.mean(ys)
 
-            # Calcul direction si on a déjà un point précédent
-            if x_prec is not None and y_prec is not None:
-                dx = x_new - x_prec
-                dy = y_new - y_prec
-                if dx != 0 or dy != 0:  # éviter division par zéro
-                    angle_ennemi = 90+math.degrees(math.atan2(dy, dx))
-                    if angle_ennemi < 0:
-                        angle_ennemi += 360
+            # Sauvegarde de la position courante
+            history.append((x_ennemi, y_ennemi))
 
-            # Mise à jour coordonnées actuelles
-            x_ennemi, y_ennemi = x_new, y_new
-            x_prec, y_prec = x_new, y_new
+            # Calcul de la direction si on a assez d’historique
+            if len(history) >= 2:
+                # vecteur déplacement = dernier - plus ancien (pour lisser)
+                x0, y0 = history[0]
+                x1, y1 = history[-1]
+                dx = x1 - x0
+                dy = y1 - y0
+
+                if dx != 0 or dy != 0:
+                    angle_ennemi = math.degrees(math.atan2(dy, dx)) % 360
+                else:
+                    angle_ennemi = None  # immobile
+
 
 
 ########################################################################
@@ -150,28 +160,14 @@ if __name__ == '__main__':
 
     try:
         while True:
-            # Récupérer les points d’affichage
-            try:
-                p = pile_affichage.get(timeout=0.01)
-                buffer_points.append(p)
-            except queue.Empty:
-                pass
-
-            while not pile_affichage.empty():
-                buffer_points.append(pile_affichage.get_nowait())
-
-            if buffer_points:
-                xs, ys = zip(*buffer_points)
-                scat.set_offsets(np.c_[xs, ys])
 
             # Mettre à jour robot et ennemi
             robot_plot.set_offsets([[x_robot, y_robot]])
-            #ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
+            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
 
             fig.canvas.draw()
             fig.canvas.flush_events()
             time.sleep(0.01)
-            print(int(angle_ennemi))
 
     except KeyboardInterrupt:
         print("Arrêt demandé par l'utilisateur.")
