@@ -78,12 +78,14 @@ void loop()
   */
   /////////////////////////////////////////////// calcule angle + coordonnées
 
-  delta_x = pos_fin[0] - pos_act[0];
+delta_x = pos_fin[0] - pos_act[0];
   delta_y = pos_fin[1] - pos_act[1];
-  teta = atan(delta_x / delta_y);
+  teta = atan2(delta_y, delta_x);
   diff_teta = teta_act - teta;
   teta_act = (distance_droit - distance_gauche) / (20 * Rayon);
-  teta_act_deg = (teta_act * 180) / PI;
+  teta_act_deg = (teta_act * 180.0) / PI;
+  teta_deg = (teta * 180.0) / PI;
+  diff_deg = (diff_teta * 180.0) / PI;
 
   pos_act[0] = pos_act[0] + (cos(teta_act) * ((diff_dist_droit + diff_dist_gauche) / 2));
   pos_act[1] = pos_act[1] + (sin(teta_act) * ((diff_dist_gauche + diff_dist_droit) / 2));
