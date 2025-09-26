@@ -25,6 +25,10 @@ angle_robot = 0
 x_ennemi = 0
 y_ennemi = 0
 angle_ennemi = 0
+x_ennemi_prev = None
+y_ennemi_prev = None
+t_ennemi_prev = None
+v_ennemi = 0
 
 fig = None
 ax = None
@@ -91,10 +95,10 @@ def calcul_ennemi(stop_event):
     calcule le barycentre (x_ennemi, y_ennemi),
     estime la direction de déplacement de l’ennemi.
     """
-    global x_ennemi, y_ennemi, angle_ennemi
+    global x_ennemi, y_ennemi, angle_ennemi, v_ennemi
+    global x_ennemi_prev, y_ennemi_prev, t_ennemi_prev
 
     buffer_points = deque(maxlen=50)
-    history = deque(maxlen=10)  # positions successives de l’ennemi
 
     while not stop_event.is_set():
         try:
@@ -110,21 +114,19 @@ def calcul_ennemi(stop_event):
             x_ennemi = np.mean(xs)
             y_ennemi = np.mean(ys)
 
-            # Sauvegarde de la position courante
-            history.append((x_ennemi, y_ennemi))
+            t_now = time.time()
+            if x_ennemi_prev is not None and y_ennemi_prev is not None and t_ennemi_prev is not None:
+                dx = x_ennemi - x_ennemi_prev
+                dy = y_ennemi - y_ennemi_prev
+                dt = t_now - t_ennemi_prev
+                if dt > 0:
+                    angle_ennemi = math.degrees(math.atan2(dy, dx)) # degrées
+                    v_ennemi = math.sqrt(dx**2 + dy**2) / dt  # mm/s
 
-            # Calcul de la direction si on a assez d’historique
-            if len(history) >= 2:
-                # vecteur déplacement = dernier - plus ancien (pour lisser)
-                x0, y0 = history[0]
-                x1, y1 = history[-1]
-                dx = x1 - x0
-                dy = y1 - y0
-
-                if dx != 0 or dy != 0:
-                    angle_ennemi = math.degrees(math.atan2(dy, dx)) % 360
-                else:
-                    angle_ennemi = None  # immobile
+            # Mise à jour des positions et temps précédent
+            x_ennemi_prev = x_ennemi
+            y_ennemi_prev = y_ennemi
+            t_ennemi_prev = t_now
 
 
 
