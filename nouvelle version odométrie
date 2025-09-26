@@ -1,0 +1,278 @@
+#include <Arduino.h>
+#include <Wire.h>
+#include <DualVNH5019MotorShield.h>
+#include <ESP32Encoder.h>
+#include <BluetoothSerial.h>
+
+void Asserv(void *);
+
+int tic_gauche = 0;
+int tic_droit = 0;
+float tour_gauche = 0;
+float tour_droit = 0;
+float distance_droit = 0, old_dist_droit = 0, diff_dist_droit = 0;
+float distance_gauche = 0, old_dist_gauche = 0, diff_dist_gauche = 0;
+float dist = 0, teta = 0, delta_x = 0, delta_y = 0, teta_act = 0, diff_teta = 0, teta_act_deg = 0, teta_deg = 0, diff_deg = 0;
+float pos_act[2] = {105, 120}, pos_fin[2] = {105, 120}, erreur_droit = 0, erreur_gauche = 0, Kp = 1, Kd = 1, old_erreur_droit = 0, old_erreur_gauche = 0, cmd = 0;
+int VIT_gauche = 0, VIT_droit = 0, etat = 0, i = 0, temp = 0;
+int tic_Sd = 0, old_tic_droit = 0, diff_tic_droit = 0, tic_Md = 0, old_diff_tic_droit = 0, old_VIT_droit = 0, tic_Mda = 0, VIT_Ad = 0;
+int tic_Sg = 0, old_tic_gauche = 0, diff_tic_gauche = 0, tic_Mg = 0, old_diff_tic_gauche = 0, old_VIT_gauche = 0, tic_Mga = 0, VIT_Ag = 0;
+float kpd = 0.06, kdd = 0.5, kpg = 0.06, kdg = 0.5, kpda = 0.4, kpga = 0.4;
+float err_x = 0, err_y = 0, Vg = 0, Vd = 0, VIT = 0, Acc = 0, Dec = 0, Vo = 10, Pos = 0, Te = 5, accg = 0, accd = 0, old_Vd = 0, old_Vg = 0, Adm = 0, Agm = 0, Vdm = 0, Vgm = 0;
+
+const float tic_tour_droit = 4121.7, tic_tour_gauche = 4052, Rayon = 11;
+BluetoothSerial Bt;
+DualVNH5019MotorShield md;
+ESP32Encoder encoder;
+ESP32Encoder encoder2;
+TaskHandle_t Asservissement;
+
+void setup()
+{
+  Serial.begin(115200);
+  Bt.begin("TEST");
+  md.init(); // Initialise le shield
+  ESP32Encoder::useInternalWeakPullResistors = puType::up;
+
+  // use pin 19 and 18 for the first encoder
+  encoder.attachFullQuad(36, 39);
+  // use pin 17 and 16 for the second encoder
+  encoder2.attachFullQuad(23, 22);
+
+  // set starting count value after attaching
+  encoder.setCount(0);
+  encoder2.setCount(0);
+  md.setSpeeds(0, 0);
+
+  // clear the encoder's raw count and set the tracked count to zero
+  //
+  Serial.println("Encoder Start = " + String((int32_t)encoder.getCount()));
+  xTaskCreate(Asserv, "Asserv", 32000, NULL, 15, &Asservissement);
+  temp = millis();
+}
+void loop()
+{
+
+  //////////////////////////////////////////////calcule distance/tic/tour par roue
+
+  old_tic_droit = tic_droit;
+  old_tic_gauche = tic_gauche;
+  tic_droit = encoder2.getCount();
+  tic_gauche = encoder.getCount();
+  tour_droit = (float)tic_droit / tic_tour_droit;
+  tour_gauche = (float)tic_gauche / tic_tour_gauche;
+  old_dist_droit = distance_droit;
+  old_dist_gauche = distance_gauche;
+  distance_droit = tour_droit * 40.0 * PI;
+  distance_gauche = tour_gauche * 40.0 * PI;
+  diff_dist_droit = distance_droit - old_dist_droit;
+  diff_dist_gauche = distance_gauche - old_dist_gauche;
+
+  err_x = cos(teta_act) * (pos_fin[0] - pos_act[0]) + sin(teta_act) * (pos_fin[1] - pos_act[1]);
+  err_y = -sin(teta_act) * (pos_fin[0] - pos_act[0]) + cos(teta_act) * (pos_fin[1] - pos_act[1]);
+
+  // Serial.printf("droit=%f gauche=%f\n", distance_droit, distance_gauche);
+
+  /////////////////////////////////////////////////////////////// test asserv diff moteur gauche moteur droit ne pas utiliser
+  /*
+  dist = sqrt(((pos_fin[0]-pos_act[0])*(pos_fin[0]-pos_act[0]))+((pos_fin[1]-pos_act[1])*(pos_fin[1]-pos_act[1])));
+  old_erreur_droit = erreur_droit;
+  old_erreur_gauche = erreur_gauche;
+  erreur_droit = (dist+distance_gauche) - 2*distance_droit;
+  erreur_gauche = (dist+distance_droit) - 2*distance_gauche;
+  VIT_droit = Kp * erreur_droit + Kd * (erreur_droit - old_erreur_droit);
+  VIT_gauche = Kp * erreur_gauche + Kd * (erreur_gauche - old_erreur_gauche);
+  pos_act[0]=cos(teta)*((distance_droit+distance_gauche)/2);
+  pos_act[1]=sin(teta)*((distance_droit+distance_gauche)/2);
+  */
+  /////////////////////////////////////////////// calcule angle + coordonnées
+
+  delta_x = pos_fin[0] - pos_act[0];
+  delta_y = pos_fin[1] - pos_act[1];
+  teta = atan2(delta_y, delta_x);
+  diff_teta = teta_act - teta;
+  teta_act = (distance_droit - distance_gauche) / (20 * Rayon);
+  teta_act_deg = (teta_act * 180.0) / PI;
+  teta_deg = (teta * 180.0) / PI;
+  diff_deg = (diff_teta * 180.0) / PI;
+
+  pos_act[0] = pos_act[0] + (cos(teta_act) * ((diff_dist_droit + diff_dist_gauche) / 2));
+  pos_act[1] = pos_act[1] + (sin(teta_act) * ((diff_dist_gauche + diff_dist_droit) / 2));
+  dist = sqrt(((pos_fin[0] - pos_act[0]) * (pos_fin[0] - pos_act[0])) + ((pos_fin[1] - pos_act[1]) * (pos_fin[1] - pos_act[1])));
+
+  ////////////////////////////////////////////////////// test asserv chaque moteur par rapport à un ordre général
+
+  tic_Md = ((dist * tic_tour_droit) / (40 * PI));
+  tic_Mg = ((dist * tic_tour_gauche) / (40 * PI));
+  tic_Mga = (((diff_teta * 110)) * tic_tour_gauche) / (40.0 * PI);
+  tic_Mda = (((diff_teta * 110)) * tic_tour_droit) / (40.0 * PI);
+
+  tic_Sd = old_tic_droit - tic_droit; // tic parcouru par la roue droite
+  diff_tic_droit = tic_Md - tic_Sd;
+  // différence entre tic demander et tic parcouru
+  old_diff_tic_droit = diff_tic_droit;
+  old_VIT_droit = VIT_droit;
+  VIT_droit = cos(diff_teta) * (kpd * diff_tic_droit + kdd * (diff_tic_droit - old_diff_tic_droit)); // asserv suivant la différence de tic
+  VIT_Ad = -kpda * (tic_Mda - tic_Sd);
+
+  tic_Sg = old_tic_gauche - tic_gauche; // tic parcouru par la roue droite
+  diff_tic_gauche = tic_Mg - tic_Sg;    // différence entre tic demander et tic parcouru
+  old_diff_tic_gauche = diff_tic_gauche;
+  old_VIT_gauche = VIT_gauche;
+  VIT_gauche = cos(diff_teta) * (kpg * diff_tic_gauche + kdg * (diff_tic_gauche - old_diff_tic_gauche));
+  // asserv suivant la différence de tic
+  VIT_Ag = kpga * (tic_Mga - tic_Sg);
+  //////////////////////////////////////////////////////// test moteur/encodeur
+
+  /*
+  if ((distance_droit + distance_gauche) / 2 >= 10)
+  {
+    md.setM1Speed(0);
+    md.setM2Speed(0);
+    md.setBrakes(400, 400); // Freinage complet
+  }
+  else
+  {
+    md.setM1Speed(100); // avancer
+    md.setM2Speed(100);
+  }
+  */
+  ////////////////////////////////////Saturation + mise à jour moteur
+
+  if (VIT_droit > 100)
+    VIT_droit = 100;
+  if (VIT_gauche > 100)
+    VIT_gauche = 100;
+  if (VIT_droit < -100)
+    VIT_droit = -100;
+  if (VIT_gauche < -100)
+    VIT_gauche = -100;
+
+  if (VIT_Ad > 100)
+    VIT_Ad = 100;
+  if (VIT_Ag > 100)
+    VIT_Ag = 100;
+  if (VIT_Ad < -100)
+    VIT_Ad = -100;
+  if (VIT_Ag < -100)
+    VIT_Ag = -100;
+
+  md.setM2Speed(VIT_droit + VIT_Ad);
+
+  md.setM1Speed(VIT_gauche + VIT_Ag);
+
+  if (VIT_Ad == 0 && VIT_Ag == 0 && VIT_droit == 0 && VIT_gauche == 0)
+    md.setBrakes(400, 400);
+
+  Serial.printf("X=%.1f Y=%.1f teta=%.1f VIT_gauche=%d VIT_droite=%d tic_Mg=%d dist=%.1f old_vit%d diff_tic_g=%d tic_g=%d teta=%.1f dif_te=%.0f VIT_Ag=%d\n", pos_act[0], pos_act[1], teta_act_deg, VIT_gauche, VIT_droit, tic_Mg, dist, old_VIT_gauche, diff_tic_gauche, tic_gauche, teta_act_deg, diff_deg, VIT_Ag);
+
+  // Serial.printf("gauche%d droit%d ", tic_gauche, tic_droit);
+  if (i >= 5)
+  {
+    // Bt.printf("I=%d\n", i);
+    Bt.printf("%.2f %.2f %f %f\n", Vg, Vd, accg, accd);
+    // Bt.printf("Vg=%.2f Vd=%.2f VIT=%.1f Pos=%.1f dg=%.1f dd=%.1f accg=%f accd=%f distd=%f\n", Vgm, Vdm, VIT, Pos, diff_dist_gauche, diff_dist_droit, Agm, Adm,distance_droit);
+    i = 0;
+  }
+}
+
+void Asserv(void *)
+
+{
+
+  while (1)
+  {/*/
+    old_tic_droit = tic_droit;
+    old_tic_gauche = tic_gauche;
+    tic_droit = encoder2.getCount();
+    tic_gauche = encoder.getCount();
+    tour_droit = (float)tic_droit / tic_tour_droit;
+    tour_gauche = (float)tic_gauche / tic_tour_gauche;
+    old_dist_droit = distance_droit;
+    old_dist_gauche = distance_gauche;
+    distance_droit = tour_droit * 40.0 * PI;
+    distance_gauche = tour_gauche * 40.0 * PI;
+    diff_dist_droit = distance_droit - old_dist_droit;
+    diff_dist_gauche = distance_gauche - old_dist_gauche;
+    old_Vd = Vd;
+    old_Vg = Vg;
+    Vg = diff_dist_gauche / Te;
+    Vd = diff_dist_droit / Te;
+    accd = (Vd - old_Vd) / Te;
+    accg = (Vg - old_Vg) / Te;
+    if (Agm < accg)
+      Agm = accg;
+    if (Adm < accd)
+      Adm = accd;
+    if (Vgm < Vg)
+      Vgm = Vg;
+    if (Vdm < Vd)
+      Vdm = Vd;
+
+    pos_act[0] = pos_act[0] + (cos(teta_act) * ((diff_dist_droit + diff_dist_gauche) / 2));
+    pos_act[1] = pos_act[1] + (sin(teta_act) * ((diff_dist_gauche + diff_dist_droit) / 2));
+    switch (etat)
+    {
+    case 0:
+
+      break;
+
+    case 1: // acceleration
+      VIT = VIT + Acc * Te;
+      Pos = Pos + VIT / Te;
+
+      break;
+
+    case 2: // plateau
+      Pos = Pos + Vo / Te;
+
+      break;
+
+    case 3: // deceleration
+      VIT = VIT - Dec * Te;
+      Pos = Pos + VIT / Te;
+
+      break;
+
+    default:
+      etat = 0;
+      break;
+    }
+
+    // erreur max Vo/Te ->  rapport  cyclique = 380 sur moteur plus lent
+
+    tic_Md = ((Pos * tic_tour_droit) / (40 * PI));
+    tic_Mg = ((Pos * tic_tour_gauche) / (40 * PI));
+    tic_Mga = (((diff_deg * 2.0 * Rayon) / 360.0) * tic_tour_gauche) / (40.0 * PI);
+    tic_Mda = (((diff_deg * 2.0 * Rayon) / 360.0) * tic_tour_droit) / (40.0 * PI);
+
+    tic_Sd = old_tic_droit - tic_droit; // tic parcouru par la roue droite
+    diff_tic_droit = tic_Md - tic_droit;
+    // différence entre tic demander et tic parcouru
+    old_diff_tic_droit = diff_tic_droit;
+    old_VIT_droit = VIT_droit;
+    VIT_droit = cos(diff_teta) * (kpd * diff_tic_droit + kdd * (diff_tic_droit - old_diff_tic_droit)); // asserv suivant la différence de tic
+    // VIT_Ad = -kpda * (tic_Mda - tic_Sd);
+
+    tic_Sg = old_tic_gauche - tic_gauche;  // tic parcouru par la roue droite
+    diff_tic_gauche = tic_Mg - tic_gauche; // différence entre tic demander et tic parcouru
+    old_diff_tic_gauche = diff_tic_gauche;
+    old_VIT_gauche = VIT_gauche;
+    VIT_gauche = cos(diff_teta) * (kpg * diff_tic_gauche + kdg * (diff_tic_gauche - old_diff_tic_gauche)); // asserv suivant la différence de tic
+    // VIT_Ag = kpga * (tic_Mga - tic_Sg);
+    Serial.printf("Vg=%f Vd=%f VIT=%f Pos=%f\n", Vg, Vd, VIT, Pos);
+    i++;
+    if (millis() - temp >= 8000)
+    {
+      md.setM1Speed(0);
+      md.setM2Speed(0);
+      md.setBrakes(400, 400);
+    }
+    else
+    {
+      md.setM1Speed(380);
+      md.setM2Speed(380);
+    }*/
+    vTaskDelay(pdMS_TO_TICKS(Te));
+  }
+}
