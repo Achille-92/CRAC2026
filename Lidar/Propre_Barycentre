@@ -93,7 +93,7 @@ def calcul_ennemi(stop_event):
     """
     global x_ennemi, y_ennemi
 
-    buffer_points = deque(maxlen=500)
+    buffer_points = deque(maxlen=50)
 
     while not stop_event.is_set():
         try:
@@ -139,7 +139,7 @@ if __name__ == '__main__':
     tache_lidar.start()
     tache_calcul.start()
 
-    buffer_points = deque(maxlen=500)
+    buffer_points = deque(maxlen=50)
 
     try:
         while True:
@@ -155,7 +155,7 @@ if __name__ == '__main__':
 
             if buffer_points:
                 xs, ys = zip(*buffer_points)
-                scat.set_offsets(np.c_[xs, ys])
+                #scat.set_offsets(np.c_[xs, ys])
 
             # Mettre à jour robot et ennemi
             robot_plot.set_offsets([[x_robot, y_robot]])
