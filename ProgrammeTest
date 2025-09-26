@@ -18,8 +18,8 @@ pile_affichage = queue.Queue(maxsize=1000)
 pile_calcul = queue.Queue(maxsize=500)
 
 # Coordonnées et angle de notre robot
-x_robot = 300
-y_robot = 200
+x_robot = 130
+y_robot = 150
 angle_robot = 0
 
 # Coordonnées, angle et vitesse du robot ennemi
@@ -53,13 +53,13 @@ def calcul_points(stop_event):
 
     try:
         # On lit les scans tant que le stop_event n’est pas activé
-        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096):
+        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=8192):
             if stop_event.is_set():   # si on demande l’arrêt → on sort
                 break
 
             for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
                 phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
-                angle_total = phi - math.radians(angle_robot) - math.radians(90)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+                angle_total = phi - math.radians(angle_robot) - math.radians(95)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
 
                 x_point = x_robot + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
                 y_point = y_robot - distance * math.sin(angle_total)
@@ -85,7 +85,7 @@ def calcul_points(stop_event):
 def calcul_ennemi(stop_event):
     global x_ennemi, y_ennemi, angle_ennemi
 
-    buffer_points = deque(maxlen=500)
+    buffer_points = deque(maxlen=50)
     x_prec, y_prec = None, None
     angle_ennemi = 0  # initialisation
 
@@ -108,7 +108,7 @@ def calcul_ennemi(stop_event):
                 dx = x_new - x_prec
                 dy = y_new - y_prec
                 if dx != 0 or dy != 0:  # éviter division par zéro
-                    angle_ennemi = math.degrees(math.atan2(dy, dx))
+                    angle_ennemi = 90+math.degrees(math.atan2(dy, dx))
                     if angle_ennemi < 0:
                         angle_ennemi += 360
 
@@ -146,7 +146,7 @@ if __name__ == '__main__':
     tache_lidar.start()
     tache_calcul.start()
 
-    buffer_points = deque(maxlen=500)
+    buffer_points = deque(maxlen=50)
 
     try:
         while True:
@@ -160,9 +160,9 @@ if __name__ == '__main__':
             while not pile_affichage.empty():
                 buffer_points.append(pile_affichage.get_nowait())
 
-            if buffer_points:
-                xs, ys = zip(*buffer_points)
-                scat.set_offsets(np.c_[xs, ys])
+            #if buffer_points:
+                #xs, ys = zip(*buffer_points)
+                #scat.set_offsets(np.c_[xs, ys])
 
             # Mettre à jour robot et ennemi
             robot_plot.set_offsets([[x_robot, y_robot]])
