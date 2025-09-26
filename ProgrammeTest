@@ -165,6 +165,8 @@ if __name__ == '__main__':
             robot_plot.set_offsets([[x_robot, y_robot]])
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
 
+            print(f"Ennemi: x={x_ennemi:.1f}, y={y_ennemi:.1f}, angle={angle_ennemi:.1f}°")
+            
             fig.canvas.draw()
             fig.canvas.flush_events()
             time.sleep(0.01)
