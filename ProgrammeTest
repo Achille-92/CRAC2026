@@ -68,9 +68,9 @@ def calcul_points(stop_event):
                 x_point = max(0, min(3000, int(x_point)))
                 y_point = max(0, min(2000, int(y_point)))
 
-                if 10 <= x_point <= 2990 and 10 <= y_point <= 1990:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
-                    pile_affichage.put((x_point, y_point))
-                    pile_calcul.put((x_point, y_point))
+                #if 10 <= x_point <= 2990 and 10 <= y_point <= 1990:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                pile_affichage.put((x_point, y_point))
+                pile_calcul.put((x_point, y_point))
 
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
         print("Erreur dans le thread Lidar:", e)
@@ -160,13 +160,13 @@ if __name__ == '__main__':
             while not pile_affichage.empty():
                 buffer_points.append(pile_affichage.get_nowait())
 
-            #if buffer_points:
-                #xs, ys = zip(*buffer_points)
-                #scat.set_offsets(np.c_[xs, ys])
+            if buffer_points:
+                xs, ys = zip(*buffer_points)
+                scat.set_offsets(np.c_[xs, ys])
 
             # Mettre à jour robot et ennemi
             robot_plot.set_offsets([[x_robot, y_robot]])
-            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
+            #ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
 
             fig.canvas.draw()
             fig.canvas.flush_events()
