@@ -1,38 +1,11 @@
-achille@raspberrypi:~ $ pip3 uninstall can python-can -y --break-system-packages
-Found existing installation: can 0.0.0
-Uninstalling can-0.0.0:
-  Successfully uninstalled can-0.0.0
-Found existing installation: python-can 4.6.1
-Uninstalling python-can-4.6.1:
-ERROR: Exception:
-Traceback (most recent call last):
-  File "/usr/lib/python3.11/shutil.py", line 825, in move
-    os.rename(src, real_dst)
-PermissionError: [Errno 13] Permission non accordée: '/usr/local/bin/' -> '/tmp/pip-uninstall-ew1rm_gr'
+Exception has occurred: CanOperationError
+Failed to transmit: No buffer space available [Error Code 105]
+OSError: [Errno 105] No buffer space available
 
-During handling of the above exception, another exception occurred:
+The above exception was the direct cause of the following exception:
 
-Traceback (most recent call last):
-  File "/usr/lib/python3/dist-packages/pip/_internal/cli/base_command.py", line 160, in exc_logging_wrapper
-    status = run_func(*args)
-             ^^^^^^^^^^^^^^^
-  File "/usr/lib/python3/dist-packages/pip/_internal/commands/uninstall.py", line 105, in run
-    uninstall_pathset = req.uninstall(
-                        ^^^^^^^^^^^^^^
-  File "/usr/lib/python3/dist-packages/pip/_internal/req/req_install.py", line 664, in uninstall
-    uninstalled_pathset.remove(auto_confirm, verbose)
-  File "/usr/lib/python3/dist-packages/pip/_internal/req/req_uninstall.py", line 373, in remove
-    moved.stash(path)
-  File "/usr/lib/python3/dist-packages/pip/_internal/req/req_uninstall.py", line 271, in stash
-    renames(path, new_path)
-  File "/usr/lib/python3/dist-packages/pip/_internal/utils/misc.py", line 312, in renames
-    shutil.move(old, new)
-  File "/usr/lib/python3.11/shutil.py", line 843, in move
-    rmtree(src)
-  File "/usr/lib/python3.11/shutil.py", line 732, in rmtree
-    _rmtree_safe_fd(fd, path, onerror)
-  File "/usr/lib/python3.11/shutil.py", line 683, in _rmtree_safe_fd
-    onerror(os.unlink, fullname, sys.exc_info())
-  File "/usr/lib/python3.11/shutil.py", line 681, in _rmtree_safe_fd
-    os.unlink(entry.name, dir_fd=topfd)
-PermissionError: [Errno 13] Permission non accordée: 'can_logger'
+  File "/home/achille/Desktop/CRAC2026/Receive_RPI.py", line 16, in main
+    bus.send(message)
+  File "/home/achille/Desktop/CRAC2026/Receive_RPI.py", line 23, in <module>
+    main()
+can.exceptions.CanOperationError: Failed to transmit: No buffer space available [Error Code 105]
