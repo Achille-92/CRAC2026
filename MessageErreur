@@ -1,11 +1,19 @@
-Exception has occurred: CanOperationError
-Failed to transmit: No buffer space available [Error Code 105]
-OSError: [Errno 105] No buffer space available
-
-The above exception was the direct cause of the following exception:
-
-  File "/home/achille/Desktop/CRAC2026/Receive_RPI.py", line 16, in main
-    bus.send(message)
-  File "/home/achille/Desktop/CRAC2026/Receive_RPI.py", line 23, in <module>
-    main()
-can.exceptions.CanOperationError: Failed to transmit: No buffer space available [Error Code 105]
+achille@raspberrypi:~/Desktop/CRAC2026 $  cd /home/achille/Desktop/CRAC2026 ; /usr/bin/env /usr/bin/python /home/achille/.vscode/extensions/ms-python.debugpy-2025.10.0-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 45325 -- /home/achille/Desktop/CRAC2026/Receive_RPI.py 
+/home/achille/Desktop/CRAC2026/Receive_RPI.py:7: DeprecationWarning: The 'bustype' argument is deprecated since python-can v4.2.0, and scheduled for removal in python-can v5.0.0. Use 'interface' instead.
+  bus = can.interface.Bus(channel='can0', bustype='socketcan')
+Bus CAN ouvert avec succès
+Début de l'envoi des messages toutes les 1 seconde...
+Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
+Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
+Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
+Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
+Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
+Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
+Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
+Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
+Erreur lors de l'envoi : Failed to transmit: No buffer space available [Error Code 105]
+Erreur lors de l'envoi : Failed to transmit: No buffer space available [Error Code 105]
+Erreur lors de l'envoi : Failed to transmit: No buffer space available [Error Code 105]
+Erreur lors de l'envoi : Failed to transmit: No buffer space available [Error Code 105]
+Erreur lors de l'envoi : Failed to transmit: No buffer space available [Error Code 105]
+Erreur lors de l'envoi : Failed to transmit: No buffer space available [Error Code 105]
