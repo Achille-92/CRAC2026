@@ -3,7 +3,8 @@ import time
 import threading
 import signal
 import sys
-
+# sudo ip link set can0 up type can bitrate 500000 loopback on"
+# sudo ip link set can0 down
 # Flag pour arrêter proprement les threads
 running = True
 
