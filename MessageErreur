@@ -1,9 +1,13 @@
-achille@raspberrypi:~/Desktop/CRAC2026 $  cd /home/achille/Desktop/CRAC2026 ; /usr/bin/env /usr/bin/python /home/achille/.vscode/extensions/ms-python.debugpy-2025.10.0-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 45325 -- /home/achille/Desktop/CRAC2026/Receive_RPI.py 
-/home/achille/Desktop/CRAC2026/Receive_RPI.py:7: DeprecationWarning: The 'bustype' argument is deprecated since python-can v4.2.0, and scheduled for removal in python-can v5.0.0. Use 'interface' instead.
-  bus = can.interface.Bus(channel='can0', bustype='socketcan')
+achille@raspberrypi:~/Desktop/CRAC2026 $  cd /home/achille/Desktop/CRAC2026 ; /usr/bin/env /usr/bin/python /home/achille/.vscode/extensions/ms-python.debugpy-2025.10.0-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 54327 -- /home/achille/Desktop/CRAC2026/Receive_RPI.py 
 Bus CAN ouvert avec succès
 Début de l'envoi des messages toutes les 1 seconde...
 Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
+Message reçu (ignoré): Timestamp: 1759067560.940482    ID:      004    S Rx E              DL:  8    00 08 00 00 00 00 00 00     Channel: can0
+Message reçu (ignoré): Timestamp: 1759067560.941067    ID:      004    S Rx E              DL:  8    00 20 00 00 00 00 00 00     Channel: can0
+Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
+Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
+Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
+Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
 Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
 Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
 Message envoyé : Timestamp:        0.000000    ID:      123    S Rx                DL:  3    11 22 33
@@ -17,3 +21,32 @@ Erreur lors de l'envoi : Failed to transmit: No buffer space available [Error Co
 Erreur lors de l'envoi : Failed to transmit: No buffer space available [Error Code 105]
 Erreur lors de l'envoi : Failed to transmit: No buffer space available [Error Code 105]
 Erreur lors de l'envoi : Failed to transmit: No buffer space available [Error Code 105]
+^C
+Arrêt demandé, fermeture du bus CAN...
+Bus CAN fermé correctement.
+Exception in thread Thread-6 (read_messages):
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/dist-packages/can/interfaces/socketcan/socketcan.py", line 623, in capture_message
+    cf, ancillary_data, msg_flags, addr = sock.recvmsg(
+                                          ^^^^^^^^^^^^^
+OSError: [Errno 9] Bad file descriptor
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.11/threading.py", line 1038, in _bootstrap_inner
+    self.run()
+  File "/usr/lib/python3.11/threading.py", line 975, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/achille/Desktop/CRAC2026/Receive_RPI.py", line 20, in read_messages
+    msg = bus.recv(timeout=1)
+          ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/can/bus.py", line 121, in recv
+    msg, already_filtered = self._recv_internal(timeout=time_left)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/can/interfaces/socketcan/socketcan.py", line 836, in _recv_internal
+    msg = capture_message(self.socket, get_channel)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/dist-packages/can/interfaces/socketcan/socketcan.py", line 631, in capture_message
+    raise can.CanOperationError(
+can.exceptions.CanOperationError: Error receiving: Bad file descriptor [Error Code 9]
