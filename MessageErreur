@@ -1,8 +1,8 @@
-achille@raspberrypi:~ $ dmesg | grep mcp
-[    4.643411] mcp251x spi0.0 can0: MCP2515 successfully initialized.
-achille@raspberrypi:~ $ sudo ip link set can up type can bitrate 500000
-Cannot find device "can"
-achille@raspberrypi:~ $ sudo ip link set can0 up type can bitrate 500000
-achille@raspberrypi:~ $ ip link show can0
-3: can0: <NOARP,UP,LOWER_UP,ECHO> mtu 16 qdisc pfifo_fast state UP mode DEFAULT group default qlen 10
-    link/can 
+Exception has occurred: AttributeError
+module 'can' has no attribute 'interface'
+  File "/home/achille/Desktop/CRAC2026/BUS_CAN_RPI.py", line 6, in main
+    bus = can.interface.Bus(channel='can0', bustype='socketcan')
+          ^^^^^^^^^^^^^
+  File "/home/achille/Desktop/CRAC2026/BUS_CAN_RPI.py", line 23, in <module>
+    main()
+AttributeError: module 'can' has no attribute 'interface'
