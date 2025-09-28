@@ -1,3 +1,9 @@
 achille@raspberrypi:~ $ ip link show can0
 3: can0: <NOARP,UP,LOWER_UP,ECHO> mtu 16 qdisc pfifo_fast state UP mode DEFAULT group default qlen 10
     link/can 
+achille@raspberrypi:~ $ dmesg | grep -i can
+[    4.649180] CAN device driver interface
+[    4.698304] mcp251x spi0.0 can0: MCP2515 successfully initialized.
+[  282.077212] can: controller area network core
+[  282.077742] NET: Registered PF_CAN protocol family
+[  282.095004] can: raw protocol
