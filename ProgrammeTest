@@ -79,7 +79,7 @@ def calcul_points(stop_event):
 
             for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
                 phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
-                angle_total = phi - math.radians(angle_robot) - math.radians(90)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+                angle_total = phi - math.radians(angle_robot) - math.radians(11)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
 
                 x_point = x_robot + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
                 y_point = y_robot - distance * math.sin(angle_total)
@@ -129,7 +129,7 @@ def affichage(x_robot, y_robot, stop_event):
     ax.set_ylim(0, 2000)
     ax.set_aspect('equal')
 
-    buffer_points = deque(maxlen=50)
+    buffer_points = deque(maxlen=2000)
 
     while not stop_event.is_set():
         try:
@@ -192,7 +192,7 @@ if __name__ == '__main__':
 
     tache_lidar.start()
     tache_affichage.start()
-    #tache_odometrie.start()
+    tache_odometrie.start()
 
 
     try:
@@ -204,7 +204,7 @@ if __name__ == '__main__':
         # Attente que chaque thread termine proprement
         tache_lidar.join()
         tache_affichage.join()
-        #tache_odometrie.join()
+        tache_odometrie.join()
         print("Programme terminé proprement.")
 
 
