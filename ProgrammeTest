@@ -230,7 +230,8 @@ if __name__ == '__main__':
 
     tache_lidar.start()
     tache_odometrie.start()
-
+    tache_calcul.start()
+    
     buffer_points = deque(maxlen=50)
 
     try:
