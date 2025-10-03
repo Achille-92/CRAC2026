@@ -31,7 +31,6 @@ BAUDRATE = 256000
 # Création de l'objet Lidar, et de la Pile pile_points
 lidar = None
 pile_calcul = queue.Queue(maxsize=500)
-pile_affichage = queue.Queue(maxsize=500)
 
 # Coordonnées et angle de notre robot
 x_robot = 145
@@ -75,7 +74,7 @@ def calcul_points(stop_event):
 
             for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
                 phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
-                angle_total = phi - math.radians(angle_robot) - math.radians(98)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+                angle_total = phi - math.radians(angle_robot) - math.radians(8)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
 
                 x_point = x_robot + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
                 y_point = y_robot - distance * math.sin(angle_total)
@@ -86,7 +85,6 @@ def calcul_points(stop_event):
 
                 if 1 <= x_point <= 2999 and 1 <= y_point <= 1999:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
                     pile_calcul.put((x_point, y_point))
-                    pile_affichage.put((x_point, y_point))
 
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
         print("Erreur dans le thread Lidar:", e)
@@ -179,21 +177,15 @@ if __name__ == '__main__':
     tache_odometrie = threading.Thread(target=CAN_Odometrie, args=(stop_event,), daemon=True)
 
     tache_lidar.start()
-    #tache_calcul.start()
+    tache_calcul.start()
     tache_odometrie.start()
 
     buffer_points = deque(maxlen=50)
 
     try:
         while True:
-            p = pile_affichage.get(timeout=0.1)
-            buffer_points.append(p)
-            if buffer_points:
-                xs, ys = zip(*buffer_points)
-                scat.set_offsets(np.c_[xs, ys])
-            # Mettre à jour robot et ennemi
             robot_plot.set_offsets([[x_robot, y_robot]])
-            #ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
+            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
 
             fig.canvas.draw()
             fig.canvas.flush_events()
