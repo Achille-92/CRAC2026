@@ -30,19 +30,24 @@ BAUDRATE = 256000
 
 # Création de l'objet Lidar, et de la Pile pile_points
 lidar = None
-pile_calcul = queue.Queue(maxsize=500)
+pile_points = queue.Queue(maxsize=2000)
 
 # Coordonnées et angle de notre robot
-x_robot = 145
-y_robot = 120
+x_robot = 1500
+y_robot = 1000
 angle_robot = 0
 
 # Coordonnées, angle et vitesse du robot ennemi
 x_ennemi = 0
 y_ennemi = 0
+angle_ennemi = 0
+v_ennemi = 0
 
-fig = None
+# Objets et variables pour la fenêtre graphique
+fig = None 
 ax = None
+robot_plot = None
+scat = None
 
 ################## Fonction  ###########################################
 def calcul_points(stop_event):
@@ -74,7 +79,7 @@ def calcul_points(stop_event):
 
             for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
                 phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
-                angle_total = phi - math.radians(angle_robot) - math.radians(8)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+                angle_total = phi - math.radians(angle_robot) - math.radians(90)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
 
                 x_point = x_robot + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
                 y_point = y_robot - distance * math.sin(angle_total)
@@ -83,8 +88,8 @@ def calcul_points(stop_event):
                 x_point = max(0, min(3000, int(x_point)))
                 y_point = max(0, min(2000, int(y_point)))
 
-                if 1 <= x_point <= 2999 and 1 <= y_point <= 1999:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
-                    pile_calcul.put((x_point, y_point))
+                #if 10 <= x_point <= 2990 and 10 <= y_point <= 1990:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                pile_points.put((x_point, y_point))
 
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
         print("Erreur dans le thread Lidar:", e)
@@ -96,33 +101,55 @@ def calcul_points(stop_event):
         lidar.disconnect()
 
 
-def calcul_ennemi(stop_event):
+def affichage(x_robot, y_robot, stop_event):
     """
-    Arguments : flag stop_event
-    Modification : pile_calcul, x_ennemi, y_ennemi
+    Arguments : x_robot, y_robot, flag stop_event
+    Modifications : robot_plot, ennemi_plot, ennemi_vecteur, fig, ax
 
     Utilisation :
-    Récupére le haut de la pile_calcul, puis le remet dedans
-    Moyenne les coordonées des points de la pile, donne x_ennemi et y_ennemi
+    Créée la fenêtre graphique avec les légendes, et affiche notre robot
+    Affiche le robot, et le robot ennemi
+    Calcule puis affiche le vecteur direction
+    Refresh toutes les 10ms
     """
-    global x_ennemi, y_ennemi
+    global x_ennemi, y_ennemi, angle_ennemi
+    global robot_plot, ennemi_plot, ennemi_vecteur
+
+    fig, ax = plt.subplots()
+    plt.ion()
+    plt.show()
+
+    # Scatter pour les objets
+    robot_plot = ax.scatter([x_robot], [y_robot], s=50, c='red', marker='x')
+    ennemi_plot = ax.scatter([], [], s=50, c='green', marker='o')
+    ennemi_vecteur, = ax.plot([], [], c='orange', linewidth=2)
+    scat = ax.scatter([], [], s=5, c='blue', alpha=0.5)
+
+    ax.set_xlim(0, 3000)
+    ax.set_ylim(0, 2000)
+    ax.set_aspect('equal')
 
     buffer_points = deque(maxlen=50)
 
     while not stop_event.is_set():
         try:
-            # Récupère un point du Lidar
-            p = pile_calcul.get(timeout=0.1)
+            p = pile_points.get(timeout=0.1)
             buffer_points.append(p)
         except queue.Empty:
             pass
 
-        # Calcul barycentre, angle et vitesse
+        while not pile_points.empty():
+            buffer_points.append(pile_points.get_nowait())
+
         if buffer_points:
             xs, ys = zip(*buffer_points)
-            x_ennemi = np.mean(xs)
-            y_ennemi = np.mean(ys)
+            scat.set_offsets(np.c_[xs, ys])
 
+            # met à jour la position du robot (fixe dans ton cas)
+            robot_plot.set_offsets([[x_robot, y_robot]])
+
+            fig.canvas.draw()
+            fig.canvas.flush_events()
 
 def CAN_Odometrie(stop_event):
     """
@@ -157,47 +184,28 @@ if __name__ == '__main__':
 
     stop_event = threading.Event()
 
-    # Objets et variables pour la fenêtre graphique
-    fig, ax = plt.subplots()
-    plt.ion()
-    plt.show()
-
-    # Scatter pour les objets
-    robot_plot = ax.scatter([x_robot], [y_robot], s=50, c='red', marker='x')
-    ennemi_plot = ax.scatter([], [], s=50, c='green', marker='o')
-    scat = ax.scatter([], [], s=5, c='blue', alpha=0.5)
-
-    ax.set_xlim(0, 3000)
-    ax.set_ylim(0, 2000)
-    ax.set_aspect('equal')
-
-    # Threads secondaires
+    # Thread Lidar
     tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
-    tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
+    # Thread affichage
+    tache_affichage = threading.Thread(target=affichage, args=(x_robot, y_robot, stop_event,), daemon=False)
     tache_odometrie = threading.Thread(target=CAN_Odometrie, args=(stop_event,), daemon=True)
 
     tache_lidar.start()
-    tache_calcul.start()
+    tache_affichage.start()
     tache_odometrie.start()
 
-    buffer_points = deque(maxlen=50)
 
     try:
         while True:
-            robot_plot.set_offsets([[x_robot, y_robot]])
-            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
-
-            fig.canvas.draw()
-            fig.canvas.flush_events()
-            time.sleep(0.01)
-
+            time.sleep(0.1)
     except KeyboardInterrupt:
         print("Arrêt demandé par l'utilisateur.")
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
         tache_lidar.join()
-        tache_calcul.join()
+        tache_affichage.join()
         tache_odometrie.join()
         print("Programme terminé proprement.")
+
 
 ########################################################################
