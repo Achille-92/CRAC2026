@@ -3,10 +3,10 @@ import can
 import struct
 
 # config CAN
-os.system('sudo ip link set can0 type can bitrate 1000000')  # adapte le bitrate
+os.system('sudo ip link set can0 type can bitrate 5000000')  # adapte le bitrate
 os.system('sudo ifconfig can0 up')
 
-bus = can.interface.Bus(channel='can0', bustype='socketcan_ctypes')
+bus = can.interface.Bus(channel='can0', bustype='socketcan', bitrate=500000)
 
 while True:
     msg = bus.recv(1.0)  # attend max 1 seconde
