@@ -115,7 +115,23 @@ def calcul_ennemi(stop_event):
             x_ennemi = np.mean(xs)
             y_ennemi = np.mean(ys)
 
+def CAN_Odometrie(stop_event):
+    """
+    """
+    global x_robot, y_robot, angle_robot
+    msg = bus.recv(0.01)
 
+    if msg.arbitration_id == 0x10:
+        x_robot = struct.unpack('f', bytes(msg.data))[0]
+        print("X =", x_robot)
+
+    elif msg.arbitration_id == 0x11:
+        y_robot = struct.unpack('f', bytes(msg.data))[0]
+        print("Y =", y_robot)
+
+    elif msg.arbitration_id == 0x12:
+        angle_robot = struct.unpack('f', bytes(msg.data))[0]
+        print("Teta =", angle_robot)
 ########################################################################
 
 ################## Lancement du programme principal ####################
@@ -141,30 +157,16 @@ if __name__ == '__main__':
     # Threads secondaires
     tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
     tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
+    tache_odometrie = threading.Thread(target=CAN_Odometrie, args=(stop_event,), daemon=False)
 
     tache_lidar.start()
     tache_calcul.start()
+    tache_odometrie.start()
 
     buffer_points = deque(maxlen=50)
 
     try:
         while True:
-            msg = bus.recv(1.0)
-            if msg is None:
-                continue
-
-            if msg.arbitration_id == 0x10:
-                x = struct.unpack('f', bytes(msg.data))[0]
-                print("X =", x)
-
-            elif msg.arbitration_id == 0x11:
-                y = struct.unpack('f', bytes(msg.data))[0]
-                print("Y =", y)
-
-            elif msg.arbitration_id == 0x12:
-                teta = struct.unpack('f', bytes(msg.data))[0]
-                print("Teta =", teta)
-                
             # Mettre à jour robot et ennemi
             robot_plot.set_offsets([[x_robot, y_robot]])
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
@@ -179,6 +181,7 @@ if __name__ == '__main__':
         # Attente que chaque thread termine proprement
         tache_lidar.join()
         tache_calcul.join()
+        tache_odometrie.join()
         print("Programme terminé proprement.")
 
 ########################################################################
