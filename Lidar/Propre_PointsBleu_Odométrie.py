@@ -6,7 +6,23 @@ import matplotlib.pyplot as plt
 import threading, queue
 from collections import deque
 import time
+import os
+import can
+import struct
 ########################################################################
+
+# config CAN
+os.system('sudo ip link set can0 type can bitrate 500000')  # adapte le bitrate
+os.system('sudo ifconfig can0 up')
+bus = can.interface.Bus(
+    channel='can0',
+    bustype='socketcan',
+    bitrate=500000,
+    can_filters=[{"can_id": 0x10, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x11, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x12, "can_mask": 0x7FF, "extended": False}]
+)
+
 
 # Port série et Baudrate du lidar
 PORT_NAME = '/dev/ttyUSB0'
@@ -17,8 +33,8 @@ lidar = None
 pile_points = queue.Queue(maxsize=2000)
 
 # Coordonnées et angle de notre robot
-x_robot = 1500
-y_robot = 1000
+x_robot = 145
+y_robot = 120
 angle_robot = 0
 
 # Coordonnées, angle et vitesse du robot ennemi
@@ -63,7 +79,7 @@ def calcul_points(stop_event):
 
             for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
                 phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
-                angle_total = phi - math.radians(angle_robot) - math.radians(90)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+                angle_total = phi - math.radians(angle_robot) - math.radians(11)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
 
                 x_point = x_robot + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
                 y_point = y_robot - distance * math.sin(angle_total)
@@ -85,7 +101,7 @@ def calcul_points(stop_event):
         lidar.disconnect()
 
 
-def affichage(x_robot, y_robot, stop_event):
+def affichage(stop_event):
     """
     Arguments : x_robot, y_robot, flag stop_event
     Modifications : robot_plot, ennemi_plot, ennemi_vecteur, fig, ax
@@ -135,6 +151,29 @@ def affichage(x_robot, y_robot, stop_event):
             fig.canvas.draw()
             fig.canvas.flush_events()
 
+def CAN_Odometrie(stop_event):
+    """
+    Réception CAN pour mettre à jour x_robot, y_robot et angle_robot
+    """
+    global x_robot, y_robot, angle_robot
+
+    while not stop_event.is_set():
+        msg = bus.recv(0.01)  # attend 10 ms max
+        if msg is None:
+            continue  # pas de message, on repart
+
+        # Vérifie qu'on a bien reçu 4 octets avant de décoder
+        if msg.arbitration_id not in (0x10, 0x11, 0x12):
+            continue  # on saute les autres trames
+
+        if msg.arbitration_id == 0x10:
+            x_robot = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x11:
+            y_robot = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x12:
+            angle_robot = struct.unpack('f', bytes(msg.data))[0]
 
 ########################################################################
 
@@ -147,10 +186,12 @@ if __name__ == '__main__':
     # Thread Lidar
     tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
     # Thread affichage
-    tache_affichage = threading.Thread(target=affichage, args=(x_robot, y_robot, stop_event,), daemon=False)
+    tache_affichage = threading.Thread(target=affichage, args=(stop_event,), daemon=False)
+    tache_odometrie = threading.Thread(target=CAN_Odometrie, args=(stop_event,), daemon=True)
 
     tache_lidar.start()
     tache_affichage.start()
+    tache_odometrie.start()
 
 
     try:
@@ -162,6 +203,7 @@ if __name__ == '__main__':
         # Attente que chaque thread termine proprement
         tache_lidar.join()
         tache_affichage.join()
+        tache_odometrie.join()
         print("Programme terminé proprement.")
 
 
