@@ -33,8 +33,8 @@ lidar = None
 pile_points = queue.Queue(maxsize=2000)
 
 # Coordonnées et angle de notre robot
-x_robot = 1500
-y_robot = 1000
+x_robot = 145
+y_robot = 120
 angle_robot = 0
 
 # Coordonnées, angle et vitesse du robot ennemi
@@ -192,7 +192,7 @@ if __name__ == '__main__':
 
     tache_lidar.start()
     tache_affichage.start()
-    tache_odometrie.start()
+    #tache_odometrie.start()
 
 
     try:
@@ -204,7 +204,7 @@ if __name__ == '__main__':
         # Attente que chaque thread termine proprement
         tache_lidar.join()
         tache_affichage.join()
-        tache_odometrie.join()
+        #tache_odometrie.join()
         print("Programme terminé proprement.")
 
 
