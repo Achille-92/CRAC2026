@@ -163,9 +163,8 @@ def CAN_Odometrie(stop_event):
             continue  # pas de message, on repart
 
         # Vérifie qu'on a bien reçu 4 octets avant de décoder
-        if len(msg.data) != 4:
-            print(f"Trame ID {hex(msg.arbitration_id)} invalide (len={len(msg.data)})")
-            continue
+        if msg.arbitration_id not in (0x10, 0x11, 0x12):
+            continue  # on saute les autres trames
 
         if msg.arbitration_id == 0x10:
             x_robot = struct.unpack('f', bytes(msg.data))[0]
