@@ -117,13 +117,21 @@ void loop()
   // asserv suivant la différence de tic
   VIT_Ag = kpga * (tic_Mga - tic_Sg);
 
+  //Serial.printf("X=%.1f Y=%.1f Angle=%.1f \n",pos_act[0],pos_act[1],teta_act_deg);
+  float x = pos_act[0];
+  float y = pos_act[1];
+  float teta = teta_act_deg;
+
   CAN.beginPacket(0x10);
-  CAN.write('X=');
-  CAN.write(pos_act[0]);
-  CAN.write(' , Y=');
-  CAN.write(pos_act[1]);
-  CAN.write(' , teta=');
-  CAN.write(teta_act_deg);
+  CAN.write((uint8_t*)&x, sizeof(float));   // 4 octets
+  CAN.endPacket();
+
+  CAN.beginPacket(0x11);
+  CAN.write((uint8_t*)&y, sizeof(float));   // 4 octets
+  CAN.endPacket();
+
+  CAN.beginPacket(0x12);
+  CAN.write((uint8_t*)&teta, sizeof(float)); // 4 octets
   CAN.endPacket();
 
 }
