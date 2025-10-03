@@ -12,7 +12,7 @@ import struct
 ########################################################################
 
 # config CAN
-os.system('sudo ip link set can0 type can bitrate 5000000')  # adapte le bitrate
+os.system('sudo ip link set can0 type can bitrate 500000')  # adapte le bitrate
 os.system('sudo ifconfig can0 up')
 bus = can.interface.Bus(channel='can0', bustype='socketcan', bitrate=500000)
 
@@ -117,21 +117,32 @@ def calcul_ennemi(stop_event):
 
 def CAN_Odometrie(stop_event):
     """
+    Réception CAN pour mettre à jour x_robot, y_robot et angle_robot
     """
     global x_robot, y_robot, angle_robot
-    msg = bus.recv(0.01)
 
-    if msg.arbitration_id == 0x10:
-        x_robot = struct.unpack('f', bytes(msg.data))[0]
-        print("X =", x_robot)
+    while not stop_event.is_set():
+        msg = bus.recv(0.01)  # attend 10 ms max
+        if msg is None:
+            continue  # pas de message, on repart
 
-    elif msg.arbitration_id == 0x11:
-        y_robot = struct.unpack('f', bytes(msg.data))[0]
-        print("Y =", y_robot)
+        # Vérifie qu'on a bien reçu 4 octets avant de décoder
+        if len(msg.data) != 4:
+            print(f"Trame ID {hex(msg.arbitration_id)} invalide (len={len(msg.data)})")
+            continue
 
-    elif msg.arbitration_id == 0x12:
-        angle_robot = struct.unpack('f', bytes(msg.data))[0]
-        print("Teta =", angle_robot)
+        if msg.arbitration_id == 0x10:
+            x_robot = struct.unpack('f', bytes(msg.data))[0]
+            print("X =", x_robot)
+
+        elif msg.arbitration_id == 0x11:
+            y_robot = struct.unpack('f', bytes(msg.data))[0]
+            print("Y =", y_robot)
+
+        elif msg.arbitration_id == 0x12:
+            angle_robot = struct.unpack('f', bytes(msg.data))[0]
+            print("Teta =", angle_robot)
+
 ########################################################################
 
 ################## Lancement du programme principal ####################
