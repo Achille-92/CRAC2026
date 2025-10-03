@@ -133,15 +133,12 @@ def CAN_Odometrie(stop_event):
 
         if msg.arbitration_id == 0x10:
             x_robot = struct.unpack('f', bytes(msg.data))[0]
-            print("X =", x_robot)
 
         elif msg.arbitration_id == 0x11:
             y_robot = struct.unpack('f', bytes(msg.data))[0]
-            print("Y =", y_robot)
 
         elif msg.arbitration_id == 0x12:
             angle_robot = struct.unpack('f', bytes(msg.data))[0]
-            print("Teta =", angle_robot)
 
 ########################################################################
 
@@ -168,7 +165,7 @@ if __name__ == '__main__':
     # Threads secondaires
     tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
     tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
-    tache_odometrie = threading.Thread(target=CAN_Odometrie, args=(stop_event,), daemon=False)
+    tache_odometrie = threading.Thread(target=CAN_Odometrie, args=(stop_event,), daemon=True)
 
     tache_lidar.start()
     tache_calcul.start()
