@@ -14,7 +14,15 @@ import struct
 # config CAN
 os.system('sudo ip link set can0 type can bitrate 500000')  # adapte le bitrate
 os.system('sudo ifconfig can0 up')
-bus = can.interface.Bus(channel='can0', bustype='socketcan', bitrate=500000)
+bus = can.interface.Bus(
+    channel='can0',
+    bustype='socketcan',
+    bitrate=500000,
+    can_filters=[{"can_id": 0x10, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x11, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x12, "can_mask": 0x7FF, "extended": False}]
+)
+
 
 # Port série et Baudrate du lidar
 PORT_NAME = '/dev/ttyUSB0'
@@ -114,6 +122,7 @@ def calcul_ennemi(stop_event):
             xs, ys = zip(*buffer_points)
             x_ennemi = np.mean(xs)
             y_ennemi = np.mean(ys)
+
 
 def CAN_Odometrie(stop_event):
     """
