@@ -12,7 +12,7 @@ import struct
 ########################################################################
 
 # config CAN
-os.system('sudo ip link set can0 type can bitrate 500000')  # adapte le bitrate
+os.system('sudo ip link set can0 type can bitrate 500000')
 os.system('sudo ifconfig can0 up')
 bus = can.interface.Bus(
     channel='can0',
@@ -23,6 +23,7 @@ bus = can.interface.Bus(
                  {"can_id": 0x12, "can_mask": 0x7FF, "extended": False}]
 )
 
+Liste_ID = [0x10, 0x11, 0x12]
 
 # Port série et Baudrate du lidar
 PORT_NAME = '/dev/ttyUSB0'
@@ -40,9 +41,14 @@ angle_robot = 0
 # Coordonnées, angle et vitesse du robot ennemi
 x_ennemi = 0
 y_ennemi = 0
+angle_ennemi = 0
+v_ennemi = 0
 
-fig = None
+# Objets et variables pour la fenêtre graphique
+fig = None 
 ax = None
+robot_plot = None
+scat = None
 
 ################## Fonction  ###########################################
 def calcul_points(stop_event):
@@ -74,7 +80,7 @@ def calcul_points(stop_event):
 
             for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
                 phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
-                angle_total = phi - math.radians(angle_robot) - math.radians(98)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+                angle_total = phi - math.radians(angle_robot) - math.radians(11)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
 
                 x_point = x_robot + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
                 y_point = y_robot - distance * math.sin(angle_total)
@@ -83,7 +89,7 @@ def calcul_points(stop_event):
                 x_point = max(0, min(3000, int(x_point)))
                 y_point = max(0, min(2000, int(y_point)))
 
-                if 1 <= x_point <= 2999 and 1 <= y_point <= 1999:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                if 10 <= x_point <= 2990 and 10 <= y_point <= 1990:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
                     pile_calcul.put((x_point, y_point))
 
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
@@ -96,13 +102,43 @@ def calcul_points(stop_event):
         lidar.disconnect()
 
 
+def CAN_Odometrie(stop_event):
+    """
+    Argument : flag "stop_event"
+    Modification : variables globales x_robot, y_robot, angle_robot
+
+    Utilisation :
+    Lis le Bus CAN
+    Si l'ID du message n'est pas dans la Liste_ID, saute
+    Sinon, met à jour les coordonées et angle du robot
+    """
+    global x_robot, y_robot, angle_robot, Liste_ID
+
+    while not stop_event.is_set():
+        msg = bus.recv(0.01)  # attend 10 ms max
+        if msg is None:
+            continue  # pas de message, on repart
+
+        # Vérifie qu'on a bien reçu 4 octets avant de décoder
+        if msg.arbitration_id not in Liste_ID:
+            continue  # on saute les autres trames
+
+        if msg.arbitration_id == 0x10:
+            x_robot = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x11:
+            y_robot = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x12:
+            angle_robot = struct.unpack('f', bytes(msg.data))[0]
+
 def calcul_ennemi(stop_event):
     """
     Arguments : flag stop_event
-    Modification : pile_calcul, x_ennemi, y_ennemi
+    Modification : buffer_points, x_ennemi, y_ennemi
 
     Utilisation :
-    Récupére le haut de la pile_calcul, puis le remet dedans
+    Récupére le haut de la pile_calcul, puis le remet dans buffer_points
     Moyenne les coordonées des points de la pile, donne x_ennemi et y_ennemi
     """
     global x_ennemi, y_ennemi
@@ -122,32 +158,6 @@ def calcul_ennemi(stop_event):
             xs, ys = zip(*buffer_points)
             x_ennemi = np.mean(xs)
             y_ennemi = np.mean(ys)
-
-
-def CAN_Odometrie(stop_event):
-    """
-    Réception CAN pour mettre à jour x_robot, y_robot et angle_robot
-    """
-    global x_robot, y_robot, angle_robot
-
-    while not stop_event.is_set():
-        msg = bus.recv(0.01)  # attend 10 ms max
-        if msg is None:
-            continue  # pas de message, on repart
-
-        # Vérifie qu'on a bien reçu 4 octets avant de décoder
-        if len(msg.data) != 4:
-            print(f"Trame ID {hex(msg.arbitration_id)} invalide (len={len(msg.data)})")
-            continue
-
-        if msg.arbitration_id == 0x10:
-            x_robot = struct.unpack('f', bytes(msg.data))[0]
-
-        elif msg.arbitration_id == 0x11:
-            y_robot = struct.unpack('f', bytes(msg.data))[0]
-
-        elif msg.arbitration_id == 0x12:
-            angle_robot = struct.unpack('f', bytes(msg.data))[0]
 
 ########################################################################
 
@@ -171,19 +181,19 @@ if __name__ == '__main__':
     ax.set_ylim(0, 2000)
     ax.set_aspect('equal')
 
-    # Threads secondaires
     tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
     tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
     tache_odometrie = threading.Thread(target=CAN_Odometrie, args=(stop_event,), daemon=True)
 
     tache_lidar.start()
-    tache_calcul.start()
     tache_odometrie.start()
-
+    tache_calcul.start()
+    
     buffer_points = deque(maxlen=50)
 
     try:
         while True:
+
             # Mettre à jour robot et ennemi
             robot_plot.set_offsets([[x_robot, y_robot]])
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
@@ -197,8 +207,9 @@ if __name__ == '__main__':
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
         tache_lidar.join()
-        tache_calcul.join()
         tache_odometrie.join()
+        tache_calcul.join()
         print("Programme terminé proprement.")
+
 
 ########################################################################
