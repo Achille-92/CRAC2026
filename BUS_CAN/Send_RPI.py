@@ -7,7 +7,7 @@ os.system("sudo ip link set can0 type can bitrate 500000")  # même débit que l
 os.system("sudo ifconfig can0 up")
 
 # --- Ouverture du bus ---
-bus = can.interface.Bus(channel='can0', bustype='socketcan_ctypes')
+bus = can.interface.Bus(channel='can0',bustype='socketcan',bitrate=500000)
 
 # --- Envoi de trames toutes les secondes ---
 try:
