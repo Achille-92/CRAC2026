@@ -14,7 +14,7 @@ void setup() {
   CAN.setPins (RX_GPIO_NUM, TX_GPIO_NUM);
 
   // start the CAN bus at 500 kbps
-  if (!CAN.begin(500E3)) {
+  if (!CAN.begin(1000E3)) {
     Serial.println("Starting CAN failed!");
     while (1);
   }
