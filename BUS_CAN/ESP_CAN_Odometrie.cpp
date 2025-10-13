@@ -15,7 +15,7 @@ float tour_droit = 0;
 float distance_droit = 0, old_dist_droit = 0, diff_dist_droit = 0;
 float distance_gauche = 0, old_dist_gauche = 0, diff_dist_gauche = 0;
 float dist = 0, teta = 0, delta_x = 0, delta_y = 0, teta_act = 0, diff_teta = 0, teta_act_deg = 0, teta_deg = 0, diff_deg = 0;
-float pos_act[2] = {145, 120}, pos_fin[2] = {105, 120}, erreur_droit = 0, erreur_gauche = 0, Kp = 1, Kd = 1, old_erreur_droit = 0, old_erreur_gauche = 0, cmd = 0;
+float pos_act[2] = {100, 100}, pos_fin[2] = {105, 120}, erreur_droit = 0, erreur_gauche = 0, Kp = 1, Kd = 1, old_erreur_droit = 0, old_erreur_gauche = 0, cmd = 0;
 int VIT_gauche = 0, VIT_droit = 0, etat = 0, i = 0, temp = 0;
 int tic_Sd = 0, old_tic_droit = 0, diff_tic_droit = 0, tic_Md = 0, old_diff_tic_droit = 0, old_VIT_droit = 0, tic_Mda = 0, VIT_Ad = 0;
 int tic_Sg = 0, old_tic_gauche = 0, diff_tic_gauche = 0, tic_Mg = 0, old_diff_tic_gauche = 0, old_VIT_gauche = 0, tic_Mga = 0, VIT_Ag = 0;
@@ -54,6 +54,42 @@ void setup()
     Serial.println("Starting CAN failed!");
     while (1);
   }
+
+  while((pos_act[0]==100) || (pos_act[1]==100)){
+    int packetSize = CAN.parsePacket();
+    Serial.println("Dans l'attente des coordonées de la part de la RPI");
+    if (packetSize) {
+      uint32_t canId = CAN.packetId();
+
+      if (canId == 0x20 && packetSize == 4) {
+        CAN.readBytes((uint8_t*)&pos_act[0], 4);
+        Serial.print("Reçu X : ");
+        Serial.println(pos_act[0]);
+      }
+      else if (canId == 0x21 && packetSize == 4) {
+        CAN.readBytes((uint8_t*)&pos_act[1], 4);
+        Serial.print("Reçu Y : ");
+        Serial.println(pos_act[1]);
+      }
+      else if (canId == 0x22 && packetSize == 4) {
+        CAN.readBytes((uint8_t*)&teta_act, 4);
+        Serial.print("Reçu Teta : ");
+        Serial.println(teta_act);
+      }
+
+      // vider le buffer si besoin
+      while (CAN.available()) CAN.read();
+    }
+    delay(500);
+  }
+  Serial.println("Setup fini");
+  Serial.print("X_depart :");
+  Serial.println(pos_act[0]);
+  Serial.print("Y_depart :");
+  Serial.println(pos_act[1]);
+  Serial.print("Angle_depart :");
+  Serial.println(teta_act);
+
 
 }
 void loop()
@@ -117,7 +153,7 @@ void loop()
   // asserv suivant la différence de tic
   VIT_Ag = kpga * (tic_Mga - tic_Sg);
 
-  //Serial.printf("X=%.1f Y=%.1f Angle=%.1f \n",pos_act[0],pos_act[1],teta_act_deg);
+  Serial.printf("X=%.1f Y=%.1f Angle=%.1f \n",pos_act[0],pos_act[1],teta_act_deg);
   float x = pos_act[0];
   float y = pos_act[1];
   float teta = teta_act_deg;
