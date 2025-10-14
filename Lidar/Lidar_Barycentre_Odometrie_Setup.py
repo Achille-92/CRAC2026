@@ -1,0 +1,239 @@
+################## Librairies ##########################################
+from rplidar import RPLidar
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+import threading, queue
+from collections import deque
+import time
+import os
+import can
+import struct
+########################################################################
+
+# config CAN
+os.system('sudo ip link set can0 type can bitrate 500000')
+os.system('sudo ifconfig can0 up')
+bus = can.interface.Bus(
+    channel='can0',
+    bustype='socketcan',
+    bitrate=500000,
+    can_filters=[{"can_id": 0x10, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x11, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x12, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x20, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x21, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x22, "can_mask": 0x7FF, "extended": False}]
+)
+
+Liste_ID = [0x10, 0x11, 0x12,0x20,0x21,0x22]
+
+# Port série et Baudrate du lidar
+PORT_NAME = '/dev/ttyUSB0'
+BAUDRATE = 256000
+
+# Création de l'objet Lidar, et de la Pile pile_points
+lidar = None
+pile_calcul = queue.Queue(maxsize=500)
+
+# Coordonnées et angle de notre robot
+x_depart = 145
+y_depart = 120
+angle_depart = -90
+
+x_robot = 0
+y_robot = 0
+angle_robot = 0
+
+# Coordonnées, angle et vitesse du robot ennemi
+x_ennemi = 0
+y_ennemi = 0
+angle_ennemi = 0
+v_ennemi = 0
+
+# Objets et variables pour la fenêtre graphique
+fig = None 
+ax = None
+robot_plot = None
+scat = None
+
+################## Fonction  ###########################################
+def calcul_points(stop_event):
+    """
+    Argument : flag "stop_event"
+    Modification : variables globales "pile_points"
+
+    Utilisation :
+    Création de l'objet "lidar"
+    Calcul de l'angle total et des coordonnées des points
+    Saturation des valeurs pour les limites de l'aire de jeu, puis pour oublier les bords
+    """
+
+    lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)                       # connexion au Lidar
+    
+    print("INFO:", lidar.get_info())                                    # Affichage d'informations propres au Lidar
+    print("HEALTH:", lidar.get_health())
+
+    lidar.start_motor()                                                 # Démarrage du moteur du Lidar
+    global  x_robot, y_robot, angle_robot
+    x_point = 0
+    y_point = 0
+
+    try:
+        # On lit les scans tant que le stop_event n’est pas activé
+        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096):
+            if stop_event.is_set():   # si on demande l’arrêt → on sort
+                break
+
+            for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
+                phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
+                angle_total = phi - math.radians(angle_robot) - math.radians(101)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+
+                x_point = x_robot + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
+                y_point = y_robot - distance * math.sin(angle_total)
+
+                # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
+                x_point = max(0, min(3000, int(x_point)))
+                y_point = max(0, min(2000, int(y_point)))
+
+                if 10 <= x_point <= 2990 and 10 <= y_point <= 1990:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                    pile_calcul.put((x_point, y_point))
+
+    except Exception as e:                                                      # En cas d'exception on affiche l'erreur
+        print("Erreur dans le thread Lidar:", e)
+    finally:                                                                    # Et on arrête le Lidar
+        # Nettoyage du Lidar
+        print("Arrêt du Lidar...")
+        lidar.stop()
+        lidar.stop_motor()
+        lidar.disconnect()
+
+
+def CAN_Odometrie(stop_event):
+    """
+    Argument : flag "stop_event"
+    Modification : variables globales x_robot, y_robot, angle_robot
+
+    Utilisation :
+    Lis le Bus CAN
+    Si l'ID du message n'est pas dans la Liste_ID, saute
+    Sinon, met à jour les coordonées et angle du robot
+    """
+    global x_robot, y_robot, angle_robot, Liste_ID
+
+    while not stop_event.is_set():
+        msg = bus.recv(0.01)  # attend 10 ms max
+        if msg is None:
+            continue  # pas de message, on repart
+
+        # Vérifie qu'on a bien reçu 4 octets avant de décoder
+        if msg.arbitration_id not in Liste_ID:
+            continue  # on saute les autres trames
+
+        if msg.arbitration_id == 0x10:
+            x_robot = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x11:
+            y_robot = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x12:
+            angle_robot = struct.unpack('f', bytes(msg.data))[0]
+
+def calcul_ennemi(stop_event):
+    """
+    Arguments : flag stop_event
+    Modification : buffer_points, x_ennemi, y_ennemi
+
+    Utilisation :
+    Récupére le haut de la pile_calcul, puis le remet dans buffer_points
+    Moyenne les coordonées des points de la pile, donne x_ennemi et y_ennemi
+    """
+    global x_ennemi, y_ennemi
+
+    buffer_points = deque(maxlen=50)
+
+    while not stop_event.is_set():
+        try:
+            # Récupère un point du Lidar
+            p = pile_calcul.get(timeout=0.1)
+            buffer_points.append(p)
+        except queue.Empty:
+            pass
+
+        # Calcul barycentre, angle et vitesse
+        if buffer_points:
+            xs, ys = zip(*buffer_points)
+            x_ennemi = np.mean(xs)
+            y_ennemi = np.mean(ys)
+
+########################################################################
+
+################## Lancement du programme principal ####################
+
+if __name__ == '__main__':
+
+    stop_event = threading.Event()
+
+    # Objets et variables pour la fenêtre graphique
+    fig, ax = plt.subplots()
+    plt.ion()
+    plt.show()
+
+    # Scatter pour les objets
+    robot_plot = ax.scatter([x_robot], [y_robot], s=50, c='red', marker='x')
+    ennemi_plot = ax.scatter([], [], s=50, c='green', marker='o')
+    scat = ax.scatter([], [], s=5, c='blue', alpha=0.5)
+
+    ax.set_xlim(0, 3000)
+    ax.set_ylim(0, 2000)
+    ax.set_aspect('equal')
+
+    tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
+    tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
+    tache_odometrie = threading.Thread(target=CAN_Odometrie, args=(stop_event,), daemon=True)
+
+    tache_lidar.start()
+    tache_odometrie.start()
+    tache_calcul.start()
+    
+    buffer_points = deque(maxlen=50)
+
+    try:
+        # Exemple de trame standard (11 bits)
+        data_x = struct.pack('<f',x_depart)
+        data_y = struct.pack('<f',y_depart)
+        data_angle = struct.pack('<f',angle_depart)
+        msg = can.Message(arbitration_id=0x20, data=data_x, is_extended_id=False)
+        bus.send(msg)
+        print(f"Trame envoyée : {msg}")
+
+        msg = can.Message(arbitration_id=0x21, data=data_y, is_extended_id=False)
+        bus.send(msg)
+        print(f"Trame envoyée : {msg}")
+
+        msg = can.Message(arbitration_id=0x22, data=data_angle, is_extended_id=False)
+        bus.send(msg)
+        print(f"Trame envoyée : {msg}")
+        time.sleep(1)
+
+        while True:
+
+            # Mettre à jour robot et ennemi
+            robot_plot.set_offsets([[x_robot, y_robot]])
+            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
+
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+            time.sleep(0.01)
+
+    except KeyboardInterrupt:
+        print("Arrêt demandé par l'utilisateur.")
+        stop_event.set()  # signal aux threads de s'arrêter
+        # Attente que chaque thread termine proprement
+        tache_lidar.join()
+        tache_odometrie.join()
+        tache_calcul.join()
+        print("Programme terminé proprement.")
+
+
+########################################################################
