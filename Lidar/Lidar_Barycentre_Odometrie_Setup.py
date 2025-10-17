@@ -18,7 +18,8 @@ bus = can.interface.Bus(
     channel='can0',
     bustype='socketcan',
     bitrate=500000,
-    can_filters=[{"can_id": 0x10, "can_mask": 0x7FF, "extended": False},
+    can_filters=[{"can_id": 0x01, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x10, "can_mask": 0x7FF, "extended": False},
                  {"can_id": 0x11, "can_mask": 0x7FF, "extended": False},
                  {"can_id": 0x12, "can_mask": 0x7FF, "extended": False},
                  {"can_id": 0x20, "can_mask": 0x7FF, "extended": False},
@@ -26,7 +27,7 @@ bus = can.interface.Bus(
                  {"can_id": 0x22, "can_mask": 0x7FF, "extended": False}]
 )
 
-Liste_ID = [0x10, 0x11, 0x12,0x20,0x21,0x22]
+Liste_ID = [0x01,0x10, 0x11, 0x12,0x20,0x21,0x22]
 
 # Port série et Baudrate du lidar
 PORT_NAME = '/dev/ttyUSB0'
@@ -39,7 +40,7 @@ pile_calcul = queue.Queue(maxsize=500)
 # Coordonnées et angle de notre robot
 x_depart = 145
 y_depart = 120
-angle_depart = -90
+angle_depart = 90
 
 x_robot = 0
 y_robot = 0
@@ -203,6 +204,7 @@ if __name__ == '__main__':
         data_x = struct.pack('<f',x_depart)
         data_y = struct.pack('<f',y_depart)
         data_angle = struct.pack('<f',angle_depart)
+
         msg = can.Message(arbitration_id=0x20, data=data_x, is_extended_id=False)
         bus.send(msg)
         print(f"Trame envoyée : {msg}")
@@ -217,7 +219,9 @@ if __name__ == '__main__':
         time.sleep(1)
 
         while True:
-
+            etat = 1
+            data_etat = struct.pack('<I',etat)
+            bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
             # Mettre à jour robot et ennemi
             robot_plot.set_offsets([[x_robot, y_robot]])
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
@@ -227,12 +231,17 @@ if __name__ == '__main__':
             time.sleep(0.01)
 
     except KeyboardInterrupt:
+        etat = 2
+        data_etat = struct.pack('<I',etat)
+        bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
+
         print("Arrêt demandé par l'utilisateur.")
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
         tache_lidar.join()
         tache_odometrie.join()
         tache_calcul.join()
+        os.system("sudo ifconfig can0 down")
         print("Programme terminé proprement.")
 
 
