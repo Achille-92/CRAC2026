@@ -38,8 +38,8 @@ lidar = None
 pile_calcul = queue.Queue(maxsize=500)
 
 # Coordonnées et angle de notre robot
-x_depart = 145
-y_depart = 120
+x_depart = 120
+y_depart = 145
 angle_depart = 90
 
 x_robot = 0
@@ -88,7 +88,7 @@ def calcul_points(stop_event):
 
             for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
                 phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
-                angle_total = phi - math.radians(angle_robot) - math.radians(101)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+                angle_total = phi - math.radians(angle_robot) - math.radians(11)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
 
                 x_point = x_robot + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
                 y_point = y_robot - distance * math.sin(angle_total)
