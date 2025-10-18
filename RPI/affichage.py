@@ -16,7 +16,7 @@ def init_affichage():
         tuple: fig, ax, robot_plot, ennemi_plot, scat
     """
     # Objets et variables pour la fenêtre graphique
-    img = mpimg.imread("piste.png")  # ou le chemin complet vers ton image
+    img = mpimg.imread("/home/youssef/Desktop/CRAC2026/Piste.png")  # ou le chemin complet vers ton image
     img = np.rot90(img, 2)  # rotation de 180° (2 x 90°)
 
     fig, ax = plt.subplots(figsize=(600/100, 400/100), dpi=100)
