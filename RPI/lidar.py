@@ -1,58 +1,59 @@
+# lidar.py
 from rplidar import RPLidar
 import math
 import queue
+import threading
 
 def init_lidar(port, baudrate):
     """
-    Initialise et renvoie un objet RPLidar.
+    Initialise et renvoie un objet RPLidar sans démarrer le moteur.
     """
-    lidar = RPLidar(port, baudrate=baudrate)
-    return lidar
+    return RPLidar(port, baudrate=baudrate)
 
-def calcul_points(lidar, pile_calcul, stop_event, x_robot, y_robot, angle_robot,buffer_Lidar, marge_bordurepiste):
+def start_lidar_thread(lidar, pile_calcul, stop_event,
+                       get_robot_position,
+                       buffer_Lidar=4096, marge_bordurepiste=15):
     """
-    Argument : flag "stop_event"
-    Modification : variables globales "pile_points"
+    Démarre un thread qui lit en continu les scans du Lidar et remplit la pile.
 
-    Utilisation :
-    Création de l'objet "lidar"
-    Calcul de l'angle total et des coordonnées des points
-    Saturation des valeurs pour les limites de l'aire de jeu, puis pour oublier les bords
+    Args:
+        lidar: objet RPLidar
+        pile_calcul: queue.Queue() pour stocker les points
+        stop_event: threading.Event() pour arrêter le thread
+        get_robot_position: fonction retournant (x_robot, y_robot, angle_robot)
+        buffer_Lidar: nombre max de mesures par scan
+        marge_bordurepiste: marge pour ignorer les bords de la piste
     """
+    def lidar_thread():
+        try:
+            lidar.start_motor()
+            while not stop_event.is_set():
+                for scan in lidar.iter_scans(scan_type='express', max_buf_meas=buffer_Lidar):
+                    if stop_event.is_set():
+                        break
+                    x_robot, y_robot, angle_robot = get_robot_position()
+                    for quality, angle_point, distance in scan:
+                        phi = math.radians(angle_point)
+                        angle_total = phi - math.radians(angle_robot) - math.radians(11)
 
-    print("INFO:", lidar.get_info())                                    # Affichage d'informations propres au Lidar
-    print("HEALTH:", lidar.get_health())
+                        x_point = x_robot + distance * math.cos(angle_total)
+                        y_point = y_robot - distance * math.sin(angle_total)
 
-    lidar.start_motor()                                                 # Démarrage du moteur du Lidar
+                        x_point = max(0, min(3000, int(x_point)))
+                        y_point = max(0, min(2000, int(y_point)))
 
-    x_point = 0
-    y_point = 0
+                        if marge_bordurepiste <= x_point <= 3000 - marge_bordurepiste and \
+                           marge_bordurepiste <= y_point <= 2000 - marge_bordurepiste:
+                            pile_calcul.put((x_point, y_point))
 
-    try:
-        # On lit les scans tant que le stop_event n’est pas activé
-        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=buffer_Lidar):
-            if stop_event.is_set():   # si on demande l’arrêt → on sort
-                break
+        except Exception as e:
+            print("Erreur dans le thread Lidar:", e)
+        finally:
+            lidar.stop()
+            lidar.stop_motor()
+            lidar.disconnect()
+            print("Thread Lidar terminé")
 
-            for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
-                phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
-                angle_total = phi - math.radians(angle_robot) - math.radians(11)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
-
-                x_point = x_robot + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
-                y_point = y_robot - distance * math.sin(angle_total)
-
-                # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
-                x_point = max(0, min(3000, int(x_point)))
-                y_point = max(0, min(2000, int(y_point)))
-
-                if marge_bordurepiste <= x_point <= 3000-marge_bordurepiste and marge_bordurepiste <= y_point <= 2000-marge_bordurepiste:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
-                    pile_calcul.put((x_point, y_point))
-
-    except Exception as e:                                                      # En cas d'exception on affiche l'erreur
-        print("Erreur dans le thread Lidar:", e)
-    finally:                                                                    # Et on arrête le Lidar
-        # Nettoyage du Lidar
-        print("Arrêt du Lidar...")
-        lidar.stop()
-        lidar.stop_motor()
-        lidar.disconnect()
+    thread = threading.Thread(target=lidar_thread, daemon=True)
+    thread.start()
+    return thread
