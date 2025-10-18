@@ -37,8 +37,8 @@ PORT_NAME = '/dev/ttyUSB0'
 BAUDRATE = 256000
 
 # Piste
-x_piste = 1800
-y_piste = 1000
+x_piste = 1000
+y_piste = 900
 marge_bordurepiste = 15 #mm
 
 # Création de l'objet Lidar, et de la Pile pile_points
@@ -62,7 +62,7 @@ angle_robot_voulu = 0
 x_ennemi = 1500
 y_ennemi = 1000
 
-Batteries = [[12,14,13.5,100],[12,14,13.5,100],[12,14,13.5,100]]
+Batteries = [[12,14,13.9,100],[12,14,13.5,100],[12,14,13.5,100]]
 U_last = [0,0,0]
 
 largeur_rect = 50       # largeur en mm
