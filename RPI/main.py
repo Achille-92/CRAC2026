@@ -36,10 +36,15 @@ Liste_ID = [0x01,0x10, 0x11, 0x12,0x20,0x21,0x22]
 PORT_NAME = '/dev/ttyUSB0'
 BAUDRATE = 256000
 
+# Piste
+x_piste = 1800
+y_piste = 1000
+marge_bordurepiste = 15 #mm
+
 # Création de l'objet Lidar, et de la Pile pile_points
 lidar = None
 pile_calcul = queue.Queue(maxsize=500)
-marge_bordurepiste = 15 #mm
+
 
 # Coordonnées et angle de notre robot
 x_robot_depart = 120
@@ -110,10 +115,10 @@ def calcul_points(stop_event):
                 y_point = y_robot_actuel - distance * math.sin(angle_total)
 
                 # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
-                x_point = max(0, min(3000, int(x_point)))
-                y_point = max(0, min(2000, int(y_point)))
+                x_point = max(0, min(x_piste, int(x_point)))
+                y_point = max(0, min(y_piste, int(y_point)))
 
-                if 10 <= x_point <= 1790 and 10 <= y_point <= 990:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                if marge_bordurepiste <= x_point <= x_piste-marge_bordurepiste and marge_bordurepiste <= y_point <= y_piste-marge_bordurepiste:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
                     pile_calcul.put((x_point, y_point))
 
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
