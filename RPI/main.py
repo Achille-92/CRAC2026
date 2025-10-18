@@ -93,7 +93,7 @@ def calcul_points(stop_event):
     print("HEALTH:", lidar.get_health())
 
     lidar.start_motor()                                                 # Démarrage du moteur du Lidar
-    global  x_robot, y_robot, angle_robot
+    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel
     x_point = 0
     y_point = 0
 
@@ -105,10 +105,10 @@ def calcul_points(stop_event):
 
             for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
                 phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
-                angle_total = phi - math.radians(angle_robot) - math.radians(11)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+                angle_total = phi - math.radians(angle_robot_actuel) - math.radians(11)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
 
-                x_point = x_robot + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
-                y_point = y_robot - distance * math.sin(angle_total)
+                x_point = x_robot_actuel + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
+                y_point = y_robot_actuel - distance * math.sin(angle_total)
 
                 # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
                 x_point = max(0, min(3000, int(x_point)))
@@ -234,8 +234,6 @@ if __name__ == '__main__':
             for i in range(len(Batteries)):
                 Batteries[i][3]=100*(Batteries[i][2]-Batteries[i][0])/(Batteries[i][1]-Batteries[i][0])
                 Batteries[i][3] = round(Batteries[i][3],2)
-                print(f"Batterie N°{i+1} : {Batteries[i][3]} %")
-
             
                 # Définir couleurs dans l'ordre
                 couleurs = ['red', 'orange', 'yellow', 'lime', 'green']
