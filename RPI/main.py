@@ -13,7 +13,7 @@ import matplotlib.image as mpimg
 import matplotlib.patches as patches
 from affichage import init_affichage
 from lidar import init_lidar
-from lidar import calcul_points
+from lidar import start_lidar_thread
 ########################################################################
 
 # config CAN
@@ -146,19 +146,17 @@ if __name__ == '__main__':
     stop_event = threading.Event()
 
     fig, ax, robot_plot, ennemi_plot, scat = init_affichage()
-    
-    tache_lidar = threading.Thread(target=calcul_points, args=(lidar, pile_calcul, stop_event, x_robot_actuel, y_robot_actuel, angle_robot_actuel,buffer_Lidar, marge_bordurepiste), daemon=False)
+    tache_lidar = start_lidar_thread(lidar, pile_calcul, stop_event, x_robot_actuel, y_robot_actuel, angle_robot_actuel)
+
+    #tache_lidar = threading.Thread(target=calcul_points, args=(PORT_NAME, BAUDRATE, lidar, pile_calcul, stop_event, x_robot_actuel, y_robot_actuel, angle_robot_actuel,buffer_Lidar, marge_bordurepiste), daemon=False)
     """tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
     tache_odometrie = threading.Thread(target=CAN_Odometrie, args=(stop_event,), daemon=True)
 
+    tache_lidar.start()
     tache_odometrie.start()
     tache_calcul.start()"""
     
-    tache_lidar.start()
     buffer_points = deque(maxlen=buffer_affichage)
-
-    print("INFO:", lidar.get_info())                                    # Affichage d'informations propres au Lidar
-    print("HEALTH:", lidar.get_health())
 
     try:
        
@@ -191,7 +189,8 @@ if __name__ == '__main__':
             for i in range(len(Batteries)):
                 Batteries[i][3]=100*(Batteries[i][2]-Batteries[i][0])/(Batteries[i][1]-Batteries[i][0])
                 Batteries[i][3] = round(Batteries[i][3],2)
-                
+                print(f"Batterie N°{i+1} : {Batteries[i][3]} %")
+
             
                 # Définir couleurs dans l'ordre
                 couleurs = ['red', 'orange', 'yellow', 'lime', 'green']
@@ -234,7 +233,7 @@ if __name__ == '__main__':
         print("Arrêt demandé par l'utilisateur.")
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
-        tache_lidar.join()
+        #tache_lidar.join()
         #tache_odometrie.join()
         #tache_calcul.join()
         #os.system("sudo ifconfig can0 down")
