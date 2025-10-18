@@ -57,7 +57,10 @@ angle_robot_voulu = 0
 x_ennemi = 1500
 y_ennemi = 1000
 
-Batteries = [[12,14,14,100],[12,14,14,100],[12,14,14,100]]
+Batteries = [[12,14,13.5,100],[12,14,13.5,100],[12,14,13.5,100]]
+U_last = [Batteries[0][2],Batteries[1][2],Batteries[2][2]]
+
+
 largeur_rect = 50       # largeur en mm
 hauteur_rect = 150      # hauteur en mm
 espacement = 0         # espace entre rectangles
@@ -229,41 +232,38 @@ if __name__ == '__main__':
 
             # Gestion batteries :
             for i in range(len(Batteries)):
-                Batteries[i][3]=100*(Batteries[i][2]-Batteries[i][0])/(Batteries[i][1]-Batteries[i][0])
-                Batteries[i][3] = round(Batteries[i][3],2)
-            
-                # Définir couleurs dans l'ordre
-                couleurs = ['red', 'orange', 'yellow', 'lime', 'green']
-                seuils = [10, 25, 50, 75, 90]  # seuil minimal pour chaque rectangle
+                if (Batteries[i][2] != U_last[i]):
+                    Batteries[i][3]=100*(Batteries[i][2]-Batteries[i][0])/(Batteries[i][1]-Batteries[i][0])
+                    Batteries[i][3] = round(Batteries[i][3],2)
+                
+                    couleurs = ['red', 'orange', 'yellow', 'lime', 'green']
+                    seuils = [10, 25, 50, 75, 90]
 
-                # Calcul du point de départ de la salve
-                x_depart = 200 + i * (5 * (largeur_rect + espacement) + espacement_salves)
+                    x_depart = 200 + i * (5 * (largeur_rect + espacement) + espacement_salves)
+                    for j in range(5):
+                        if Batteries[i][3] >= seuils[j]:
+                            x = x_depart + j * (largeur_rect + espacement)
+                            rect = patches.Rectangle(
+                                (x, y_base), largeur_rect, hauteur_rect,
+                                linewidth=0, edgecolor='none', facecolor=couleurs[j], alpha=0.9
+                            )
+                            ax.add_patch(rect)
 
-                # Création des rectangles selon le pourcentage
-                for j in range(5):
-                    if Batteries[i][3] >= seuils[j]:
-                        x = x_depart + j * (largeur_rect + espacement)
-                        rect = patches.Rectangle(
-                            (x, y_base), largeur_rect, hauteur_rect,
-                            linewidth=0, edgecolor='none', facecolor=couleurs[j], alpha=0.9
-                        )
-                        ax.add_patch(rect)
-
-                # Texte pour la salve
-                largeur_totale = 5 * largeur_rect + 4 * espacement
-                x_centre_salve = x_depart + largeur_totale / 2
-                ax.text(
-                    x_centre_salve, y_base + hauteur_rect + texte_offset_y,
-                    f"{Batteries[i][3]}%",
-                    color='black', fontsize=8, ha='center', va='bottom'
-                )
+                    largeur_totale = 5 * largeur_rect + 4 * espacement
+                    x_centre_salve = x_depart + largeur_totale / 2
+                    ax.text(
+                        x_centre_salve, y_base + hauteur_rect + texte_offset_y,
+                        f"{Batteries[i][3]}%",
+                        color='black', fontsize=8, ha='center', va='bottom'
+                    )
             
                 
-
             plt.draw()
             fig.canvas.draw()
             fig.canvas.flush_events()
             time.sleep(0.01)
+            U_last = [Batteries[0][2],Batteries[1][2],Batteries[2][2]]
+
 
     except KeyboardInterrupt:
         """etat = 2
