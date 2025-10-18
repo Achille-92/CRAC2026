@@ -32,16 +32,13 @@ bus = can.interface.Bus(
 
 Liste_ID = [0x01,0x10, 0x11, 0x12,0x20,0x21,0x22]
 
-buffer_Lidar = 4096
-buffer_Pile_calcul = 500
-buffer_affichage = 50
 # Port série et Baudrate du lidar
 PORT_NAME = '/dev/ttyUSB0'
 BAUDRATE = 256000
 
 # Création de l'objet Lidar, et de la Pile pile_points
 lidar = None
-pile_calcul = queue.Queue(maxsize=buffer_Pile_calcul)
+pile_calcul = queue.Queue(maxsize=500)
 marge_bordurepiste = 15 #mm
 
 # Coordonnées et angle de notre robot
@@ -165,9 +162,9 @@ def calcul_ennemi(stop_event):
     Récupére le haut de la pile_calcul, puis le remet dans buffer_points
     Moyenne les coordonées des points de la pile, donne x_ennemi et y_ennemi
     """
-    global x_ennemi, y_ennemi,buffer_affichage
+    global x_ennemi, y_ennemi
 
-    buffer_points = deque(maxlen=buffer_affichage)
+    buffer_points = deque(maxlen=50)
 
     while not stop_event.is_set():
         try:
@@ -201,7 +198,7 @@ if __name__ == '__main__':
     tache_calcul.start()
     #tache_odometrie.start()
     
-    buffer_points = deque(maxlen=buffer_affichage)
+    buffer_points = deque(maxlen=50)
 
     try:
        
@@ -260,7 +257,7 @@ if __name__ == '__main__':
                     f"{Batteries[i][3]}%",
                     color='black', fontsize=8, ha='center', va='bottom'
                 )
-            print("")
+            
                 
 
             plt.draw()
