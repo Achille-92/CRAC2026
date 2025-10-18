@@ -80,7 +80,7 @@ void Asserv(void *)
   int finish = 1;
   while (1)
   {
-
+    //////////////////////////////////////calcul des tics/distances de chaque roues
     tic_droit = encoder2.getCount();
     tic_gauche = encoder.getCount();
     tour_droit = (float)tic_droit / tic_tour_droit;
@@ -92,6 +92,7 @@ void Asserv(void *)
     diff_dist_droit = distance_droit - old_dist_droit;
     diff_dist_gauche = distance_gauche - old_dist_gauche;
 
+    ////////////////////////////////////calcul coordonée du robot + angle
     delta_x = pos_fin[0] - pos_act[0];
     delta_y = pos_fin[1] - pos_act[1];
     teta = atan2(delta_y, delta_x);
@@ -104,6 +105,8 @@ void Asserv(void *)
     old_diff_dist_g = diff_dist_g;
     old_diff_dista = diff_dista;
     diff_dista = diff_teta * 2 * PI * Rayon;
+
+    ////////////////////////////////////////////calcul trajectoire théorique
     if (((pos_fin[0] != traj[fin].x) || (pos_fin[1] != traj[fin].y)) && S_VIT_d == 0 && S_VIT_g == 0)
     {
       dist_a_parcourir = dist / fin;
@@ -119,10 +122,14 @@ void Asserv(void *)
       }
       Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d\n", traj[n].x, traj[n].y, dist, dist_a_parcourir, n);
     }
+
+    ///////////////////////////////////////////
     pos_act[0] = pos_act[0] + (cos(teta_act) * ((diff_dist_droit + diff_dist_gauche) / 2));
     pos_act[1] = pos_act[1] + (sin(teta_act) * ((diff_dist_gauche + diff_dist_droit) / 2));
     old_VIT_droit = VIT_droit;
     old_VIT_gauche = VIT_gauche;
+
+    ////////////////////////////////////////différent asservissement suivant le type de déplacement 0:Marche avant 1:Marche arrière 2:juste angle 3:juste linéaire
     switch (cons)
     {
     case 0:
@@ -198,6 +205,7 @@ void Asserv(void *)
       cons = 0;
       break;
     }
+    ////////////////////////////////limite d'accelleration + offset de vitesse angulaire (pas très sur de l'offset)
     if (VIT_droit - old_VIT_droit > 5)
       VIT_droit = old_VIT_droit + signe(VIT_droit) * 5;
     if (VIT_gauche - old_VIT_gauche > 5)
@@ -205,6 +213,7 @@ void Asserv(void *)
     if (ensemble(diff_teta,PI/180.0)&&!ensemble(diff_teta,(10*PI)/180.0))
       VIT_Ad += signe(VIT_Ad) * 40, VIT_Ag += signe(VIT_Ag) * 40;
 
+    ////////////////////////////////saturation vitesse
     if (VIT_droit > cos(diff_teta) *LIMITE_VIT)
       VIT_droit = cos(diff_teta) *LIMITE_VIT;
     if (VIT_gauche > cos(diff_teta) *LIMITE_VIT)
@@ -225,6 +234,7 @@ void Asserv(void *)
     S_VIT_g = VIT_gauche + VIT_Ag;
     S_VIT_d = VIT_droit + VIT_Ad;
 
+    //////////////////////////////////////mise à 0 de la vitesse si trop petite
     if (S_VIT_d < 20 && S_VIT_d > -20)
       S_VIT_d = 0;
     else
@@ -235,10 +245,12 @@ void Asserv(void *)
       S_VIT_g += signe(S_VIT_g) * 20;
     if (cons == -1)
       VIT_Ad = 0, VIT_Ag = 0, VIT_droit = 0, VIT_gauche = 0;
+    ///////////////////////////////////mise à jour PWM
     md.setM2Speed((S_VIT_d) / 2.0);
 
     md.setM1Speed((S_VIT_g) / 2.0);
 
+    //////////////////////////////////////////// changement de coordonnée
     if (VIT_Ad == 0 && VIT_Ag == 0 && VIT_droit == 0 && VIT_gauche == 0)
       md.setBrakes(400, 400);
     if (comparer(pos_act[0], pos_fin[0], 10) && comparer(pos_act[1], pos_fin[1], 10) && E == 0)
@@ -262,20 +274,21 @@ void Asserv(void *)
     }
     if (comparer(pos_act[0], pos_fin[0], 10) && comparer(pos_act[1], pos_fin[1], 10) && E == 5)
       md.setBrakes(400, 400), delay(1000), pos_fin[0] = 50, pos_fin[1] = 900, E = 6, cons = 1;
-    if (comparer(pos_act[0], pos_fin[0], 10) && comparer(pos_act[1], pos_fin[1], 10) && E == 6)
+    if (comparer(pos_act[0], pos_fin[0], 10) && comparer(pos_act[1], pos_fin[1], 10) && E == 6)          //arret à la fin
       finish = 0;
+
     Serial.printf("a\n");
     vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
-int signe(float a)
+int signe(float a)       //retourne le signe
 {
   if (a >= 0)
     return 1;
   else
     return -1;
 }
-int comparer(float valeur_comparer, float valeur_compareur, float delta)
+int comparer(float valeur_comparer, float valeur_compareur, float delta)          //compare la première valeur par rapport à la deuxième en prenant en compte le delta
 {
   if ((valeur_comparer) > (valeur_compareur - delta) && (valeur_comparer) < (valeur_compareur + delta))
     return 1;
@@ -283,7 +296,7 @@ int comparer(float valeur_comparer, float valeur_compareur, float delta)
     return 0;
 }
 
-int ensemble(float valeur, float delta)
+int ensemble(float valeur, float delta)            //retourne si la valeur est dans +/- le delta
 {
   if ((valeur) > (-delta) && (valeur) < (delta))
     return 1;
