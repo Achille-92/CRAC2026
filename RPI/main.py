@@ -15,7 +15,7 @@ from affichage import init_affichage
 ########################################################################
 
 # config CAN
-"""os.system('sudo ip link set can0 type can bitrate 500000')
+os.system('sudo ip link set can0 type can bitrate 500000')
 os.system('sudo ifconfig can0 up')
 bus = can.interface.Bus(
     channel='can0',
@@ -28,7 +28,7 @@ bus = can.interface.Bus(
                  {"can_id": 0x20, "can_mask": 0x7FF, "extended": False},
                  {"can_id": 0x21, "can_mask": 0x7FF, "extended": False},
                  {"can_id": 0x22, "can_mask": 0x7FF, "extended": False}]
-)"""
+)
 
 Liste_ID = [0x01,0x10, 0x11, 0x12,0x20,0x21,0x22]
 
@@ -58,8 +58,7 @@ x_ennemi = 1500
 y_ennemi = 1000
 
 Batteries = [[12,14,13.5,100],[12,14,13.5,100],[12,14,13.5,100]]
-U_last = [Batteries[0][2],Batteries[1][2],Batteries[2][2]]
-
+U_last = [0,0,0]
 
 largeur_rect = 50       # largeur en mm
 hauteur_rect = 150      # hauteur en mm
@@ -114,7 +113,7 @@ def calcul_points(stop_event):
                 x_point = max(0, min(3000, int(x_point)))
                 y_point = max(0, min(2000, int(y_point)))
 
-                if 10 <= x_point <= 2990 and 10 <= y_point <= 1990:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                if 10 <= x_point <= 1790 and 10 <= y_point <= 990:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
                     pile_calcul.put((x_point, y_point))
 
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
@@ -136,7 +135,7 @@ def CAN_Odometrie(stop_event):
     #Si l'ID du message n'est pas dans la Liste_ID, saute
     #Sinon, met à jour les coordonées et angle du robot
      
-    """global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID
 
     while not stop_event.is_set():
         msg = bus.recv(0.01)  # attend 10 ms max
@@ -155,7 +154,7 @@ def CAN_Odometrie(stop_event):
 
         elif msg.arbitration_id == 0x12:
             angle_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
-"""
+
 def calcul_ennemi(stop_event):
     """
     Arguments : flag stop_event
@@ -199,13 +198,13 @@ if __name__ == '__main__':
 
     tache_lidar.start()
     tache_calcul.start()
-    #tache_odometrie.start()
+    tache_odometrie.start()
     
     buffer_points = deque(maxlen=50)
 
     try:
        
-        """data_x = struct.pack('<f',x_robot_depart)
+        data_x = struct.pack('<f',x_robot_depart)
         data_y = struct.pack('<f',y_robot_depart)
         data_angle = struct.pack('<f',angle_robot_depart)
 
@@ -220,12 +219,12 @@ if __name__ == '__main__':
         msg = can.Message(arbitration_id=0x22, data=data_angle, is_extended_id=False)
         bus.send(msg)
         print(f"Trame envoyée : {msg}")
-        time.sleep(1)"""
+        time.sleep(1)
 
         while True:
             etat = 1
-            """data_etat = struct.pack('<I',etat)
-            bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))"""
+            data_etat = struct.pack('<I',etat)
+            bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
             # Mettre à jour robot et ennemi sur affichage
             robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
@@ -233,6 +232,7 @@ if __name__ == '__main__':
             # Gestion batteries :
             for i in range(len(Batteries)):
                 if (Batteries[i][2] != U_last[i]):
+                    print(f"MAJ Batterie N°{i+1}")
                     Batteries[i][3]=100*(Batteries[i][2]-Batteries[i][0])/(Batteries[i][1]-Batteries[i][0])
                     Batteries[i][3] = round(Batteries[i][3],2)
                 
@@ -266,17 +266,17 @@ if __name__ == '__main__':
 
 
     except KeyboardInterrupt:
-        """etat = 2
+        etat = 2
         data_etat = struct.pack('<I',etat)
-        bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))"""
+        bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
 
         print("Arrêt demandé par l'utilisateur.")
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
         tache_lidar.join()
         tache_calcul.join()
-        #tache_odometrie.join()
-        #os.system("sudo ifconfig can0 down")
+        tache_odometrie.join()
+        os.system("sudo ifconfig can0 down")
         print("Programme terminé proprement.")
 
 
