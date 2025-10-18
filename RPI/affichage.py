@@ -35,4 +35,13 @@ def init_affichage():
     ax.set_ylim(0, 2250)  # un peu plus haut que la piste
     ax.set_aspect('equal', adjustable='box')
 
-    return fig, ax, robot_plot, ennemi_plot, scat
+    robot_info_text = ax.text(
+        1500, 2100,  # position sur la figure (x, y)
+        "",        # texte initial vide
+        color='black',
+        fontsize=8,
+        ha='left',
+        va='top'
+    )
+
+    return fig, ax, robot_plot, ennemi_plot, scat, robot_info_text
