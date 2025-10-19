@@ -69,27 +69,37 @@ void loop()
     if (canId == 0x01 && (packetSize == 4 || packetSize == 1)) {
       CAN.readBytes((uint8_t*)&etat_RPI, packetSize);
       while (CAN.available()) CAN.read(); // vider le buffer
-      Serial.print("Reçu état RPi : ");
-      Serial.println(etat_RPI);
     }
 
-    else if (canId == 0x20 && packetSize == 4) {
+    else if (canId == 0x200 && packetSize == 4) {
       CAN.readBytes((uint8_t*)&pos_act[0], 4);
       Serial.print("Reçu X : ");
       Serial.println(pos_act[0]);
     }
 
-    else if (canId == 0x21 && packetSize == 4) {
+    else if (canId == 0x201 && packetSize == 4) {
       CAN.readBytes((uint8_t*)&pos_act[1], 4);
       Serial.print("Reçu Y : ");
       Serial.println(pos_act[1]);
     }
 
-    else if (canId == 0x22 && packetSize == 4) {
+    else if (canId == 0x202 && packetSize == 4) {
       CAN.readBytes((uint8_t*)&teta_recu, 4);
       Serial.print("Reçu Angle : ");
       Serial.println(teta_recu, 2);
       teta_act = teta_recu * PI / 180.0;
+    }
+
+    else if (canId == 0x203 && packetSize == 4) {
+      CAN.readBytes((uint8_t*)&pos_fin[0], 4);
+      Serial.print("Reçu X : ");
+      Serial.println(pos_fin[0], 2);
+    }
+
+    else if (canId == 0x204 && packetSize == 4) {
+      CAN.readBytes((uint8_t*)&pos_fin[1], 4);
+      Serial.print("Reçu Y : ");
+      Serial.println(pos_fin[1], 2);
     }
   }
 
@@ -185,7 +195,7 @@ void loop()
       // asserv suivant la différence de tic
       VIT_Ag = kpga * (tic_Mga - tic_Sg);
 
-      Serial.printf("X=%.1f Y=%.1f Angle=%.1f \n",pos_act[0],pos_act[1],teta_act_deg);
+      Serial.printf("X=%.1f Y=%.1f Angle=%.1f X_voulu=%.1f Y_voulu=%1.f\n",pos_act[0],pos_act[1],teta_act_deg,pos_fin[0],pos_fin[1]);
       float x = pos_act[0];
       float y = pos_act[1];
       float teta = teta_act_deg;
@@ -195,15 +205,15 @@ void loop()
       if (millis() - lastSend > 100) {  // toutes les 100 ms
         lastSend = millis();
 
-        CAN.beginPacket(0x10);
+        CAN.beginPacket(0x100);
         CAN.write((uint8_t*)&x, sizeof(float));   // 4 octets
         CAN.endPacket();
 
-        CAN.beginPacket(0x11);
+        CAN.beginPacket(0x101);
         CAN.write((uint8_t*)&y, sizeof(float));   // 4 octets
         CAN.endPacket();
 
-        CAN.beginPacket(0x12);
+        CAN.beginPacket(0x102);
         CAN.write((uint8_t*)&teta, sizeof(float)); // 4 octets
         CAN.endPacket();
       }
