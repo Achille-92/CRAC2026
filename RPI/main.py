@@ -260,7 +260,7 @@ if __name__ == '__main__':
 
     stop_event = threading.Event()
 
-    fig, ax, robot_plot, ennemi_plot, scat, robot_info_text,ax_button,bouton_stop,point_voulu_plot,coordonnee_voulues_text = init_affichage()
+    fig, ax, robot_plot, ennemi_plot, scat, robot_info_text,ax_button,bouton_stop,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text = init_affichage()
     cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
     bouton_stop.on_clicked(partial(arret_programme, stop_event=stop_event))
 
@@ -327,8 +327,14 @@ if __name__ == '__main__':
             robot_info_text.set_text(
                 f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°"
             )
-            coordonnee_voulues_text.set_text(
-                f"X = {x_robot_voulu:.1f} Y = {y_robot_voulu:.1f}"
+            x_voulu_text.set_text(
+                f"X = {x_robot_voulu:.1f}"
+            )
+            y_voulu_text.set_text(
+                f"Y = {y_robot_voulu:.1f}"
+            )
+            A_voulu_text.set_text(
+                f"A = {angle_robot_voulu:.1f}°"
             )
 
             # Gestion batteries :
@@ -369,10 +375,19 @@ if __name__ == '__main__':
                 
             if(abs(x_robot_actuel-x_robot_voulu)>10):
                 print("Asservir en X")
+                x_voulu_text.set_color('black')
+            else:
+                x_voulu_text.set_color('green')
             if(abs(y_robot_actuel-y_robot_voulu)>10):
                 print("Asservir en Y")
+                y_voulu_text.set_color('black')
+            else:
+                y_voulu_text.set_color('green')
             if(abs(angle_robot_actuel-angle_robot_voulu)>1):
                 print("Asservir en Angle")
+                A_voulu_text.set_color('black')
+            else:
+                A_voulu_text.set_color('green')
             if(abs(x_robot_actuel-x_robot_voulu)<10 and abs(y_robot_actuel-y_robot_voulu)<10 and abs(angle_robot_actuel-angle_robot_voulu)<1):
                 print("Bonne position")
                 ordre_receive = 1
