@@ -2,16 +2,16 @@
 #include <Wire.h>
 #include <DualVNH5019MotorShield.h>
 #include <ESP32Encoder.h>
-#include <BluetoothSerial.h>
 #include <CAN.h>
 
-#define TX_GPIO_NUM 5
-#define RX_GPIO_NUM 4
+#define TX_GPIO_NUM   5
+#define RX_GPIO_NUM   4
 #define LIMITE_VIT 170
 
 int signe(float a);
 int ensemble(float valeur, float delta);
 int comparer(float valeur_comparer, float valeur_compareur, float delta);
+float normaliserAngle(float angle);
 void Asserv(void *);
 
 struct coo
@@ -39,7 +39,6 @@ int etat_ESP_RPI = 0, etat_RPI = 0;
 const float tic_tour_droit = 3164.0, tic_tour_gauche = 3167.7, Rayon = 11.2;
 static bool x_ok = false, y_ok = false, angle_ok = false;
 
-// BluetoothSerial Bt;
 DualVNH5019MotorShield md;
 ESP32Encoder encoder;
 ESP32Encoder encoder2;
@@ -48,7 +47,6 @@ TaskHandle_t Asservissement;
 void setup()
 {
   Serial.begin(115200);
-  // Bt.begin("TEST");
 
   md.init(); // Initialise le shield
   ESP32Encoder::useInternalWeakPullResistors = puType::up;
@@ -77,42 +75,50 @@ void setup()
 }
 
 void loop() {
-  while (int packetSize = CAN.parsePacket()) {
+  // Lecture CAN centralisée
+  int packetSize = CAN.parsePacket();
+  if (packetSize) {
     uint32_t canId = CAN.packetId();
 
     if (canId == 0x01 && (packetSize == 4 || packetSize == 1)) {
       CAN.readBytes((uint8_t*)&etat_RPI, packetSize);
-      Serial.print("Reçu état RPi : "); Serial.println(etat_RPI);
-    }
-    else if (canId == 0x200 && packetSize == 4) {
-      CAN.readBytes((uint8_t*)&pos_act[0], 4);
-      Serial.print("Reçu X : "); Serial.println(pos_act[0]);
-    }
-    else if (canId == 0x201 && packetSize == 4) {
-      CAN.readBytes((uint8_t*)&pos_act[1], 4);
-      Serial.print("Reçu Y : "); Serial.println(pos_act[1]);
-    }
-    else if (canId == 0x202 && packetSize == 4) {
-      CAN.readBytes((uint8_t*)&teta_recu, 4);
-      Serial.print("Reçu Angle : "); Serial.println(teta_recu, 2);
-      teta_act = teta_recu * PI / 180.0;
-    }
-    else if (canId == 0x203 && packetSize == 4) {  // X cible
-      CAN.readBytes((uint8_t*)&pos_fin[0], 4);
-      Serial.print("Nouvelle consigne X reçue : "); Serial.println(pos_fin[0]);
-    }
-    else if (canId == 0x204 && packetSize == 4) {  // Y cible
-      CAN.readBytes((uint8_t*)&pos_fin[1], 4);
-      Serial.print("Nouvelle consigne Y reçue : "); Serial.println(pos_fin[1]);
+      while (CAN.available()) CAN.read(); // vider le buffer
     }
 
-    // vider le buffer CAN au cas où
-    while (CAN.available()) CAN.read();
+    else if (canId == 0x200 && packetSize == 4) {
+      CAN.readBytes((uint8_t*)&pos_act[0], 4);
+      Serial.print("Reçu X : ");
+      Serial.println(pos_act[0]);
+    }
+
+    else if (canId == 0x201 && packetSize == 4) {
+      CAN.readBytes((uint8_t*)&pos_act[1], 4);
+      Serial.print("Reçu Y : ");
+      Serial.println(pos_act[1]);
+    }
+
+    else if (canId == 0x202 && packetSize == 4) {
+      CAN.readBytes((uint8_t*)&teta_recu, 4);
+      Serial.print("Reçu Angle : ");
+      Serial.println(teta_recu, 2);
+      teta_act = teta_recu * PI / 180.0;
+    }
+
+    else if (canId == 0x203 && packetSize == 4) {
+      CAN.readBytes((uint8_t*)&pos_fin[0], 4);
+      Serial.print("Reçu X_voulu : ");
+      Serial.println(pos_fin[0], 2);
+    }
+
+    else if (canId == 0x204 && packetSize == 4) {
+      CAN.readBytes((uint8_t*)&pos_fin[1], 4);
+      Serial.print("Reçu Y_voulu : ");
+      Serial.println(pos_fin[1], 2);
+    }
   }
 
   switch (etat_ESP_RPI){
     case 0:
-
       if (pos_act[0] != 0) x_ok = true;
       if (pos_act[1] != 0) y_ok = true;
       if (teta_recu != 0) angle_ok = true;
@@ -143,8 +149,8 @@ void loop() {
         Serial.println("Retour à l'état 0 (RPi arrêtée)");
       }
 
-      Serial.printf("X=%.1f Y=%.1f Angle=%.1f \n",pos_act[0],pos_act[1],teta_act_deg);
-
+      Serial.printf("X=%.1f Y=%.1f Angle=%.1f X_voulu=%.1f Y_voulu=%1.f\n",pos_act[0],pos_act[1],teta_act_deg,pos_fin[0],pos_fin[1]);
+      
       float x = pos_act[0];
       float y = pos_act[1];
       float teta = teta_act_deg;
@@ -190,19 +196,23 @@ void Asserv(void *)
     delta_x = pos_fin[0] - pos_act[0];
     delta_y = pos_fin[1] - pos_act[1];
     teta = atan2(delta_y, delta_x);
+    diff_teta = teta_act - teta;
+    teta_act = (teta_recu*PI/180.0) + (distance_droit - distance_gauche) / (20 * Rayon);
     teta_act_deg = (teta_act * 180.0) / PI;
     teta_deg = (teta * 180.0) / PI;
     diff_deg = (diff_teta * 180.0) / PI;
-
+    
     ////////////////////////////////////////angle modulo 2PI
     if (teta_act > PI)
-      off_teta_act -= 2 * PI;
-    if (teta_act <= PI)
-      off_teta_act += 2 * PI;
+      teta_act -= 2.0 * PI;
+    else if (teta_act < -PI)
+      teta_act += 2.0 * PI;
+
     if (teta > PI)
-      off_teta -= 2 * PI;
-    if (teta <= PI)
-      off_teta += 2 * PI;
+      teta -= 2.0 * PI;
+    else if (teta < -PI)
+      teta += 2.0 * PI;
+    
 
     dist = sqrt(((pos_fin[0] - pos_act[0]) * (pos_fin[0] - pos_act[0])) + ((pos_fin[1] - pos_act[1]) * (pos_fin[1] - pos_act[1])));
     old_diff_dist_d = diff_dist_d;
@@ -239,7 +249,9 @@ void Asserv(void *)
     {
     case 0:
       teta_act = (distance_droit - distance_gauche) / (20 * Rayon);
+      teta_act = normaliserAngle(teta_act);  // <<< AJOUT ICI
       diff_teta = teta - teta_act;
+      diff_teta = normaliserAngle(diff_teta); // <<< AJOUT ICI
       diff_dista = diff_teta * 2 * PI * Rayon;
       diff_dist_d = dist - diff_dist_droit;
       diff_dist_g = dist - diff_dist_gauche;
@@ -261,7 +273,9 @@ void Asserv(void *)
       break;
     case 1:
       teta_act = (distance_droit - distance_gauche) / (20 * Rayon);
+      teta_act = normaliserAngle(teta_act);  // <<< AJOUT ICI
       diff_teta = teta - teta_act + PI;
+      diff_teta = normaliserAngle(diff_teta); // <<< AJOUT ICI
       diff_dista = diff_teta * 2 * PI * Rayon;
       diff_dist_d = dist - diff_dist_droit;
       diff_dist_g = dist - diff_dist_gauche;
@@ -283,7 +297,9 @@ void Asserv(void *)
       break;
     case 2:
       teta_act = (distance_droit - distance_gauche) / (20 * Rayon);
+      teta_act = normaliserAngle(teta_act);  // <<< AJOUT ICI
       diff_teta = teta_cons - teta_act;
+      diff_teta = normaliserAngle(diff_teta); // <<< AJOUT ICI
       diff_dista = diff_teta * 2 * PI * Rayon;
       VIT_Ad = 2 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
       VIT_Ag = -2 * kpga * (diff_dista)-2 * kdga * (diff_dista - old_diff_dista);
@@ -375,4 +391,11 @@ int ensemble(float valeur, float delta)            //retourne si la valeur est d
     return 1;
   else
     return 0;
+}
+
+float normaliserAngle(float angle) {
+  angle = fmod(angle + PI, 2.0 * PI);
+  if (angle < 0)
+    angle += 2.0 * PI;
+  return angle - PI;
 }
