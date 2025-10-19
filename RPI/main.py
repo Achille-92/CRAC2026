@@ -1,4 +1,6 @@
 ################## Librairies ##########################################
+import matplotlib
+matplotlib.use('Qt5Agg')
 from rplidar import RPLidar
 import math
 import numpy as np
