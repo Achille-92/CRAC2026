@@ -100,6 +100,16 @@ void Asserv(void *)
     teta_deg = (teta * 180.0) / PI;
     diff_deg = (diff_teta * 180.0) / PI;
 
+    ////////////////////////////////////////angle modulo 2PI
+    if (teta_act > PI)
+      off_teta_act -= 2 * PI;
+    if (teta_act <= PI)
+      off_teta_act += 2 * PI;
+    if (teta > PI)
+      off_teta -= 2 * PI;
+    if (teta <= PI)
+      off_teta += 2 * PI;
+
     dist = sqrt(((pos_fin[0] - pos_act[0]) * (pos_fin[0] - pos_act[0])) + ((pos_fin[1] - pos_act[1]) * (pos_fin[1] - pos_act[1])));
     old_diff_dist_d = diff_dist_d;
     old_diff_dist_g = diff_dist_g;
@@ -109,6 +119,7 @@ void Asserv(void *)
     ////////////////////////////////////////////calcul trajectoire théorique
     if (((pos_fin[0] != traj[fin].x) || (pos_fin[1] != traj[fin].y)) && S_VIT_d == 0 && S_VIT_g == 0)
     {
+      fin=dist/50.0;
       dist_a_parcourir = dist / fin;
       n = 0;
       traj[0].x = pos_act[0];
@@ -135,10 +146,6 @@ void Asserv(void *)
     case 0:
       teta_act = (distance_droit - distance_gauche) / (20 * Rayon);
       diff_teta = teta - teta_act;
-      /*if (diff_teta > PI)
-        diff_teta -= 2 * PI;
-      if (diff_teta <= PI)
-        diff_teta += 2 * PI;*/
       diff_dista = diff_teta * 2 * PI * Rayon;
       diff_dist_d = dist - diff_dist_droit;
       diff_dist_g = dist - diff_dist_gauche;
@@ -161,10 +168,6 @@ void Asserv(void *)
     case 1:
       teta_act = (distance_droit - distance_gauche) / (20 * Rayon);
       diff_teta = teta - teta_act + PI;
-      /*if (diff_teta > PI)
-        diff_teta -= 2 * PI;
-      if (diff_teta < PI)
-        diff_teta += 2 * PI;*/
       diff_dista = diff_teta * 2 * PI * Rayon;
       diff_dist_d = dist - diff_dist_droit;
       diff_dist_g = dist - diff_dist_gauche;
