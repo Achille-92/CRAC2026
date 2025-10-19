@@ -27,7 +27,7 @@ float tour_droit = 0;
 float distance_droit = 0, old_dist_droit = 0, diff_dist_droit = 0;
 float distance_gauche = 0, old_dist_gauche = 0, diff_dist_gauche = 0;
 float dist = 0, teta = 0, delta_x = 0, delta_y = 0, teta_act = 0, diff_teta = 0, teta_act_deg = 0, teta_deg = 0, diff_deg = 0;
-float pos_act[2] = {105, 120}, pos_fin[2] = {305, 1200}, E = 0, dist_a_parcourir = 10;
+float pos_act[2] = {105, 120}, pos_fin[2] = {305, 1200}, E = 0, dist_a_parcourir = 10, off_teta = 0, off_teta_act = 0;
 int VIT_gauche = 0, VIT_droit = 0, i = 0, S_VIT_d = 0, S_VIT_g = 0, old_VIT_droit = 0, old_VIT_gauche = 0;
 float kpd = 3.0, kdd = 200.0, kpg = 3.0, kdg = 200.0, kpda = 4, kpga = 4, kdga = 20.0, kdda = 20.0, old_diff_dista = 0;
 float diff_dist_d = 0, diff_dist_g = 0, diff_dista = 0, old_diff_dist_d = 0, old_diff_dist_g = 0, VIT_Ad = 0, VIT_Ag = 0, teta_cons = PI;
