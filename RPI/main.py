@@ -11,7 +11,7 @@ import struct
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 from functools import partial
-from affichage import init_affichage
+from affichage import init_affichage, bring_to_front
 ########################################################################
 
 # config CAN
@@ -233,6 +233,7 @@ def arret_programme(event, stop_event=None):
     print("Bouton STOP pressé — arrêt demandé.")
     if stop_event is not None:
         stop_event.set()
+        bring_to_front(fig)
 
 def on_click(event):
     global x_robot_voulu, y_robot_voulu
@@ -242,6 +243,7 @@ def on_click(event):
         print(f"Clic souris détecté : X_voulu = {x_robot_voulu:.1f}, Y_voulu = {y_robot_voulu:.1f}")
         point_voulu_plot.set_data([x_robot_voulu], [y_robot_voulu])
         plt.draw()
+        bring_to_front(fig)
 
 ########################################################################
 
@@ -353,10 +355,6 @@ if __name__ == '__main__':
             if(Batteries[2][2]!=U_last[2] and Batteries[2][3]<=5.0):
                 print("Batteries déchargées")
                 
-            if(x_robot_actuel != x_robot_voulu):
-                print("Robot va en X")
-            if(y_robot_actuel != y_robot_voulu):
-                print("Robot va en Y")
 
             plt.draw()
             fig.canvas.draw()
