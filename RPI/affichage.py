@@ -4,6 +4,20 @@ import matplotlib.image as mpimg
 import numpy as np
 from matplotlib.widgets import Button
 
+import matplotlib
+import tkinter as tk
+
+def bring_to_front(fig):
+    """Force la fenêtre matplotlib à repasser au premier plan."""
+    try:
+        manager = plt.get_current_fig_manager()
+        if hasattr(manager, 'window'):
+            # Récupère la fenêtre native Tkinter, Qt ou autre
+            window = manager.window
+            window.attributes('-topmost', 1)
+            window.attributes('-topmost', 0)
+    except Exception:
+        pass
 
 def init_affichage():
     """
@@ -11,7 +25,7 @@ def init_affichage():
     Retourne les objets utiles : figure, axes, plots et boutons.
     """
     # --- Chargement et configuration de l’image ---
-    img = mpimg.imread("piste.png")  # chemin vers ton image
+    img = mpimg.imread("/home/youssef/Desktop/CRAC2026/piste.png")  # chemin vers ton image
     img = np.rot90(img, 2)  # rotation de 180°
 
     fig, ax = plt.subplots(figsize=(600/100, 400/100), dpi=100)
