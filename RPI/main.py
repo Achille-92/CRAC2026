@@ -2,15 +2,15 @@
 from rplidar import RPLidar
 import math
 import numpy as np
-import matplotlib.pyplot as plt
 import threading, queue
 from collections import deque
 import time
 import os
 import can
 import struct
-import matplotlib.image as mpimg
 import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+from functools import partial
 from affichage import init_affichage
 ########################################################################
 
@@ -23,15 +23,24 @@ bus = can.interface.Bus(
     bustype='socketcan',
     bitrate=500000,
     can_filters=[{"can_id": 0x01, "can_mask": 0x7FF, "extended": False},
-                 {"can_id": 0x10, "can_mask": 0x7FF, "extended": False},
-                 {"can_id": 0x11, "can_mask": 0x7FF, "extended": False},
-                 {"can_id": 0x12, "can_mask": 0x7FF, "extended": False},
-                 {"can_id": 0x20, "can_mask": 0x7FF, "extended": False},
-                 {"can_id": 0x21, "can_mask": 0x7FF, "extended": False},
-                 {"can_id": 0x22, "can_mask": 0x7FF, "extended": False}]
+                 {"can_id": 0x100, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x101, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x102, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x103, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x104, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x105, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x106, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x107, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x108, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x109, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x110, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x111, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x200, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x201, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x202, "can_mask": 0x7FF, "extended": False}]
 )
 
-Liste_ID = [0x01,0x10, 0x11, 0x12,0x20,0x21,0x22]
+Liste_ID = [0x01,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x110,0x111,0x200,0x201,0x202]
 
 # Port série et Baudrate du lidar
 PORT_NAME = '/dev/ttyUSB0'
@@ -58,13 +67,18 @@ angle_robot_actuel = 0
 x_robot_voulu = 0
 y_robot_voulu = 0
 angle_robot_voulu = 0
-
+x_robot_voulu_last = 0
+y_robot_voulu_last = 0
+##########################################
 x_ennemi = 1500
 y_ennemi = 1000
 
-Batteries = [[12,14,13.9,100],[12,14,13.5,100],[12,14,13.5,100]]
+# Gestion des Batteries
+Batteries = [[12,14,12.1,100],[12,14,12.1,100],[12,14,12.3,100]]
 U_last = [0,0,0]
+Ordre_Batteries = [1,0,0]
 
+# Variables pour l'affichage des rectangles de batteries et des textes
 largeur_rect = 50       # largeur en mm
 hauteur_rect = 150      # hauteur en mm
 espacement = 0         # espace entre rectangles
@@ -131,16 +145,16 @@ def calcul_points(stop_event):
         lidar.disconnect()
 
 def CAN_Odometrie(stop_event):
-    
-    #Argument : flag "stop_event"
-    #Modification : variables globales x_robot, y_robot, angle_robot
+    """
+    Argument : flag "stop_event"
+    Modification : variables globales x_robot, y_robot, angle_robot, Batteries
 
-    #Utilisation :
-    #Lis le Bus CAN
-    #Si l'ID du message n'est pas dans la Liste_ID, saute
-    #Sinon, met à jour les coordonées et angle du robot
-     
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID
+    Utilisation :
+    Lis le Bus CAN
+    Si l'ID du message n'est pas dans la Liste_ID, saute
+    Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
+    """
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID, Batteries
 
     while not stop_event.is_set():
         msg = bus.recv(0.01)  # attend 10 ms max
@@ -151,15 +165,43 @@ def CAN_Odometrie(stop_event):
         if msg.arbitration_id not in Liste_ID:
             continue  # on saute les autres trames
 
-        if msg.arbitration_id == 0x10:
+        if msg.arbitration_id == 0x100:
             x_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
 
-        elif msg.arbitration_id == 0x11:
+        elif msg.arbitration_id == 0x101:
             y_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
 
-        elif msg.arbitration_id == 0x12:
+        elif msg.arbitration_id == 0x102:
             angle_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
 
+        # Batteries
+        elif msg.arbitration_id == 0x103:
+            Batteries[0][0] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x104:
+            Batteries[0][1] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x105:
+            Batteries[0][2] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x106:
+            Batteries[1][0] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x107:
+            Batteries[1][1] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x108:
+            Batteries[1][2] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x109:
+            Batteries[2][0] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x110:
+            Batteries[2][1] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x111:
+            Batteries[2][2] = struct.unpack('f', bytes(msg.data))[0]
+        
 def calcul_ennemi(stop_event):
     """
     Arguments : flag stop_event
@@ -187,6 +229,25 @@ def calcul_ennemi(stop_event):
             x_ennemi = np.mean(xs)
             y_ennemi = np.mean(ys)
 
+def arret_programme(event, stop_event=None):
+    print("Bouton STOP pressé — arrêt demandé.")
+    if stop_event is not None:
+        stop_event.set()
+
+def on_click(event):
+    global x_robot_voulu, y_robot_voulu
+    if event.inaxes == ax:  # clic dans la zone du graphique
+        x_robot_voulu = event.xdata
+        y_robot_voulu = event.ydata
+        print(f"Clic souris détecté : X_voulu = {x_robot_voulu:.1f}, Y_voulu = {y_robot_voulu:.1f}")
+        point_voulu_plot.set_data([x_robot_voulu], [y_robot_voulu])
+        plt.draw()
+
+def send_coord_can(arbitration_id, value):
+    for _ in range(5):
+        bus.send(can.Message(arbitration_id=arbitration_id,
+                             data=struct.pack('<f', value),
+                             is_extended_id=False))
 ########################################################################
 
 ################## Lancement du programme principal ####################
@@ -195,7 +256,9 @@ if __name__ == '__main__':
 
     stop_event = threading.Event()
 
-    fig, ax, robot_plot, ennemi_plot, scat, robot_info_text = init_affichage()
+    fig, ax, robot_plot, ennemi_plot, scat, robot_info_text,ax_button,bouton_stop,point_voulu_plot,coordonnee_voulues_text = init_affichage()
+    cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
+    bouton_stop.on_clicked(partial(arret_programme, stop_event=stop_event))
 
     tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
     tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
@@ -206,36 +269,59 @@ if __name__ == '__main__':
     tache_odometrie.start()
     
     buffer_points = deque(maxlen=50)
-
     try:
         
         data_x = struct.pack('<f',x_robot_depart)
         data_y = struct.pack('<f',y_robot_depart)
         data_angle = struct.pack('<f',angle_robot_depart)
 
-        msg = can.Message(arbitration_id=0x20, data=data_x, is_extended_id=False)
+        msg = can.Message(arbitration_id=0x200, data=data_x, is_extended_id=False)
         bus.send(msg)
         print(f"Trame envoyée : {msg}")
 
-        msg = can.Message(arbitration_id=0x21, data=data_y, is_extended_id=False)
+        msg = can.Message(arbitration_id=0x201, data=data_y, is_extended_id=False)
         bus.send(msg)
         print(f"Trame envoyée : {msg}")
 
-        msg = can.Message(arbitration_id=0x22, data=data_angle, is_extended_id=False)
+        msg = can.Message(arbitration_id=0x202, data=data_angle, is_extended_id=False)
         bus.send(msg)
         print(f"Trame envoyée : {msg}")
         time.sleep(1)
 
-        while True:
+        while (not stop_event.is_set() and Batteries[2][3] > 5): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
             etat = 1
             data_etat = struct.pack('<I',etat)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
 
+            if(Ordre_Batteries[0]==1):
+                bus.send(can.Message(arbitration_id=0x300, data=struct.pack('<I',1), is_extended_id=False))
+            else :
+                bus.send(can.Message(arbitration_id=0x300, data=struct.pack('<I',0), is_extended_id=False))
+            if(Ordre_Batteries[1]==1):
+                bus.send(can.Message(arbitration_id=0x301, data=struct.pack('<I',1), is_extended_id=False))
+            else :
+                bus.send(can.Message(arbitration_id=0x301, data=struct.pack('<I',0), is_extended_id=False))
+            if(Ordre_Batteries[2]==1):
+                bus.send(can.Message(arbitration_id=0x302, data=struct.pack('<I',1), is_extended_id=False))
+            else :
+                bus.send(can.Message(arbitration_id=0x302, data=struct.pack('<I',0), is_extended_id=False))
+            
+            if x_robot_voulu != x_robot_voulu_last:
+                send_coord_can(0x203, x_robot_voulu)
+
+            if y_robot_voulu != y_robot_voulu_last:
+                send_coord_can(0x204, y_robot_voulu)
+            
             # Mettre à jour robot et ennemi sur affichage
+           
             robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
+            
             robot_info_text.set_text(
                 f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°"
+            )
+            coordonnee_voulues_text.set_text(
+                f"X = {x_robot_voulu:.1f} Y = {y_robot_voulu:.1f}"
             )
 
             # Gestion batteries :
@@ -244,9 +330,9 @@ if __name__ == '__main__':
                     print(f"MAJ Batterie N°{i+1}")
                     Batteries[i][3]=100*(Batteries[i][2]-Batteries[i][0])/(Batteries[i][1]-Batteries[i][0])
                     Batteries[i][3] = round(Batteries[i][3],2)
-                
+
                     couleurs = ['red', 'orange', 'yellow', 'lime', 'green']
-                    seuils = [10, 25, 50, 75, 90]
+                    seuils = [1, 20, 50, 75, 90]
 
                     x_depart = 200 + i * (5 * (largeur_rect + espacement) + espacement_salves)
                     for j in range(5):
@@ -265,14 +351,23 @@ if __name__ == '__main__':
                         f"{Batteries[i][3]}%",
                         color='black', fontsize=8, ha='center', va='bottom'
                     )
-            
+            if(Batteries[0][2]!=U_last[0] and Batteries[0][3]<=5.0):
+                print("Utilisation Bat2")
+                Ordre_Batteries = [0,1,0]
+            if(Batteries[1][2]!=U_last[1] and Batteries[1][3]<=5.0):
+                print("Utilisation Bat3")
+                Ordre_Batteries = [0,0,1]
+            if(Batteries[2][2]!=U_last[2] and Batteries[2][3]<=5.0):
+                print("Batteries déchargées")
                 
             plt.draw()
             fig.canvas.draw()
             fig.canvas.flush_events()
             time.sleep(0.01)
             U_last = [Batteries[0][2],Batteries[1][2],Batteries[2][2]]
-
+            x_robot_voulu_last = x_robot_voulu
+            y_robot_voulu_last = y_robot_voulu
+        stop_event.set()
 
     except KeyboardInterrupt:
         etat = 2
@@ -286,7 +381,10 @@ if __name__ == '__main__':
         tache_calcul.join()
         tache_odometrie.join()
         os.system("sudo ifconfig can0 down")
+
+    finally:
         print("Programme terminé proprement.")
+        plt.close(fig)
 
 
 ########################################################################
