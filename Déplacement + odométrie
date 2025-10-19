@@ -31,7 +31,7 @@ float pos_act[2] = {105, 120}, pos_fin[2] = {305, 1200}, E = 0, dist_a_parcourir
 int VIT_gauche = 0, VIT_droit = 0, i = 0, S_VIT_d = 0, S_VIT_g = 0, old_VIT_droit = 0, old_VIT_gauche = 0;
 float kpd = 3.0, kdd = 200.0, kpg = 3.0, kdg = 200.0, kpda = 4, kpga = 4, kdga = 20.0, kdda = 20.0, old_diff_dista = 0;
 float diff_dist_d = 0, diff_dist_g = 0, diff_dista = 0, old_diff_dist_d = 0, old_diff_dist_g = 0, VIT_Ad = 0, VIT_Ag = 0, teta_cons = PI;
-int cons = 0, dist_cons = 200;
+int cons = 0, dist_cons = 200, arriver = 0;
 const float tic_tour_droit = 4121.7, tic_tour_gauche = 4052, Rayon = 11;
 int packetSize = 0, fin = 100, n = 0;
 
@@ -74,7 +74,11 @@ void setup()
   }
 }
 
-void loop() {}
+void loop() {
+  // reception de coordonnée (ou teta_cons si c'est un angle) d'arrivée une seule fois à chaque arriver + type de déplacement: variable cons
+  // envoie des coordonnée actuelle
+  // previens que il est arrivé :regarde la variable arrivé si =1: en train d'aller =2: est arrivé
+}
 void Asserv(void *)
 {
   int finish = 1;
@@ -253,34 +257,26 @@ void Asserv(void *)
 
     md.setM1Speed((S_VIT_g) / 2.0);
 
-    //////////////////////////////////////////// changement de coordonnée
     if (VIT_Ad == 0 && VIT_Ag == 0 && VIT_droit == 0 && VIT_gauche == 0)
       md.setBrakes(400, 400);
-    if (comparer(pos_act[0], pos_fin[0], 10) && comparer(pos_act[1], pos_fin[1], 10) && E == 0)
-      md.setBrakes(400, 400), (1000), pos_fin[0] = 1300, pos_fin[1] = 700, E = 1;
-    if (comparer(pos_act[0], pos_fin[0], 10) && comparer(pos_act[1], pos_fin[1], 10) && E == 1)
-      md.setBrakes(400, 400), delay(1000), pos_fin[0] = 2000, pos_fin[1] = 900, E = 2;
-    if (comparer(pos_act[0], pos_fin[0], 10) && comparer(pos_act[1], pos_fin[1], 10) && E == 2)
-      md.setBrakes(400, 400), delay(1000), pos_fin[0] = 105, pos_fin[1] = 120, E = 3;
-    if (comparer(pos_act[0], pos_fin[0], 10) && comparer(pos_act[1], pos_fin[1], 10) && E == 3)
-      md.setBrakes(400, 400), delay(1000), cons = 2, teta_cons = 0, E = 4;
-    if (comparer(teta_act, teta_cons, ((1 * PI) / 180.0)) && E == 4)
-    {
-      md.setBrakes(400, 400), delay(1000);
-      if(comparer(teta_act, teta_cons, ((1 * PI) / 180.0)) && E == 4){
-      dist_cons = 200;
-      E = 5;
-      pos_fin[0] = pos_act[0] + cos(teta_act) * dist_cons;
-      pos_fin[1] = pos_act[1] + sin(teta_act) * dist_cons;
-      cons = 3;
-      }        
-    }
-    if (comparer(pos_act[0], pos_fin[0], 10) && comparer(pos_act[1], pos_fin[1], 10) && E == 5)
-      md.setBrakes(400, 400), delay(1000), pos_fin[0] = 50, pos_fin[1] = 900, E = 6, cons = 1;
-    if (comparer(pos_act[0], pos_fin[0], 10) && comparer(pos_act[1], pos_fin[1], 10) && E == 6)          //arret à la fin
-      finish = 0;
 
-    Serial.printf("a\n");
+  ////////////////////////////////////////////////: verifie si arrivé
+   if (comparer(pos_act[0], pos_fin[0], 10) && comparer(pos_act[1], pos_fin[1], 10 && cons != 2))
+      md.setBrakes(400, 400), arriver = 2;
+    else
+      arriver = 1;
+
+    if (comparer(teta_act, teta_cons, ((1 * PI) / 180.0)) &&cons==2)
+    {
+      md.setBrakes(400, 400), delay(100);
+      if (comparer(teta_act, teta_cons, ((1 * PI) / 180.0)))
+      {
+        arriver = 2;
+      }
+    }
+    else
+      arriver = 1;
+
     vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
