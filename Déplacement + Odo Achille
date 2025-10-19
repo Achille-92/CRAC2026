@@ -1,0 +1,378 @@
+#include <Arduino.h>
+#include <Wire.h>
+#include <DualVNH5019MotorShield.h>
+#include <ESP32Encoder.h>
+#include <BluetoothSerial.h>
+#include <CAN.h>
+
+#define TX_GPIO_NUM 5
+#define RX_GPIO_NUM 4
+#define LIMITE_VIT 170
+
+int signe(float a);
+int ensemble(float valeur, float delta);
+int comparer(float valeur_comparer, float valeur_compareur, float delta);
+void Asserv(void *);
+
+struct coo
+{
+  float x;
+  float y;
+};
+coo traj[1000] = {0, 0};
+int tic_gauche = 0;
+int tic_droit = 0;
+float tour_gauche = 0;
+float tour_droit = 0;
+float distance_droit = 0, old_dist_droit = 0, diff_dist_droit = 0;
+float distance_gauche = 0, old_dist_gauche = 0, diff_dist_gauche = 0;
+float dist = 0, teta = 0, delta_x = 0, delta_y = 0, teta_act = 0, diff_teta = 0, teta_act_deg = 0, teta_deg = 0, diff_deg = 0;
+float pos_act[2] = {0, 0}, pos_fin[2] = {305, 1200}, E = 0, dist_a_parcourir = 10, off_teta = 0, off_teta_act = 0;
+int VIT_gauche = 0, VIT_droit = 0, i = 0, S_VIT_d = 0, S_VIT_g = 0, old_VIT_droit = 0, old_VIT_gauche = 0;
+float kpd = 3.0, kdd = 200.0, kpg = 3.0, kdg = 200.0, kpda = 4, kpga = 4, kdga = 20.0, kdda = 20.0, old_diff_dista = 0;
+float diff_dist_d = 0, diff_dist_g = 0, diff_dista = 0, old_diff_dist_d = 0, old_diff_dist_g = 0, VIT_Ad = 0, VIT_Ag = 0, teta_cons = PI;
+int cons = 0, dist_cons = 200;
+int packetSize = 0, fin = 100, n = 0;
+
+float teta_recu = 0.0;
+int etat_ESP_RPI = 0, etat_RPI = 0;
+const float tic_tour_droit = 3164.0, tic_tour_gauche = 3167.7, Rayon = 11.2;
+static bool x_ok = false, y_ok = false, angle_ok = false;
+
+// BluetoothSerial Bt;
+DualVNH5019MotorShield md;
+ESP32Encoder encoder;
+ESP32Encoder encoder2;
+TaskHandle_t Asservissement;
+
+void setup()
+{
+  Serial.begin(115200);
+  // Bt.begin("TEST");
+
+  md.init(); // Initialise le shield
+  ESP32Encoder::useInternalWeakPullResistors = puType::up;
+
+  // use pin 19 and 18 for the first encoder
+  encoder.attachFullQuad(36, 39);
+  // use pin 17 and 16 for the second encoder
+  encoder2.attachFullQuad(23, 22);
+
+  // set starting count value after attaching
+  encoder.setCount(0);
+  encoder2.setCount(0);
+  md.setSpeeds(0, 0);
+
+  // clear the encoder's raw count and set the tracked count to zero
+  //
+  Serial.println("Encoder Start = " + String((int32_t)encoder.getCount()));
+  xTaskCreate(Asserv, "Asserv", 32000, NULL, 15, &Asservissement);
+  CAN.setPins(RX_GPIO_NUM, TX_GPIO_NUM);
+
+  // start the CAN bus at 500 kbps
+  if (!CAN.begin(1000E3)) {
+    Serial.println("Starting CAN failed!");
+    while (1);
+  }
+}
+
+void loop() {
+  while (int packetSize = CAN.parsePacket()) {
+    uint32_t canId = CAN.packetId();
+
+    if (canId == 0x01 && (packetSize == 4 || packetSize == 1)) {
+      CAN.readBytes((uint8_t*)&etat_RPI, packetSize);
+      Serial.print("Reçu état RPi : "); Serial.println(etat_RPI);
+    }
+    else if (canId == 0x200 && packetSize == 4) {
+      CAN.readBytes((uint8_t*)&pos_act[0], 4);
+      Serial.print("Reçu X : "); Serial.println(pos_act[0]);
+    }
+    else if (canId == 0x201 && packetSize == 4) {
+      CAN.readBytes((uint8_t*)&pos_act[1], 4);
+      Serial.print("Reçu Y : "); Serial.println(pos_act[1]);
+    }
+    else if (canId == 0x202 && packetSize == 4) {
+      CAN.readBytes((uint8_t*)&teta_recu, 4);
+      Serial.print("Reçu Angle : "); Serial.println(teta_recu, 2);
+      teta_act = teta_recu * PI / 180.0;
+    }
+    else if (canId == 0x203 && packetSize == 4) {  // X cible
+      CAN.readBytes((uint8_t*)&pos_fin[0], 4);
+      Serial.print("Nouvelle consigne X reçue : "); Serial.println(pos_fin[0]);
+    }
+    else if (canId == 0x204 && packetSize == 4) {  // Y cible
+      CAN.readBytes((uint8_t*)&pos_fin[1], 4);
+      Serial.print("Nouvelle consigne Y reçue : "); Serial.println(pos_fin[1]);
+    }
+
+    // vider le buffer CAN au cas où
+    while (CAN.available()) CAN.read();
+  }
+
+  switch (etat_ESP_RPI){
+    case 0:
+
+      if (pos_act[0] != 0) x_ok = true;
+      if (pos_act[1] != 0) y_ok = true;
+      if (teta_recu != 0) angle_ok = true;
+
+      if (!x_ok || !y_ok || !angle_ok) {
+        Serial.println("En attente des coordonnées initiales depuis la RPi...");
+      }
+
+      // Test en continu de la condition de passage à l'état 1
+      if (x_ok && y_ok && angle_ok) {
+        if (etat_RPI == 1) {
+          Serial.println("Coordonnées reçues, passage à l'état 1 !");
+          etat_ESP_RPI = 1;
+          encoder.setCount(0);
+          encoder2.setCount(0);
+          distance_droit = distance_gauche = 0;
+        } else {
+          Serial.println("Coordonnées OK mais RPi pas encore prête (etat_RPI != 1)");
+        }
+      }
+      break;
+    
+    
+    case 1:
+      if (etat_RPI == 0 || etat_RPI == 2) {
+        etat_ESP_RPI = 0;
+        x_ok = false, y_ok = false, angle_ok = false;
+        Serial.println("Retour à l'état 0 (RPi arrêtée)");
+      }
+
+      Serial.printf("X=%.1f Y=%.1f Angle=%.1f \n",pos_act[0],pos_act[1],teta_act_deg);
+
+      float x = pos_act[0];
+      float y = pos_act[1];
+      float teta = teta_act_deg;
+      static unsigned long lastSend = 0;
+      if (millis() - lastSend > 100) {  // toutes les 100 ms
+        lastSend = millis();
+
+        CAN.beginPacket(0x100);
+        CAN.write((uint8_t*)&x, sizeof(float));   // 4 octets
+        CAN.endPacket();
+
+        CAN.beginPacket(0x101);
+        CAN.write((uint8_t*)&y, sizeof(float));   // 4 octets
+        CAN.endPacket();
+
+        CAN.beginPacket(0x102);
+        CAN.write((uint8_t*)&teta, sizeof(float)); // 4 octets
+        CAN.endPacket();
+      }
+
+      break;
+    }
+}
+
+void Asserv(void *)
+{
+  int finish = 1;
+  while (1)
+  {
+    //////////////////////////////////////calcul des tics/distances de chaque roues
+    tic_droit = encoder2.getCount();
+    tic_gauche = encoder.getCount();
+    tour_droit = (float)tic_droit / tic_tour_droit;
+    tour_gauche = (float)tic_gauche / tic_tour_gauche;
+    old_dist_droit = distance_droit;
+    old_dist_gauche = distance_gauche;
+    distance_droit = tour_droit * 40.0 * PI;
+    distance_gauche = tour_gauche * 40.0 * PI;
+    diff_dist_droit = distance_droit - old_dist_droit;
+    diff_dist_gauche = distance_gauche - old_dist_gauche;
+
+    ////////////////////////////////////calcul coordonée du robot + angle
+    delta_x = pos_fin[0] - pos_act[0];
+    delta_y = pos_fin[1] - pos_act[1];
+    teta = atan2(delta_y, delta_x);
+    teta_act_deg = (teta_act * 180.0) / PI;
+    teta_deg = (teta * 180.0) / PI;
+    diff_deg = (diff_teta * 180.0) / PI;
+
+    ////////////////////////////////////////angle modulo 2PI
+    if (teta_act > PI)
+      off_teta_act -= 2 * PI;
+    if (teta_act <= PI)
+      off_teta_act += 2 * PI;
+    if (teta > PI)
+      off_teta -= 2 * PI;
+    if (teta <= PI)
+      off_teta += 2 * PI;
+
+    dist = sqrt(((pos_fin[0] - pos_act[0]) * (pos_fin[0] - pos_act[0])) + ((pos_fin[1] - pos_act[1]) * (pos_fin[1] - pos_act[1])));
+    old_diff_dist_d = diff_dist_d;
+    old_diff_dist_g = diff_dist_g;
+    old_diff_dista = diff_dista;
+    diff_dista = diff_teta * 2 * PI * Rayon;
+
+    ////////////////////////////////////////////calcul trajectoire théorique
+    if (((pos_fin[0] != traj[fin].x) || (pos_fin[1] != traj[fin].y)) && S_VIT_d == 0 && S_VIT_g == 0)
+    {
+      fin=dist/50.0;
+      dist_a_parcourir = dist / fin;
+      n = 0;
+      traj[0].x = pos_act[0];
+      traj[0].y = pos_act[1];
+      while ((comparer(traj[fin].x, pos_fin[0], 2) == 0) || (comparer(traj[fin].y, pos_fin[1], 2) == 0))
+      {
+        //Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d\n", traj[n].x, traj[n].y, dist, dist_a_parcourir, n);
+        traj[n + 1].x = traj[n].x + cos(teta) * dist_a_parcourir;
+        traj[n + 1].y = traj[n].y + sin(teta) * dist_a_parcourir;
+        n++;
+      }
+      //Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d\n", traj[n].x, traj[n].y, dist, dist_a_parcourir, n);
+    }
+
+    ///////////////////////////////////////////
+    pos_act[0] = pos_act[0] + (cos(teta_act) * ((diff_dist_droit + diff_dist_gauche) / 2));
+    pos_act[1] = pos_act[1] + (sin(teta_act) * ((diff_dist_gauche + diff_dist_droit) / 2));
+    old_VIT_droit = VIT_droit;
+    old_VIT_gauche = VIT_gauche;
+
+    ////////////////////////////////////////différent asservissement suivant le type de déplacement 0:Marche avant 1:Marche arrière 2:juste angle 3:juste linéaire
+    switch (cons)
+    {
+    case 0:
+      teta_act = (distance_droit - distance_gauche) / (20 * Rayon);
+      diff_teta = teta - teta_act;
+      diff_dista = diff_teta * 2 * PI * Rayon;
+      diff_dist_d = dist - diff_dist_droit;
+      diff_dist_g = dist - diff_dist_gauche;
+      if (ensemble((diff_teta), (PI / 1.0)))
+      {
+        VIT_droit = pow(cos(diff_teta),3) * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
+        VIT_gauche = pow(cos(diff_teta),3)  * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
+        VIT_Ad = (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
+        VIT_Ag = -kpga * (diff_dista)-kdga * (diff_dista - old_diff_dista);
+      }
+      else
+      {
+        VIT_Ad = 2 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
+        VIT_Ag = -2 * kpga * (diff_dista)-2 * kdga * (diff_dista - old_diff_dista);
+        VIT_droit = 0;
+        VIT_gauche = 0;
+      }
+
+      break;
+    case 1:
+      teta_act = (distance_droit - distance_gauche) / (20 * Rayon);
+      diff_teta = teta - teta_act + PI;
+      diff_dista = diff_teta * 2 * PI * Rayon;
+      diff_dist_d = dist - diff_dist_droit;
+      diff_dist_g = dist - diff_dist_gauche;
+      if (ensemble((diff_teta), (PI / 1.0)))
+      {
+        VIT_droit = pow(cos(diff_teta+PI),3)  * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
+        VIT_gauche = pow(cos(diff_teta+PI),3)  * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
+        VIT_Ad = (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
+        VIT_Ag = -kpga * (diff_dista)-kdga * (diff_dista - old_diff_dista);
+      }
+      else
+      {
+        VIT_Ad = 2 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
+        VIT_Ag = -2 * kpga * (diff_dista)-2 * kdga * (diff_dista - old_diff_dista);
+        VIT_droit = 0;
+        VIT_gauche = 0;
+      }
+
+      break;
+    case 2:
+      teta_act = (distance_droit - distance_gauche) / (20 * Rayon);
+      diff_teta = teta_cons - teta_act;
+      diff_dista = diff_teta * 2 * PI * Rayon;
+      VIT_Ad = 2 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
+      VIT_Ag = -2 * kpga * (diff_dista)-2 * kdga * (diff_dista - old_diff_dista);
+      VIT_droit = 0;
+      VIT_gauche = 0;
+      break;
+    case 3:
+      diff_dist_d = dist - diff_dist_droit;
+      diff_dist_g = dist - diff_dist_gauche;
+      VIT_droit = (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
+      VIT_gauche = (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
+      VIT_Ad = 0;
+      VIT_Ag = 0;
+      break;
+    default:
+      cons = 0;
+      break;
+    }
+    ////////////////////////////////limite d'accelleration + offset de vitesse angulaire (pas très sur de l'offset)
+    if (VIT_droit - old_VIT_droit > 5)
+      VIT_droit = old_VIT_droit + signe(VIT_droit) * 5;
+    if (VIT_gauche - old_VIT_gauche > 5)
+      VIT_gauche = old_VIT_gauche + signe(VIT_gauche) * 5;
+    if (ensemble(diff_teta,PI/180.0)&&!ensemble(diff_teta,(10*PI)/180.0))
+      VIT_Ad += signe(VIT_Ad) * 40, VIT_Ag += signe(VIT_Ag) * 40;
+
+    ////////////////////////////////saturation vitesse
+    if (VIT_droit > cos(diff_teta) *LIMITE_VIT)
+      VIT_droit = cos(diff_teta) *LIMITE_VIT;
+    if (VIT_gauche > cos(diff_teta) *LIMITE_VIT)
+      VIT_gauche = cos(diff_teta) *LIMITE_VIT;
+    if (VIT_droit < -cos(diff_teta) *LIMITE_VIT)
+      VIT_droit = -cos(diff_teta) *LIMITE_VIT;
+    if (VIT_gauche < -cos(diff_teta) *LIMITE_VIT)
+      VIT_gauche = -cos(diff_teta) *LIMITE_VIT;
+
+    if (VIT_Ad > LIMITE_VIT)
+      VIT_Ad = LIMITE_VIT;
+    if (VIT_Ag > LIMITE_VIT)
+      VIT_Ag = LIMITE_VIT;
+    if (VIT_Ad < -LIMITE_VIT)
+      VIT_Ad = -LIMITE_VIT;
+    if (VIT_Ag < -LIMITE_VIT)
+      VIT_Ag = -LIMITE_VIT;
+    S_VIT_g = VIT_gauche + VIT_Ag;
+    S_VIT_d = VIT_droit + VIT_Ad;
+
+    //////////////////////////////////////mise à 0 de la vitesse si trop petite
+    if (S_VIT_d < 20 && S_VIT_d > -20)
+      S_VIT_d = 0;
+    else
+      S_VIT_d += signe(S_VIT_d) * 20;
+    if (S_VIT_g < 20 && S_VIT_g > -20)
+      S_VIT_g = 0;
+    else
+      S_VIT_g += signe(S_VIT_g) * 20;
+    if (cons == -1)
+      VIT_Ad = 0, VIT_Ag = 0, VIT_droit = 0, VIT_gauche = 0;
+    ///////////////////////////////////mise à jour PWM
+    md.setM2Speed((S_VIT_d) / 2.0);
+
+    md.setM1Speed((S_VIT_g) / 2.0);
+
+    if (VIT_Ad == 0 && VIT_Ag == 0 && VIT_droit == 0 && VIT_gauche == 0)
+      md.setBrakes(400, 400);
+
+
+    vTaskDelay(pdMS_TO_TICKS(5));
+  }
+}
+int signe(float a)       //retourne le signe
+{
+  if (a >= 0)
+    return 1;
+  else
+    return -1;
+}
+int comparer(float valeur_comparer, float valeur_compareur, float delta)          //compare la première valeur par rapport à la deuxième en prenant en compte le delta
+{
+  if ((valeur_comparer) > (valeur_compareur - delta) && (valeur_comparer) < (valeur_compareur + delta))
+    return 1;
+  else
+    return 0;
+}
+
+int ensemble(float valeur, float delta)            //retourne si la valeur est dans +/- le delta
+{
+  if ((valeur) > (-delta) && (valeur) < (delta))
+    return 1;
+  else
+    return 0;
+}
