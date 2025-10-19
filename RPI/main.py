@@ -66,8 +66,8 @@ x_robot_actuel = 0
 y_robot_actuel = 0
 angle_robot_actuel = 0
 
-x_robot_voulu = 0
-y_robot_voulu = 0
+x_robot_voulu = 500
+y_robot_voulu = 400
 angle_robot_voulu = 0
 x_robot_voulu_last = 0
 y_robot_voulu_last = 0
@@ -357,7 +357,15 @@ if __name__ == '__main__':
             if(Batteries[2][2]!=U_last[2] and Batteries[2][3]<=5.0):
                 print("Batteries déchargées")
                 
-
+            if(abs(x_robot_actuel-x_robot_voulu)>10):
+                print("Asservir en X")
+            if(abs(y_robot_actuel-y_robot_voulu)>10):
+                print("Asservir en Y")
+            if(abs(angle_robot_actuel-angle_robot_voulu)>2):
+                print("Asservir en Angle")
+            if(abs(x_robot_actuel-x_robot_voulu)<10 and abs(y_robot_actuel-y_robot_voulu)<10 and abs(angle_robot_actuel-angle_robot_voulu)<2):
+                print("Bonne position")
+                
             plt.draw()
             fig.canvas.draw()
             fig.canvas.flush_events()
