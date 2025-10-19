@@ -307,11 +307,16 @@ if __name__ == '__main__':
                 bus.send(can.Message(arbitration_id=0x302, data=struct.pack('<I',0), is_extended_id=False))
             
             if x_robot_voulu != x_robot_voulu_last:
-                send_coord_can(0x203, x_robot_voulu)
+                for _ in range(5):
+                    bus.send(can.Message(arbitration_id=0x203,
+                                        data=struct.pack('<f', x_robot_voulu),
+                                        is_extended_id=False))
 
             if y_robot_voulu != y_robot_voulu_last:
-                send_coord_can(0x204, y_robot_voulu)
-            
+                for _ in range(5):
+                    bus.send(can.Message(arbitration_id=0x204,
+                                        data=struct.pack('<f', y_robot_voulu),
+                                        is_extended_id=False))
             # Mettre à jour robot et ennemi sur affichage
            
             robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
