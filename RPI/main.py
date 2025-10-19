@@ -353,6 +353,11 @@ if __name__ == '__main__':
             if(Batteries[2][2]!=U_last[2] and Batteries[2][3]<=5.0):
                 print("Batteries déchargées")
                 
+            if(x_robot_actuel != x_robot_voulu):
+                print("Robot va en X")
+            if(y_robot_actuel != y_robot_voulu):
+                print("Robot va en Y")
+
             plt.draw()
             fig.canvas.draw()
             fig.canvas.flush_events()
