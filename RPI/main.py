@@ -44,6 +44,11 @@ bus = can.interface.Bus(
 
 Liste_ID = [0x01,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x110,0x111,0x200,0x201,0x202]
 
+Liste_actions = []
+Liste_actions.append((500,400))
+Liste_actions.append((900,800))
+ordre_receive = 0
+
 # Port série et Baudrate du lidar
 PORT_NAME = '/dev/ttyUSB0'
 BAUDRATE = 256000
@@ -287,7 +292,11 @@ if __name__ == '__main__':
         print(f"Trame envoyée : {msg}")
         time.sleep(1)
 
-        while (not stop_event.is_set() and Batteries[2][3] > 5): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
+        while (not stop_event.is_set() and Batteries[2][3] > 5 and len(Liste_actions)!=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
+            ordre_receive = 0
+            if(type(Liste_actions[0])==tuple):
+                x_robot_voulu = Liste_actions[0][0]
+                y_robot_voulu = Liste_actions[0][1]
             etat = 1
             data_etat = struct.pack('<I',etat)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
@@ -365,7 +374,12 @@ if __name__ == '__main__':
                 print("Asservir en Angle")
             if(abs(x_robot_actuel-x_robot_voulu)<10 and abs(y_robot_actuel-y_robot_voulu)<10 and abs(angle_robot_actuel-angle_robot_voulu)<2):
                 print("Bonne position")
-                
+                ordre_receive = 1
+
+            if(ordre_receive == 1):
+                Liste_actions.pop(0)
+                ordre_receive = 0
+
             plt.draw()
             fig.canvas.draw()
             fig.canvas.flush_events()
