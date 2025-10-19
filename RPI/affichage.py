@@ -25,7 +25,7 @@ def init_affichage():
     Retourne les objets utiles : figure, axes, plots et boutons.
     """
     # --- Chargement et configuration de l’image ---
-    img = mpimg.imread("/home/youssef/Desktop/CRAC2026/piste.png")  # chemin vers ton image
+    img = mpimg.imread("/home/youssef/Desktop/CRAC2026/Piste.png")  # chemin vers ton image
     img = np.rot90(img, 2)  # rotation de 180°
 
     fig, ax = plt.subplots(figsize=(600/100, 400/100), dpi=100)
@@ -51,8 +51,24 @@ def init_affichage():
         ha='left',
         va='top'
     )
-    coordonnee_voulues_text = ax.text(
+    x_voulu_text = ax.text(
         1500, 2100,
+        "",
+        color='black',
+        fontsize=8,
+        ha='left',
+        va='top'
+    )
+    y_voulu_text = ax.text(
+        1560, 2100,
+        "",
+        color='black',
+        fontsize=8,
+        ha='left',
+        va='top'
+    )
+    A_voulu_text = ax.text(
+        1620, 2100,
         "",
         color='black',
         fontsize=8,
@@ -68,5 +84,5 @@ def init_affichage():
     # --- Point voulu ---
     point_voulu_plot, = ax.plot([], [], 'bx', markersize=10, label="Point voulu")
 
-    return fig, ax, robot_plot, ennemi_plot, scat, robot_info_text,ax_button,bouton_stop,point_voulu_plot,coordonnee_voulues_text
+    return fig, ax, robot_plot, ennemi_plot, scat, robot_info_text,ax_button,bouton_stop,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text
 
