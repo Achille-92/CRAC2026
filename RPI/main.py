@@ -74,7 +74,7 @@ x_ennemi = 1500
 y_ennemi = 1000
 
 # Gestion des Batteries
-Batteries = [[12,14,12.1,100],[12,14,12.1,100],[12,14,12.3,100]]
+Batteries = [[12,14,13.9,100],[12,14,13.9,100],[12,14,13.9,100]]
 U_last = [0,0,0]
 Ordre_Batteries = [1,0,0]
 
@@ -243,11 +243,6 @@ def on_click(event):
         point_voulu_plot.set_data([x_robot_voulu], [y_robot_voulu])
         plt.draw()
 
-def send_coord_can(arbitration_id, value):
-    for _ in range(5):
-        bus.send(can.Message(arbitration_id=arbitration_id,
-                             data=struct.pack('<f', value),
-                             is_extended_id=False))
 ########################################################################
 
 ################## Lancement du programme principal ####################
@@ -292,7 +287,7 @@ if __name__ == '__main__':
             etat = 1
             data_etat = struct.pack('<I',etat)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
-
+            """
             if(Ordre_Batteries[0]==1):
                 bus.send(can.Message(arbitration_id=0x300, data=struct.pack('<I',1), is_extended_id=False))
             else :
@@ -305,18 +300,11 @@ if __name__ == '__main__':
                 bus.send(can.Message(arbitration_id=0x302, data=struct.pack('<I',1), is_extended_id=False))
             else :
                 bus.send(can.Message(arbitration_id=0x302, data=struct.pack('<I',0), is_extended_id=False))
-            
-            if x_robot_voulu != x_robot_voulu_last:
-                for _ in range(5):
-                    bus.send(can.Message(arbitration_id=0x203,
-                                        data=struct.pack('<f', x_robot_voulu),
-                                        is_extended_id=False))
+            """
+            bus.send(can.Message(arbitration_id=0x203,data=struct.pack('<f', x_robot_voulu),is_extended_id=False))
 
-            if y_robot_voulu != y_robot_voulu_last:
-                for _ in range(5):
-                    bus.send(can.Message(arbitration_id=0x204,
-                                        data=struct.pack('<f', y_robot_voulu),
-                                        is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x204,data=struct.pack('<f', y_robot_voulu),is_extended_id=False))
+
             # Mettre à jour robot et ennemi sur affichage
            
             robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
@@ -375,10 +363,6 @@ if __name__ == '__main__':
         stop_event.set()
 
     except KeyboardInterrupt:
-        etat = 2
-        data_etat = struct.pack('<I',etat)
-        bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
-
         print("Arrêt demandé par l'utilisateur.")
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
@@ -389,6 +373,10 @@ if __name__ == '__main__':
 
     finally:
         print("Programme terminé proprement.")
+        etat = 2
+        data_etat = struct.pack('<I',etat)
+        bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
+
         plt.close(fig)
 
 
