@@ -45,8 +45,8 @@ bus = can.interface.Bus(
 Liste_ID = [0x01,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x110,0x111,0x200,0x201,0x202]
 
 Liste_actions = []
-Liste_actions.append((500,400))
-Liste_actions.append((900,800))
+Liste_actions.append((500,400,0))
+Liste_actions.append((900,800,90))
 ordre_receive = 0
 
 # Port série et Baudrate du lidar
@@ -297,6 +297,7 @@ if __name__ == '__main__':
             if(type(Liste_actions[0])==tuple):
                 x_robot_voulu = Liste_actions[0][0]
                 y_robot_voulu = Liste_actions[0][1]
+                angle_robot_voulu = Liste_actions[0][2]
             etat = 1
             data_etat = struct.pack('<I',etat)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
@@ -370,9 +371,9 @@ if __name__ == '__main__':
                 print("Asservir en X")
             if(abs(y_robot_actuel-y_robot_voulu)>10):
                 print("Asservir en Y")
-            if(abs(angle_robot_actuel-angle_robot_voulu)>2):
+            if(abs(angle_robot_actuel-angle_robot_voulu)>1):
                 print("Asservir en Angle")
-            if(abs(x_robot_actuel-x_robot_voulu)<10 and abs(y_robot_actuel-y_robot_voulu)<10 and abs(angle_robot_actuel-angle_robot_voulu)<2):
+            if(abs(x_robot_actuel-x_robot_voulu)<10 and abs(y_robot_actuel-y_robot_voulu)<10 and abs(angle_robot_actuel-angle_robot_voulu)<1):
                 print("Bonne position")
                 ordre_receive = 1
 
