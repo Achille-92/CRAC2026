@@ -15,10 +15,10 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from functools import partial
 from affichage import init_affichage, bring_to_front
+from mouvement import verif_et_ajoute_contournement
 ########################################################################
 
 # config CAN
-
 """os.system('sudo ip link set can0 type can bitrate 500000')
 os.system('sudo ifconfig can0 up')
 bus = can.interface.Bus(
@@ -47,12 +47,17 @@ Liste_ID = [0x01,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0
 
 Liste_actions = []
 Liste_actions.append([2800,1900,0])
-#Liste_actions.append("WAIT")
+Liste_actions.append([90])
+Liste_actions.append([180])
+Liste_actions.append([270])
+Liste_actions.append("WAIT3")
 Liste_actions.append([1800,1000,90])
-#Liste_actions.append("WAIT")
 Liste_actions.append([900,800,90])
+Liste_actions.append("WAIT5")
 Liste_actions.append([900,1800,180])
+
 ordre_receive = 0
+step = 0
 
 # Port série et Baudrate du lidar
 PORT_NAME = '/dev/ttyUSB0'
@@ -79,11 +84,16 @@ angle_robot_actuel = 0
 x_robot_voulu = 0
 y_robot_voulu = 0
 angle_robot_voulu = 0
-x_robot_voulu_last = 0
-y_robot_voulu_last = 0
-##########################################
+
+# Ennemi
 x_ennemi = 1500
 y_ennemi = 1000
+
+
+r_robot = 150
+r_ennemi = 150
+marge_min = 100
+R_securite = r_robot + r_ennemi + marge_min
 
 # Gestion des Batteries
 Batteries = [[12,14,13.9,100],[12,14,13.9,100],[12,14,13.9,100]]
@@ -98,6 +108,7 @@ espacement_salves = 200 # espace entre chaque salve
 y_base = 2050           # position verticale (en haut de la piste)
 marge_texte = 20  # espace horizontal entre texte et rectangle
 texte_offset_y = 80  # décalage vertical du texte par rapport aux rectangles
+longueur_trait = 100  # longueur trait de direction
 
 # Objets et variables pour la fenêtre graphique
 fig = None 
@@ -105,11 +116,6 @@ ax = None
 robot_plot = None
 scat = None
 
-r_robot = 200
-r_ennemi = 150
-marge_min = 100
-R_securite = r_robot + r_ennemi + marge_min
-longueur_trait = 100  
 
 
 ################## Fonction  ###########################################
@@ -265,92 +271,24 @@ def on_click(event):
         bring_to_front(fig)
 
 
-def angle_diff(a1, a2):
-    diff = (a1 - a2 + 180) % 360 - 180
-    return abs(diff)
-
-def verif_et_ajoute_contournement(Liste_actions, x_actuel, y_actuel, angle_actuel, x_voulu, y_voulu, x_ennemi, y_ennemi):
-    """
-    Vérifie si l'ennemi est sur la trajectoire robot->consigne.
-    Si oui, insère un point de contournement dans Liste_actions.
-    """
-    global r_robot, r_ennemi, marge_min
-    R_securite = r_robot + r_ennemi + marge_min
-
-    Angle_robot_consigne = round(np.atan2(y_voulu-y_actuel,x_voulu-x_actuel)*180/np.pi,0)
-    Angle_robot_ennemi = round(np.atan2(y_ennemi-y_actuel,x_ennemi-x_actuel)*180/np.pi,0)
-    Distance_robot_ennemi = round(np.sqrt((x_ennemi-x_actuel)**2 + (y_ennemi-y_actuel)**2),0)
-    Distance_robot_consigne = round(np.sqrt((x_actuel-x_voulu)**2 + (y_actuel-y_voulu)**2),0)
- 
-    if Distance_robot_ennemi < R_securite :
-        print("Robot trop proche de l'Ennemi")
-        ratio = R_securite / Distance_robot_ennemi
-        x_recul = round(x_ennemi - (x_ennemi-x_actuel) * ratio,0)
-        y_recul = round(y_ennemi - (y_ennemi-y_actuel) * ratio,0)
-        Liste_actions.insert(0,[x_actuel,y_actuel,Angle_robot_ennemi])
-        Liste_actions.insert(0,[x_recul,y_recul,Angle_robot_ennemi])
-        
-    else :
-        seuil_angle = np.degrees(np.arcsin(R_securite / Distance_robot_ennemi))
-        if angle_diff(Angle_robot_consigne, Angle_robot_ennemi) <= seuil_angle and Distance_robot_ennemi < Distance_robot_consigne:
-            print("⚠️ Trajectoire traverse la zone interdite → génération de 5 points tangents")
-
-            # Détermination du sens de contournement (produit vectoriel)
-            cross = (x_ennemi - x_actuel) * (y_voulu - y_actuel) - (y_ennemi - y_actuel) * (x_voulu - x_actuel)
-            sens = 1 if cross > 0 else -1  # gauche (+1) ou droite (-1)
-
-            # Angle du point tangent principal
-            theta_centre = np.arctan2(y_ennemi - y_actuel, x_ennemi - x_actuel)
-            theta_tangent = theta_centre + sens * np.pi / 2  # perpendiculaire au rayon
-
-            # Génération de 5 points espacés de ±30° autour du point tangent
-            angles = [theta_tangent + sens * np.radians(a) for a in [-40,-30, -20, -10, 0, 10, 20, 30, 40]]
-            points = []
-
-            for a in angles:
-                x_c = round(x_ennemi + R_securite * np.cos(a),0)
-                y_c = round(y_ennemi + R_securite * np.sin(a),0)
-                points.append([x_c, y_c, round(np.degrees(a)-90,0)])
-
-            # Tri pour que le point le plus proche du robot soit exécuté en premier
-            points.sort(key=lambda p: np.hypot(p[0] - x_actuel, p[1] - y_actuel))
-
-            # Insertion dans la liste d’actions
-            Liste_actions = points + Liste_actions
-        else :
-            Liste_actions[0][2]=Angle_robot_consigne
-
-    Liste_actions = [[float(x), float(y), float(a)] for [x, y, a] in Liste_actions]
-    return Liste_actions
-
 ########################################################################
 
 ################## Lancement du programme principal ####################
-step = 0
+
 if __name__ == '__main__':
 
     stop_event = threading.Event()
 
-    fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button,bouton_stop,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text = init_affichage()
+    buffer_points = deque(maxlen=50)
+
+    fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button,bouton_stop,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,cercle_ennemi = init_affichage(R_securite)
     cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
     bouton_stop.on_clicked(partial(arret_programme, stop_event=stop_event))
     
     # création du trait, initialement à la position du robot
-    robot_angle_line = Line2D(
-        [x_robot_actuel, x_robot_actuel + longueur_trait * math.cos(math.radians(angle_robot_actuel))],
-        [y_robot_actuel, y_robot_actuel + longueur_trait * math.sin(math.radians(angle_robot_actuel))],
-        color='blue', linewidth=2
-    )
-    ax.add_line(robot_angle_line)
     
-    robot_angle_voulu_line = Line2D(
-        [x_robot_actuel, x_robot_actuel + longueur_trait * math.cos(math.radians(angle_robot_voulu))],
-        [y_robot_actuel, y_robot_actuel + longueur_trait * math.sin(math.radians(angle_robot_voulu))],
-        color='green', linewidth=2
-    )
+    ax.add_line(robot_angle_line)
     ax.add_line(robot_angle_voulu_line)
-
-    cercle_ennemi = plt.Circle((x_ennemi, y_ennemi), R_securite, color='orange', fill=False, linestyle='--')
     ax.add_patch(cercle_ennemi)
 
     """tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
@@ -361,7 +299,6 @@ if __name__ == '__main__':
     tache_calcul.start()
     tache_odometrie.start()"""
     
-    buffer_points = deque(maxlen=50)
     try:
         
         data_x = struct.pack('<f',x_robot_depart)
@@ -384,27 +321,25 @@ if __name__ == '__main__':
         while (not stop_event.is_set() and Batteries[2][3] > 5 and len(Liste_actions)!=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
             ordre_receive = 0
             temps = 0
-            if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
+            if type(Liste_actions[0]) == list and len(Liste_actions[0])==3: # Si la consigne est une coordonnée
                 x_robot_voulu = Liste_actions[0][0]
                 y_robot_voulu = Liste_actions[0][1]
                 angle_robot_voulu = Liste_actions[0][2]
                 verif = True
-            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1:
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1: # Si la consigne est un angle
                 angle_robot_voulu = Liste_actions[0][0]
-                verif = True
-            elif type(Liste_actions[0]) == str and Liste_actions[0] == "WAIT":
-                temps = 3
-            print("\nAvant verif :")
-            print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
-            print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
-            print(Liste_actions)
+            elif type(Liste_actions[0]) == str and Liste_actions[0].upper().startswith("WAIT"): # Si la consigne est une attente
+                 temps = int(Liste_actions[0][4:]) 
+                 
+                 
             # --- Vérifie et modifie la trajectoire si un ennemi bloque ---
             if verif == True:
                 Liste_actions = verif_et_ajoute_contournement(
                     Liste_actions,
-                    x_robot_actuel, y_robot_actuel, angle_robot_actuel,
+                    x_robot_actuel, y_robot_actuel,
                     x_robot_voulu, y_robot_voulu,
-                    x_ennemi, y_ennemi
+                    x_ennemi, y_ennemi, 
+                    r_robot, r_ennemi, marge_min
                 )
 
                 # --- Si la liste a changé, mettre à jour le point voulu ---
@@ -415,12 +350,11 @@ if __name__ == '__main__':
                 elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1:
                     angle_robot_voulu = Liste_actions[0][0]
 
-                
+            verif = False
             print("\nAprès verif :")
             print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
             print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
             print(Liste_actions)
-            verif = False
 
             """etat = 1
             data_etat = struct.pack('<I',etat)
@@ -440,45 +374,33 @@ if __name__ == '__main__':
                 bus.send(can.Message(arbitration_id=0x302, data=struct.pack('<I',0), is_extended_id=False))
             
             bus.send(can.Message(arbitration_id=0x203,data=struct.pack('<f', x_robot_voulu),is_extended_id=False))
-
             bus.send(can.Message(arbitration_id=0x204,data=struct.pack('<f', y_robot_voulu),is_extended_id=False))
             """
+
             # Mettre à jour robot et ennemi sur affichage
-           
             robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
+            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
+            consigne_plot.set_offsets([[x_robot_voulu, y_robot_voulu]])
+
+            cercle_ennemi.center = (x_ennemi, y_ennemi) # MAJ Centre cercle orange
+
+            # MAJ vecteur direction actuel
             x0, y0 = x_robot_actuel, y_robot_actuel
             x1 = x0 + longueur_trait * math.cos(math.radians(angle_robot_actuel))
             y1 = y0 + longueur_trait * math.sin(math.radians(angle_robot_actuel))
             robot_angle_line.set_data([x0, x1], [y0, y1])
             
+            # MAJ vecteur direction voulu
             x0, y0 = x_robot_actuel, y_robot_actuel
             x1 = x0 + longueur_trait * math.cos(math.radians(angle_robot_voulu))
             y1 = y0 + longueur_trait * math.sin(math.radians(angle_robot_voulu))
             robot_angle_voulu_line.set_data([x0, x1], [y0, y1])
-
-
-            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
-            consigne_plot.set_offsets([[x_robot_voulu, y_robot_voulu]])
-            cercle_ennemi.center = (x_ennemi, y_ennemi)
             
-            robot_info_text.set_text(
-                f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°"
-            )
-            x_voulu_text.set_text(
-                f"X = {x_robot_voulu:.1f}"
-            )
-            y_voulu_text.set_text(
-                f"Y = {y_robot_voulu:.1f}"
-            )
-            A_voulu_text.set_text(
-                f"A = {angle_robot_voulu:.1f}°"
-            )
-
             # Gestion batteries :
             for i in range(len(Batteries)):
                 if (Batteries[i][2] != U_last[i]):
-                    #print(f"MAJ Batterie N°{i+1}")
-                    Batteries[i][3]=100*(Batteries[i][2]-Batteries[i][0])/(Batteries[i][1]-Batteries[i][0])
+                    print(f"MAJ Batterie N°{i+1}")
+                    Batteries[i][3]=100*(Batteries[i][2]-Batteries[i][0])/(Batteries[i][1]-Batteries[i][0]) # Calcul % batterie
                     Batteries[i][3] = round(Batteries[i][3],2)
 
                     couleurs = ['red', 'orange', 'yellow', 'lime', 'green']
@@ -501,6 +423,8 @@ if __name__ == '__main__':
                         f"{Batteries[i][3]}%",
                         color='black', fontsize=8, ha='center', va='bottom'
                     )
+
+            # Gestion des batteries et ordres batteries
             if(Batteries[0][2]!=U_last[0] and Batteries[0][3]<=5.0):
                 print("Utilisation Bat2")
                 Ordre_Batteries = [0,1,0]
@@ -510,6 +434,21 @@ if __name__ == '__main__':
             if(Batteries[2][2]!=U_last[2] and Batteries[2][3]<=5.0):
                 print("Batteries déchargées")
                 
+            
+            # Affichage texte Coordonées
+            robot_info_text.set_text(
+                f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°"
+            )
+            x_voulu_text.set_text(
+                f"X = {x_robot_voulu:.1f}"
+            )
+            y_voulu_text.set_text(
+                f"Y = {y_robot_voulu:.1f}"
+            )
+            A_voulu_text.set_text(
+                f"A = {angle_robot_voulu:.1f}°"
+            )
+
             if(abs(x_robot_actuel-x_robot_voulu)>10):
                 x_voulu_text.set_color('black')
             else:
@@ -522,10 +461,11 @@ if __name__ == '__main__':
                 A_voulu_text.set_color('black')
             else:
                 A_voulu_text.set_color('green')
+
+            # Si robot est à la position de consigne
             if(abs(x_robot_actuel-x_robot_voulu)<10 and abs(y_robot_actuel-y_robot_voulu)<10 and abs(angle_robot_actuel-angle_robot_voulu)<1):
                 print("Bonne position")
                 ordre_receive = 1
-
           
             time.sleep(0.3)
             ordre_receive = 1
@@ -539,19 +479,26 @@ if __name__ == '__main__':
             if(ordre_receive == 1):
                 print(step)
                 step+=1
-                x_robot_actuel = Liste_actions[0][0]
-                y_robot_actuel = Liste_actions[0][1]
-                angle_robot_actuel = Liste_actions[0][2]
-                if(step==20):
+                if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
+                    x_robot_actuel = Liste_actions[0][0]
+                    y_robot_actuel = Liste_actions[0][1]
+                    angle_robot_actuel = Liste_actions[0][2]
+                elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1:
+                    angle_robot_actuel = Liste_actions[0][0]
+                if(step==16):
                     x_ennemi += 50
-                if(step==39):
+
+                if(step==22):
                     x_ennemi -= 550
-                if(step==46):
+                if(step==30):
                     x_ennemi += 300
                     y_ennemi += 100
+
+                # Retire de la liste l'action en cours
                 Liste_actions.pop(0)
                 ordre_receive = 0
                 
+            # MAJ de l'affichage et des Variables de Bouncing
             plt.draw()
             fig.canvas.draw()
             fig.canvas.flush_events()
@@ -561,6 +508,8 @@ if __name__ == '__main__':
             y_robot_voulu_last = y_robot_voulu
             print("")
             time.sleep(temps)
+
+        # À la fin, attends 2 secondes et lève le drapeau
         time.sleep(2)
         stop_event.set()
 
