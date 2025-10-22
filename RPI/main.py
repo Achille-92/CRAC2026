@@ -73,12 +73,12 @@ lidar = None
 pile_calcul = queue.Queue(maxsize=500)
 
 # Coordonnées et angle de notre robot
-x_robot_depart = 120
-y_robot_depart = 145
+x_robot_depart = 145
+y_robot_depart = 120
 angle_robot_depart = 0
 
-x_robot_actuel = 0
-y_robot_actuel = 0
+x_robot_actuel = 120
+y_robot_actuel = 145
 angle_robot_actuel = 0
 
 x_robot_voulu = 500
@@ -266,7 +266,7 @@ def on_click(event):
         x_robot_voulu = event.xdata
         y_robot_voulu = event.ydata
         print(f"Clic souris détecté : X_voulu = {x_robot_voulu:.1f}, Y_voulu = {y_robot_voulu:.1f}")
-        point_voulu_plot.set_data([x_robot_voulu], [y_robot_voulu])
+        point_voulu_plot.set_data([round(x_robot_voulu,0)], [rpund(y_robot_voulu,0)])
         plt.draw()
         bring_to_front(fig)
 
@@ -357,10 +357,10 @@ if __name__ == '__main__':
             print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
             #print(Liste_actions)
 
-            """etat = 1
+            etat = 1
             data_etat = struct.pack('<I',etat)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
-            
+            """
             if(Ordre_Batteries[0]==1):
                 bus.send(can.Message(arbitration_id=0x300, data=struct.pack('<I',1), is_extended_id=False))
             else :
@@ -518,19 +518,18 @@ if __name__ == '__main__':
         print("Arrêt demandé par l'utilisateur.")
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
-        """tache_lidar.join()
+        tache_lidar.join()
         tache_calcul.join()
         tache_odometrie.join()
         os.system("sudo ifconfig can0 down")
-        """
+        
     finally:
         print("Programme terminé proprement.")
-        """etat = 2
+        etat = 2
         data_etat = struct.pack('<I',etat)
         bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
-        """
+        
         plt.close(fig)
 
 
 ########################################################################
-
