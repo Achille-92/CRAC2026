@@ -12,12 +12,13 @@ import can
 import struct
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from functools import partial
 from affichage import init_affichage, bring_to_front
+from mouvement import verif_et_ajoute_contournement
 ########################################################################
 
 # config CAN
-
 os.system('sudo ip link set can0 type can bitrate 500000')
 os.system('sudo ifconfig can0 up')
 bus = can.interface.Bus(
@@ -44,18 +45,27 @@ bus = can.interface.Bus(
 
 Liste_ID = [0x01,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x110,0x111,0x200,0x201,0x202]
 
-Liste_actions = []
-Liste_actions.append((500,400,0))
-Liste_actions.append((900,800,90))
+"""Liste_actions = []
+Liste_actions.append([2800,1900,0])
+Liste_actions.append([90])
+Liste_actions.append([180])
+Liste_actions.append([270])
+Liste_actions.append("WAIT3")
+Liste_actions.append([1800,1000,90])
+Liste_actions.append([900,800,90])
+Liste_actions.append("WAIT5")
+Liste_actions.append([900,1800,180])"""
+
 ordre_receive = 0
+step = 0
 
 # Port série et Baudrate du lidar
 PORT_NAME = '/dev/ttyUSB0'
 BAUDRATE = 256000
 
 # Piste
-x_piste = 1000
-y_piste = 900
+x_piste = 1740
+y_piste = 1120
 marge_bordurepiste = 15 #mm
 
 # Création de l'objet Lidar, et de la Pile pile_points
@@ -65,7 +75,7 @@ pile_calcul = queue.Queue(maxsize=500)
 # Coordonnées et angle de notre robot
 x_robot_depart = 120
 y_robot_depart = 145
-angle_robot_depart = 90
+angle_robot_depart = 0
 
 x_robot_actuel = 0
 y_robot_actuel = 0
@@ -74,11 +84,16 @@ angle_robot_actuel = 0
 x_robot_voulu = 500
 y_robot_voulu = 400
 angle_robot_voulu = 0
-x_robot_voulu_last = 0
-y_robot_voulu_last = 0
-##########################################
-x_ennemi = 1500
-y_ennemi = 1000
+
+# Ennemi
+x_ennemi = 0
+y_ennemi = 0
+
+
+r_robot = 150
+r_ennemi = 150
+marge_min = 100
+R_securite = r_robot + r_ennemi + marge_min
 
 # Gestion des Batteries
 Batteries = [[12,14,13.9,100],[12,14,13.9,100],[12,14,13.9,100]]
@@ -93,12 +108,15 @@ espacement_salves = 200 # espace entre chaque salve
 y_base = 2050           # position verticale (en haut de la piste)
 marge_texte = 20  # espace horizontal entre texte et rectangle
 texte_offset_y = 80  # décalage vertical du texte par rapport aux rectangles
+longueur_trait = 100  # longueur trait de direction
 
 # Objets et variables pour la fenêtre graphique
 fig = None 
 ax = None
 robot_plot = None
 scat = None
+
+
 
 ################## Fonction  ###########################################
 def calcul_points(stop_event):
@@ -252,6 +270,7 @@ def on_click(event):
         plt.draw()
         bring_to_front(fig)
 
+
 ########################################################################
 
 ################## Lancement du programme principal ####################
@@ -260,9 +279,17 @@ if __name__ == '__main__':
 
     stop_event = threading.Event()
 
-    fig, ax, robot_plot, ennemi_plot, scat, robot_info_text,ax_button,bouton_stop,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text = init_affichage()
+    buffer_points = deque(maxlen=50)
+
+    fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button,bouton_stop,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,cercle_ennemi = init_affichage(R_securite)
     cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
     bouton_stop.on_clicked(partial(arret_programme, stop_event=stop_event))
+    
+    # création du trait, initialement à la position du robot
+    
+    ax.add_line(robot_angle_line)
+    ax.add_line(robot_angle_voulu_line)
+    ax.add_patch(cercle_ennemi)
 
     tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
     tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
@@ -272,7 +299,6 @@ if __name__ == '__main__':
     tache_calcul.start()
     tache_odometrie.start()
     
-    buffer_points = deque(maxlen=50)
     try:
         
         data_x = struct.pack('<f',x_robot_depart)
@@ -292,16 +318,49 @@ if __name__ == '__main__':
         print(f"Trame envoyée : {msg}")
         time.sleep(1)
 
-        while (not stop_event.is_set() and Batteries[2][3] > 5 and len(Liste_actions)!=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
-            ordre_receive = 0
-            if(type(Liste_actions[0])==tuple):
+        #while (not stop_event.is_set() and Batteries[2][3] > 5 and len(Liste_actions)!=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
+        while (not stop_event.is_set() and Batteries[2][3] > 5): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
+            """ordre_receive = 0
+            temps = 0
+            if type(Liste_actions[0]) == list and len(Liste_actions[0])==3: # Si la consigne est une coordonnée
                 x_robot_voulu = Liste_actions[0][0]
                 y_robot_voulu = Liste_actions[0][1]
                 angle_robot_voulu = Liste_actions[0][2]
-            etat = 1
+                verif = True
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1: # Si la consigne est un angle
+                angle_robot_voulu = Liste_actions[0][0]
+            elif type(Liste_actions[0]) == str and Liste_actions[0].upper().startswith("WAIT"): # Si la consigne est une attente
+                 temps = int(Liste_actions[0][4:]) 
+                 
+                 
+            # --- Vérifie et modifie la trajectoire si un ennemi bloque ---
+            if verif == True:
+                Liste_actions = verif_et_ajoute_contournement(
+                    Liste_actions,
+                    x_robot_actuel, y_robot_actuel,
+                    x_robot_voulu, y_robot_voulu,
+                    x_ennemi, y_ennemi, 
+                    r_robot, r_ennemi, marge_min
+                )
+
+                # --- Si la liste a changé, mettre à jour le point voulu ---
+                if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
+                    x_robot_voulu = Liste_actions[0][0]
+                    y_robot_voulu = Liste_actions[0][1]
+                    angle_robot_voulu = Liste_actions[0][2]
+                elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1:
+                    angle_robot_voulu = Liste_actions[0][0]"""
+
+            verif = False
+            print("\nAprès verif :")
+            print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
+            print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
+            #print(Liste_actions)
+
+            """etat = 1
             data_etat = struct.pack('<I',etat)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
-            """
+            
             if(Ordre_Batteries[0]==1):
                 bus.send(can.Message(arbitration_id=0x300, data=struct.pack('<I',1), is_extended_id=False))
             else :
@@ -316,32 +375,33 @@ if __name__ == '__main__':
                 bus.send(can.Message(arbitration_id=0x302, data=struct.pack('<I',0), is_extended_id=False))
             """
             bus.send(can.Message(arbitration_id=0x203,data=struct.pack('<f', x_robot_voulu),is_extended_id=False))
-
             bus.send(can.Message(arbitration_id=0x204,data=struct.pack('<f', y_robot_voulu),is_extended_id=False))
+            
 
             # Mettre à jour robot et ennemi sur affichage
-           
             robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
-            
-            robot_info_text.set_text(
-                f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°"
-            )
-            x_voulu_text.set_text(
-                f"X = {x_robot_voulu:.1f}"
-            )
-            y_voulu_text.set_text(
-                f"Y = {y_robot_voulu:.1f}"
-            )
-            A_voulu_text.set_text(
-                f"A = {angle_robot_voulu:.1f}°"
-            )
+            consigne_plot.set_offsets([[x_robot_voulu, y_robot_voulu]])
 
+            cercle_ennemi.center = (x_ennemi, y_ennemi) # MAJ Centre cercle orange
+
+            # MAJ vecteur direction actuel
+            x0, y0 = x_robot_actuel, y_robot_actuel
+            x1 = x0 + longueur_trait * math.cos(math.radians(angle_robot_actuel))
+            y1 = y0 + longueur_trait * math.sin(math.radians(angle_robot_actuel))
+            robot_angle_line.set_data([x0, x1], [y0, y1])
+            
+            # MAJ vecteur direction voulu
+            x0, y0 = x_robot_actuel, y_robot_actuel
+            x1 = x0 + longueur_trait * math.cos(math.radians(angle_robot_voulu))
+            y1 = y0 + longueur_trait * math.sin(math.radians(angle_robot_voulu))
+            robot_angle_voulu_line.set_data([x0, x1], [y0, y1])
+            
             # Gestion batteries :
             for i in range(len(Batteries)):
                 if (Batteries[i][2] != U_last[i]):
                     print(f"MAJ Batterie N°{i+1}")
-                    Batteries[i][3]=100*(Batteries[i][2]-Batteries[i][0])/(Batteries[i][1]-Batteries[i][0])
+                    Batteries[i][3]=100*(Batteries[i][2]-Batteries[i][0])/(Batteries[i][1]-Batteries[i][0]) # Calcul % batterie
                     Batteries[i][3] = round(Batteries[i][3],2)
 
                     couleurs = ['red', 'orange', 'yellow', 'lime', 'green']
@@ -364,6 +424,8 @@ if __name__ == '__main__':
                         f"{Batteries[i][3]}%",
                         color='black', fontsize=8, ha='center', va='bottom'
                     )
+
+            # Gestion des batteries et ordres batteries
             if(Batteries[0][2]!=U_last[0] and Batteries[0][3]<=5.0):
                 print("Utilisation Bat2")
                 Ordre_Batteries = [0,1,0]
@@ -373,29 +435,71 @@ if __name__ == '__main__':
             if(Batteries[2][2]!=U_last[2] and Batteries[2][3]<=5.0):
                 print("Batteries déchargées")
                 
+            
+            # Affichage texte Coordonées
+            robot_info_text.set_text(
+                f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°"
+            )
+            x_voulu_text.set_text(
+                f"X = {x_robot_voulu:.1f}"
+            )
+            y_voulu_text.set_text(
+                f"Y = {y_robot_voulu:.1f}"
+            )
+            A_voulu_text.set_text(
+                f"A = {angle_robot_voulu:.1f}°"
+            )
+
             if(abs(x_robot_actuel-x_robot_voulu)>10):
-                print("Asservir en X")
                 x_voulu_text.set_color('black')
             else:
                 x_voulu_text.set_color('green')
             if(abs(y_robot_actuel-y_robot_voulu)>10):
-                print("Asservir en Y")
                 y_voulu_text.set_color('black')
             else:
                 y_voulu_text.set_color('green')
             if(abs(angle_robot_actuel-angle_robot_voulu)>1):
-                print("Asservir en Angle")
                 A_voulu_text.set_color('black')
             else:
                 A_voulu_text.set_color('green')
+
+            # Si robot est à la position de consigne
             if(abs(x_robot_actuel-x_robot_voulu)<10 and abs(y_robot_actuel-y_robot_voulu)<10 and abs(angle_robot_actuel-angle_robot_voulu)<1):
                 print("Bonne position")
                 ordre_receive = 1
+          
+            """time.sleep(0.3)
+            ordre_receive = 1"""
+            """d = 50 * 0.301
+            angle_deplacement = round(np.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel),0)
+            print(angle_deplacement)
+            x_robot_actuel += d * np.cos(angle_deplacement)
+            y_robot_actuel += d * np.sin(angle_deplacement)"""
+            #ordre_receive= int(input("Ordre : "))
+            
+            """if(ordre_receive == 1):
+                print(step)
+                step+=1
+                if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
+                    x_robot_actuel = Liste_actions[0][0]
+                    y_robot_actuel = Liste_actions[0][1]
+                    angle_robot_actuel = Liste_actions[0][2]
+                elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1:
+                    angle_robot_actuel = Liste_actions[0][0]
+                if(step==16):
+                    x_ennemi += 50
 
-            if(ordre_receive == 1):
+                if(step==22):
+                    x_ennemi -= 550
+                if(step==30):
+                    x_ennemi += 300
+                    y_ennemi += 100
+
+                # Retire de la liste l'action en cours
                 Liste_actions.pop(0)
-                ordre_receive = 0
-
+                ordre_receive = 0"""
+                
+            # MAJ de l'affichage et des Variables de Bouncing
             plt.draw()
             fig.canvas.draw()
             fig.canvas.flush_events()
@@ -403,24 +507,30 @@ if __name__ == '__main__':
             U_last = [Batteries[0][2],Batteries[1][2],Batteries[2][2]]
             x_robot_voulu_last = x_robot_voulu
             y_robot_voulu_last = y_robot_voulu
+            print("")
+            #time.sleep(temps)
+
+        # À la fin, attends 2 secondes et lève le drapeau
+        time.sleep(2)
         stop_event.set()
 
     except KeyboardInterrupt:
         print("Arrêt demandé par l'utilisateur.")
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
-        tache_lidar.join()
+        """tache_lidar.join()
         tache_calcul.join()
         tache_odometrie.join()
         os.system("sudo ifconfig can0 down")
-
+        """
     finally:
         print("Programme terminé proprement.")
-        etat = 2
+        """etat = 2
         data_etat = struct.pack('<I',etat)
         bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
-
+        """
         plt.close(fig)
 
 
 ########################################################################
+
