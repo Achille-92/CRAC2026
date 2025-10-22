@@ -265,7 +265,7 @@ def on_click(event):
         x_robot_voulu = event.xdata
         y_robot_voulu = event.ydata
         print(f"Clic souris détecté : X_voulu = {x_robot_voulu:.1f}, Y_voulu = {y_robot_voulu:.1f}")
-        point_voulu_plot.set_data([round(x_robot_voulu,0)], [rpund(y_robot_voulu,0)])
+        point_voulu_plot.set_data([round(x_robot_voulu,0)], [round(y_robot_voulu,0)])
         plt.draw()
         bring_to_front(fig)
 
@@ -520,7 +520,6 @@ if __name__ == '__main__':
         tache_lidar.join()
         tache_calcul.join()
         tache_odometrie.join()
-        tache_affichage.join()
         os.system("sudo ifconfig can0 down")
         
     finally:
