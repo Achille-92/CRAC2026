@@ -66,7 +66,8 @@ BAUDRATE = 256000
 # Piste
 x_piste = 1740
 y_piste = 1120
-marge_bordurepiste = 15 #mm
+marge_bordurepiste_x = 120 #mm
+marge_bordurepiste_y = 80 #mm
 
 # Création de l'objet Lidar, et de la Pile pile_points
 lidar = None
@@ -89,7 +90,7 @@ angle_robot_voulu = 0
 x_ennemi = 0
 y_ennemi = 0
 
-
+# Perimètre de sécurité
 r_robot = 150
 r_ennemi = 150
 marge_min = 100
@@ -115,8 +116,6 @@ fig = None
 ax = None
 robot_plot = None
 scat = None
-
-
 
 ################## Fonction  ###########################################
 def calcul_points(stop_event):
@@ -157,7 +156,7 @@ def calcul_points(stop_event):
                 x_point = max(0, min(x_piste, int(x_point)))
                 y_point = max(0, min(y_piste, int(y_point)))
 
-                if marge_bordurepiste <= x_point <= x_piste-marge_bordurepiste and marge_bordurepiste <= y_point <= y_piste-marge_bordurepiste:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                if marge_bordurepiste_x <= x_point <= x_piste-marge_bordurepiste_x and marge_bordurepiste_y <= y_point <= y_piste-marge_bordurepiste_y:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
                     pile_calcul.put((x_point, y_point))
 
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
@@ -294,7 +293,7 @@ if __name__ == '__main__':
     tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
     tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
     tache_odometrie = threading.Thread(target=CAN_Odometrie, args=(stop_event,), daemon=True)
-
+    
     tache_lidar.start()
     tache_calcul.start()
     tache_odometrie.start()
@@ -521,6 +520,7 @@ if __name__ == '__main__':
         tache_lidar.join()
         tache_calcul.join()
         tache_odometrie.join()
+        tache_affichage.join()
         os.system("sudo ifconfig can0 down")
         
     finally:
