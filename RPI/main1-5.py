@@ -1,0 +1,536 @@
+################## Librairies ##########################################
+import matplotlib
+matplotlib.use('Qt5Agg')
+from rplidar import RPLidar
+import math
+import numpy as np
+import threading, queue
+from collections import deque
+import time
+import os
+import can
+import struct
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from functools import partial
+from affichage import init_affichage, bring_to_front
+from mouvement import verif_et_ajoute_contournement
+########################################################################
+
+# config CAN
+os.system('sudo ip link set can0 type can bitrate 500000')
+os.system('sudo ifconfig can0 up')
+bus = can.interface.Bus(
+    channel='can0',
+    bustype='socketcan',
+    bitrate=500000,
+    can_filters=[{"can_id": 0x01, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x100, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x101, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x102, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x103, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x104, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x105, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x106, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x107, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x108, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x109, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x110, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x111, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x200, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x201, "can_mask": 0x7FF, "extended": False},
+                 {"can_id": 0x202, "can_mask": 0x7FF, "extended": False}]
+)
+
+Liste_ID = [0x01,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x110,0x111,0x200,0x201,0x202]
+
+Liste_actions = []
+Liste_actions.append([1000,800,0])
+"""Liste_actions.append([2800,1900,0])
+Liste_actions.append([90])
+Liste_actions.append([180])
+Liste_actions.append([270])
+Liste_actions.append("WAIT3")
+Liste_actions.append([1800,1000,90])
+Liste_actions.append([900,800,90])
+Liste_actions.append("WAIT5")
+Liste_actions.append([900,1800,180])"""
+
+ordre_receive = 0
+step = 0
+
+# Port série et Baudrate du lidar
+PORT_NAME = '/dev/ttyUSB0'
+BAUDRATE = 256000
+
+# Piste
+x_piste = 1740
+y_piste = 1120
+marge_bordurepiste_x = 120 #mm
+marge_bordurepiste_y = 80 #mm
+
+# Création de l'objet Lidar, et de la Pile pile_points
+lidar = None
+pile_calcul = queue.Queue(maxsize=500)
+
+# Coordonnées et angle de notre robot
+x_robot_depart = 145
+y_robot_depart = 120
+angle_robot_depart = 0
+
+x_robot_actuel = 120
+y_robot_actuel = 145
+angle_robot_actuel = 0
+
+x_robot_voulu = 500
+y_robot_voulu = 400
+angle_robot_voulu = 0
+
+# Ennemi
+x_ennemi = 0
+y_ennemi = 0
+
+# Perimètre de sécurité
+r_robot = 150
+r_ennemi = 150
+marge_min = 100
+R_securite = r_robot + r_ennemi + marge_min
+
+# Gestion des Batteries
+Batteries = [[12,14,13.9,100],[12,14,13.9,100],[12,14,13.9,100]]
+U_last = [0,0,0]
+Ordre_Batteries = [1,0,0]
+
+# Variables pour l'affichage des rectangles de batteries et des textes
+largeur_rect = 50       # largeur en mm
+hauteur_rect = 150      # hauteur en mm
+espacement = 0         # espace entre rectangles
+espacement_salves = 200 # espace entre chaque salve
+y_base = 2050           # position verticale (en haut de la piste)
+marge_texte = 20  # espace horizontal entre texte et rectangle
+texte_offset_y = 80  # décalage vertical du texte par rapport aux rectangles
+longueur_trait = 100  # longueur trait de direction
+
+# Objets et variables pour la fenêtre graphique
+fig = None 
+ax = None
+robot_plot = None
+scat = None
+
+################## Fonction  ###########################################
+def calcul_points(stop_event):
+    """
+    Argument : flag "stop_event"
+    Modification : variables globales "pile_points"
+
+    Utilisation :
+    Création de l'objet "lidar"
+    Calcul de l'angle total et des coordonnées des points
+    Saturation des valeurs pour les limites de l'aire de jeu, puis pour oublier les bords
+    """
+
+    lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)                       # connexion au Lidar
+    
+    print("INFO:", lidar.get_info())                                    # Affichage d'informations propres au Lidar
+    print("HEALTH:", lidar.get_health())
+
+    lidar.start_motor()                                                 # Démarrage du moteur du Lidar
+    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel
+    x_point = 0
+    y_point = 0
+
+    try:
+        # On lit les scans tant que le stop_event n’est pas activé
+        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096):
+            if stop_event.is_set():   # si on demande l’arrêt → on sort
+                break
+
+            for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
+                phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
+                angle_total = phi - math.radians(angle_robot_actuel) - math.radians(11)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+
+                x_point = x_robot_actuel + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
+                y_point = y_robot_actuel - distance * math.sin(angle_total)
+
+                # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
+                x_point = max(0, min(x_piste, int(x_point)))
+                y_point = max(0, min(y_piste, int(y_point)))
+
+                if marge_bordurepiste_x <= x_point <= x_piste-marge_bordurepiste_x and marge_bordurepiste_y <= y_point <= y_piste-marge_bordurepiste_y:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                    pile_calcul.put((x_point, y_point))
+
+    except Exception as e:                                                      # En cas d'exception on affiche l'erreur
+        print("Erreur dans le thread Lidar:", e)
+    finally:                                                                    # Et on arrête le Lidar
+        # Nettoyage du Lidar
+        print("Arrêt du Lidar...")
+        lidar.stop()
+        lidar.stop_motor()
+        lidar.disconnect()
+
+def CAN_Odometrie(stop_event):
+    """
+    Argument : flag "stop_event"
+    Modification : variables globales x_robot, y_robot, angle_robot, Batteries
+
+    Utilisation :
+    Lis le Bus CAN
+    Si l'ID du message n'est pas dans la Liste_ID, saute
+    Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
+    """
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID, Batteries
+
+    while not stop_event.is_set():
+        msg = bus.recv(0.01)  # attend 10 ms max
+        if msg is None:
+            continue  # pas de message, on repart
+
+        # Vérifie qu'on a bien reçu 4 octets avant de décoder
+        if msg.arbitration_id not in Liste_ID:
+            continue  # on saute les autres trames
+
+        if msg.arbitration_id == 0x100:
+            x_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x101:
+            y_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x102:
+            angle_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
+
+        # Batteries
+        elif msg.arbitration_id == 0x103:
+            Batteries[0][0] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x104:
+            Batteries[0][1] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x105:
+            Batteries[0][2] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x106:
+            Batteries[1][0] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x107:
+            Batteries[1][1] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x108:
+            Batteries[1][2] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x109:
+            Batteries[2][0] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x110:
+            Batteries[2][1] = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x111:
+            Batteries[2][2] = struct.unpack('f', bytes(msg.data))[0]
+        
+def calcul_ennemi(stop_event):
+    """
+    Arguments : flag stop_event
+    Modification : buffer_points, x_ennemi, y_ennemi
+
+    Utilisation :
+    Récupére le haut de la pile_calcul, puis le remet dans buffer_points
+    Moyenne les coordonées des points de la pile, donne x_ennemi et y_ennemi
+    """
+    global x_ennemi, y_ennemi
+
+    buffer_points = deque(maxlen=50)
+
+    while not stop_event.is_set():
+        try:
+            # Récupère un point du Lidar
+            p = pile_calcul.get(timeout=0.1)
+            buffer_points.append(p)
+        except queue.Empty:
+            pass
+
+        # Calcul barycentre, angle et vitesse
+        if buffer_points:
+            xs, ys = zip(*buffer_points)
+            x_ennemi = np.mean(xs)
+            y_ennemi = np.mean(ys)
+
+def arret_programme(event, stop_event=None):
+    print("Bouton STOP pressé — arrêt demandé.")
+    if stop_event is not None:
+        stop_event.set()
+        bring_to_front(fig)
+
+def on_click(event):
+    global x_robot_voulu, y_robot_voulu
+    if event.inaxes == ax:  # clic dans la zone du graphique
+        x_robot_voulu = event.xdata
+        y_robot_voulu = event.ydata
+        print(f"Clic souris détecté : X_voulu = {x_robot_voulu:.1f}, Y_voulu = {y_robot_voulu:.1f}")
+        point_voulu_plot.set_data([round(x_robot_voulu,0)], [round(y_robot_voulu,0)])
+        plt.draw()
+        bring_to_front(fig)
+
+
+########################################################################
+
+################## Lancement du programme principal ####################
+
+if __name__ == '__main__':
+
+    stop_event = threading.Event()
+
+    buffer_points = deque(maxlen=50)
+
+    fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button,bouton_stop,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,cercle_ennemi = init_affichage(R_securite)
+    cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
+    bouton_stop.on_clicked(partial(arret_programme, stop_event=stop_event))
+    
+    # création du trait, initialement à la position du robot
+    
+    ax.add_line(robot_angle_line)
+    ax.add_line(robot_angle_voulu_line)
+    ax.add_patch(cercle_ennemi)
+
+    tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
+    tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
+    tache_odometrie = threading.Thread(target=CAN_Odometrie, args=(stop_event,), daemon=True)
+    
+    tache_lidar.start()
+    tache_calcul.start()
+    tache_odometrie.start()
+    
+    try:
+        
+        data_x = struct.pack('<f',x_robot_depart)
+        data_y = struct.pack('<f',y_robot_depart)
+        data_angle = struct.pack('<f',angle_robot_depart)
+
+        msg = can.Message(arbitration_id=0x200, data=data_x, is_extended_id=False)
+        bus.send(msg)
+        print(f"Trame envoyée : {msg}")
+
+        msg = can.Message(arbitration_id=0x201, data=data_y, is_extended_id=False)
+        bus.send(msg)
+        print(f"Trame envoyée : {msg}")
+
+        msg = can.Message(arbitration_id=0x202, data=data_angle, is_extended_id=False)
+        bus.send(msg)
+        print(f"Trame envoyée : {msg}")
+        time.sleep(1)
+
+        #while (not stop_event.is_set() and Batteries[2][3] > 5 and len(Liste_actions)!=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
+        while (not stop_event.is_set() and Batteries[2][3] > 5): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
+            ordre_receive = 0
+            temps = 0
+            if type(Liste_actions[0]) == list and len(Liste_actions[0])==3: # Si la consigne est une coordonnée
+                x_robot_voulu = Liste_actions[0][0]
+                y_robot_voulu = Liste_actions[0][1]
+                angle_robot_voulu = Liste_actions[0][2]
+                verif = True
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1: # Si la consigne est un angle
+                angle_robot_voulu = Liste_actions[0][0]
+            elif type(Liste_actions[0]) == str and Liste_actions[0].upper().startswith("WAIT"): # Si la consigne est une attente
+                 temps = int(Liste_actions[0][4:])
+                 
+                 
+            # --- Vérifie et modifie la trajectoire si un ennemi bloque ---
+            if verif == True:
+                Liste_actions = verif_et_ajoute_contournement(
+                    Liste_actions,
+                    x_robot_actuel, y_robot_actuel,
+                    x_robot_voulu, y_robot_voulu,
+                    x_ennemi, y_ennemi, 
+                    r_robot, r_ennemi, marge_min
+                )
+
+                # --- Si la liste a changé, mettre à jour le point voulu ---
+                if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
+                    x_robot_voulu = Liste_actions[0][0]
+                    y_robot_voulu = Liste_actions[0][1]
+                    angle_robot_voulu = Liste_actions[0][2]
+                elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1:
+                    angle_robot_voulu = Liste_actions[0][0]
+
+            verif = False
+            print("\nAprès verif :")
+            print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
+            print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
+            #print(Liste_actions)
+
+            etat = 1
+            data_etat = struct.pack('<I',etat)
+            bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
+            """
+            if(Ordre_Batteries[0]==1):
+                bus.send(can.Message(arbitration_id=0x300, data=struct.pack('<I',1), is_extended_id=False))
+            else :
+                bus.send(can.Message(arbitration_id=0x300, data=struct.pack('<I',0), is_extended_id=False))
+            if(Ordre_Batteries[1]==1):
+                bus.send(can.Message(arbitration_id=0x301, data=struct.pack('<I',1), is_extended_id=False))
+            else :
+                bus.send(can.Message(arbitration_id=0x301, data=struct.pack('<I',0), is_extended_id=False))
+            if(Ordre_Batteries[2]==1):
+                bus.send(can.Message(arbitration_id=0x302, data=struct.pack('<I',1), is_extended_id=False))
+            else :
+                bus.send(can.Message(arbitration_id=0x302, data=struct.pack('<I',0), is_extended_id=False))
+            """
+            bus.send(can.Message(arbitration_id=0x203,data=struct.pack('<f', x_robot_voulu),is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x204,data=struct.pack('<f', y_robot_voulu),is_extended_id=False))
+            
+
+            # Mettre à jour robot et ennemi sur affichage
+            robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
+            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
+            consigne_plot.set_offsets([[x_robot_voulu, y_robot_voulu]])
+
+            cercle_ennemi.center = (x_ennemi, y_ennemi) # MAJ Centre cercle orange
+
+            # MAJ vecteur direction actuel
+            x0, y0 = x_robot_actuel, y_robot_actuel
+            x1 = x0 + longueur_trait * math.cos(math.radians(angle_robot_actuel))
+            y1 = y0 + longueur_trait * math.sin(math.radians(angle_robot_actuel))
+            robot_angle_line.set_data([x0, x1], [y0, y1])
+            
+            # MAJ vecteur direction voulu
+            x0, y0 = x_robot_actuel, y_robot_actuel
+            x1 = x0 + longueur_trait * math.cos(math.radians(angle_robot_voulu))
+            y1 = y0 + longueur_trait * math.sin(math.radians(angle_robot_voulu))
+            robot_angle_voulu_line.set_data([x0, x1], [y0, y1])
+            
+            # Gestion batteries :
+            for i in range(len(Batteries)):
+                if (Batteries[i][2] != U_last[i]):
+                    print(f"MAJ Batterie N°{i+1}")
+                    Batteries[i][3]=100*(Batteries[i][2]-Batteries[i][0])/(Batteries[i][1]-Batteries[i][0]) # Calcul % batterie
+                    Batteries[i][3] = round(Batteries[i][3],2)
+
+                    couleurs = ['red', 'orange', 'yellow', 'lime', 'green']
+                    seuils = [1, 20, 50, 75, 90]
+
+                    x_depart = 200 + i * (5 * (largeur_rect + espacement) + espacement_salves)
+                    for j in range(5):
+                        if Batteries[i][3] >= seuils[j]:
+                            x = x_depart + j * (largeur_rect + espacement)
+                            rect = patches.Rectangle(
+                                (x, y_base), largeur_rect, hauteur_rect,
+                                linewidth=0, edgecolor='none', facecolor=couleurs[j], alpha=0.9
+                            )
+                            ax.add_patch(rect)
+
+                    largeur_totale = 5 * largeur_rect + 4 * espacement
+                    x_centre_salve = x_depart + largeur_totale / 2
+                    ax.text(
+                        x_centre_salve, y_base + hauteur_rect + texte_offset_y,
+                        f"{Batteries[i][3]}%",
+                        color='black', fontsize=8, ha='center', va='bottom'
+                    )
+
+            # Gestion des batteries et ordres batteries
+            if(Batteries[0][2]!=U_last[0] and Batteries[0][3]<=5.0):
+                print("Utilisation Bat2")
+                Ordre_Batteries = [0,1,0]
+            if(Batteries[1][2]!=U_last[1] and Batteries[1][3]<=5.0):
+                print("Utilisation Bat3")
+                Ordre_Batteries = [0,0,1]
+            if(Batteries[2][2]!=U_last[2] and Batteries[2][3]<=5.0):
+                print("Batteries déchargées")
+                
+            
+            # Affichage texte Coordonées
+            robot_info_text.set_text(
+                f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°"
+            )
+            x_voulu_text.set_text(
+                f"X = {x_robot_voulu:.1f}"
+            )
+            y_voulu_text.set_text(
+                f"Y = {y_robot_voulu:.1f}"
+            )
+            A_voulu_text.set_text(
+                f"A = {angle_robot_voulu:.1f}°"
+            )
+
+            if(abs(x_robot_actuel-x_robot_voulu)>10):
+                x_voulu_text.set_color('black')
+            else:
+                x_voulu_text.set_color('green')
+            if(abs(y_robot_actuel-y_robot_voulu)>10):
+                y_voulu_text.set_color('black')
+            else:
+                y_voulu_text.set_color('green')
+            if(abs(angle_robot_actuel-angle_robot_voulu)>1):
+                A_voulu_text.set_color('black')
+            else:
+                A_voulu_text.set_color('green')
+
+            # Si robot est à la position de consigne
+            if(abs(x_robot_actuel-x_robot_voulu)<10 and abs(y_robot_actuel-y_robot_voulu)<10 and abs(angle_robot_actuel-angle_robot_voulu)<1):
+                print("Bonne position")
+                ordre_receive = 1
+          
+            """time.sleep(0.3)
+            ordre_receive = 1"""
+            """d = 50 * 0.301
+            angle_deplacement = round(np.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel),0)
+            print(angle_deplacement)
+            x_robot_actuel += d * np.cos(angle_deplacement)
+            y_robot_actuel += d * np.sin(angle_deplacement)"""
+            #ordre_receive= int(input("Ordre : "))
+            
+            if(ordre_receive == 1):
+                print(step)
+                step+=1
+                if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
+                    x_robot_actuel = Liste_actions[0][0]
+                    y_robot_actuel = Liste_actions[0][1]
+                    angle_robot_actuel = Liste_actions[0][2]
+                elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1:
+                    angle_robot_actuel = Liste_actions[0][0]
+                """if(step==16):
+                    x_ennemi += 50
+
+                if(step==22):
+                    x_ennemi -= 550
+                if(step==30):
+                    x_ennemi += 300
+                    y_ennemi += 100
+                """
+
+                # Retire de la liste l'action en cours
+                Liste_actions.pop(0)
+                ordre_receive = 0
+                
+            # MAJ de l'affichage et des Variables de Bouncing
+            plt.draw()
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+            time.sleep(0.01)
+            U_last = [Batteries[0][2],Batteries[1][2],Batteries[2][2]]
+            x_robot_voulu_last = x_robot_voulu
+            y_robot_voulu_last = y_robot_voulu
+            print("")
+            #time.sleep(temps)
+
+        # À la fin, attends 2 secondes et lève le drapeau
+        time.sleep(2)
+        stop_event.set()
+
+    except KeyboardInterrupt:
+        print("Arrêt demandé par l'utilisateur.")
+        stop_event.set()  # signal aux threads de s'arrêter
+        # Attente que chaque thread termine proprement
+        tache_lidar.join()
+        tache_calcul.join()
+        tache_odometrie.join()
+        os.system("sudo ifconfig can0 down")
+        
+    finally:
+        print("Programme terminé proprement.")
+        etat = 2
+        data_etat = struct.pack('<I',etat)
+        bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
+        
+        plt.close(fig)
+
+
+########################################################################
