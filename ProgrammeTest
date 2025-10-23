@@ -64,8 +64,6 @@ lidar = None
 pile_calcul = queue.Queue(maxsize=500)
 
 # Coordonnées et angle de notre robot
-v_l = 1000 #mm/s
-v_a = 60 #°/s
 x_robot_depart = 145
 y_robot_depart = 120
 angle_robot_depart = 90
@@ -132,8 +130,7 @@ def calcul_points(stop_event):
     print("HEALTH:", lidar.get_health())
 
     lidar.start_motor()                                                 # Démarrage du moteur du Lidar
-    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi
-    buffer_points = deque(maxlen=50)
+    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel
     x_point = 0
     y_point = 0
 
@@ -156,11 +153,6 @@ def calcul_points(stop_event):
 
                 if marge_bordurepiste_x <= x_point <= x_piste-marge_bordurepiste_x and marge_bordurepiste_y <= y_point <= y_piste-marge_bordurepiste_y:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
                     pile_calcul.put((x_point, y_point))
-
-            if buffer_points:
-                xs, ys = zip(*buffer_points)
-                x_ennemi = np.mean(xs)
-                y_ennemi = np.mean(ys)
 
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
         print("Erreur dans le thread Lidar:", e)
@@ -262,6 +254,33 @@ def LectureCAN(stop_event):
                 print(f"Trame envoyée : {msg}")
                 dico_envoi[key]=0
 
+def calcul_ennemi(stop_event):
+    """
+    Arguments : flag stop_event
+    Modification : buffer_points, x_ennemi, y_ennemi
+
+    Utilisation :
+    Récupére le haut de la pile_calcul, puis le remet dans buffer_points
+    Moyenne les coordonées des points de la pile, donne x_ennemi et y_ennemi
+    """
+    global x_ennemi, y_ennemi
+
+    buffer_points = deque(maxlen=50)
+
+    while not stop_event.is_set():
+        try:
+            # Récupère un point du Lidar
+            p = pile_calcul.get(timeout=0.1)
+            buffer_points.append(p)
+        except queue.Empty:
+            pass
+
+        # Calcul barycentre, angle et vitesse
+        if buffer_points:
+            xs, ys = zip(*buffer_points)
+            x_ennemi = np.mean(xs)
+            y_ennemi = np.mean(ys)
+
 
 def arret_programme(event, stop_event=None):
     print("Bouton STOP pressé — arrêt demandé.")
@@ -301,9 +320,11 @@ if __name__ == '__main__':
     ax.add_patch(cercle_ennemi)
 
     tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
+    tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
     tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
     
     tache_lidar.start()
+    tache_calcul.start()
     tache_LectureCAN.start()
     
     try:
@@ -554,6 +575,7 @@ if __name__ == '__main__':
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
         tache_lidar.join()
+        tache_calcul.join()
         tache_LectureCAN.join()
         os.system("sudo ifconfig can0 down")
         
