@@ -74,14 +74,14 @@ pile_calcul = queue.Queue(maxsize=500)
 # Coordonnées et angle de notre robot
 x_robot_depart = 145
 y_robot_depart = 120
-angle_robot_depart = 0
+angle_robot_depart = 90
 
 x_robot_actuel = 145
 y_robot_actuel = 120
 angle_robot_actuel = 0
 
-x_robot_voulu = 700
-y_robot_voulu = 500
+x_robot_voulu = 500
+y_robot_voulu = 400
 angle_robot_voulu = 0
 
 # Ennemi
@@ -497,12 +497,11 @@ if __name__ == '__main__':
             else:
                 A_voulu_text.set_color('green')
 
-            # Si robot est à la position de consigne
+            # Si robot est à la position de consigne  
             if(abs(x_robot_actuel-x_robot_voulu)<20 and abs(y_robot_actuel-y_robot_voulu)<20 and action_voulu == "Avancer"):
                 print("Bonne position")
                 ordre_receive = 11
-
-            if(abs(angle_robot_actuel-angle_robot_voulu)<2 and action_voulu == "Tourner"):
+            if(abs(angle_robot_actuel-angle_robot_voulu)<1) and action_voulu == "Tourner":
                 print("Bon Angle")
                 ordre_receive = 12
 
@@ -521,17 +520,6 @@ if __name__ == '__main__':
                     y_robot_actuel = Liste_actions[0][2]
                 elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
                     angle_robot_actuel = Liste_actions[0][1]
-
-                """if step == 7:
-                    x_ennemi = 1500
-                    y_ennemi = 900
-
-                if step == 11:
-                    x_ennemi = 1500
-                    y_ennemi = 700
-                if step == 13:
-                    x_ennemi = 1500
-                    y_ennemi = 1200"""
 
                 # Retire de la liste l'action en cours
                 Liste_actions.pop(0)
@@ -576,7 +564,7 @@ if __name__ == '__main__':
         print("Programme terminé proprement.")
         etat = 2
         data_etat = struct.pack('<I',etat)
-        bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
+        #bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
         
         plt.close(fig)
 
