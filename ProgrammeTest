@@ -228,16 +228,6 @@ def LectureCAN(stop_event):
         elif msg.arbitration_id == 0x111:
             Batteries[2][2] = struct.unpack('f', bytes(msg.data))[0]
         
-        for key, value in dico_envoi.items() :
-            if value != 0:
-                if key in [0x01,0x300,0x301,0x302]:
-                    format_value = struct.pack('<I',dico_envoi[key])
-                else :
-                    format_value = struct.pack('<f',dico_envoi[key])
-                msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
-                bus.send(msg)
-                print(f"Trame envoyée : {msg}")
-                dico_envoi[key]=0
 
 def calcul_ennemi(stop_event):
     """
@@ -316,6 +306,11 @@ if __name__ == '__main__':
         dico_envoi[0x201]=y_robot_depart
         dico_envoi[0x202]=angle_robot_depart
 
+        bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
+        bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
+        bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
+
+
         while (not stop_event.is_set() and Batteries[2][3] > 5 and len(Liste_actions)!=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
         #while (not stop_event.is_set() and Batteries[2][3] > 5): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
             dico_envoi[0x01]=1
@@ -391,11 +386,11 @@ if __name__ == '__main__':
             
             # SIMULATION Perte Batterie
             if Ordre_Batteries == [1,0,0]:
-                Batteries[0][2] -=0.1
+                Batteries[0][2] -=0.01
             elif Ordre_Batteries == [0,1,0]:
-                Batteries[1][2] -=0.1
+                Batteries[1][2] -=0.01
             elif Ordre_Batteries == [0,0,1]:
-                Batteries[2][2] -=0.1
+                Batteries[2][2] -=0.01
             ################################################
 
 
@@ -547,6 +542,17 @@ if __name__ == '__main__':
             x_robot_voulu_last = x_robot_voulu
             y_robot_voulu_last = y_robot_voulu
             print("")
+            
+            for key, value in dico_envoi.items() :
+                if value != 0:
+                    if key in [0x01,0x300,0x301,0x302]:
+                        format_value = struct.pack('<I',dico_envoi[key])
+                    else :
+                        format_value = struct.pack('<f',dico_envoi[key])
+                    msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
+                    bus.send(msg)
+                    print(f"Trame envoyée : {msg}")
+                    dico_envoi[key]=0
             #time.sleep(temps)
 
         # À la fin, attends 2 secondes et lève le drapeau
