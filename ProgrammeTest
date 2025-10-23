@@ -18,8 +18,16 @@ from mouvement import verif_et_ajoute_contournement
 ########################################################################
 
 # config CAN
-
 Liste_ID = [0x01,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x110,0x111,0x200,0x201,0x202]
+Filtre = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID]
+os.system('sudo ip link set can0 type can bitrate 500000')
+os.system('sudo ifconfig can0 up')
+bus = can.interface.Bus(
+    channel='can0',
+    bustype='socketcan',
+    bitrate=500000,
+    can_filters=Filtre)
+
 dico_envoi = {}
 for ID in Liste_ID:
     dico_envoi[ID]= 0
@@ -173,30 +181,7 @@ def LectureCAN(stop_event):
     Si l'ID du message n'est pas dans la Liste_ID, saute
     Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
     """
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID, Batteries, dico_envoi
-    os.system('sudo ip link set can0 type can bitrate 500000')
-    os.system('sudo ifconfig can0 up')
-    bus = can.interface.Bus(
-        channel='can0',
-        bustype='socketcan',
-        bitrate=500000,
-        can_filters=[{"can_id": 0x01, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x100, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x101, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x102, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x103, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x104, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x105, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x106, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x107, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x108, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x109, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x110, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x111, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x200, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x201, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x202, "can_mask": 0x7FF, "extended": False}]
-    )
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID, Batteries, dico_envoi, bus
     while not stop_event.is_set():
         msg = bus.recv(0.01)  # attend 10 ms max
         if msg is None:
