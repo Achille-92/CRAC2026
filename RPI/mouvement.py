@@ -1,9 +1,9 @@
 import numpy as np
 import math
 
-def angle_diff(a1, a2):
-    diff = (a1 - a2 + 180) % 360 - 180
-    return abs(diff)
+
+def clamp(val, min_val, max_val):
+    return max(min_val, min(val, max_val))
 
 def point_arret_perimetre(x_r, y_r, x_c, y_c, x_e, y_e, R):
     dx = x_c - x_r
@@ -70,7 +70,7 @@ def intersection_segment_cercle(x_r, y_r, x_c, y_c, x_e, y_e, R, require_on_segm
         return None
 
     # premier point rencontré depuis le robot = plus petit t valide
-    t_entry = max(ts)
+    t_entry = min(ts)
     t_exit = max(ts) if len(ts) == 2 else t_entry
 
     x_entry = x_r + t_entry * dx
@@ -82,7 +82,7 @@ def intersection_segment_cercle(x_r, y_r, x_c, y_c, x_e, y_e, R, require_on_segm
             float(x_exit), float(y_exit), float(t_exit))
 
 
-def verif_et_ajoute_contournement(Liste_actions, action_voulu, x_actuel, y_actuel, x_voulu, y_voulu, angle_voulu, x_ennemi, y_ennemi, r_robot, r_ennemi, marge_min):
+def verif_et_ajoute_contournement(Liste_actions, action_voulu, x_actuel, y_actuel, x_voulu, y_voulu, angle_voulu, x_ennemi, y_ennemi, r_robot, r_ennemi, marge_min,x_piste,y_piste):
     """
     Vérifie si l'ennemi est sur la trajectoire robot->consigne.
     Si oui, insère un point de contournement dans Liste_actions.
@@ -94,42 +94,52 @@ def verif_et_ajoute_contournement(Liste_actions, action_voulu, x_actuel, y_actue
     Distance_consigne_ennemi = round(np.sqrt((x_ennemi-x_voulu)**2 + (y_ennemi-y_voulu)**2),0)
     Distance_robot_ennemi = round(np.sqrt((x_ennemi-x_actuel)**2 + (y_ennemi-y_actuel)**2),0)
     
-    if action_voulu == "Recul" : # On souhaite reculer
+    if action_voulu == "Recul" : # On souhaite déjà reculer
         print("Action_voulu : Recul")
         if Distance_robot_ennemi < R_securite : # Si Distance_robot_ennemi < R_securite, on doit vraiment reculer
             print("Réel besoin de reculer")
             ratio = R_securite / Distance_robot_ennemi
             x_recul = round(x_ennemi - (x_ennemi-x_actuel) * ratio,0)
             y_recul = round(y_ennemi - (y_ennemi-y_actuel) * ratio,0)
-            # Supprimer le "Recul" actuel 
-            Liste_actions.pop(0)
-            # Reculer, donc ajouter dans Liste_actions : ["Recul",x_recul,y_recul,angle_recul]
+            x_recul = clamp(x_recul, 0, x_piste)
+            y_recul = clamp(y_recul, 0, y_piste)
+            # Supprimer les "Recul" actuels
+            Liste_actions = [action for action in Liste_actions if(action[0]!= "Recul")]
+            # Reculer, donc ajouter dans Liste_actions : ["Recul",x_recul,y_recul]
             Liste_actions.insert(0,["Recul",int(x_recul),int(y_recul)])
-            print("On a supprimé l'ancien recul pour en ajouter un nouveau")
+            print("On a supprimé les anciens reculs pour en ajouter un nouveau")
         else : # Plus besoin de reculer
-            print("Plus besoin de reculer, donc on retire la consigne Recul")
-            Liste_actions.pop(0)
+            print("Plus besoin de reculer, donc on retire les Reculs, on garde que les Consignes")
+            Liste_actions = [action for action in Liste_actions if(action[0]== "Consigne")]
             
     else :
-    # Sinon, on souhaite autre chose
-        print("Action voulu : Autre ")
-        # On vérifie quand même la distance par rapport au robot ennemi
-        if Distance_robot_ennemi < R_securite and action_voulu == "Avancer":# Si Consigne dans Périmètre et Robot dans Périmètre
+    # Sinon, on souhaite autre chose (Consigne, Avancer, Contournement)
+        print(f"Action voulu : {action_voulu}.")
+        # On vérifie la distance par rapport au robot ennemi
+        if Distance_robot_ennemi < R_securite and action_voulu in ["Consigne", "Avancer","Contournement"]: # Si Robot dans Périmètre
             print("Mais besoin de reculer")
             ratio = R_securite / Distance_robot_ennemi
             x_recul = round(x_ennemi - (x_ennemi-x_actuel) * ratio,0)
             y_recul = round(y_ennemi - (y_ennemi-y_actuel) * ratio,0)
-            # Supprimer le "Recul" actuel 
-            Liste_actions.pop(0)
-            # Reculer, donc ajouter dans Liste_actions : ["Recul",x_recul,y_recul,angle_recul]
-            Liste_actions.insert(0,["Avancer",int(x_voulu),int(y_voulu)])
+            x_recul = clamp(x_recul, 0, x_piste)
+            y_recul = clamp(y_recul, 0, y_piste)
+            Liste_actions = [action for action in Liste_actions if(action[0]== "Consigne")]
             Liste_actions.insert(0,["Recul",int(x_recul),int(y_recul)])
+            # Garde uniquement les Consignes, et Ajoute un recul
             print("On ajoute un Recul")
 
-        elif Distance_consigne_ennemi < R_securite and action_voulu == "Avancer": # Si Consigne dans Périmètre et Robot pas dans Périmètre
+        elif Distance_consigne_ennemi < R_securite and action_voulu == "Consigne": # Si Consigne dans Périmètre et Robot pas dans Périmètre
             print("Avancer jusqu'à la limite")
-            x_s, y_s = map(float,point_arret_perimetre(x_actuel, y_actuel, x_voulu, y_voulu, x_ennemi, y_ennemi, R_securite))
-            Liste_actions.insert(0,["Avancer",int(x_s),int(y_s)])
+            res = point_arret_perimetre(x_actuel, y_actuel, x_voulu, y_voulu, x_ennemi, y_ennemi, R_securite)
+            if res is not None:
+                x_s, y_s = map(float, res)
+                x_s = clamp(x_s, 0, x_piste)
+                y_s = clamp(y_s, 0, y_piste)
+                Liste_actions = [action for action in Liste_actions if(action[0]== "Consigne")]
+                Liste_actions.insert(0,["Avancer",int(x_s),int(y_s)])
+            # Garde uniquement les Consignes, et Ajoute un Avancer jusqu'à la limite du périmètre se sécurité
+            else:
+                print("Pas de point d'arrêt trouvé, on garde la consigne.")
 
         else : # Robot et Consigne pas dans périmètre de l'Ennemi
             print("Pas besoin de reculer")
@@ -138,7 +148,7 @@ def verif_et_ajoute_contournement(Liste_actions, action_voulu, x_actuel, y_actue
             seuil_angle = np.degrees(np.arcsin(R_securite / Distance_robot_ennemi))
             delta_angle = np.abs(Angle_robot_consigne - Angle_robot_ennemi)
             if delta_angle < seuil_angle and Distance_robot_ennemi < Distance_robot_consigne :
-                print("La trajectoire traverse le périmètre → contourner")
+                print("La trajectoire traverse le périmètre et la Consigne se trouve derrière l'ennemi → contourner")
                 cross = (x_ennemi - x_actuel) * (y_voulu - y_actuel) - (y_ennemi - y_actuel) * (x_voulu - x_actuel)
                 sens = 1 if cross > 0 else -1  # gauche (+1) ou droite (-1)
 
@@ -151,15 +161,16 @@ def verif_et_ajoute_contournement(Liste_actions, action_voulu, x_actuel, y_actue
                 for a in angles:
                     x_c = x_ennemi + R_securite * math.cos(a)
                     y_c = y_ennemi + R_securite * math.sin(a)
+                    x_c = clamp(x_c, 0, x_piste)
+                    y_c = clamp(y_c, 0, y_piste)
                     points_contournement.append(["Contournement", int(round(x_c)), int(round(y_c))])
                 points_contournement.sort(key=lambda p: math.hypot(p[1]-x_actuel, p[2]-y_actuel))
                 # Insertion dans la liste d’actions avant la consigne finale
-                Liste_actions = points_contournement + [["Avancer", int(round(x_voulu)), int(round(y_voulu))]]
-
+                Liste_actions = [action for action in Liste_actions if(action[0]== "Consigne")]
+                Liste_actions = points_contournement + Liste_actions
+                # On Garde uniquement les Consignes, et on ajoute le point de Contournement
             else:
                 print("Pas besoin de contourner")
-            if action_voulu == "Tourner":
-                Liste_actions.insert(0,["Tourner",Liste_actions[0][1]])
 
     Liste_action_format = []
     for actions in Liste_actions:
