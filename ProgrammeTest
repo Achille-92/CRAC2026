@@ -34,7 +34,7 @@ for ID in Liste_ID:
 print(dico_envoi)
 
 Liste_actions = []
-Liste_actions.append(["Avancer",700,500])
+Liste_actions.append(["Avancer",1300,1100])
 """Liste_actions.append(["Avancer",200,1400])
 Liste_actions.append(["Tourner",-90])
 #Liste_actions.append(["Attraper"])
@@ -74,7 +74,7 @@ pile_calcul = queue.Queue(maxsize=500)
 # Coordonnées et angle de notre robot
 x_robot_depart = 145
 y_robot_depart = 120
-angle_robot_depart = 90
+angle_robot_depart = 0
 
 x_robot_actuel = 145
 y_robot_actuel = 120
@@ -386,11 +386,11 @@ if __name__ == '__main__':
             
             # SIMULATION Perte Batterie
             if Ordre_Batteries == [1,0,0]:
-                Batteries[0][2] -=0.01
+                Batteries[0][2] -=0.001
             elif Ordre_Batteries == [0,1,0]:
-                Batteries[1][2] -=0.01
+                Batteries[1][2] -=0.001
             elif Ordre_Batteries == [0,0,1]:
-                Batteries[2][2] -=0.01
+                Batteries[2][2] -=0.001
             ################################################
 
 
@@ -498,7 +498,7 @@ if __name__ == '__main__':
                 A_voulu_text.set_color('green')
 
             # Si robot est à la position de consigne  
-            if(abs(x_robot_actuel-x_robot_voulu)<20 and abs(y_robot_actuel-y_robot_voulu)<20 and action_voulu == "Avancer"):
+            if(abs(x_robot_actuel-x_robot_voulu)<20 and abs(y_robot_actuel-y_robot_voulu)<20 and (action_voulu == "Avancer" or action_voulu == "Recul" or action_voulu == "Contournement")):
                 print("Bonne position")
                 ordre_receive = 11
             if(abs(angle_robot_actuel-angle_robot_voulu)<1) and action_voulu == "Tourner":
@@ -543,7 +543,6 @@ if __name__ == '__main__':
                         format_value = struct.pack('<f',dico_envoi[key])
                     msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
                     bus.send(msg)
-                    print(f"Trame envoyée : {msg}")
                     dico_envoi[key]=0
             #time.sleep(temps)
 
