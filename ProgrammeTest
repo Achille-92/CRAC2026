@@ -74,14 +74,14 @@ pile_calcul = queue.Queue(maxsize=500)
 # Coordonnées et angle de notre robot
 x_robot_depart = 145
 y_robot_depart = 120
-angle_robot_depart = 90
+angle_robot_depart = 0
 
 x_robot_actuel = 145
 y_robot_actuel = 120
 angle_robot_actuel = 0
 
-x_robot_voulu = 500
-y_robot_voulu = 400
+x_robot_voulu = 700
+y_robot_voulu = 500
 angle_robot_voulu = 0
 
 # Ennemi
@@ -498,9 +498,13 @@ if __name__ == '__main__':
                 A_voulu_text.set_color('green')
 
             # Si robot est à la position de consigne
-            if(abs(x_robot_actuel-x_robot_voulu)<10 and abs(y_robot_actuel-y_robot_voulu)<10 and abs(angle_robot_actuel-angle_robot_voulu)<1) and action_voulu == "Avancer":
+            if(abs(x_robot_actuel-x_robot_voulu)<20 and abs(y_robot_actuel-y_robot_voulu)<20 and action_voulu == "Avancer"):
                 print("Bonne position")
                 ordre_receive = 11
+
+            if(abs(angle_robot_actuel-angle_robot_voulu)<2 and action_voulu == "Tourner"):
+                print("Bon Angle")
+                ordre_receive = 12
 
             
             """time.sleep(0.3)
@@ -572,7 +576,7 @@ if __name__ == '__main__':
         print("Programme terminé proprement.")
         etat = 2
         data_etat = struct.pack('<I',etat)
-        #bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
+        bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
         
         plt.close(fig)
 
