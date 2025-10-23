@@ -34,7 +34,7 @@ for ID in Liste_ID:
 print(dico_envoi)
 
 Liste_actions = []
-Liste_actions.append(["Avancer",1300,1100])
+Liste_actions.append(["Consigne",700,500])
 """Liste_actions.append(["Avancer",200,1400])
 Liste_actions.append(["Tourner",-90])
 #Liste_actions.append(["Attraper"])
@@ -74,7 +74,7 @@ pile_calcul = queue.Queue(maxsize=500)
 # Coordonnées et angle de notre robot
 x_robot_depart = 145
 y_robot_depart = 120
-angle_robot_depart = 0
+angle_robot_depart = 90
 
 x_robot_actuel = 145
 y_robot_actuel = 120
@@ -316,7 +316,7 @@ if __name__ == '__main__':
             dico_envoi[0x01]=1
             ordre_receive = 0
             temps = 0
-            
+            verif = False
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3: # Si la consigne est une coordonnée
                 action_voulu = Liste_actions[0][0]
                 x_robot_voulu = Liste_actions[0][1]
@@ -347,7 +347,8 @@ if __name__ == '__main__':
                     x_robot_actuel, y_robot_actuel,
                     x_robot_voulu, y_robot_voulu,angle_robot_voulu,
                     x_ennemi, y_ennemi, 
-                    r_robot, r_ennemi, marge_min
+                    r_robot, r_ennemi, marge_min,
+                    x_piste, y_piste
                 )
                 # --- Si la liste a changé, mettre à jour le point voulu ---
                 if type(Liste_actions[0]) == list and len(Liste_actions[0])==4:
@@ -386,11 +387,11 @@ if __name__ == '__main__':
             
             # SIMULATION Perte Batterie
             if Ordre_Batteries == [1,0,0]:
-                Batteries[0][2] -=0.001
+                Batteries[0][2] -=0.01
             elif Ordre_Batteries == [0,1,0]:
-                Batteries[1][2] -=0.001
+                Batteries[1][2] -=0.01
             elif Ordre_Batteries == [0,0,1]:
-                Batteries[2][2] -=0.001
+                Batteries[2][2] -=0.01
             ################################################
 
 
@@ -498,7 +499,7 @@ if __name__ == '__main__':
                 A_voulu_text.set_color('green')
 
             # Si robot est à la position de consigne  
-            if(abs(x_robot_actuel-x_robot_voulu)<20 and abs(y_robot_actuel-y_robot_voulu)<20 and (action_voulu == "Avancer" or action_voulu == "Recul" or action_voulu == "Contournement")):
+            if(abs(x_robot_actuel-x_robot_voulu)<20 and abs(y_robot_actuel-y_robot_voulu)<20 and action_voulu in ["Consigne","Avancer","Recul","Contournement"]):
                 print("Bonne position")
                 ordre_receive = 11
             if(abs(angle_robot_actuel-angle_robot_voulu)<1) and action_voulu == "Tourner":
@@ -511,16 +512,16 @@ if __name__ == '__main__':
             ordre_receive = 1
             """
             #ordre_receive= int(input("Ordre : "))
-            if (action_voulu == "Avancer" and ordre_receive == 11) or (action_voulu == "Contournement" and ordre_receive == 11)  or (action_voulu == "Tourner" and ordre_receive == 12) or (action_voulu == "Attraper" and ordre_receive == 21) or (action_voulu == "Relacher" and ordre_receive == 22):
+            if (action_voulu in ["Consigne","Avancer","Recul","Contournement"] and ordre_receive == 11) or (action_voulu == "Tourner" and ordre_receive == 12) or (action_voulu == "Attraper" and ordre_receive == 21) or (action_voulu == "Relacher" and ordre_receive == 22):
             #if(ordre_receive==1):  
                 print(step)
                 step+=1
-                if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
+                """if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
                     x_robot_actuel = Liste_actions[0][1]
                     y_robot_actuel = Liste_actions[0][2]
                 elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
                     angle_robot_actuel = Liste_actions[0][1]
-
+                """
                 # Retire de la liste l'action en cours
                 Liste_actions.pop(0)
                 ordre_receive = 0
@@ -561,9 +562,12 @@ if __name__ == '__main__':
         
     finally:
         print("Programme terminé proprement.")
+        tache_lidar.join()
+        tache_calcul.join()
+        tache_LectureCAN.join()
         etat = 2
         data_etat = struct.pack('<I',etat)
-        #bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
+        bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
         
         plt.close(fig)
 
