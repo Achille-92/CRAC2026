@@ -1,32 +1,19 @@
-{1: 0, 256: 0, 257: 0, 258: 0, 259: 0, 260: 0, 261: 0, 262: 0, 263: 0, 264: 0, 265: 0, 272: 0, 273: 0, 512: 0, 513: 0, 514: 0}
-Failed to enable GUI event loop integration for 'qt5'
-Traceback (most recent call last):
-  File "/home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/_vendored/pydevd/pydev_ipython/matplotlibtools.py", line 49, in do_enable_gui
-    enable_gui(guiname)
-  File "/home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/_vendored/pydevd/pydev_ipython/inputhook.py", line 567, in enable_gui
-    return gui_hook(app)
-           ^^^^^^^^^^^^^
-  File "/home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/_vendored/pydevd/pydev_ipython/inputhook.py", line 231, in enable_qt5
-    from pydev_ipython.inputhookqt5 import create_inputhook_qt5
-  File "/home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/_vendored/pydevd/pydev_ipython/inputhookqt5.py", line 24, in <module>
-    from pydev_ipython.qt_for_kernel import QtCore, QtGui
-  File "/home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/_vendored/pydevd/pydev_ipython/qt_for_kernel.py", line 132, in <module>
-    QtCore, QtGui, QtSvg, QT_API = load_qt(api_opts)
-                                   ^^^^^^^^^^^^^^^^^
-  File "/home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/_vendored/pydevd/pydev_ipython/qt_loaders.py", line 356, in load_qt
-    raise ImportError(
-ImportError: 
-    Could not load requested Qt binding. Please ensure that
-    PyQt4 >= 4.7 or PySide >= 1.0.3 is available,
-    and only one is imported per session.
+Exception has occurred: CanOperationError
+Failed to transmit: Aucun espace tampon disponible [Error Code 105]
+OSError: [Errno 105] Aucun espace tampon disponible
 
-    Currently-imported Qt library:   None
-    PyQt4 installed:                 False
-    PyQt5 installed:                 False
-    PyQt6 installed:                 False
-    PySide >= 1.0.3 installed:       False
-    PySide2 installed:               False
-    PySide6 installed:               False
-    Tried to load:                   ['pyqtdefault', 'pyside', 'pyside2', 'pyqt5', 'pyqt6']
-    
-Backend Qt5Agg is interactive backend. Turning interactive mode on.
+The above exception was the direct cause of the following exception:
+
+  File "/home/youssef/Desktop/CRAC2026/main.py", line 309, in <module>
+    bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
+can.exceptions.CanOperationError: Failed to transmit: Aucun espace tampon disponible [Error Code 105]
+
+During handling of the above exception, another exception occurred:
+
+OSError: [Errno 105] Aucun espace tampon disponible
+
+The above exception was the direct cause of the following exception:
+
+  File "/home/youssef/Desktop/CRAC2026/main.py", line 579, in <module>
+    bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
+can.exceptions.CanOperationError: Failed to transmit: Aucun espace tampon disponible [Error Code 105]
