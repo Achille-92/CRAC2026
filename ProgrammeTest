@@ -26,7 +26,7 @@ for ID in Liste_ID:
 print(dico_envoi)
 
 Liste_actions = []
-Liste_actions.append("Avancer",700,500)
+Liste_actions.append(["Avancer",700,500])
 """Liste_actions.append(["Avancer",200,1400])
 Liste_actions.append(["Tourner",-90])
 #Liste_actions.append(["Attraper"])
@@ -281,6 +281,38 @@ def calcul_ennemi(stop_event):
             x_ennemi = np.mean(xs)
             y_ennemi = np.mean(ys)
 
+def fc_affichage(stop_event):
+    """
+    Arguments : x_robot, y_robot, flag stop_event
+    Modifications : robot_plot, ennemi_plot, ennemi_vecteur, fig, ax
+
+    Utilisation :
+    Créée la fenêtre graphique avec les légendes, et affiche notre robot
+    Affiche le robot, et le robot ennemi
+    Calcule puis affiche le vecteur direction
+    Refresh toutes les 10ms
+    """
+    global x_ennemi, y_ennemi
+    global robot_plot, ennemi_plot, ennemi_vecteur
+
+    buffer_points = deque(maxlen=50)
+
+    while not stop_event.is_set():
+        try:
+            p = pile_calcul.get(timeout=0.1)
+            buffer_points.append(p)
+        except queue.Empty:
+            pass
+
+        while not pile_calcul.empty():
+            buffer_points.append(pile_calcul.get_nowait())
+
+        if buffer_points:
+            xs, ys = zip(*buffer_points)
+            scat.set_offsets(np.c_[xs, ys])
+
+            fig.canvas.draw()
+            fig.canvas.flush_events()
 
 def arret_programme(event, stop_event=None):
     print("Bouton STOP pressé — arrêt demandé.")
@@ -320,11 +352,13 @@ if __name__ == '__main__':
     ax.add_patch(cercle_ennemi)
 
     tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
-    tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
+    tache_affichage = threading.Thread(target=fc_affichage, args=(stop_event,), daemon=False)
+    #tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
     tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
     
     tache_lidar.start()
-    tache_calcul.start()
+    tache_affichage.start()
+    #tache_calcul.start()
     tache_LectureCAN.start()
     
     try:
@@ -405,14 +439,13 @@ if __name__ == '__main__':
             robot_angle_voulu_line.set_data([x0, x1], [y0, y1])
             ################################################
             
-            time.sleep(0.01)
             # SIMULATION Perte Batterie
             if Ordre_Batteries == [1,0,0]:
-                Batteries[0][2] -=0.01
+                Batteries[0][2] -=0.1
             elif Ordre_Batteries == [0,1,0]:
-                Batteries[1][2] -=0.01
+                Batteries[1][2] -=0.1
             elif Ordre_Batteries == [0,0,1]:
-                Batteries[2][2] -=0.01
+                Batteries[2][2] -=0.1
             ################################################
 
 
@@ -575,7 +608,8 @@ if __name__ == '__main__':
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
         tache_lidar.join()
-        tache_calcul.join()
+        tache_affichage.join()
+        #tache_calcul.join()
         tache_LectureCAN.join()
         os.system("sudo ifconfig can0 down")
         
