@@ -68,11 +68,11 @@ v_l = 1000 #mm/s
 v_a = 60 #°/s
 x_robot_depart = 145
 y_robot_depart = 120
-angle_robot_depart = 0
+angle_robot_depart = 90
 
-x_robot_actuel = 250
-y_robot_actuel = 1800
-angle_robot_actuel = -90
+x_robot_actuel = 145
+y_robot_actuel = 120
+angle_robot_actuel = 0
 
 x_robot_voulu = 500
 y_robot_voulu = 400
