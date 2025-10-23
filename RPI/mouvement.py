@@ -127,15 +127,14 @@ def verif_et_ajoute_contournement(Liste_actions, action_voulu, x_actuel, y_actue
             print("On ajoute un Recul")
 
         elif Distance_consigne_ennemi < R_securite and action_voulu == "Avancer": # Si Consigne dans Périmètre et Robot pas dans Périmètre
-            print("Mais besoin de reculer")
+            print("Avancer jusqu'à la limite")
             x_s, y_s = map(float,point_arret_perimetre(x_actuel, y_actuel, x_voulu, y_voulu, x_ennemi, y_ennemi, R_securite))
-            Liste_actions.insert(0,["Recul",int(x_s),int(y_s)])
-            print("On ajoute un Recul")
+            Liste_actions.insert(0,["Avancer",int(x_s),int(y_s)])
 
         else : # Robot et Consigne pas dans périmètre de l'Ennemi
             print("Pas besoin de reculer")
-            Angle_robot_ennemi = round(np.atan2(y_ennemi-y_actuel,x_ennemi-x_actuel)*180/np.pi,0)
-            Angle_robot_consigne = round(np.atan2(y_voulu-y_actuel,x_voulu-x_actuel)*180/np.pi,0)
+            Angle_robot_ennemi = round(math.atan2(y_ennemi-y_actuel,x_ennemi-x_actuel)*180/np.pi,0)
+            Angle_robot_consigne = round(math.atan2(y_voulu-y_actuel,x_voulu-x_actuel)*180/np.pi,0)
             seuil_angle = np.degrees(np.arcsin(R_securite / Distance_robot_ennemi))
             delta_angle = np.abs(Angle_robot_consigne - Angle_robot_ennemi)
             if delta_angle < seuil_angle and Distance_robot_ennemi < Distance_robot_consigne :
