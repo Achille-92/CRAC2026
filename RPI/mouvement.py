@@ -138,7 +138,7 @@ def verif_et_ajoute_contournement(Liste_actions, action_voulu, x_actuel, y_actue
             Angle_robot_consigne = round(np.atan2(y_voulu-y_actuel,x_voulu-x_actuel)*180/np.pi,0)
             seuil_angle = np.degrees(np.arcsin(R_securite / Distance_robot_ennemi))
             delta_angle = np.abs(Angle_robot_consigne - Angle_robot_ennemi)
-            if delta_angle < seuil_angle:
+            if delta_angle < seuil_angle and Distance_robot_ennemi < Distance_robot_consigne :
                 print("La trajectoire traverse le périmètre → contourner")
                 cross = (x_ennemi - x_actuel) * (y_voulu - y_actuel) - (y_ennemi - y_actuel) * (x_voulu - x_actuel)
                 sens = 1 if cross > 0 else -1  # gauche (+1) ou droite (-1)
