@@ -7,7 +7,6 @@ from matplotlib.widgets import Button
 import matplotlib
 import tkinter as tk
 
-
 from matplotlib.lines import Line2D
 
 def bring_to_front(fig):
