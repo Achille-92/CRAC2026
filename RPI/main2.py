@@ -16,17 +16,29 @@ from functools import partial
 from affichage import init_affichage, bring_to_front
 from mouvement import verif_et_ajoute_contournement
 ########################################################################
-
+# Somme pondérées : robot proche/mouvement --> Malus
+# A star puis spline
 # config CAN
-
 Liste_ID = [0x01,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x110,0x111,0x200,0x201,0x202]
+Filtre = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID]
+"""os.system('sudo ip link set can0 type can bitrate 500000')
+os.system('sudo ifconfig can0 up')
+bus = can.interface.Bus(
+    channel='can0',
+    bustype='socketcan',
+    bitrate=500000,
+    can_filters=Filtre)"""
+
 dico_envoi = {}
 for ID in Liste_ID:
     dico_envoi[ID]= 0
 print(dico_envoi)
 
 Liste_actions = []
-Liste_actions.append(["Avancer",200,1400])
+Liste_actions.append(["Consigne",2750,1800])
+Liste_actions.append(["Tourner",90])
+Liste_actions.append(["Consigne",1500,1000])
+"""Liste_actions.append(["Avancer",200,1400])
 Liste_actions.append(["Tourner",-90])
 #Liste_actions.append(["Attraper"])
 Liste_actions.append(["Avancer",200,1000])
@@ -38,7 +50,7 @@ Liste_actions.append(["Tourner",-45])
 Liste_actions.append(["Avancer",500,800])
 Liste_actions.append(["Tourner",0])
 Liste_actions.append(["Avancer",1300,700])
-Liste_actions.append(["Avancer",1250,1700])
+Liste_actions.append(["Avancer",1250,1700])"""
 #Liste_actions.append(["Avancer",2000,1300])
 #Liste_actions.append(["Attraper"])
 
@@ -63,23 +75,21 @@ lidar = None
 pile_calcul = queue.Queue(maxsize=500)
 
 # Coordonnées et angle de notre robot
-v_l = 1000 #mm/s
-v_a = 60 #°/s
 x_robot_depart = 145
 y_robot_depart = 120
-angle_robot_depart = 0
+angle_robot_depart = 90
 
-x_robot_actuel = 250
-y_robot_actuel = 1800
-angle_robot_actuel = -90
+x_robot_actuel = 145
+y_robot_actuel = 120
+angle_robot_actuel = 0
 
 x_robot_voulu = 500
 y_robot_voulu = 400
 angle_robot_voulu = 0
 
 # Ennemi
-x_ennemi = 2750
-y_ennemi = 1800
+x_ennemi = 1500
+y_ennemi = 1000
 
 # Perimètre de sécurité
 r_robot = 150
@@ -131,8 +141,7 @@ def calcul_points(stop_event):
     print("HEALTH:", lidar.get_health())
 
     lidar.start_motor()                                                 # Démarrage du moteur du Lidar
-    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi
-    buffer_points = deque(maxlen=50)
+    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel
     x_point = 0
     y_point = 0
 
@@ -156,11 +165,6 @@ def calcul_points(stop_event):
                 if marge_bordurepiste_x <= x_point <= x_piste-marge_bordurepiste_x and marge_bordurepiste_y <= y_point <= y_piste-marge_bordurepiste_y:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
                     pile_calcul.put((x_point, y_point))
 
-            if buffer_points:
-                xs, ys = zip(*buffer_points)
-                x_ennemi = np.mean(xs)
-                y_ennemi = np.mean(ys)
-
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
         print("Erreur dans le thread Lidar:", e)
     finally:                                                                    # Et on arrête le Lidar
@@ -180,30 +184,7 @@ def LectureCAN(stop_event):
     Si l'ID du message n'est pas dans la Liste_ID, saute
     Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
     """
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID, Batteries, dico_envoi
-    os.system('sudo ip link set can0 type can bitrate 500000')
-    os.system('sudo ifconfig can0 up')
-    bus = can.interface.Bus(
-        channel='can0',
-        bustype='socketcan',
-        bitrate=500000,
-        can_filters=[{"can_id": 0x01, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x100, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x101, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x102, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x103, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x104, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x105, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x106, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x107, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x108, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x109, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x110, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x111, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x200, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x201, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x202, "can_mask": 0x7FF, "extended": False}]
-    )
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID, Batteries, dico_envoi, bus
     while not stop_event.is_set():
         msg = bus.recv(0.01)  # attend 10 ms max
         if msg is None:
@@ -250,17 +231,33 @@ def LectureCAN(stop_event):
         elif msg.arbitration_id == 0x111:
             Batteries[2][2] = struct.unpack('f', bytes(msg.data))[0]
         
-        for key, value in dico_envoi.items() :
-            if value != 0:
-                if key in [0x01,0x300,0x301,0x302]:
-                    format_value = struct.pack('<I',dico_envoi[key])
-                else :
-                    format_value = struct.pack('<f',dico_envoi[key])
-                msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
-                bus.send(msg)
-                print(f"Trame envoyée : {msg}")
-                dico_envoi[key]=0
 
+def calcul_ennemi(stop_event):
+    """
+    Arguments : flag stop_event
+    Modification : buffer_points, x_ennemi, y_ennemi
+
+    Utilisation :
+    Récupére le haut de la pile_calcul, puis le remet dans buffer_points
+    Moyenne les coordonées des points de la pile, donne x_ennemi et y_ennemi
+    """
+    global x_ennemi, y_ennemi
+
+    buffer_points = deque(maxlen=50)
+
+    while not stop_event.is_set():
+        try:
+            # Récupère un point du Lidar
+            p = pile_calcul.get(timeout=0.1)
+            buffer_points.append(p)
+        except queue.Empty:
+            pass
+
+        # Calcul barycentre, angle et vitesse
+        if buffer_points:
+            xs, ys = zip(*buffer_points)
+            x_ennemi = np.mean(xs)
+            y_ennemi = np.mean(ys)
 
 def arret_programme(event, stop_event=None):
     print("Bouton STOP pressé — arrêt demandé.")
@@ -299,23 +296,30 @@ if __name__ == '__main__':
     ax.add_line(robot_angle_voulu_line)
     ax.add_patch(cercle_ennemi)
 
-    #tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
-    #tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
+    """tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
+    tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
+    tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
     
-    #tache_lidar.start()
-    #tache_LectureCAN.start()
-    
+    tache_lidar.start()
+    tache_calcul.start()
+    tache_LectureCAN.start()
+    """
     try:
         dico_envoi[0x200]=x_robot_depart
         dico_envoi[0x201]=y_robot_depart
         dico_envoi[0x202]=angle_robot_depart
 
+        """bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
+        bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
+        bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
+
+        """
         while (not stop_event.is_set() and Batteries[2][3] > 5 and len(Liste_actions)!=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
         #while (not stop_event.is_set() and Batteries[2][3] > 5): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
             dico_envoi[0x01]=1
             ordre_receive = 0
             temps = 0
-            
+            verif = False
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3: # Si la consigne est une coordonnée
                 action_voulu = Liste_actions[0][0]
                 x_robot_voulu = Liste_actions[0][1]
@@ -338,29 +342,37 @@ if __name__ == '__main__':
             print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
             print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
             print(Liste_actions)
-
+            
             # --- Vérifie et modifie la trajectoire si un ennemi bloque ---
             if verif == True:
                 Liste_actions = verif_et_ajoute_contournement(
                     Liste_actions,action_voulu,
-                    x_robot_actuel, y_robot_actuel,
-                    x_robot_voulu, y_robot_voulu,angle_robot_voulu,
+                    x_robot_actuel, y_robot_actuel,angle_robot_actuel,
+                    x_robot_voulu, y_robot_voulu,
                     x_ennemi, y_ennemi, 
-                    r_robot, r_ennemi, marge_min
+                    r_robot, r_ennemi, marge_min,
+                    x_piste, y_piste
                 )
-                # --- Si la liste a changé, mettre à jour le point voulu ---
-                if type(Liste_actions[0]) == list and len(Liste_actions[0])==4:
-                    action_voulu = Liste_actions[0][0]
-                    x_robot_voulu = Liste_actions[0][1]
-                    y_robot_voulu = Liste_actions[0][2]
+            # --- Si la liste a changé, mettre à jour le point voulu ---
+            if type(Liste_actions[0]) == list and len(Liste_actions[0])==3: # Si la consigne est une coordonnée
+                action_voulu = Liste_actions[0][0]
+                x_robot_voulu = Liste_actions[0][1]
+                y_robot_voulu = Liste_actions[0][2]
+                mouvement = True
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2: # Si la consigne est une coordonnée
+                action_voulu = Liste_actions[0][0]
+                angle_robot_voulu = Liste_actions[0][1]
+                mouvement = True
+                    
 
-                verif = False
-                print("\nAprès verif :")
-                print("Action en cours : "+action_voulu)
-                print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
-                print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
-                print(Liste_actions)
-
+            verif = False
+            print("\nAprès verif :")
+            print("Action en cours : "+action_voulu)
+            print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
+            print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
+            print(Liste_actions)
+            #Liste_actions.insert(1,["Tourner",round(float(np.degrees(math.atan2((y_robot_voulu-y_robot_actuel),(x_robot_voulu-x_robot_actuel)))),2)])
+            
             # Envoi des Ordres de Consigne à la Carte Moteur
             dico_envoi[0x203]=x_robot_voulu
             dico_envoi[0x204]=y_robot_voulu
@@ -369,7 +381,10 @@ if __name__ == '__main__':
             # Mettre à jour robot, ennemi et consigne sur affichage
             robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
-            consigne_plot.set_offsets([[x_robot_voulu, y_robot_voulu]])
+            if (action_voulu in ["Consigne","Avancer","Recul","Contournement"]):
+                consigne_plot.set_offsets([[x_robot_voulu, y_robot_voulu]])
+            else :
+                consigne_plot.set_offsets([[-20, -20]])
             cercle_ennemi.center = (x_ennemi, y_ennemi) 
 
             x0, y0 = x_robot_actuel, y_robot_actuel
@@ -377,20 +392,22 @@ if __name__ == '__main__':
             y1 = y0 + longueur_trait * math.sin(math.radians(angle_robot_actuel))
             robot_angle_line.set_data([x0, x1], [y0, y1])
             
-            x0, y0 = x_robot_actuel, y_robot_actuel
-            x1 = x0 + longueur_trait * math.cos(math.radians(angle_robot_voulu))
-            y1 = y0 + longueur_trait * math.sin(math.radians(angle_robot_voulu))
-            robot_angle_voulu_line.set_data([x0, x1], [y0, y1])
+            if (action_voulu in ["Tourner"]):
+                x0, y0 = x_robot_actuel, y_robot_actuel
+                x1 = x0 + longueur_trait * math.cos(math.radians(angle_robot_voulu))
+                y1 = y0 + longueur_trait * math.sin(math.radians(angle_robot_voulu))
+                robot_angle_voulu_line.set_data([x0, x1], [y0, y1])
+            else :
+                robot_angle_voulu_line.set_data([-20, -20], [-40, -40])
             ################################################
             
-            time.sleep(0.01)
             # SIMULATION Perte Batterie
             if Ordre_Batteries == [1,0,0]:
-                Batteries[0][2] -=0.01
+                Batteries[0][2] -=0.001
             elif Ordre_Batteries == [0,1,0]:
-                Batteries[1][2] -=0.01
+                Batteries[1][2] -=0.001
             elif Ordre_Batteries == [0,0,1]:
-                Batteries[2][2] -=0.01
+                Batteries[2][2] -=0.001
             ################################################
 
 
@@ -497,42 +514,41 @@ if __name__ == '__main__':
             else:
                 A_voulu_text.set_color('green')
 
-            # Si robot est à la position de consigne
-            if(abs(x_robot_actuel-x_robot_voulu)<10 and abs(y_robot_actuel-y_robot_voulu)<10 and abs(angle_robot_actuel-angle_robot_voulu)<1) and action_voulu == "Avancer":
+            # Si robot est à la position de consigne  
+            if(abs(x_robot_actuel-x_robot_voulu)<10 and abs(y_robot_actuel-y_robot_voulu)<10 and action_voulu in ["Consigne","Avancer","Recul","Contournement"]):
                 print("Bonne position")
-                ordre_receive = 1
+                ordre_receive = 11
+            if(abs(angle_robot_actuel-angle_robot_voulu)<1) and action_voulu == "Tourner":
+                print("Bon Angle")
+                ordre_receive = 12
 
             
             """time.sleep(0.3)
-            x_ennemi -= 50
             ordre_receive = 1
             """
             ordre_receive= int(input("Ordre : "))
-            if (action_voulu == "Avancer" and ordre_receive == 11) or (action_voulu == "Contournement" and ordre_receive == 11)  or (action_voulu == "Tourner" and ordre_receive == 12) or (action_voulu == "Attraper" and ordre_receive == 21) or (action_voulu == "Relacher" and ordre_receive == 22):
+            if (action_voulu in ["Consigne","Avancer","Recul","Contournement"] and ordre_receive == 11) or (action_voulu == "Tourner" and ordre_receive == 12) or (action_voulu == "Attraper" and ordre_receive == 21) or (action_voulu == "Relacher" and ordre_receive == 22):
             #if(ordre_receive==1):  
                 print(step)
                 step+=1
                 if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
                     x_robot_actuel = Liste_actions[0][1]
                     y_robot_actuel = Liste_actions[0][2]
+                    angle_robot_actuel = angle_robot_voulu
                 elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
                     angle_robot_actuel = Liste_actions[0][1]
-
-                if step == 7:
-                    x_ennemi = 1500
-                    y_ennemi = 900
-
-                if step == 11:
-                    x_ennemi = 1500
-                    y_ennemi = 700
-                if step == 13:
-                    x_ennemi = 1500
-                    y_ennemi = 1200
-
+                if(step == 7):
+                    x_ennemi = 1750
+                    y_ennemi = 1100
+                if(step == 10):
+                    x_ennemi = 1600
+                    y_ennemi = 1000
+                if(step == 12):
+                    x_ennemi = 1300
+                    y_ennemi = 1600
                 # Retire de la liste l'action en cours
                 Liste_actions.pop(0)
                 ordre_receive = 0
-                
             # MAJ de l'affichage et des Variables de Bouncing
             plt.draw()
             fig.canvas.draw()
@@ -542,6 +558,16 @@ if __name__ == '__main__':
             x_robot_voulu_last = x_robot_voulu
             y_robot_voulu_last = y_robot_voulu
             print("")
+            
+            """for key, value in dico_envoi.items() :
+                if value != 0:
+                    if key in [0x01,0x300,0x301,0x302]:
+                        format_value = struct.pack('<I',dico_envoi[key])
+                    else :
+                        format_value = struct.pack('<f',dico_envoi[key])
+                    msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
+                    bus.send(msg)
+                    dico_envoi[key]=0"""
             #time.sleep(temps)
 
         # À la fin, attends 2 secondes et lève le drapeau
@@ -552,13 +578,17 @@ if __name__ == '__main__':
         print("Arrêt demandé par l'utilisateur.")
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
-        #tache_lidar.join()
-        #tache_LectureCAN.join()
-        #os.system("sudo ifconfig can0 down")
-        
+        """tache_lidar.join()
+        tache_calcul.join()
+        tache_LectureCAN.join()
+        os.system("sudo ifconfig can0 down")
+        """
     finally:
         print("Programme terminé proprement.")
-        """etat = 2
+        """tache_lidar.join()
+        tache_calcul.join()
+        tache_LectureCAN.join()
+        etat = 2
         data_etat = struct.pack('<I',etat)
         bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
         """
