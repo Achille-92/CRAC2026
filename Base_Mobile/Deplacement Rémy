@@ -310,7 +310,7 @@ void calcul_traj(void *)
     n = 0;
     traj[0].x = pos_act[0];
     traj[0].y = pos_act[1];
-    while ((comparer(traj[fin].x, pos_traj[0], 2) == 0) || (comparer(traj[fin].y, pos_traj[1], 2) == 0))
+    while ((comparer(traj[fin].x, liste_point[0].x, 2) == 0) || (comparer(traj[fin].y, liste_point[0].y, 2) == 0))
     {
       // Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d\n", traj[n].x, traj[n].y, dist, dist_a_parcourir, n);
       traj[n + 1].x = traj[n].x + cos(teta1) * dist_a_parcourir;
@@ -322,7 +322,7 @@ void calcul_traj(void *)
     fin2 = fin + dist2 / 50.0;
     dist_a_parcourir = dist2 / fin2;
     n = fin;
-    while ((comparer(traj[fin2].x, pos_fin[0], 2) == 0) || (comparer(traj[fin2].y, pos_fin[1], 2) == 0))
+    while ((comparer(traj[fin2].x, liste_point[1].x, 2) == 0) || (comparer(traj[fin2].y, liste_point[1].y, 2) == 0))
     {
       // Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d\n", traj[n].x, traj[n].y, dist, dist_a_parcourir, n);
       traj[n + 1].x = traj[n].x + cos(teta2) * dist_a_parcourir;
