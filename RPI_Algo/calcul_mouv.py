@@ -162,7 +162,7 @@ def astar_safe(start, goal, safety_weight=2.0, grid_dynamique=None):
 
 # === SIMPLIFICATION SÉCURISÉE DU CHEMIN ===
 
-def simplify_path_safe(path, min_clearance=3):
+def simplify_path_safe(path, min_clearance):
     """
     Simplifie le chemin en gardant une distance minimale aux obstacles.
     
@@ -255,7 +255,7 @@ def is_line_clear_safe(p1, p2, min_clearance):
 
 # === LISSAGE SÉCURISÉ ===
 
-def smooth_path_safe(path, smoothness=2.0):
+def smooth_path_safe(path, smoothness):
     """
     Lisse le chemin en vérifiant la sécurité avec des splines cubiques.
     
