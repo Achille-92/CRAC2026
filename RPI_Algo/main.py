@@ -4,20 +4,18 @@ matplotlib.use('Qt5Agg')
 from rplidar import RPLidar
 import math
 import numpy as np
-import random
 import threading, queue
 from collections import deque
 import time
 import os
 import can
 import struct
-import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 from functools import partial
 from matplotlib.widgets import Button
 from scipy.ndimage import binary_dilation
 from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries
-from calcul_mouv import euclidienne,astar_safe,simplify_path_safe,smooth_path_safe,creer_grille_avec_ennemi,calculer_angle_vers_point,initialiser_grille
+from calcul_mouv import euclidienne,astar_safe,simplify_path_safe,smooth_path_safe,creer_grille_avec_ennemi,initialiser_grille
 from fonction import Obstacles,calculer_pourcentage_batteries,gerer_basculement_batteries
 from gestion_zones_dynamiques import mettre_a_jour_zones_dynamiques, regenerer_grilles_combinees
 ########################################################################
@@ -38,15 +36,8 @@ if Reel:
 dico_envoi = {}
 for ID in Liste_ID:
     dico_envoi[ID]= 0
-print(dico_envoi)
 
 Liste_actions = []
-"""Liste_actions.append(["Consigne",2750,1800])
-Liste_actions.append(["Rotation",90])
-Liste_actions.append(["Consigne",200,1700])
-Liste_actions.append(["Attraper"])
-Liste_actions.append(["Consigne",1200,500])
-Liste_actions.append(["Relacher"])"""
 Liste_trajectoire = []
 
 Liste_GM_libres = [1,2,3,4,5,6,7,8,9,10]
@@ -156,7 +147,6 @@ zones_noisettes = [
     [(1800, 100), (2000, 250)]     # Noisette 8 : bas droit
 ]
 
-print("\n--- AJOUT DES NOISETTES (avec marge réduite de {}mm) ---".format(marge_noisettes_mm))
 for i, coords in enumerate(zones_noisettes, 1):
     coin_bg = coords[0]  # Premier coin (bas-gauche)
     coin_hd = coords[1]  # Deuxième coin (haut-droit)
@@ -245,11 +235,6 @@ W_EFFICACITE = 0.1   # Importance de la cohérence (robot a objets → déposer)
 # Distance max sur le terrain (pour normalisation)
 DISTANCE_MAX_TERRAIN = 3500  # Diagonale du terrain ≈ 3605mm
 robot_a_objets = False
-
-print("\n" + "="*70)
-print("🤖 PRISE DE DÉCISION INITIALE")
-print("="*70)
-
 
 ################## Fonction  ###########################################
 def calcul_points(stop_event):
@@ -398,7 +383,6 @@ def on_click(event):
     if event.inaxes == ax:  # clic dans la zone du graphique
         x_robot_voulu = event.xdata
         y_robot_voulu = event.ydata
-        print(f"Clic souris détecté : X_voulu = {x_robot_voulu:.1f}, Y_voulu = {y_robot_voulu:.1f}")
         point_voulu_plot.set_data([round(x_robot_voulu,0)], [round(y_robot_voulu,0)])
         plt.draw()
         bring_to_front(fig)
@@ -473,18 +457,11 @@ def toggle_zone(event, zone_num):
         # Zone libre → la rendre occupée
         Liste_GM_libres.remove(zone_num)
         Liste_GM_occuper.append(zone_num)
-        print(f"📦 Bouton Zone {zone_num} : Libre → Occupée")
         
     elif zone_num in Liste_GM_occuper:
         # Zone occupée → la rendre libre
         Liste_GM_occuper.remove(zone_num)
         Liste_GM_libres.append(zone_num)
-        print(f"📦 Bouton Zone {zone_num} : Occupée → Libre")
-        
-    else:
-        print(f"⚠️ Zone {zone_num} dans un état incohérent !")
-        print(f"   Libres: {Liste_GM_libres}")
-        print(f"   Occupées: {Liste_GM_occuper}")
     
     # La mise à jour visuelle se fera automatiquement
     # via verifier_changement_listes() dans la boucle principale
@@ -507,18 +484,11 @@ def toggle_noisette(event, noisette_num):
         # Noisette libre (obstacle) → la prendre (passable)
         Liste_noisettes_libres.remove(noisette_num)
         Liste_noisettes_prises.append(noisette_num)
-        print(f"🌰 Bouton Noisette {noisette_num} : Libre (obstacle) → Prise (passable)")
         
     elif noisette_num in Liste_noisettes_prises:
         # Noisette prise → la remettre libre
         Liste_noisettes_prises.remove(noisette_num)
         Liste_noisettes_libres.append(noisette_num)
-        print(f"🌰 Bouton Noisette {noisette_num} : Prise → Libre (obstacle)")
-        
-    else:
-        print(f"⚠️ Noisette {noisette_num} dans un état incohérent !")
-        print(f"   Libres: {Liste_noisettes_libres}")
-        print(f"   Prises: {Liste_noisettes_prises}")
 
 
 
@@ -532,11 +502,6 @@ def bouton_attraper_callback(event):
     # Vérifier qu il y a une action en cours
     if len(Liste_actions) > 0 and action_voulu == "Attraper":
         ordre_receive = 21
-        print(f"🔘 Bouton ATTRAPER pressé → ordre_receive = 21")
-        print(f"   ✅ Action Attraper confirmée !")
-    else:
-        print(f"⚠️  Bouton ATTRAPER pressé mais action en cours : {action_voulu}")
-        print(f"   Le bouton ne fonctionne que si l action est Attraper")
 
 
 def bouton_relacher_callback(event):
@@ -549,11 +514,6 @@ def bouton_relacher_callback(event):
     # Vérifier qu il y a une action en cours
     if len(Liste_actions) > 0 and action_voulu == "Relacher":
         ordre_receive = 22
-        print(f"🔘 Bouton RELACHER pressé → ordre_receive = 22")
-        print(f"   ✅ Action Relacher confirmée !")
-    else:
-        print(f"⚠️  Bouton RELACHER pressé mais action en cours : {action_voulu}")
-        print(f"   Le bouton ne fonctionne que si l action est Relacher")
 
 def actualiser_zones_jeu():
     """
@@ -566,12 +526,6 @@ def actualiser_zones_jeu():
     global Liste_noisettes_libres, Liste_noisettes_prises
     global obstacle_scatter, expanded_scatter
     global distance_map, ax
-    
-    print("\n🔍 DEBUG - État des listes AVANT mise à jour :")
-    print(f"   Liste_gardemanger_libres  : {Liste_GM_libres}")
-    print(f"   Liste_gardemanger_occuper : {Liste_GM_occuper}")
-    print(f"   Liste_noisettes_libres    : {Liste_noisettes_libres}")
-    print(f"   Liste_noisettes_prises    : {Liste_noisettes_prises}")
     
     # Mettre à jour les états selon les listes
     grilles_modifiees, _, _ = mettre_a_jour_zones_dynamiques(
@@ -608,7 +562,6 @@ def actualiser_zones_jeu():
         print("✅ Grilles mises à jour")
         return True
     else:
-        print("ℹ️  Aucune modification des grilles nécessaire")
         return False
 
 
@@ -620,22 +573,16 @@ def prendre_noisette(numero_noisette):
     """
     global Liste_noisettes_libres, Liste_noisettes_prises
     
-    print(f"\n🌰 Tentative de prendre noisette {numero_noisette}...")
-    print(f"   État avant : libres={Liste_noisettes_libres}, prises={Liste_noisettes_prises}")
     
     if numero_noisette in Liste_noisettes_libres:
         # Modifier les listes
         Liste_noisettes_libres.remove(numero_noisette)
         Liste_noisettes_prises.append(numero_noisette)
-        print(f"   ✅ Noisette {numero_noisette} retirée de 'libres' et ajoutée à 'prises'")
-        print(f"   État après : libres={Liste_noisettes_libres}, prises={Liste_noisettes_prises}")
         
         # Mettre à jour obstacles et grilles
         actualiser_zones_jeu()
         return True
     else:
-        print(f"   ⚠️  Noisette {numero_noisette} PAS dans Liste_noisettes_libres")
-        print(f"   État actuel : libres={Liste_noisettes_libres}, prises={Liste_noisettes_prises}")
         return False
 
 
@@ -647,22 +594,16 @@ def occuper_zone(numero_zone):
     """
     global Liste_GM_libres, Liste_GM_occuper
     
-    print(f"\n📦 Tentative d'occuper zone {numero_zone}...")
-    print(f"   État avant : libres={Liste_GM_libres}, occupées={Liste_GM_occuper}")
     
     if numero_zone in Liste_GM_libres:
         # Modifier les listes
         Liste_GM_libres.remove(numero_zone)
         Liste_GM_occuper.append(numero_zone)
-        print(f"   ✅ Zone {numero_zone} retirée de 'libres' et ajoutée à 'occupées'")
-        print(f"   État après : libres={Liste_GM_libres}, occupées={Liste_GM_occuper}")
         
         # Mettre à jour obstacles et grilles
         actualiser_zones_jeu()
         return True
     else:
-        print(f"   ⚠️  Zone {numero_zone} PAS dans Liste_gardemanger_libres")
-        print(f"   État actuel : libres={Liste_GM_libres}, occupées={Liste_GM_occuper}")
         return False
 
 
@@ -673,17 +614,14 @@ def liberer_zone(numero_zone):
     """
     global Liste_GM_libres, Liste_GM_occuper
     
-    print(f"\n📦 Tentative de libérer zone {numero_zone}...")
     
     if numero_zone in Liste_GM_occuper:
         Liste_GM_occuper.remove(numero_zone)
         Liste_GM_libres.append(numero_zone)
-        print(f"   ✅ Zone {numero_zone} retirée de 'occupées' et ajoutée à 'libres'")
         
         actualiser_zones_jeu()
         return True
     else:
-        print(f"   ⚠️  Zone {numero_zone} PAS dans Liste_gardemanger_occuper")
         return False
 
 
@@ -694,17 +632,14 @@ def relacher_noisette(numero_noisette):
     """
     global Liste_noisettes_libres, Liste_noisettes_prises
     
-    print(f"\n🌰 Tentative de relâcher noisette {numero_noisette}...")
     
     if numero_noisette in Liste_noisettes_prises:
         Liste_noisettes_prises.remove(numero_noisette)
         Liste_noisettes_libres.append(numero_noisette)
-        print(f"   ✅ Noisette {numero_noisette} retirée de 'prises' et ajoutée à 'libres'")
         
         actualiser_zones_jeu()
         return True
     else:
-        print(f"   ⚠️  Noisette {numero_noisette} PAS dans Liste_noisettes_prises")
         return False
 
 def distance_euclidienne(x1, y1, x2, y2):
@@ -856,15 +791,6 @@ def ajouter_action_a_liste(Liste_actions, action_choisie, verbose=True):
     angle = action_choisie['angle']
     score = action_choisie['score']
     
-    if verbose:
-        print(f"\n{'='*70}")
-        print(f"✅ ACTION CHOISIE : {type_action} zone {numero_zone}")
-        print(f"{'='*70}")
-        print(f"   📍 Position : ({x}, {y}) mm")
-        print(f"   🧭 Angle    : {angle}°")
-        print(f"   ⭐ Score    : {score:.3f}")
-        print(f"{'='*70}\n")
-    
     # Ajouter les commandes à la liste
     Liste_actions.append(["Consigne", x, y])
     Liste_actions.append(["Rotation", angle])
@@ -906,9 +832,6 @@ def confirmer_action_terminee(action_en_cours,
         if numero_zone in Liste_noisettes_libres:
             Liste_noisettes_libres.remove(numero_zone)
             Liste_noisettes_prises.append(numero_zone)
-            if verbose:
-                print(f"✅ Noisette {numero_zone} RÉCUPÉRÉE avec succès !")
-                print(f"   Noisettes restantes : {Liste_noisettes_libres}")
         robot_a_objets = True
         
     elif type_action == "Relacher":
@@ -916,9 +839,6 @@ def confirmer_action_terminee(action_en_cours,
         if numero_zone in Liste_GM_libres:
             Liste_GM_libres.remove(numero_zone)
             Liste_GM_occuper.append(numero_zone)
-            if verbose:
-                print(f"✅ GM {numero_zone} REMPLI avec succès !")
-                print(f"   GM restants : {Liste_GM_libres}")
         robot_a_objets = False
     
     return robot_a_objets
@@ -974,13 +894,8 @@ def afficher_tous_les_scores(x_robot_actuel, y_robot_actuel,
     """
     Fonction de debug : affiche les scores de TOUTES les actions possibles.
     """
-    print("\n" + "="*70)
-    print("DEBUG : SCORES DE TOUTES LES ACTIONS POSSIBLES")
-    print("="*70)
     
     if not robot_a_objets:
-        print("\n🔵 PHASE RÉCOLTE (Attraper)")
-        print("-" * 70)
         for num_noisette in Liste_noisettes_libres:
             index = num_noisette - 1
             x_n = Liste_zones_recup_noisettes_xy[index][0]
@@ -995,12 +910,8 @@ def afficher_tous_les_scores(x_robot_actuel, y_robot_actuel,
             dist = distance_euclidienne(x_robot_actuel, y_robot_actuel, x_n, y_n)
             dist_ennemi = distance_euclidienne(x_n, y_n, x_ennemi, y_ennemi)
             
-            print(f"  Noisette {num_noisette:2d} → Score: {score:.3f} | "
-                  f"Dist robot: {dist:4.0f}mm | Dist ennemi: {dist_ennemi:4.0f}mm")
     
     else:
-        print("\n🔴 PHASE DÉPÔT (Relacher)")
-        print("-" * 70)
         for num_gm in Liste_GM_libres:
             index = num_gm - 1
             x_g = Liste_zones_gm_xy[index][0]
@@ -1108,8 +1019,6 @@ if __name__ == '__main__':
     ax_relacher_button = plt.axes([action_button_x_start + action_button_spacing, action_button_y, action_button_width, action_button_height])
     bouton_relacher = Button(ax_relacher_button, "🤖 RELACHER", color="lightyellow", hovercolor="orange")
     bouton_relacher.on_clicked(bouton_relacher_callback)
-    
-    print("✅ Boutons ATTRAPER et RELACHER créés")
 
     if Reel: 
         tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
@@ -1152,7 +1061,6 @@ if __name__ == '__main__':
             verif = False
             step +=1
             actualiser_zones_jeu()
-            print("\n🔬 TEST 1 : Affichage de tous les scores")
             afficher_tous_les_scores(
                 x_robot_actuel, y_robot_actuel,
                 x_ennemi, y_ennemi,
@@ -1162,20 +1070,6 @@ if __name__ == '__main__':
                 Liste_zones_gm_xy, Liste_zones_gm_angle,
                 R_securite
             )
-            # === TEST 2 : Prendre une décision ===
-            print("\n🤖 TEST 2 : Prise de décision")
-            """robot_a_objets = mise_a_jour_decision(
-                Liste_actions,
-                x_robot_actuel, y_robot_actuel,
-                x_ennemi, y_ennemi,
-                robot_a_objets,
-                Liste_noisettes_libres, Liste_noisettes_prises,
-                Liste_GM_libres, Liste_GM_occuper,
-                Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
-                Liste_zones_gm_xy, Liste_zones_gm_angle,
-                R_securite,
-                verbose=True
-            )"""
             if not Reel: 
                 x_ennemi += 6
                 y_ennemi -= 4
@@ -1213,7 +1107,6 @@ if __name__ == '__main__':
                 mouvement = False
                  
             print(step)
-            print(trajectoire_bloquee)
             print("\nAvant verif :")
             print("Action en cours : "+action_voulu)
             print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
@@ -1423,7 +1316,7 @@ if __name__ == '__main__':
                     
                     # Nettoyer waypoints intermédiaires
                     Liste_actions = [act for act in Liste_actions if act[0] in ["Consigne", "Rotation", "Attraper", "Relacher"]]
-                    print(Liste_actions)
+                    
                     # Préparer recalcul
                     x_robot_voulu = Liste_actions[0][1]
                     y_robot_voulu = Liste_actions[0][2]
@@ -1611,10 +1504,6 @@ if __name__ == '__main__':
                (action_voulu == "Attraper" and ordre_receive == 21) or \
                (action_voulu == "Relacher" and ordre_receive == 22):
                 
-                print(f"\n{'='*70}")
-                print(f"✅ ACTION TERMINÉE : {action_voulu}")
-                print(f"{'='*70}")
-                
                 # Retirer l'action de la liste 
                 Liste_actions.pop(0) 
                 
@@ -1627,16 +1516,11 @@ if __name__ == '__main__':
                         Liste_GM_libres, Liste_GM_occuper,
                         verbose=True
                     )
-                    print(f"🤖 État du robot : {'Transporte des objets' if robot_a_objets else 'Vide'}")
-                    print(f"{'='*70}\n")
                 
                 ordre_receive = 0
                 
                 # ⭐ SI la liste d'actions est vide, prendre une nouvelle décision ⭐
                 if len(Liste_actions) == 0:
-                    print("\n" + "="*70)
-                    print("🔄 LISTE D'ACTIONS VIDE - PRISE DE NOUVELLE DÉCISION")
-                    print("="*70)
                     
                     # Nouvelle décision
                     action_en_cours = mise_a_jour_decision(
