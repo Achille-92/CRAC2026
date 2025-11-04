@@ -1317,7 +1317,7 @@ if __name__ == '__main__':
                             print(f"  → Waypoint {nbr_point}: Avancer vers ({x_cible:.0f}, {y_cible:.0f})")
 
                         # Construire Liste_trajectoire en corrigant le test buggué
-                        if nbr_point >= 2:
+                        if nbr_point >= 1:
                             Liste_trajectoire = []
                             Liste_trajectoire.append(nbr_point)
                             for action in Liste_actions:
@@ -1674,10 +1674,10 @@ if __name__ == '__main__':
                 if 0x206 <= key <= 0x2FF:
                     del dico_envoi[key]
             # On remplit le dictionnaire d'envoi du CAN avec les points de la trajectoire
-            """dico_envoi[0x206] = Liste_trajectoire[0]
+            dico_envoi[0x206] = Liste_trajectoire[0]
             for couple in range(1,len(Liste_trajectoire)):
                 dico_envoi[0x207+2*(couple-1)]=Liste_trajectoire[couple][0]
-                dico_envoi[0x208+2*(couple-1)]=Liste_trajectoire[couple][1]"""
+                dico_envoi[0x208+2*(couple-1)]=Liste_trajectoire[couple][1]
 
             """for couple in dico_envoi.items():
                 print(hex(couple[0])," : ",couple[1])"""
