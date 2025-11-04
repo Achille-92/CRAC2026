@@ -45,10 +45,42 @@ Liste_GM_occuper = []
 Liste_noisettes_libres = [1,2,3,4,5,6,7,8]
 Liste_noisettes_prises = []
 
-Liste_zones_recup_noisettes_xy = [(400,1200),(400,400),(2600,1200),(2600,400),(1150,1025),(1850,1025),(1100,400),(1900,400)]
-Liste_zones_recup_noisettes_angle = [180,180,0,0,-90,-90,-90,-90]
-Liste_zones_gm_xy = [(1250,1200),(1750,1200),(350,800),(800,1050),(1500,1050),(2200,1050),(2650,800),(700,350),(1500,350),(2300,350)]
-Liste_zones_gm_angle = [90,90,180,-90,-90,-90,0,-90,-90,-90]
+Liste_zones_recup_noisettes_xy = [(400,1200),
+                                  (400,400),
+                                  (2600,1200),
+                                  (2600,400),
+                                  ((1150,1025),(1150,575)),
+                                  ((1850,1025),(1850,575)),
+                                  (1100,400),
+                                  (1900,400)]
+Liste_zones_recup_noisettes_angle = [180,
+                                     180,
+                                     0,
+                                     0,
+                                     (-90,90),
+                                     (-90,90),
+                                     -90,
+                                     -90]
+Liste_zones_gm_xy = [(1250,1200),
+                     (1750,1200),
+                     (350,800),
+                     ((800,1050),(800,550),(550,800),(1050,800)),
+                     ((1500,1050),(1500,550),(1250,800),(1750,800)),
+                     ((2200,1050),(2200,550),(1950,800),(2450,800)),
+                     (2650,800),
+                     (700,350),
+                     (1500,350),
+                     (2300,350)]
+Liste_zones_gm_angle = [90,
+                        90,
+                        180,
+                        (-90,90,0,180),
+                        (-90,90,0,180),
+                        (-90,90,0,180),
+                        0,
+                        -90,
+                        -90,
+                        -90]
 
 # Port série et Baudrate du lidar
 PORT_NAME = '/dev/ttyUSB0'
@@ -227,10 +259,10 @@ step = 0
 
 # ==================== PARAMÈTRES DE L'ALGORITHME ====================
 # Poids de la moyenne pondérée (somme = 1.0)
-W_DISTANCE = 0.4     # Importance de la proximité de l'objectif
-W_SECURITE = 0.3     # Importance de l'évitement du robot ennemi
-W_PRIORITE = 0.2     # Importance du type de tâche (récolte vs dépôt)
-W_EFFICACITE = 0.1   # Importance de la cohérence (robot a objets → déposer)
+W_DISTANCE = 0.65     # Importance de la proximité de l'objectif
+W_SECURITE = 0.2     # Importance de l'évitement du robot ennemi
+W_PRIORITE = 0.1     # Importance du type de tâche (récolte vs dépôt)
+W_EFFICACITE = 0.05   # Importance de la cohérence (robot a objets → déposer)
 
 # Distance max sur le terrain (pour normalisation)
 DISTANCE_MAX_TERRAIN = 3500  # Diagonale du terrain ≈ 3605mm
@@ -646,7 +678,134 @@ def distance_euclidienne(x1, y1, x2, y2):
     """Calcule la distance euclidienne entre deux points"""
     return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
+
+# ==================== RÉÉVALUATION DYNAMIQUE DE LA CIBLE ====================
+
+def verifier_cible_disponible(action_en_cours, 
+                               Liste_noisettes_libres, 
+                               Liste_GM_libres):
+    """
+    Vérifie si la cible actuelle est toujours disponible.
+    """
+    if action_en_cours is None:
+        return False
+    
+    type_action = action_en_cours.get('type')
+    numero_zone = action_en_cours.get('numero_zone')
+    
+    if type_action == "Attraper":
+        if numero_zone in Liste_noisettes_libres:
+            return True
+        else:
+            print(f"⚠️  CIBLE PERDUE : Noisette {numero_zone} n'est plus disponible !")
+            return False
+    
+    elif type_action == "Relacher":
+        if numero_zone in Liste_GM_libres:
+            return True
+        else:
+            print(f"⚠️  CIBLE PERDUE : GM {numero_zone} n'est plus disponible !")
+            return False
+    
+    return False
+
+
+def verifier_et_changer_cible_si_necessaire(action_en_cours,
+                                             Liste_actions,
+                                             Liste_noisettes_libres,
+                                             Liste_GM_libres,
+                                             x_robot_actuel, y_robot_actuel,
+                                             x_ennemi, y_ennemi,
+                                             robot_a_objets,
+                                             Liste_zones_recup_noisettes_xy,
+                                             Liste_zones_recup_noisettes_angle,
+                                             Liste_zones_gm_xy,
+                                             Liste_zones_gm_angle,
+                                             R_securite,
+                                             action_voulu):
+    """
+    Vérifie si la cible est toujours disponible et change si nécessaire.
+    """
+    
+    # Ne réévaluer QUE si on est en déplacement
+    if action_voulu not in ["Consigne", "Avancer", "Rotation"]:
+        return action_en_cours
+    
+    if action_en_cours is None:
+        return action_en_cours
+    
+    cible_disponible = verifier_cible_disponible(
+        action_en_cours,
+        Liste_noisettes_libres,
+        Liste_GM_libres
+    )
+    
+    if not cible_disponible:
+        print("="*70)
+        print("🔄 RÉÉVALUATION FORCÉE : Cible n'est plus disponible")
+        print("="*70)
+        
+        Liste_actions.clear()
+        
+        action_en_cours = mise_a_jour_decision(
+            Liste_actions,
+            x_robot_actuel, y_robot_actuel,
+            x_ennemi, y_ennemi,
+            robot_a_objets,
+            Liste_noisettes_libres,
+            Liste_GM_libres,
+            Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
+            Liste_zones_gm_xy, Liste_zones_gm_angle,
+            R_securite,
+            verbose=True
+        )
+        
+        if len(Liste_actions) == 0:
+            print("⚠️  AUCUNE AUTRE CIBLE DISPONIBLE")
+        else:
+            print(f"✅ Nouvelle cible : {action_en_cours['type']} zone {action_en_cours['numero_zone']}")
+    
+    return action_en_cours
+
 # ==================== CALCUL DU SCORE ====================
+
+def extraire_positions_zone(zone_data, angle_data):
+    """
+    Extrait toutes les positions possibles d'une zone.
+    
+    Args:
+        zone_data: Peut être (x, y) ou ((x1, y1), (x2, y2), ...)
+        angle_data: Peut être angle ou (angle1, angle2, ...)
+    
+    Returns:
+        Liste de tuples [(x1, y1, angle1), (x2, y2, angle2), ...]
+    """
+    positions = []
+    
+    # Vérifier si zone_data est un tuple de positions ou une position unique
+    if isinstance(zone_data, tuple) and len(zone_data) >= 2:
+        # Vérifier si c'est une position unique (x, y) ou plusieurs positions
+        if isinstance(zone_data[0], (int, float)):
+            # C'est une position unique : (x, y)
+            positions.append((zone_data[0], zone_data[1], angle_data))
+        else:
+            # C'est plusieurs positions : ((x1, y1), (x2, y2), ...)
+            # Extraire les angles correspondants
+            if isinstance(angle_data, tuple):
+                angles = angle_data
+            else:
+                # Si un seul angle donné, le répéter pour toutes les positions
+                angles = (angle_data,) * len(zone_data)
+            
+            # Créer la liste des positions avec leurs angles
+            for i, pos in enumerate(zone_data):
+                if isinstance(pos, tuple) and len(pos) >= 2:
+                    x, y = pos[0], pos[1]
+                    angle = angles[i] if i < len(angles) else angles[0]
+                    positions.append((x, y, angle))
+    
+    return positions
+
 
 def calculer_score_tache(x_tache, y_tache, type_tache, robot_a_objets,
                          x_robot_actuel, y_robot_actuel, 
@@ -690,7 +849,8 @@ def calculer_score_tache(x_tache, y_tache, type_tache, robot_a_objets,
     
     return score
 
-# ==================== ALGORITHME PRINCIPAL ====================
+
+# ==================== ALGORITHME PRINCIPAL AMÉLIORÉ ====================
 
 def choisir_prochaine_action(x_robot_actuel, y_robot_actuel, 
                             x_ennemi, y_ennemi, 
@@ -700,84 +860,98 @@ def choisir_prochaine_action(x_robot_actuel, y_robot_actuel,
                             Liste_zones_gm_xy, Liste_zones_gm_angle,
                             R_securite):
     """
-    Choisit la prochaine action à effectuer selon l'algorithme de moyenne pondérée.
+    Choisit la prochaine action en gérant plusieurs positions possibles par zone.
     
-    ⚠️ IMPORTANT : Cette fonction NE modifie PAS les listes de zones.
-    Les listes seront modifiées uniquement après confirmation de l'action (ordre 21 ou 22).
+    ⚠️ VERSION AMÉLIORÉE : Gère 1, 2, 3, 4+ positions par zone
     
     Returns:
-        dict ou None
+        dict ou None: {
+            'type': "Attraper" ou "Relacher",
+            'numero_zone': int,
+            'x': float,
+            'y': float,
+            'angle': float,
+            'score': float,
+            'position_index': int  # Nouvelle clé : index de la position choisie (0, 1, 2, 3...)
+        }
     """
     
     meilleur_score = -float('inf')
     meilleure_action = None
     
-    # PHASE 1 : Si le robot n'a pas d'objets → ATTRAPER
+    # ===== PHASE 1 : Si le robot n'a pas d'objets → ATTRAPER =====
     if not robot_a_objets:
         for num_noisette in Liste_noisettes_libres:
-            index = num_noisette - 1
+            index = num_noisette - 1  # Conversion numéro → index
             
-            x_noisette = Liste_zones_recup_noisettes_xy[index][0]
-            y_noisette = Liste_zones_recup_noisettes_xy[index][1]
-            angle_noisette = Liste_zones_recup_noisettes_angle[index]
+            # Extraire toutes les positions possibles pour cette Noisette
+            zone_data = Liste_zones_recup_noisettes_xy[index]
+            angle_data = Liste_zones_recup_noisettes_angle[index]
+            positions = extraire_positions_zone(zone_data, angle_data)
             
-            score = calculer_score_tache(
-                x_noisette, y_noisette, "Attraper", 
-                robot_a_objets,
-                x_robot_actuel, y_robot_actuel,
-                x_ennemi, y_ennemi, R_securite
-            )
-            
-            if score > meilleur_score:
-                meilleur_score = score
-                meilleure_action = {
-                    'type': 'Attraper',
-                    'numero_zone': num_noisette,
-                    'x': x_noisette,
-                    'y': y_noisette,
-                    'angle': angle_noisette,
-                    'score': score
-                }
+            # Tester chaque position et garder la meilleure
+            for pos_index, (x, y, angle) in enumerate(positions):
+                score = calculer_score_tache(
+                    x, y, "Attraper", 
+                    robot_a_objets,
+                    x_robot_actuel, y_robot_actuel,
+                    x_ennemi, y_ennemi, R_securite
+                )
+                
+                if score > meilleur_score:
+                    meilleur_score = score
+                    meilleure_action = {
+                        'type': 'Attraper',
+                        'numero_zone': num_noisette,
+                        'x': x,
+                        'y': y,
+                        'angle': angle,
+                        'score': score,
+                        'position_index': pos_index,  # Nouveau : index de la position
+                        'nb_positions': len(positions)  # Info : nombre total de positions
+                    }
     
-    # PHASE 2 : Si le robot a des objets → RELACHER
+    # ===== PHASE 2 : Si le robot a des objets → RELACHER =====
     else:
         for num_gm in Liste_GM_libres:
-            index = num_gm - 1
+            index = num_gm - 1  # Conversion numéro → index
             
-            x_gm = Liste_zones_gm_xy[index][0]
-            y_gm = Liste_zones_gm_xy[index][1]
-            angle_gm = Liste_zones_gm_angle[index]
+            # Extraire toutes les positions possibles pour ce GM
+            zone_data = Liste_zones_gm_xy[index]
+            angle_data = Liste_zones_gm_angle[index]
+            positions = extraire_positions_zone(zone_data, angle_data)
             
-            score = calculer_score_tache(
-                x_gm, y_gm, "Relacher",
-                robot_a_objets,
-                x_robot_actuel, y_robot_actuel,
-                x_ennemi, y_ennemi, R_securite
-            )
-            
-            if score > meilleur_score:
-                meilleur_score = score
-                meilleure_action = {
-                    'type': 'Relacher',
-                    'numero_zone': num_gm,
-                    'x': x_gm,
-                    'y': y_gm,
-                    'angle': angle_gm,
-                    'score': score
-                }
+            # Tester chaque position et garder la meilleure
+            for pos_index, (x, y, angle) in enumerate(positions):
+                score = calculer_score_tache(
+                    x, y, "Relacher",
+                    robot_a_objets,
+                    x_robot_actuel, y_robot_actuel,
+                    x_ennemi, y_ennemi, R_securite
+                )
+                
+                if score > meilleur_score:
+                    meilleur_score = score
+                    meilleure_action = {
+                        'type': 'Relacher',
+                        'numero_zone': num_gm,
+                        'x': x,
+                        'y': y,
+                        'angle': angle,
+                        'score': score,
+                        'position_index': pos_index,  # Nouveau : index de la position
+                        'nb_positions': len(positions)  # Info : nombre total de positions
+                    }
     
     return meilleure_action
+
 
 # ==================== AJOUT À LA LISTE D'ACTIONS ====================
 
 def ajouter_action_a_liste(Liste_actions, action_choisie, verbose=True):
     """
     Ajoute les commandes nécessaires à Liste_actions.
-    
-    ⚠️ IMPORTANT : Cette fonction NE modifie PAS les listes de zones.
-    
-    Returns:
-        dict ou None: action_choisie (pour la stocker et l'utiliser plus tard)
+    Version améliorée avec affichage de la position choisie.
     """
     if action_choisie is None:
         if verbose:
@@ -790,6 +964,23 @@ def ajouter_action_a_liste(Liste_actions, action_choisie, verbose=True):
     y = action_choisie['y']
     angle = action_choisie['angle']
     score = action_choisie['score']
+    position_index = action_choisie.get('position_index', 0)
+    nb_positions = action_choisie.get('nb_positions', 1)
+    
+    if verbose:
+        print(f"\n{'='*70}")
+        print(f"✅ ACTION CHOISIE : {type_action} zone {numero_zone}")
+        print(f"{'='*70}")
+        print(f"   📍 Position : ({x}, {y}) mm")
+        print(f"   🧭 Angle    : {angle}°")
+        print(f"   ⭐ Score    : {score:.3f}")
+        
+        # Afficher l'info sur les positions multiples
+        if nb_positions > 1:
+            print(f"   🔢 Position {position_index + 1}/{nb_positions} choisie")
+            print(f"      (Zone avec {nb_positions} positions possibles)")
+        
+        print(f"{'='*70}\n")
     
     # Ajouter les commandes à la liste
     Liste_actions.append(["Consigne", x, y])
@@ -798,7 +989,8 @@ def ajouter_action_a_liste(Liste_actions, action_choisie, verbose=True):
     
     return action_choisie
 
-# ==================== NOUVELLE FONCTION : CONFIRMATION D'ACTION ====================
+
+# ==================== CONFIRMATION D'ACTION ====================
 
 def confirmer_action_terminee(action_en_cours,
                               robot_a_objets,
@@ -806,20 +998,7 @@ def confirmer_action_terminee(action_en_cours,
                               Liste_GM_libres, Liste_GM_occuper,
                               verbose=True):
     """
-    Met à jour les listes de zones et l'état du robot APRÈS confirmation
-    de la réalisation de l'action (ordre 21 ou 22 reçu).
-    
-    ⭐ CETTE FONCTION DOIT ÊTRE APPELÉE APRÈS AVOIR REÇU L'ORDRE 21 ou 22 ⭐
-    
-    Args:
-        action_en_cours: dict contenant les infos de l'action (type, numero_zone, etc.)
-        robot_a_objets: État actuel du robot
-        Liste_noisettes_libres, Liste_noisettes_prises: Listes à mettre à jour
-        Liste_GM_libres, Liste_GM_occuper: Listes à mettre à jour
-        verbose: Afficher les infos
-    
-    Returns:
-        bool: Nouvel état de robot_a_objets
+    Met à jour les listes de zones et l'état du robot APRÈS confirmation.
     """
     if action_en_cours is None:
         return robot_a_objets
@@ -828,22 +1007,27 @@ def confirmer_action_terminee(action_en_cours,
     numero_zone = action_en_cours['numero_zone']
     
     if type_action == "Attraper":
-        # L'action Attraper est terminée → mettre à jour les listes
         if numero_zone in Liste_noisettes_libres:
             Liste_noisettes_libres.remove(numero_zone)
             Liste_noisettes_prises.append(numero_zone)
+            if verbose:
+                print(f"✅ Noisette {numero_zone} RÉCUPÉRÉE avec succès !")
+                print(f"   Noisettes restantes : {Liste_noisettes_libres}")
         robot_a_objets = True
         
     elif type_action == "Relacher":
-        # L'action Relacher est terminée → mettre à jour les listes
         if numero_zone in Liste_GM_libres:
             Liste_GM_libres.remove(numero_zone)
             Liste_GM_occuper.append(numero_zone)
+            if verbose:
+                print(f"✅ GM {numero_zone} REMPLI avec succès !")
+                print(f"   GM restants : {Liste_GM_libres}")
         robot_a_objets = False
     
     return robot_a_objets
 
-# ==================== FONCTION DE MISE À JOUR (VERSION CORRIGÉE) ====================
+
+# ==================== FONCTION DE MISE À JOUR ====================
 
 def mise_a_jour_decision(Liste_actions, 
                         x_robot_actuel, y_robot_actuel, 
@@ -856,16 +1040,11 @@ def mise_a_jour_decision(Liste_actions,
                         R_securite,
                         verbose=True):
     """
-    Fonction de décision qui choisit la prochaine action et l'ajoute à Liste_actions.
-    
-    ⚠️ MODIFICATION IMPORTANTE : Cette fonction NE met PLUS à jour les listes de zones.
-    Les listes seront mises à jour par confirmer_action_terminee() après réception de l'ordre 21/22.
-    
-    Returns:
-        dict ou None: L'action choisie (à stocker pour confirmer plus tard)
+    Fonction de décision qui choisit la prochaine action.
+    Version améliorée pour multi-positions.
     """
     
-    # 1. Choisir la meilleure action
+    # Choisir la meilleure action (et la meilleure position)
     action = choisir_prochaine_action(
         x_robot_actuel, y_robot_actuel,
         x_ennemi, y_ennemi,
@@ -876,11 +1055,11 @@ def mise_a_jour_decision(Liste_actions,
         R_securite
     )
     
-    # 2. Ajouter l'action à la liste (sans modifier les listes de zones)
+    # Ajouter l'action à la liste
     action_ajoutee = ajouter_action_a_liste(Liste_actions, action, verbose)
     
-    # 3. Retourner l'action pour pouvoir la confirmer plus tard
     return action_ajoutee
+
 
 # ==================== FONCTION DE DEBUG ====================
 
@@ -892,42 +1071,84 @@ def afficher_tous_les_scores(x_robot_actuel, y_robot_actuel,
                              Liste_zones_gm_xy, Liste_zones_gm_angle,
                              R_securite):
     """
-    Fonction de debug : affiche les scores de TOUTES les actions possibles.
+    Fonction de debug : affiche les scores de TOUTES les positions possibles.
+    Version améliorée pour multi-positions.
     """
+    print("\n" + "="*70)
+    print("DEBUG : SCORES DE TOUTES LES ACTIONS POSSIBLES")
+    print("="*70)
     
     if not robot_a_objets:
+        print("\n🔵 PHASE RÉCOLTE (ATTRAPER)")
+        print("-" * 70)
         for num_noisette in Liste_noisettes_libres:
             index = num_noisette - 1
-            x_n = Liste_zones_recup_noisettes_xy[index][0]
-            y_n = Liste_zones_recup_noisettes_xy[index][1]
+            zone_data = Liste_zones_recup_noisettes_xy[index]
+            angle_data = Liste_zones_recup_noisettes_angle[index]
+            positions = extraire_positions_zone(zone_data, angle_data)
             
-            score = calculer_score_tache(
-                x_n, y_n, "Attraper", robot_a_objets,
-                x_robot_actuel, y_robot_actuel,
-                x_ennemi, y_ennemi, R_securite
-            )
-            
-            dist = distance_euclidienne(x_robot_actuel, y_robot_actuel, x_n, y_n)
-            dist_ennemi = distance_euclidienne(x_n, y_n, x_ennemi, y_ennemi)
-            
+            if len(positions) == 1:
+                # Une seule position
+                x, y, angle = positions[0]
+                score = calculer_score_tache(
+                    x, y, "Attraper", robot_a_objets,
+                    x_robot_actuel, y_robot_actuel,
+                    x_ennemi, y_ennemi, R_securite
+                )
+                dist = distance_euclidienne(x_robot_actuel, y_robot_actuel, x, y)
+                dist_ennemi = distance_euclidienne(x, y, x_ennemi, y_ennemi)
+                print(f"  Noisette {num_noisette:2d} → Score: {score:.3f} | "
+                      f"Dist robot: {dist:4.0f}mm | Dist ennemi: {dist_ennemi:4.0f}mm")
+            else:
+                # Plusieurs positions
+                print(f"  Noisette {num_noisette:2d} ({len(positions)} positions) :")
+                for pos_idx, (x, y, angle) in enumerate(positions):
+                    score = calculer_score_tache(
+                        x, y, "Attraper", robot_a_objets,
+                        x_robot_actuel, y_robot_actuel,
+                        x_ennemi, y_ennemi, R_securite
+                    )
+                    dist = distance_euclidienne(x_robot_actuel, y_robot_actuel, x, y)
+                    dist_ennemi = distance_euclidienne(x, y, x_ennemi, y_ennemi)
+                    print(f"    Pos {pos_idx + 1} ({x:4.0f}, {y:4.0f}) → "
+                          f"Score: {score:.3f} | Dist robot: {dist:4.0f}mm | "
+                          f"Dist ennemi: {dist_ennemi:4.0f}mm")
     
     else:
+        print("\n🔴 PHASE DÉPÔT (RELACHER)")
+        print("-" * 70)
         for num_gm in Liste_GM_libres:
             index = num_gm - 1
-            x_g = Liste_zones_gm_xy[index][0]
-            y_g = Liste_zones_gm_xy[index][1]
+            zone_data = Liste_zones_gm_xy[index]
+            angle_data = Liste_zones_gm_angle[index]
+            positions = extraire_positions_zone(zone_data, angle_data)
             
-            score = calculer_score_tache(
-                x_g, y_g, "Relacher", robot_a_objets,
-                x_robot_actuel, y_robot_actuel,
-                x_ennemi, y_ennemi, R_securite
-            )
-            
-            dist = distance_euclidienne(x_robot_actuel, y_robot_actuel, x_g, y_g)
-            dist_ennemi = distance_euclidienne(x_g, y_g, x_ennemi, y_ennemi)
-            
-            print(f"  GM {num_gm:2d} → Score: {score:.3f} | "
-                  f"Dist robot: {dist:4.0f}mm | Dist ennemi: {dist_ennemi:4.0f}mm")
+            if len(positions) == 1:
+                # Une seule position
+                x, y, angle = positions[0]
+                score = calculer_score_tache(
+                    x, y, "Relacher", robot_a_objets,
+                    x_robot_actuel, y_robot_actuel,
+                    x_ennemi, y_ennemi, R_securite
+                )
+                dist = distance_euclidienne(x_robot_actuel, y_robot_actuel, x, y)
+                dist_ennemi = distance_euclidienne(x, y, x_ennemi, y_ennemi)
+                print(f"  GM {num_gm:2d} → Score: {score:.3f} | "
+                      f"Dist robot: {dist:4.0f}mm | Dist ennemi: {dist_ennemi:4.0f}mm")
+            else:
+                # Plusieurs positions
+                print(f"  GM {num_gm:2d} ({len(positions)} positions) :")
+                for pos_idx, (x, y, angle) in enumerate(positions):
+                    score = calculer_score_tache(
+                        x, y, "Relacher", robot_a_objets,
+                        x_robot_actuel, y_robot_actuel,
+                        x_ennemi, y_ennemi, R_securite
+                    )
+                    dist = distance_euclidienne(x_robot_actuel, y_robot_actuel, x, y)
+                    dist_ennemi = distance_euclidienne(x, y, x_ennemi, y_ennemi)
+                    print(f"    Pos {pos_idx + 1} ({x:4.0f}, {y:4.0f}) → "
+                          f"Score: {score:.3f} | Dist robot: {dist:4.0f}mm | "
+                          f"Dist ennemi: {dist_ennemi:4.0f}mm")
     
     print("="*70 + "\n")
 
@@ -1054,57 +1275,87 @@ if __name__ == '__main__':
             R_securite,
             verbose=True
         )
-
+ 
         while (not stop_event.is_set() and Batteries[2][3] > 5 and len(Liste_actions)!=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
             dico_envoi[0x01]=1
             temps = 0
             verif = False
             step +=1
             actualiser_zones_jeu()
-            afficher_tous_les_scores(
-                x_robot_actuel, y_robot_actuel,
-                x_ennemi, y_ennemi,
-                robot_a_objets,
-                Liste_noisettes_libres, Liste_GM_libres,
-                Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
-                Liste_zones_gm_xy, Liste_zones_gm_angle,
-                R_securite
-            )
+            
+            # ⭐ NOUVELLE DÉCISION si liste vide ⭐
+            if len(Liste_actions) == 0:
+                action_en_cours = mise_a_jour_decision(
+                    Liste_actions,
+                    x_robot_actuel, y_robot_actuel,
+                    x_ennemi, y_ennemi,
+                    robot_a_objets,
+                    Liste_noisettes_libres,
+                    Liste_GM_libres,
+                    Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
+                    Liste_zones_gm_xy, Liste_zones_gm_angle,
+                    R_securite,
+                    verbose=True
+                )
+            
             if not Reel: 
                 x_ennemi += 6
                 y_ennemi -= 4
                 if(step == 130):
                     x_ennemi = 1500
                     y_ennemi = 450
-                """if(step == 40):
-                    Liste_GM_libres = [1,2,3,5,6,7,8,9,10]
-                    Liste_GM_occuper = [4] 
-                    Liste_noisettes_libres = [2,3,4,5,6,7,8]
-                    Liste_noisettes_prises = [1]
-                if(step == 60):
-                    Liste_GM_libres = [2,3,5,6,7,8,9,10]
-                    Liste_GM_occuper = [1,4] 
-                    Liste_noisettes_libres = [2,3,4,5,6,7,8]
-                    Liste_noisettes_prises = [1]"""
                 if(step==700):
                     x_ennemi = 1000
                     y_ennemi = 1000
 
-            if type(Liste_actions[0]) == list and len(Liste_actions[0])==3: # Si la consigne est une coordonnée
+            # Lire l'action courante
+            if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
                 action_voulu = Liste_actions[0][0]
                 x_robot_voulu = Liste_actions[0][1]
                 y_robot_voulu = Liste_actions[0][2]
                 verif = True
                 mouvement = True
-            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2: # Si la consigne est un angle
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
                 action_voulu = Liste_actions[0][0]
                 angle_robot_voulu = round(Liste_actions[0][1],0)
                 mouvement = True
-
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1:
                 print("Appeler Carte Moteur pour : " + Liste_actions[0][0])
                 action_voulu = Liste_actions[0][0]
                 mouvement = False
+            
+            # ⭐ RÉÉVALUATION : Vérifier si la cible est toujours disponible ⭐
+            action_en_cours = verifier_et_changer_cible_si_necessaire(
+                action_en_cours,
+                Liste_actions,
+                Liste_noisettes_libres,
+                Liste_GM_libres,
+                x_robot_actuel, y_robot_actuel,
+                x_ennemi, y_ennemi,
+                robot_a_objets,
+                Liste_zones_recup_noisettes_xy,
+                Liste_zones_recup_noisettes_angle,
+                Liste_zones_gm_xy,
+                Liste_zones_gm_angle,
+                R_securite,
+                action_voulu
+            )
+            
+            # Si la cible a changé, relire Liste_actions[0]
+            if len(Liste_actions) > 0:
+                if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
+                    action_voulu = Liste_actions[0][0]
+                    x_robot_voulu = Liste_actions[0][1]
+                    y_robot_voulu = Liste_actions[0][2]
+                    verif = True
+                    mouvement = True
+                elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
+                    action_voulu = Liste_actions[0][0]
+                    angle_robot_voulu = round(Liste_actions[0][1],0)
+                    mouvement = True
+                elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1:
+                    action_voulu = Liste_actions[0][0]
+                    mouvement = False
                  
             print(step)
             print("\nAvant verif :")
@@ -1507,8 +1758,9 @@ if __name__ == '__main__':
                 # Retirer l'action de la liste 
                 Liste_actions.pop(0) 
                 
-                # ⭐ SI c'est une action ATTRAPER ou RELACHER, confirmer l'action ⭐
+                # ⭐ SI c'est une action ATTRAPER ou RELACHER ⭐
                 if action_voulu in ["Attraper", "Relacher"]:
+                    # Confirmer l'action
                     robot_a_objets = confirmer_action_terminee(
                         action_en_cours,
                         robot_a_objets,
@@ -1516,13 +1768,13 @@ if __name__ == '__main__':
                         Liste_GM_libres, Liste_GM_occuper,
                         verbose=True
                     )
-                
-                ordre_receive = 0
-                
-                # ⭐ SI la liste d'actions est vide, prendre une nouvelle décision ⭐
-                if len(Liste_actions) == 0:
                     
-                    # Nouvelle décision
+                    # ⭐ VIDER TOUTE LA LISTE car l'objectif change ⭐
+                    print(f"🔄 Vidage de la liste d'actions (ancien objectif terminé)")
+                    Liste_actions.clear()
+                    
+                    # ⭐ FORCER une nouvelle décision immédiatement ⭐
+                    print(f"🎯 Prise de nouvelle décision (nouvel objectif)")
                     action_en_cours = mise_a_jour_decision(
                         Liste_actions,
                         x_robot_actuel, y_robot_actuel,
@@ -1538,7 +1790,26 @@ if __name__ == '__main__':
                     
                     if len(Liste_actions) == 0:
                         print("⚠️  AUCUNE ACTION DISPONIBLE - Mission terminée ou zones bloquées")
-
+                
+                ordre_receive = 0
+                
+                # ⭐ Pour les actions normales (Consigne/Rotation), nouvelle décision si liste vide ⭐
+                if action_voulu not in ["Attraper", "Relacher"] and len(Liste_actions) == 0:
+                    action_en_cours = mise_a_jour_decision(
+                        Liste_actions,
+                        x_robot_actuel, y_robot_actuel,
+                        x_ennemi, y_ennemi,
+                        robot_a_objets,
+                        Liste_noisettes_libres,
+                        Liste_GM_libres,
+                        Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
+                        Liste_zones_gm_xy, Liste_zones_gm_angle,
+                        R_securite,
+                        verbose=True
+                    )
+                    
+                    if len(Liste_actions) == 0:
+                        print("⚠️  AUCUNE ACTION DISPONIBLE - Mission terminée ou zones bloquées")
 
 
             # MAJ de l'affichage et des Variables de Bouncing
