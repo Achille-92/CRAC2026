@@ -7,7 +7,7 @@ import numpy as np
 from scipy.ndimage import binary_dilation
 from dataclasses import dataclass
 from typing import List, Tuple, Optional, Set
-
+import math
 
 # ============================================================================
 # CLASSE OBSTACLE - Représente un obstacle individuel
@@ -769,3 +769,22 @@ def tester_classe_obstacles():
 """if __name__ == "__main__":
     # Exécuter le test si le fichier est lancé directement
     tester_classe_obstacles()"""
+
+def clamp(val, min_val, max_val):
+    return max(min_val, min(val, max_val))
+
+def calcul_angle_vers_point(x_actuel, y_actuel, x_suivant, y_suivant):
+    """
+    Calcule l'angle absolu (en degrés 0–360) à viser pour aller vers (x_suivant, y_suivant)
+    depuis (x_actuel, y_actuel).
+    """
+    dx = x_suivant - x_actuel
+    dy = y_suivant - y_actuel
+    angle = (math.degrees(math.atan2(dy, dx)) + 360) % 360
+    return round(angle, 2)
+
+
+def distance_euclidienne(x1, y1, x2, y2):
+    """Calcule la distance euclidienne entre deux points"""
+    return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+
