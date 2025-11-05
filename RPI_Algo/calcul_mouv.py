@@ -443,3 +443,31 @@ def tester_module():
 if __name__ == "__main__":
     # Exécuter le test si le fichier est lancé directement
     tester_module()
+
+def verifier_cible_disponible(action_en_cours, 
+                               Liste_noisettes_libres, 
+                               Liste_GM_libres):
+    """
+    Vérifie si la cible actuelle est toujours disponible.
+    """
+    if action_en_cours is None:
+        return False
+    
+    type_action = action_en_cours.get('type')
+    numero_zone = action_en_cours.get('numero_zone')
+    
+    if type_action == "Attraper":
+        if numero_zone in Liste_noisettes_libres:
+            return True
+        else:
+            print(f"⚠️  CIBLE PERDUE : Noisette {numero_zone} n'est plus disponible !")
+            return False
+    
+    elif type_action == "Relacher":
+        if numero_zone in Liste_GM_libres:
+            return True
+        else:
+            print(f"⚠️  CIBLE PERDUE : GM {numero_zone} n'est plus disponible !")
+            return False
+    
+    return False
