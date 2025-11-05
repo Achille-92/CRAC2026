@@ -5,8 +5,6 @@ import matplotlib.patches as patches
 import numpy as np
 from matplotlib.widgets import Button
 from matplotlib.lines import Line2D
-import math
-
 from fonction import creer_zone_securite_ennemi
 
 def afficher_obstacles(ax, obstacle_array, expanded_array, case_mm, 
