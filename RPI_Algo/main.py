@@ -16,13 +16,13 @@ from matplotlib.widgets import Button
 from scipy.ndimage import binary_dilation
 from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries
 from calcul_mouv import euclidienne,astar_safe,simplify_path_safe,smooth_path_safe,creer_grille_avec_ennemi,initialiser_grille
-from fonction import Obstacles,calculer_pourcentage_batteries,gerer_basculement_batteries
-from gestion_zones_dynamiques import mettre_a_jour_zones_dynamiques, regenerer_grilles_combinees
+from fonction import Obstacles,calculer_pourcentage_batteries,gerer_basculement_batteries,clamp,calcul_angle_vers_point
+from gestion_zones_dynamiques import actualiser_zones_jeu, verifier_et_changer_cible_si_necessaire, mise_a_jour_decision, confirmer_action_terminee
 ########################################################################
 # Somme pondérées : robot proche/mouvement --> Malus
 # config CAN
 Reel = False
-Liste_ID = [0x01,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x110,0x111,0x200,0x201,0x202]
+Liste_ID = [0x01,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x200,0x201,0x202]
 Filtre = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID]
 if Reel: 
     os.system('sudo ip link set can0 type can bitrate 500000')
@@ -53,6 +53,7 @@ Liste_zones_recup_noisettes_xy = [(400,1200),
                                   ((1850,1025),(1850,575)),
                                   (1100,400),
                                   (1900,400)]
+
 Liste_zones_recup_noisettes_angle = [180,
                                      180,
                                      0,
@@ -71,6 +72,7 @@ Liste_zones_gm_xy = [(1250,1200),
                      (700,350),
                      (1500,350),
                      (2300,350)]
+
 Liste_zones_gm_angle = [90,
                         90,
                         180,
@@ -90,13 +92,10 @@ lidar = None
 pile_calcul = queue.Queue(maxsize=500)
 
 # Piste
-x_piste = 3000
-y_piste = 2000
-marge_bordurepiste_x = 120 #mm
-marge_bordurepiste_y = 80 #mm
-case_mm = 10
-width = x_piste//case_mm
-height = y_piste//case_mm
+X_PISTE = 3000
+Y_PISTE = 2000
+MARGE_BORDUREPISTE_X = 120 # Détection Lidar
+MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 
 # Coordonnées et angle de notre robot
 x_robot_depart = 350
@@ -120,54 +119,35 @@ y_ennemi_old = y_ennemi
 ########
 
 # Perimètre de sécurité
-r_robot = 130
-r_ennemi = 150
-marge_min = 100
-
-# R_securite : Pour l'évitement dynamique de l'ennemi (robot + ennemi + marge)
-R_securite = r_robot + r_ennemi + marge_min  # = 400mm
-EPS_EQ = 5
-# 🔧 RÉGLAGE : Marge pour la zone de sécurité VISUELLE de l'ennemi (30-100mm)
-marge_securite_ennemi = 5  # Marge pour l'affichage de la zone ennemi
+R_ROBOT = 130
+R_ENNEMI = 150
+MARGE_MIN = 100
+R_securite = R_ROBOT + R_ENNEMI + MARGE_MIN  # = 400mm
+MARGE_SECURITE_ENNEMI = 5  # Marge pour l'affichage de la zone ennemi
 
 # rayon_total_case : Pour les zones interdites STATIQUES (robot + marge réduite)
-# 🔧 RÉGLAGE : Ajustez marge_obstacles_mm selon vos besoins (30-100mm)
-marge_obstacles_mm = 0  # Marge standard pour les obstacles fixes
-marge_noisettes_mm = 0  # Marge réduite pour les Noisettes (plus précis)
-rayon_total_case = (r_robot + marge_obstacles_mm) // case_mm  # = 20 cases = 200mm
+
+EPS_EQ = 5
+CASE_MM = 10
+width = X_PISTE//CASE_MM
+height = Y_PISTE//CASE_MM
+MARGE_OBSTACLES_MM = 0  # Marge standard pour les obstacles fixes
+MARGE_NOISETTES_MM = 0  # Marge réduite pour les Noisettes (plus précis)
+rayon_total_case = (R_ROBOT + MARGE_OBSTACLES_MM) // CASE_MM  # = 20 cases = 200mm
 
 # === CRÉATION DES OBSTACLES avec la classe Obstacles ===
-# Créer le gestionnaire d'obstacles
-obs_manager = Obstacles(
-    x_piste,
-    y_piste,
-    r_robot,
-    marge_obstacles_mm,
-    case_mm
-)
+obs_manager = Obstacles(X_PISTE,Y_PISTE,R_ROBOT,MARGE_OBSTACLES_MM,CASE_MM)
+obs_manager_noisettes = Obstacles(X_PISTE,Y_PISTE,R_ROBOT,MARGE_NOISETTES_MM,CASE_MM)
 
-# Créer un gestionnaire séparé pour les Noisettes avec marge réduite
-obs_manager_noisettes = Obstacles(
-    x_piste,
-    y_piste,
-    r_robot,
-    marge_noisettes_mm,  # Marge réduite pour les Noisettes
-    case_mm
-)
-
-# Ajouter les 10 zones carrées interdites (Coupe de France 2024/2025) - INACTIVES au départ
 zones_centres = [
     (1250, 1450), (1750, 1450),           # 2 zones centrales
     (100, 800), (800, 800), (1500, 800), (2200, 800), (2900, 800),  # 5 zones ligne médiane
     (700, 100), (1500, 100), (2300, 100),  # 3 zones ligne basse
 ]
 
-
 for i, (x, y) in enumerate(zones_centres, 1):
     obs_manager.ajouter_carre(f"zone{i}", (x, y), 200, actif=False)  # INACTIVES au départ
 
-# Ajouter les 8 zones rectangulaires "Noisettes" - ACTIVES au départ
-# Format : (x_min, y_min), (x_max, y_max) où min < max
 zones_noisettes = [
     [(100, 1100), (250, 1300)],    # Noisette 1 : coin gauche haut
     [(100, 300), (250, 500)],      # Noisette 2 : coin gauche milieu
@@ -184,26 +164,18 @@ for i, coords in enumerate(zones_noisettes, 1):
     coin_hd = coords[1]  # Deuxième coin (haut-droit)
     obs_manager_noisettes.ajouter_rectangle(f"Noisette{i}", coin_bg, coin_hd, actif=True)  # ACTIVES au départ
 
-# Ajouter la zone rectangulaire (grenier) - TOUJOURS ACTIVE
 obs_manager.ajouter_rectangle("grenier", (600, 1550), (2400, 2000), actif=True)
-
-# Afficher toutes les zones créées
-obs_manager.lister()
-
-obs_manager_noisettes.lister()
 
 # Générer les grilles séparément
 grid_zones, grid_zones_expanded, obstacle_array_zones, expanded_array_zones = obs_manager.generer_grille()
 grid_noisettes, grid_noisettes_expanded, obstacle_array_noisettes, expanded_array_noisettes = obs_manager_noisettes.generer_grille()
 
-# Combiner les deux grilles (union logique OR)
 grid = np.logical_or(grid_zones, grid_noisettes).astype(int)
 grid_expanded = np.logical_or(grid_zones_expanded, grid_noisettes_expanded).astype(int)
 
 # Combiner les arrays d'obstacles pour l'affichage
 obstacle_array = np.vstack([obstacle_array_zones, obstacle_array_noisettes]) if len(obstacle_array_zones) > 0 and len(obstacle_array_noisettes) > 0 else (obstacle_array_zones if len(obstacle_array_zones) > 0 else obstacle_array_noisettes)
 expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes]) if len(expanded_array_zones) > 0 and len(expanded_array_noisettes) > 0 else (expanded_array_zones if len(expanded_array_zones) > 0 else expanded_array_noisettes)
-
 
 # Gestion des Batteries
 Batteries = [[12,14,14,100],[12,14,14,100],[12,14,14,100]] # Vref-, Vref+, Vactuel, % de charge
@@ -256,6 +228,7 @@ action_en_cours = None
 trajectoire_bloquee = False
 ordre_receive = 0
 step = 0
+robot_a_objets = False
 
 # ==================== PARAMÈTRES DE L'ALGORITHME ====================
 # Poids de la moyenne pondérée (somme = 1.0)
@@ -266,7 +239,6 @@ W_EFFICACITE = 0.05   # Importance de la cohérence (robot a objets → déposer
 
 # Distance max sur le terrain (pour normalisation)
 DISTANCE_MAX_TERRAIN = 3500  # Diagonale du terrain ≈ 3605mm
-robot_a_objets = False
 
 ################## Fonction  ###########################################
 def calcul_points(stop_event):
@@ -304,10 +276,10 @@ def calcul_points(stop_event):
                 y_point = y_robot_actuel - distance * math.sin(angle_total)
 
                 # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
-                x_point = max(0, min(x_piste, int(x_point)))
-                y_point = max(0, min(y_piste, int(y_point)))
+                x_point = max(0, min(X_PISTE, int(x_point)))
+                y_point = max(0, min(Y_PISTE, int(y_point)))
 
-                if marge_bordurepiste_x <= x_point <= x_piste-marge_bordurepiste_x and marge_bordurepiste_y <= y_point <= y_piste-marge_bordurepiste_y:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
                     pile_calcul.put((x_point, y_point))
 
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
@@ -370,10 +342,10 @@ def LectureCAN(stop_event):
         elif msg.arbitration_id == 0x109:
             Batteries[2][0] = struct.unpack('f', bytes(msg.data))[0]
 
-        elif msg.arbitration_id == 0x110:
+        elif msg.arbitration_id == 0x10A:
             Batteries[2][1] = struct.unpack('f', bytes(msg.data))[0]
 
-        elif msg.arbitration_id == 0x111:
+        elif msg.arbitration_id == 0x10B:
             Batteries[2][2] = struct.unpack('f', bytes(msg.data))[0]
         
 
@@ -411,65 +383,37 @@ def arret_programme(event, stop_event=None):
         bring_to_front(fig)
 
 def on_click(event):
-    global x_robot_voulu, y_robot_voulu
-    if event.inaxes == ax:  # clic dans la zone du graphique
-        x_robot_voulu = event.xdata
-        y_robot_voulu = event.ydata
-        point_voulu_plot.set_data([round(x_robot_voulu,0)], [round(y_robot_voulu,0)])
+    """
+    Callback pour les clics sur la piste.
+    
+    COMPORTEMENT :
+    - Clic GAUCHE (bouton 1) : Ajoute une consigne PRIORITAIRE en début de Liste_actions
+    - Clic DROIT (bouton 3) : Affiche juste le point voulu (ancien comportement)
+    """
+    global x_robot_voulu, y_robot_voulu, Liste_actions
+    
+    if event.inaxes == ax:  # Clic dans la zone du graphique
+        x_clic = event.xdata
+        y_clic = event.ydata
+        
+        # Mettre à jour l'affichage du point voulu
+        x_robot_voulu = x_clic
+        y_robot_voulu = y_clic
+        point_voulu_plot.set_data([round(x_robot_voulu, 0)], [round(y_robot_voulu, 0)])
+        
+        # ⭐ CLIC GAUCHE : Ajouter une consigne PRIORITAIRE ⭐
+        if event.button == 1:  # Bouton gauche
+            # Vider la liste (modifie la liste globale, pas une copie locale)
+            Liste_actions.clear()
+            # Ajouter la consigne cliquée
+            Liste_actions.append(["Consigne", round(int(x_clic), 0), round(int(y_clic), 0)])
+        
+        # ⭐ CLIC DROIT : Juste afficher (pas d'ajout) ⭐
+        elif event.button == 3:  # Bouton droit
+            print(f"🖱️  Point affiché : ({round(x_clic, 0)}, {round(y_clic, 0)}) mm")
+        
         plt.draw()
         bring_to_front(fig)
-
-def clamp(val, min_val, max_val):
-    return max(min_val, min(val, max_val))
-
-def calcul_angle_vers_point(x_actuel, y_actuel, x_suivant, y_suivant):
-    """
-    Calcule l'angle absolu (en degrés 0–360) à viser pour aller vers (x_suivant, y_suivant)
-    depuis (x_actuel, y_actuel).
-    """
-    dx = x_suivant - x_actuel
-    dy = y_suivant - y_actuel
-    angle = (math.degrees(math.atan2(dy, dx)) + 360) % 360
-    return round(angle, 2)
-
-def actualiser_affichage_obstacles():
-    """
-    Fonction pour régénérer la grille et mettre à jour l'affichage des obstacles.
-    Appelée à chaque fois qu'une zone est activée/désactivée.
-    """
-    global grid, grid_expanded, obstacle_array, expanded_array, distance_map
-    global obstacle_scatter, expanded_scatter
-    
-    # Régénérer les grilles des deux gestionnaires
-    grid_zones, grid_zones_expanded, obstacle_array_zones, expanded_array_zones = obs_manager.generer_grille()
-    grid_noisettes, grid_noisettes_expanded, obstacle_array_noisettes, expanded_array_noisettes = obs_manager_noisettes.generer_grille()
-    
-    # Combiner les deux grilles
-    grid = np.logical_or(grid_zones, grid_noisettes).astype(int)
-    grid_expanded = np.logical_or(grid_zones_expanded, grid_noisettes_expanded).astype(int)
-    
-    # Combiner les arrays d'obstacles pour l'affichage
-    obstacle_array = np.vstack([obstacle_array_zones, obstacle_array_noisettes]) if len(obstacle_array_zones) > 0 and len(obstacle_array_noisettes) > 0 else (obstacle_array_zones if len(obstacle_array_zones) > 0 else obstacle_array_noisettes)
-    expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes]) if len(expanded_array_zones) > 0 and len(expanded_array_noisettes) > 0 else (expanded_array_zones if len(expanded_array_zones) > 0 else expanded_array_noisettes)
-    
-    # Mettre à jour la distance map pour A*
-    distance_map = distance_transform_edt(~grid_expanded)
-    initialiser_grille(grid_expanded, distance_map, width, height, case_mm)
-    
-    # Supprimer les anciens objets graphiques
-    if obstacle_scatter is not None:
-        obstacle_scatter.remove()
-    if expanded_scatter is not None:
-        expanded_scatter.remove()
-    
-    # Recréer l'affichage des obstacles
-    obstacle_scatter, expanded_scatter = afficher_obstacles(
-        ax, obstacle_array, expanded_array, 
-        case_mm=case_mm, show_expanded=True, show_obstacles=False
-    )
-    
-    # Redessiner
-    fig.canvas.draw_idle()
 
 
 def toggle_zone(event, zone_num):
@@ -545,612 +489,7 @@ def bouton_relacher_callback(event):
     
     # Vérifier qu il y a une action en cours
     if len(Liste_actions) > 0 and action_voulu == "Relacher":
-        ordre_receive = 22
-
-def actualiser_zones_jeu():
-    """
-    Met à jour l'état des zones et régénère les grilles si nécessaire.
-    Version ultra-simple : ne touche PAS aux boutons.
-    """
-    global grid, grid_expanded, obstacle_array, expanded_array
-    global obs_manager, obs_manager_noisettes
-    global Liste_GM_libres, Liste_GM_occuper
-    global Liste_noisettes_libres, Liste_noisettes_prises
-    global obstacle_scatter, expanded_scatter
-    global distance_map, ax
-    
-    # Mettre à jour les états selon les listes
-    grilles_modifiees, _, _ = mettre_a_jour_zones_dynamiques(
-        obs_manager, obs_manager_noisettes,
-        Liste_GM_libres, Liste_GM_occuper,
-        Liste_noisettes_libres, Liste_noisettes_prises
-    )
-    
-    # Régénérer si nécessaire
-    if grilles_modifiees:
-        print("🔄 Régénération des grilles...")
-        
-        grid, grid_expanded, obstacle_array, expanded_array = \
-            regenerer_grilles_combinees(obs_manager, obs_manager_noisettes)
-        
-        # Recalculer distance map
-        from scipy.ndimage import distance_transform_edt
-        distance_map = distance_transform_edt(~grid_expanded)
-        initialiser_grille(grid_expanded, distance_map, width, height, case_mm)
-        
-        # Mettre à jour affichage
-        if obstacle_scatter is not None:
-            obstacle_scatter.remove()
-            obstacle_scatter = None
-        if expanded_scatter is not None:
-            expanded_scatter.remove()
-            expanded_scatter = None
-        
-        obstacle_scatter, expanded_scatter = afficher_obstacles(
-            ax, obstacle_array, expanded_array, case_mm,
-            show_expanded=True, show_obstacles=False
-        )
-        
-        print("✅ Grilles mises à jour")
-        return True
-    else:
-        return False
-
-
-def prendre_noisette(numero_noisette):
-    """
-    Marque une noisette comme prise.
-    VERSION ULTRA-SIMPLE : Modifie UNIQUEMENT les listes.
-    Les boutons ne sont PAS touchés.
-    """
-    global Liste_noisettes_libres, Liste_noisettes_prises
-    
-    
-    if numero_noisette in Liste_noisettes_libres:
-        # Modifier les listes
-        Liste_noisettes_libres.remove(numero_noisette)
-        Liste_noisettes_prises.append(numero_noisette)
-        
-        # Mettre à jour obstacles et grilles
-        actualiser_zones_jeu()
-        return True
-    else:
-        return False
-
-
-def occuper_zone(numero_zone):
-    """
-    Marque une zone comme occupée.
-    VERSION ULTRA-SIMPLE : Modifie UNIQUEMENT les listes.
-    Les boutons ne sont PAS touchés.
-    """
-    global Liste_GM_libres, Liste_GM_occuper
-    
-    
-    if numero_zone in Liste_GM_libres:
-        # Modifier les listes
-        Liste_GM_libres.remove(numero_zone)
-        Liste_GM_occuper.append(numero_zone)
-        
-        # Mettre à jour obstacles et grilles
-        actualiser_zones_jeu()
-        return True
-    else:
-        return False
-
-
-def liberer_zone(numero_zone):
-    """
-    Libère une zone précédemment occupée.
-    VERSION ULTRA-SIMPLE : Modifie UNIQUEMENT les listes.
-    """
-    global Liste_GM_libres, Liste_GM_occuper
-    
-    
-    if numero_zone in Liste_GM_occuper:
-        Liste_GM_occuper.remove(numero_zone)
-        Liste_GM_libres.append(numero_zone)
-        
-        actualiser_zones_jeu()
-        return True
-    else:
-        return False
-
-
-def relacher_noisette(numero_noisette):
-    """
-    Remet une noisette dans les noisettes libres.
-    VERSION ULTRA-SIMPLE : Modifie UNIQUEMENT les listes.
-    """
-    global Liste_noisettes_libres, Liste_noisettes_prises
-    
-    
-    if numero_noisette in Liste_noisettes_prises:
-        Liste_noisettes_prises.remove(numero_noisette)
-        Liste_noisettes_libres.append(numero_noisette)
-        
-        actualiser_zones_jeu()
-        return True
-    else:
-        return False
-
-def distance_euclidienne(x1, y1, x2, y2):
-    """Calcule la distance euclidienne entre deux points"""
-    return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-
-
-# ==================== RÉÉVALUATION DYNAMIQUE DE LA CIBLE ====================
-
-def verifier_cible_disponible(action_en_cours, 
-                               Liste_noisettes_libres, 
-                               Liste_GM_libres):
-    """
-    Vérifie si la cible actuelle est toujours disponible.
-    """
-    if action_en_cours is None:
-        return False
-    
-    type_action = action_en_cours.get('type')
-    numero_zone = action_en_cours.get('numero_zone')
-    
-    if type_action == "Attraper":
-        if numero_zone in Liste_noisettes_libres:
-            return True
-        else:
-            print(f"⚠️  CIBLE PERDUE : Noisette {numero_zone} n'est plus disponible !")
-            return False
-    
-    elif type_action == "Relacher":
-        if numero_zone in Liste_GM_libres:
-            return True
-        else:
-            print(f"⚠️  CIBLE PERDUE : GM {numero_zone} n'est plus disponible !")
-            return False
-    
-    return False
-
-
-def verifier_et_changer_cible_si_necessaire(action_en_cours,
-                                             Liste_actions,
-                                             Liste_noisettes_libres,
-                                             Liste_GM_libres,
-                                             x_robot_actuel, y_robot_actuel,
-                                             x_ennemi, y_ennemi,
-                                             robot_a_objets,
-                                             Liste_zones_recup_noisettes_xy,
-                                             Liste_zones_recup_noisettes_angle,
-                                             Liste_zones_gm_xy,
-                                             Liste_zones_gm_angle,
-                                             R_securite,
-                                             action_voulu):
-    """
-    Vérifie si la cible est toujours disponible et change si nécessaire.
-    """
-    
-    # Ne réévaluer QUE si on est en déplacement
-    if action_voulu not in ["Consigne", "Avancer", "Rotation"]:
-        return action_en_cours
-    
-    if action_en_cours is None:
-        return action_en_cours
-    
-    cible_disponible = verifier_cible_disponible(
-        action_en_cours,
-        Liste_noisettes_libres,
-        Liste_GM_libres
-    )
-    
-    if not cible_disponible:
-        print("="*70)
-        print("🔄 RÉÉVALUATION FORCÉE : Cible n'est plus disponible")
-        print("="*70)
-        
-        Liste_actions.clear()
-        
-        action_en_cours = mise_a_jour_decision(
-            Liste_actions,
-            x_robot_actuel, y_robot_actuel,
-            x_ennemi, y_ennemi,
-            robot_a_objets,
-            Liste_noisettes_libres,
-            Liste_GM_libres,
-            Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
-            Liste_zones_gm_xy, Liste_zones_gm_angle,
-            R_securite,
-            verbose=True
-        )
-        
-        if len(Liste_actions) == 0:
-            print("⚠️  AUCUNE AUTRE CIBLE DISPONIBLE")
-        else:
-            print(f"✅ Nouvelle cible : {action_en_cours['type']} zone {action_en_cours['numero_zone']}")
-    
-    return action_en_cours
-
-# ==================== CALCUL DU SCORE ====================
-
-def extraire_positions_zone(zone_data, angle_data):
-    """
-    Extrait toutes les positions possibles d'une zone.
-    
-    Args:
-        zone_data: Peut être (x, y) ou ((x1, y1), (x2, y2), ...)
-        angle_data: Peut être angle ou (angle1, angle2, ...)
-    
-    Returns:
-        Liste de tuples [(x1, y1, angle1), (x2, y2, angle2), ...]
-    """
-    positions = []
-    
-    # Vérifier si zone_data est un tuple de positions ou une position unique
-    if isinstance(zone_data, tuple) and len(zone_data) >= 2:
-        # Vérifier si c'est une position unique (x, y) ou plusieurs positions
-        if isinstance(zone_data[0], (int, float)):
-            # C'est une position unique : (x, y)
-            positions.append((zone_data[0], zone_data[1], angle_data))
-        else:
-            # C'est plusieurs positions : ((x1, y1), (x2, y2), ...)
-            # Extraire les angles correspondants
-            if isinstance(angle_data, tuple):
-                angles = angle_data
-            else:
-                # Si un seul angle donné, le répéter pour toutes les positions
-                angles = (angle_data,) * len(zone_data)
-            
-            # Créer la liste des positions avec leurs angles
-            for i, pos in enumerate(zone_data):
-                if isinstance(pos, tuple) and len(pos) >= 2:
-                    x, y = pos[0], pos[1]
-                    angle = angles[i] if i < len(angles) else angles[0]
-                    positions.append((x, y, angle))
-    
-    return positions
-
-
-def calculer_score_tache(x_tache, y_tache, type_tache, robot_a_objets,
-                         x_robot_actuel, y_robot_actuel, 
-                         x_ennemi, y_ennemi, R_securite):
-    """
-    Calcule le score d'une tâche selon la moyenne pondérée.
-    """
-    
-    # 1. FACTEUR DISTANCE
-    distance = distance_euclidienne(x_robot_actuel, y_robot_actuel, x_tache, y_tache)
-    distance_normalisee = distance / DISTANCE_MAX_TERRAIN
-    f_distance = 1.0 / (1.0 + distance_normalisee)
-    
-    # 2. FACTEUR SÉCURITÉ
-    distance_tache_ennemi = distance_euclidienne(x_tache, y_tache, x_ennemi, y_ennemi)
-    
-    if distance_tache_ennemi < R_securite:
-        f_securite = 0.0
-    else:
-        f_securite = min(1.0, distance_tache_ennemi / (2.5 * R_securite))
-    
-    # 3. FACTEUR PRIORITÉ
-    if type_tache == "Attraper":
-        f_priorite = 1.0
-    else:
-        f_priorite = 0.8
-    
-    # 4. FACTEUR EFFICACITÉ
-    if robot_a_objets and type_tache == "Relacher":
-        f_efficacite = 1.0
-    elif not robot_a_objets and type_tache == "Attraper":
-        f_efficacite = 1.0
-    else:
-        f_efficacite = 0.3
-    
-    # SCORE TOTAL
-    score = (W_DISTANCE * f_distance + 
-             W_SECURITE * f_securite + 
-             W_PRIORITE * f_priorite + 
-             W_EFFICACITE * f_efficacite)
-    
-    return score
-
-
-# ==================== ALGORITHME PRINCIPAL AMÉLIORÉ ====================
-
-def choisir_prochaine_action(x_robot_actuel, y_robot_actuel, 
-                            x_ennemi, y_ennemi, 
-                            robot_a_objets,
-                            Liste_noisettes_libres, Liste_GM_libres,
-                            Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
-                            Liste_zones_gm_xy, Liste_zones_gm_angle,
-                            R_securite):
-    """
-    Choisit la prochaine action en gérant plusieurs positions possibles par zone.
-    
-    ⚠️ VERSION AMÉLIORÉE : Gère 1, 2, 3, 4+ positions par zone
-    
-    Returns:
-        dict ou None: {
-            'type': "Attraper" ou "Relacher",
-            'numero_zone': int,
-            'x': float,
-            'y': float,
-            'angle': float,
-            'score': float,
-            'position_index': int  # Nouvelle clé : index de la position choisie (0, 1, 2, 3...)
-        }
-    """
-    
-    meilleur_score = -float('inf')
-    meilleure_action = None
-    
-    # ===== PHASE 1 : Si le robot n'a pas d'objets → ATTRAPER =====
-    if not robot_a_objets:
-        for num_noisette in Liste_noisettes_libres:
-            index = num_noisette - 1  # Conversion numéro → index
-            
-            # Extraire toutes les positions possibles pour cette Noisette
-            zone_data = Liste_zones_recup_noisettes_xy[index]
-            angle_data = Liste_zones_recup_noisettes_angle[index]
-            positions = extraire_positions_zone(zone_data, angle_data)
-            
-            # Tester chaque position et garder la meilleure
-            for pos_index, (x, y, angle) in enumerate(positions):
-                score = calculer_score_tache(
-                    x, y, "Attraper", 
-                    robot_a_objets,
-                    x_robot_actuel, y_robot_actuel,
-                    x_ennemi, y_ennemi, R_securite
-                )
-                
-                if score > meilleur_score:
-                    meilleur_score = score
-                    meilleure_action = {
-                        'type': 'Attraper',
-                        'numero_zone': num_noisette,
-                        'x': x,
-                        'y': y,
-                        'angle': angle,
-                        'score': score,
-                        'position_index': pos_index,  # Nouveau : index de la position
-                        'nb_positions': len(positions)  # Info : nombre total de positions
-                    }
-    
-    # ===== PHASE 2 : Si le robot a des objets → RELACHER =====
-    else:
-        for num_gm in Liste_GM_libres:
-            index = num_gm - 1  # Conversion numéro → index
-            
-            # Extraire toutes les positions possibles pour ce GM
-            zone_data = Liste_zones_gm_xy[index]
-            angle_data = Liste_zones_gm_angle[index]
-            positions = extraire_positions_zone(zone_data, angle_data)
-            
-            # Tester chaque position et garder la meilleure
-            for pos_index, (x, y, angle) in enumerate(positions):
-                score = calculer_score_tache(
-                    x, y, "Relacher",
-                    robot_a_objets,
-                    x_robot_actuel, y_robot_actuel,
-                    x_ennemi, y_ennemi, R_securite
-                )
-                
-                if score > meilleur_score:
-                    meilleur_score = score
-                    meilleure_action = {
-                        'type': 'Relacher',
-                        'numero_zone': num_gm,
-                        'x': x,
-                        'y': y,
-                        'angle': angle,
-                        'score': score,
-                        'position_index': pos_index,  # Nouveau : index de la position
-                        'nb_positions': len(positions)  # Info : nombre total de positions
-                    }
-    
-    return meilleure_action
-
-
-# ==================== AJOUT À LA LISTE D'ACTIONS ====================
-
-def ajouter_action_a_liste(Liste_actions, action_choisie, verbose=True):
-    """
-    Ajoute les commandes nécessaires à Liste_actions.
-    Version améliorée avec affichage de la position choisie.
-    """
-    if action_choisie is None:
-        if verbose:
-            print("⚠️  AUCUNE ACTION POSSIBLE !")
-        return None
-    
-    type_action = action_choisie['type']
-    numero_zone = action_choisie['numero_zone']
-    x = action_choisie['x']
-    y = action_choisie['y']
-    angle = action_choisie['angle']
-    score = action_choisie['score']
-    position_index = action_choisie.get('position_index', 0)
-    nb_positions = action_choisie.get('nb_positions', 1)
-    
-    if verbose:
-        print(f"\n{'='*70}")
-        print(f"✅ ACTION CHOISIE : {type_action} zone {numero_zone}")
-        print(f"{'='*70}")
-        print(f"   📍 Position : ({x}, {y}) mm")
-        print(f"   🧭 Angle    : {angle}°")
-        print(f"   ⭐ Score    : {score:.3f}")
-        
-        # Afficher l'info sur les positions multiples
-        if nb_positions > 1:
-            print(f"   🔢 Position {position_index + 1}/{nb_positions} choisie")
-            print(f"      (Zone avec {nb_positions} positions possibles)")
-        
-        print(f"{'='*70}\n")
-    
-    # Ajouter les commandes à la liste
-    Liste_actions.append(["Consigne", x, y])
-    Liste_actions.append(["Rotation", angle])
-    Liste_actions.append([type_action])
-    
-    return action_choisie
-
-
-# ==================== CONFIRMATION D'ACTION ====================
-
-def confirmer_action_terminee(action_en_cours,
-                              robot_a_objets,
-                              Liste_noisettes_libres, Liste_noisettes_prises,
-                              Liste_GM_libres, Liste_GM_occuper,
-                              verbose=True):
-    """
-    Met à jour les listes de zones et l'état du robot APRÈS confirmation.
-    """
-    if action_en_cours is None:
-        return robot_a_objets
-    
-    type_action = action_en_cours['type']
-    numero_zone = action_en_cours['numero_zone']
-    
-    if type_action == "Attraper":
-        if numero_zone in Liste_noisettes_libres:
-            Liste_noisettes_libres.remove(numero_zone)
-            Liste_noisettes_prises.append(numero_zone)
-            if verbose:
-                print(f"✅ Noisette {numero_zone} RÉCUPÉRÉE avec succès !")
-                print(f"   Noisettes restantes : {Liste_noisettes_libres}")
-        robot_a_objets = True
-        
-    elif type_action == "Relacher":
-        if numero_zone in Liste_GM_libres:
-            Liste_GM_libres.remove(numero_zone)
-            Liste_GM_occuper.append(numero_zone)
-            if verbose:
-                print(f"✅ GM {numero_zone} REMPLI avec succès !")
-                print(f"   GM restants : {Liste_GM_libres}")
-        robot_a_objets = False
-    
-    return robot_a_objets
-
-
-# ==================== FONCTION DE MISE À JOUR ====================
-
-def mise_a_jour_decision(Liste_actions, 
-                        x_robot_actuel, y_robot_actuel, 
-                        x_ennemi, y_ennemi, 
-                        robot_a_objets,
-                        Liste_noisettes_libres,
-                        Liste_GM_libres,
-                        Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
-                        Liste_zones_gm_xy, Liste_zones_gm_angle,
-                        R_securite,
-                        verbose=True):
-    """
-    Fonction de décision qui choisit la prochaine action.
-    Version améliorée pour multi-positions.
-    """
-    
-    # Choisir la meilleure action (et la meilleure position)
-    action = choisir_prochaine_action(
-        x_robot_actuel, y_robot_actuel,
-        x_ennemi, y_ennemi,
-        robot_a_objets,
-        Liste_noisettes_libres, Liste_GM_libres,
-        Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
-        Liste_zones_gm_xy, Liste_zones_gm_angle,
-        R_securite
-    )
-    
-    # Ajouter l'action à la liste
-    action_ajoutee = ajouter_action_a_liste(Liste_actions, action, verbose)
-    
-    return action_ajoutee
-
-
-# ==================== FONCTION DE DEBUG ====================
-
-def afficher_tous_les_scores(x_robot_actuel, y_robot_actuel,
-                             x_ennemi, y_ennemi,
-                             robot_a_objets,
-                             Liste_noisettes_libres, Liste_GM_libres,
-                             Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
-                             Liste_zones_gm_xy, Liste_zones_gm_angle,
-                             R_securite):
-    """
-    Fonction de debug : affiche les scores de TOUTES les positions possibles.
-    Version améliorée pour multi-positions.
-    """
-    print("\n" + "="*70)
-    print("DEBUG : SCORES DE TOUTES LES ACTIONS POSSIBLES")
-    print("="*70)
-    
-    if not robot_a_objets:
-        print("\n🔵 PHASE RÉCOLTE (ATTRAPER)")
-        print("-" * 70)
-        for num_noisette in Liste_noisettes_libres:
-            index = num_noisette - 1
-            zone_data = Liste_zones_recup_noisettes_xy[index]
-            angle_data = Liste_zones_recup_noisettes_angle[index]
-            positions = extraire_positions_zone(zone_data, angle_data)
-            
-            if len(positions) == 1:
-                # Une seule position
-                x, y, angle = positions[0]
-                score = calculer_score_tache(
-                    x, y, "Attraper", robot_a_objets,
-                    x_robot_actuel, y_robot_actuel,
-                    x_ennemi, y_ennemi, R_securite
-                )
-                dist = distance_euclidienne(x_robot_actuel, y_robot_actuel, x, y)
-                dist_ennemi = distance_euclidienne(x, y, x_ennemi, y_ennemi)
-                print(f"  Noisette {num_noisette:2d} → Score: {score:.3f} | "
-                      f"Dist robot: {dist:4.0f}mm | Dist ennemi: {dist_ennemi:4.0f}mm")
-            else:
-                # Plusieurs positions
-                print(f"  Noisette {num_noisette:2d} ({len(positions)} positions) :")
-                for pos_idx, (x, y, angle) in enumerate(positions):
-                    score = calculer_score_tache(
-                        x, y, "Attraper", robot_a_objets,
-                        x_robot_actuel, y_robot_actuel,
-                        x_ennemi, y_ennemi, R_securite
-                    )
-                    dist = distance_euclidienne(x_robot_actuel, y_robot_actuel, x, y)
-                    dist_ennemi = distance_euclidienne(x, y, x_ennemi, y_ennemi)
-                    print(f"    Pos {pos_idx + 1} ({x:4.0f}, {y:4.0f}) → "
-                          f"Score: {score:.3f} | Dist robot: {dist:4.0f}mm | "
-                          f"Dist ennemi: {dist_ennemi:4.0f}mm")
-    
-    else:
-        print("\n🔴 PHASE DÉPÔT (RELACHER)")
-        print("-" * 70)
-        for num_gm in Liste_GM_libres:
-            index = num_gm - 1
-            zone_data = Liste_zones_gm_xy[index]
-            angle_data = Liste_zones_gm_angle[index]
-            positions = extraire_positions_zone(zone_data, angle_data)
-            
-            if len(positions) == 1:
-                # Une seule position
-                x, y, angle = positions[0]
-                score = calculer_score_tache(
-                    x, y, "Relacher", robot_a_objets,
-                    x_robot_actuel, y_robot_actuel,
-                    x_ennemi, y_ennemi, R_securite
-                )
-                dist = distance_euclidienne(x_robot_actuel, y_robot_actuel, x, y)
-                dist_ennemi = distance_euclidienne(x, y, x_ennemi, y_ennemi)
-                print(f"  GM {num_gm:2d} → Score: {score:.3f} | "
-                      f"Dist robot: {dist:4.0f}mm | Dist ennemi: {dist_ennemi:4.0f}mm")
-            else:
-                # Plusieurs positions
-                print(f"  GM {num_gm:2d} ({len(positions)} positions) :")
-                for pos_idx, (x, y, angle) in enumerate(positions):
-                    score = calculer_score_tache(
-                        x, y, "Relacher", robot_a_objets,
-                        x_robot_actuel, y_robot_actuel,
-                        x_ennemi, y_ennemi, R_securite
-                    )
-                    dist = distance_euclidienne(x_robot_actuel, y_robot_actuel, x, y)
-                    dist_ennemi = distance_euclidienne(x, y, x_ennemi, y_ennemi)
-                    print(f"    Pos {pos_idx + 1} ({x:4.0f}, {y:4.0f}) → "
-                          f"Score: {score:.3f} | Dist robot: {dist:4.0f}mm | "
-                          f"Dist ennemi: {dist_ennemi:4.0f}mm")
-    
-    print("="*70 + "\n")
+        ordre_receive = 22   
 
 ########################################################################
 
@@ -1166,10 +505,10 @@ if __name__ == '__main__':
     cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
     bouton_stop.on_clicked(partial(arret_programme, stop_event=stop_event))
     
-    obstacle_scatter, expanded_scatter = afficher_obstacles(ax,obstacle_array,expanded_array,case_mm=case_mm,show_expanded=True,show_obstacles=False)
-    zone_ennemi_scatter, cercle_ennemi_patch = afficher_zone_securite_ennemi(ax,x_ennemi, y_ennemi,r_robot, r_ennemi,marge_securite_ennemi,case_mm,x_piste,y_piste,show_zone=True,show_cercle=False)
-    initialiser_grille(grid_expanded, distance_map, width, height, case_mm)
-    actualiser_zones_jeu()
+    obstacle_scatter, expanded_scatter = afficher_obstacles(ax,obstacle_array,expanded_array,CASE_MM,show_expanded=True,show_obstacles=False)
+    zone_ennemi_scatter, cercle_ennemi_patch = afficher_zone_securite_ennemi(ax,x_ennemi, y_ennemi,R_ROBOT, R_ENNEMI,MARGE_SECURITE_ENNEMI,CASE_MM,X_PISTE,Y_PISTE,show_zone=True,show_cercle=False)
+    initialiser_grille(grid_expanded, distance_map, width, height, CASE_MM)
+    grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
     # création du trait, initialement à la position du robot
     ax.add_line(robot_angle_line)
     ax.add_line(robot_angle_voulu_line)
@@ -1273,6 +612,7 @@ if __name__ == '__main__':
             Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
             Liste_zones_gm_xy, Liste_zones_gm_angle,
             R_securite,
+            DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE,
             verbose=True
         )
  
@@ -1281,7 +621,7 @@ if __name__ == '__main__':
             temps = 0
             verif = False
             step +=1
-            actualiser_zones_jeu()
+            grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
             
             # ⭐ NOUVELLE DÉCISION si liste vide ⭐
             if len(Liste_actions) == 0:
@@ -1338,7 +678,8 @@ if __name__ == '__main__':
                 Liste_zones_gm_xy,
                 Liste_zones_gm_angle,
                 R_securite,
-                action_voulu
+                action_voulu,
+                DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE
             )
             
             # Si la cible a changé, relire Liste_actions[0]
@@ -1374,8 +715,8 @@ if __name__ == '__main__':
                     Liste_actions = [action for action in Liste_actions if action[0] in ["Consigne","Rotation","Attraper","Relacher"]]
 
                     # Convertir les positions en cases
-                    start_case = (int(x_robot_actuel // case_mm), int(y_robot_actuel // case_mm))
-                    goal_case = (int(x_robot_voulu // case_mm), int(y_robot_voulu // case_mm))
+                    start_case = (int(x_robot_actuel // CASE_MM), int(y_robot_actuel // CASE_MM))
+                    goal_case = (int(x_robot_voulu // CASE_MM), int(y_robot_voulu // CASE_MM))
                     
                     print(f"🗺️  Calcul trajectoire A* : {start_case} → {goal_case}")
                     
@@ -1383,7 +724,7 @@ if __name__ == '__main__':
                     print(f"🎯 Position ennemi : ({x_ennemi}, {y_ennemi})")
                     grid_avec_ennemi = creer_grille_avec_ennemi(
                         grid_expanded, x_ennemi, y_ennemi, 
-                        r_robot, r_ennemi, marge_min, case_mm
+                        R_ROBOT, R_ENNEMI, MARGE_MIN, CASE_MM
                     )
 
                     # ✅ Calculer avec la grille dynamique
@@ -1401,7 +742,7 @@ if __name__ == '__main__':
                         
                         # Calculer la longueur
                         path_length = sum(euclidienne(path[i], path[i+1]) for i in range(len(path)-1))
-                        path_length_mm = path_length * case_mm
+                        path_length_mm = path_length * CASE_MM
                         print(f"📏 Longueur trajectoire : {path_length_mm:.0f} mm")
                         
                         # Afficher le chemin brut (optionnel, décommenter si souhaité)
@@ -1411,8 +752,8 @@ if __name__ == '__main__':
                         # Afficher le chemin simplifié
                         px, py = zip(*path_simplified)
                         # Convertir en millimètres pour l'affichage
-                        px_mm = [x * case_mm for x in px]
-                        py_mm = [y * case_mm for y in py]
+                        px_mm = [x * CASE_MM for x in px]
+                        py_mm = [y * CASE_MM for y in py]
                         # Insérer actions avec rotation vers chaque point
                         print(f"📍 Création de {len(px_mm)} waypoints avec rotations")
                         # ✅ Trouver l'index de la consigne actuelle
@@ -1476,8 +817,8 @@ if __name__ == '__main__':
                         # Afficher le chemin lissé
                         if x_smooth is not None and y_smooth is not None:
                             # Convertir en millimètres pour l'affichage
-                            x_smooth_mm = [x * case_mm for x in x_smooth]
-                            y_smooth_mm = [y * case_mm for y in y_smooth]
+                            x_smooth_mm = [x * CASE_MM for x in x_smooth]
+                            y_smooth_mm = [y * CASE_MM for y in y_smooth]
                             #path_smooth_plot, = ax.plot(x_smooth_mm, y_smooth_mm, 'orange',linewidth=3, label='Trajectoire lissée', zorder=11)
                         
                     else:
@@ -1487,8 +828,8 @@ if __name__ == '__main__':
                             ratio = R_securite / distance_robot_ennemi
                             x_recul = round(x_ennemi - (x_ennemi-x_robot_actuel) * ratio,0)
                             y_recul = round(y_ennemi - (y_ennemi-y_robot_actuel) * ratio,0)
-                            x_recul = clamp(x_recul, r_robot, x_piste-r_robot)
-                            y_recul = clamp(y_recul, r_robot, y_piste-r_robot)
+                            x_recul = clamp(x_recul, R_ROBOT, X_PISTE-R_ROBOT)
+                            y_recul = clamp(y_recul, R_ROBOT, Y_PISTE-R_ROBOT)
                             Liste_actions = [action for action in Liste_actions if(action[0] in ["Consigne","Rotation"])]
                             Liste_actions.insert(0,["Avancer",int(x_recul),int(y_recul)])
                             Liste_actions.insert(0,["Recul",int(x_recul),int(y_recul)])
@@ -1497,7 +838,7 @@ if __name__ == '__main__':
                                 Liste_actions[0][1], Liste_actions[0][2]
                             )
                             if(angle_prochain_point != angle_robot_actuel):
-                                Liste_actions.insert(0, ["Tourner", angle_prochain_point])
+                                Liste_actions.insert(0, ["Rotation", angle_prochain_point])
 
                         else :
                             print("CHEMIN INACCESSIBLE, RECALCUL DE TRAJECTOIRE")
@@ -1572,8 +913,8 @@ if __name__ == '__main__':
                     x_robot_voulu = Liste_actions[0][1]
                     y_robot_voulu = Liste_actions[0][2]
                     
-                    start_case = (int(x_robot_actuel // case_mm), int(y_robot_actuel // case_mm))
-                    goal_case = (int(x_robot_voulu // case_mm), int(y_robot_voulu // case_mm))
+                    start_case = (int(x_robot_actuel // CASE_MM), int(y_robot_actuel // CASE_MM))
+                    goal_case = (int(x_robot_voulu // CASE_MM), int(y_robot_voulu // CASE_MM))
                     
                     print(f"🗺️  RECALCUL A* : {start_case} → {goal_case}")
                     print(f"🎯 Position ennemi : ({x_ennemi}, {y_ennemi}) mm")
@@ -1581,7 +922,7 @@ if __name__ == '__main__':
                     # Créer grille avec ennemi
                     grid_avec_ennemi = creer_grille_avec_ennemi(
                         grid_expanded, x_ennemi, y_ennemi,
-                        r_robot, r_ennemi, marge_min, case_mm
+                        R_ROBOT, R_ENNEMI, MARGE_MIN, CASE_MM
                     )
                     
                     # Calculer nouveau chemin
@@ -1593,8 +934,8 @@ if __name__ == '__main__':
                         
                         # Convertir en mm
                         px, py = zip(*path_simplified)
-                        px_mm = [x * case_mm for x in px]
-                        py_mm = [y * case_mm for y in py]
+                        px_mm = [x * CASE_MM for x in px]
+                        py_mm = [y * CASE_MM for y in py]
                         
                         # Insérer nouveaux waypoints avec rotations
                         # ✅ Effacer anciens plots
@@ -1653,9 +994,9 @@ if __name__ == '__main__':
             # 🔄 Mettre à jour la zone de sécurité dynamique de l'ennemi
             zone_ennemi_scatter, cercle_ennemi_patch = mettre_a_jour_zone_ennemi(
                 zone_ennemi_scatter, cercle_ennemi_patch,
-                x_ennemi, y_ennemi, r_robot, r_ennemi,
-                marge_securite_ennemi, case_mm,
-                x_piste, y_piste
+                x_ennemi, y_ennemi, R_ROBOT, R_ENNEMI,
+                MARGE_SECURITE_ENNEMI, CASE_MM,
+                X_PISTE, Y_PISTE
             )
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
             if (action_voulu in ["Consigne","Avancer"]):
@@ -1785,6 +1126,7 @@ if __name__ == '__main__':
                         Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
                         Liste_zones_gm_xy, Liste_zones_gm_angle,
                         R_securite,
+                        DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE,
                         verbose=True
                     )
                     
@@ -1826,13 +1168,13 @@ if __name__ == '__main__':
             
             # On supprime les anciens points de la trajectoire
             for key in list(dico_envoi.keys()):
-                if 0x206 <= key <= 0x2FF:
+                if 0x207 <= key <= 0x2FF:
                     del dico_envoi[key]
             # On remplit le dictionnaire d'envoi du CAN avec les points de la trajectoire
-            dico_envoi[0x206] = Liste_trajectoire[0]
+            dico_envoi[0x207] = Liste_trajectoire[0]
             for couple in range(1,len(Liste_trajectoire)):
-                dico_envoi[0x207+2*(couple-1)]=Liste_trajectoire[couple][0]
-                dico_envoi[0x208+2*(couple-1)]=Liste_trajectoire[couple][1]
+                dico_envoi[0x208+2*(couple-1)]=Liste_trajectoire[couple][0]
+                dico_envoi[0x209+2*(couple-1)]=Liste_trajectoire[couple][1]
 
             """for couple in dico_envoi.items():
                 print(hex(couple[0])," : ",couple[1])"""
