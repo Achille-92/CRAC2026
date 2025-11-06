@@ -1,19 +1,158 @@
-Exception has occurred: CanOperationError
-Failed to transmit: Aucun espace tampon disponible [Error Code 105]
-OSError: [Errno 105] Aucun espace tampon disponible
+youssef@youssef:~/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG $  cd /home/youssef/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG ; /usr/bin/env /bin/python /home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 59513 -- /home/youssef/Desktop/CRAC2026/main.py 
+RTNETLINK answers: Device or resource busy
+/home/youssef/Desktop/CRAC2026/main.py:30: DeprecationWarning: The 'bustype' argument is deprecated since python-can v4.2.0, and scheduled for removal in python-can v5.0.0. Use 'interface' instead.
+  bus = can.interface.Bus(
+🏗️  Gestionnaire obstacles initialisé : 300×200 cases
+🏗️  Gestionnaire obstacles initialisé : 300×200 cases
+➕ Carré ajouté : zone1 @ (1250, 1450) (200mm)
+➕ Carré ajouté : zone2 @ (1750, 1450) (200mm)
+➕ Carré ajouté : zone3 @ (100, 800) (200mm)
+➕ Carré ajouté : zone4 @ (800, 800) (200mm)
+➕ Carré ajouté : zone5 @ (1500, 800) (200mm)
+➕ Carré ajouté : zone6 @ (2200, 800) (200mm)
+➕ Carré ajouté : zone7 @ (2900, 800) (200mm)
+➕ Carré ajouté : zone8 @ (700, 100) (200mm)
+➕ Carré ajouté : zone9 @ (1500, 100) (200mm)
+➕ Carré ajouté : zone10 @ (2300, 100) (200mm)
+➕ Rectangle ajouté : Noisette1 @ (100, 1100) - (250, 1300)
+➕ Rectangle ajouté : Noisette2 @ (100, 300) - (250, 500)
+➕ Rectangle ajouté : Noisette3 @ (2750, 1100) - (2900, 1300)
+➕ Rectangle ajouté : Noisette4 @ (2750, 300) - (2900, 500)
+➕ Rectangle ajouté : Noisette5 @ (1050, 725) - (1250, 875)
+➕ Rectangle ajouté : Noisette6 @ (1750, 725) - (1950, 875)
+➕ Rectangle ajouté : Noisette7 @ (1000, 100) - (1200, 250)
+➕ Rectangle ajouté : Noisette8 @ (1800, 100) - (2000, 250)
+➕ Rectangle ajouté : grenier @ (600, 1550) - (2400, 2000)
+🗺️  Grille générée : 8100 cases obstacles, 3748 cases sécurité
+🗺️  Grille générée : 2400 cases obstacles, 10596 cases sécurité
+QStandardPaths: wrong permissions on runtime directory /run/user/1000, 0770 instead of 0700
+qt.qpa.wayland: Wayland does not support QWindow::requestActivate()
+✅ Grille initialisée : 300×200 cases (3000×2000 mm)
 
-The above exception was the direct cause of the following exception:
+======================================================================
+🔄 MISE À JOUR DYNAMIQUE DES ZONES
+======================================================================
 
-  File "/home/youssef/Desktop/CRAC2026/main.py", line 309, in <module>
-    bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
-can.exceptions.CanOperationError: Failed to transmit: Aucun espace tampon disponible [Error Code 105]
+--- ZONES GARDEMANGER ---
+  ⚪ Zone  1 déjà inactive (zone libre)
+  ⚪ Zone  2 déjà inactive (zone libre)
+  ⚪ Zone  3 déjà inactive (zone libre)
+  ⚪ Zone  4 déjà inactive (zone libre)
+  ⚪ Zone  5 déjà inactive (zone libre)
+  ⚪ Zone  6 déjà inactive (zone libre)
+  ⚪ Zone  7 déjà inactive (zone libre)
+  ⚪ Zone  8 déjà inactive (zone libre)
+  ⚪ Zone  9 déjà inactive (zone libre)
+  ⚪ Zone 10 déjà inactive (zone libre)
 
-During handling of the above exception, another exception occurred:
+--- NOISETTES ---
+  🌰 Noisette 1 déjà active (à éviter)
+  🌰 Noisette 2 déjà active (à éviter)
+  🌰 Noisette 3 déjà active (à éviter)
+  🌰 Noisette 4 déjà active (à éviter)
+  🌰 Noisette 5 déjà active (à éviter)
+  🌰 Noisette 6 déjà active (à éviter)
+  🌰 Noisette 7 déjà active (à éviter)
+  🌰 Noisette 8 déjà active (à éviter)
 
-OSError: [Errno 105] Aucun espace tampon disponible
+----------------------------------------------------------------------
+✓  Aucune modification - Grilles inchangées
+======================================================================
 
-The above exception was the direct cause of the following exception:
 
-  File "/home/youssef/Desktop/CRAC2026/main.py", line 579, in <module>
-    bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
-can.exceptions.CanOperationError: Failed to transmit: Aucun espace tampon disponible [Error Code 105]
+======================================================================
+✅ ACTION CHOISIE : Attraper zone 1
+======================================================================
+   📍 Position : (400, 1200) mm
+   🧭 Angle    : 180°
+   ⭐ Score    : 0.905
+======================================================================
+
+
+======================================================================
+🔄 MISE À JOUR DYNAMIQUE DES ZONES
+======================================================================
+
+--- ZONES GARDEMANGER ---
+  ⚪ Zone  1 déjà inactive (zone libre)
+  ⚪ Zone  2 déjà inactive (zone libre)
+  ⚪ Zone  3 déjà inactive (zone libre)
+  ⚪ Zone  4 déjà inactive (zone libre)
+  ⚪ Zone  5 déjà inactive (zone libre)
+  ⚪ Zone  6 déjà inactive (zone libre)
+  ⚪ Zone  7 déjà inactive (zone libre)
+  ⚪ Zone  8 déjà inactive (zone libre)
+  ⚪ Zone  9 déjà inactive (zone libre)
+  ⚪ Zone 10 déjà inactive (zone libre)
+
+--- NOISETTES ---
+  🌰 Noisette 1 déjà active (à éviter)
+  🌰 Noisette 2 déjà active (à éviter)
+  🌰 Noisette 3 déjà active (à éviter)
+  🌰 Noisette 4 déjà active (à éviter)
+  🌰 Noisette 5 déjà active (à éviter)
+  🌰 Noisette 6 déjà active (à éviter)
+  🌰 Noisette 7 déjà active (à éviter)
+  🌰 Noisette 8 déjà active (à éviter)
+
+----------------------------------------------------------------------
+✓  Aucune modification - Grilles inchangées
+======================================================================
+
+1
+
+Avant verif :
+Action en cours : Consigne
+X_actuel = 350 Y_actuel = 1800 Angle_actuel = -90°
+X_voulu = 400 Y_voulu = 1200 Angle_voulu = -181°
+🗺️  Calcul trajectoire A* : (35, 180) → (40, 120)
+🎯 Position ennemi : (1900, 1000)
+✅ Chemin trouvé : 61 points
+📉 Chemin simplifié : 61 → 3 points
+📏 Longueur trajectoire : 637 mm
+📍 Création de 3 waypoints avec rotations
+  → Skip waypoint identique à la Consigne (400,1200)
+  → Waypoint 1: Avancer vers (410, 1210)
+[1, [410, 1210]]
+
+Après verif :
+Action en cours : Avancer
+X_actuel = 350 Y_actuel = 1800 Angle_actuel = -90°
+X_voulu = 410 Y_voulu = 1210 Angle_voulu = -181°
+[['Avancer', 410, 1210], ['Consigne', 400, 1200], ['Rotation', 180], ['Attraper']]
+MAJ Batterie N°1
+MAJ Batterie N°2
+MAJ Batterie N°3
+INFO: {'model': 44, 'firmware': (1, 32), 'hardware': 6, 'serialnumber': '7AA6ED93C0EA98C6C2E29EF5887C4061'}
+HEALTH: ('Good', 0)
+/home/youssef/Desktop/CRAC2026/main.py:1161: UserWarning: Glyph 129302 (\N{ROBOT FACE}) missing from current font.
+  fig.canvas.draw()
+/home/youssef/Desktop/CRAC2026/main.py:1162: UserWarning: Glyph 129302 (\N{ROBOT FACE}) missing from current font.
+  fig.canvas.flush_events()
+
+0x1  :  1
+0x100  :  0
+0x101  :  0
+0x102  :  0
+0x103  :  0
+0x104  :  0
+0x105  :  0
+0x106  :  0
+0x107  :  0
+0x108  :  0
+0x109  :  0
+0x10a  :  0
+0x10b  :  0
+0x200  :  350
+0x201  :  1800
+0x202  :  -90
+0x203  :  410
+0x204  :  1210
+0x205  :  -181
+0x300  :  1
+0x301  :  0
+0x302  :  0
+0x207  :  1
+0x208  :  410
+0x209  :  1210
+Programme terminé proprement.
