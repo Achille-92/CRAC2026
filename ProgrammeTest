@@ -1184,7 +1184,7 @@ if __name__ == '__main__':
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
-                        if key in [0x01,x300,0x301,0x302]:
+                        if key in [0x01,0x207,0x300,0x301,0x302]:
                             format_value = struct.pack('<I',dico_envoi[key])
                         else :
                             format_value = struct.pack('<f',dico_envoi[key])
