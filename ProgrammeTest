@@ -1170,7 +1170,7 @@ if __name__ == '__main__':
             
             # On supprime les anciens points de la trajectoire
             for key in list(dico_envoi.keys()):
-                if 0x208 <= key <= 0x2FF:
+                if 0x207 <= key <= 0x2FF:
                     del dico_envoi[key]
             # On remplit le dictionnaire d'envoi du CAN avec les points de la trajectoire
             dico_envoi[0x207] = Liste_trajectoire[0]
