@@ -98,8 +98,11 @@ MARGE_BORDUREPISTE_X = 120 # Détection Lidar
 MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 
 # Coordonnées et angle de notre robot
-x_robot_depart = 350
-y_robot_depart = 1800
+"""x_robot_depart = 400-125
+y_robot_depart = 1550+100
+angle_robot_depart = -90"""
+x_robot_depart = 1500
+y_robot_depart = 1000
 angle_robot_depart = -90
 
 x_robot_actuel = x_robot_depart
@@ -112,16 +115,16 @@ angle_robot_voulu = -181
 ############
 
 # Ennemi
-x_ennemi = 1900
+x_ennemi = 2500
 y_ennemi = 1000
 x_ennemi_old = x_ennemi
 y_ennemi_old = y_ennemi
 ########
 
 # Perimètre de sécurité
-R_ROBOT = 130
+R_ROBOT = 125
 R_ENNEMI = 150
-MARGE_MIN = 100
+MARGE_MIN = 10
 R_securite = R_ROBOT + R_ENNEMI + MARGE_MIN  # = 400mm
 MARGE_SECURITE_ENNEMI = 5  # Marge pour l'affichage de la zone ennemi
 
@@ -131,7 +134,7 @@ EPS_EQ = 5
 CASE_MM = 10
 width = X_PISTE//CASE_MM
 height = Y_PISTE//CASE_MM
-MARGE_OBSTACLES_MM = 0  # Marge standard pour les obstacles fixes
+MARGE_OBSTACLES_MM = -20  # Marge standard pour les obstacles fixes
 MARGE_NOISETTES_MM = 0  # Marge réduite pour les Noisettes (plus précis)
 rayon_total_case = (R_ROBOT + MARGE_OBSTACLES_MM) // CASE_MM  # = 20 cases = 200mm
 
@@ -375,7 +378,7 @@ def calcul_ennemi(stop_event):
             xs, ys = zip(*buffer_points)
             x_ennemi = np.mean(xs)
             y_ennemi = np.mean(ys)
-            x_ennemi = 1500
+            x_ennemi = 2500
             y_ennemi = 1000
 
 def arret_programme(event, stop_event=None):
@@ -587,8 +590,8 @@ if __name__ == '__main__':
         tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
         tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
         
-        tache_lidar.start()
-        tache_calcul.start()
+        #tache_lidar.start()
+        #tache_calcul.start()
         tache_LectureCAN.start()
     
     try:
@@ -1023,7 +1026,7 @@ if __name__ == '__main__':
 
             # === GESTION BATTERIES avec les fonctions ===
             # SIMULATION Perte Batterie
-            if not Reel: 
+            """if not Reel: 
                 if Ordre_Batteries == [1,0,0]:
                     Batteries[0][2] -=0.001
                 elif Ordre_Batteries == [0,1,0]:
@@ -1046,7 +1049,7 @@ if __name__ == '__main__':
             if(Ordre_Batteries[2]==1):
                 dico_envoi[0x302]=1
             else :
-                dico_envoi[0x302]=0
+                dico_envoi[0x302]=0"""
             #######################################
             
             # Affichage texte Coordonées
@@ -1200,16 +1203,16 @@ if __name__ == '__main__':
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
         if Reel :
-            tache_lidar.join()
-            tache_calcul.join()
+            #tache_lidar.join()
+            #tache_calcul.join()
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
         
     finally:
         print("Programme terminé proprement.")
         if Reel :
-            tache_lidar.join()
-            tache_calcul.join()
+            #tache_lidar.join()
+            #tache_calcul.join()
             tache_LectureCAN.join()
             etat = 2
             data_etat = struct.pack('<I',etat)
