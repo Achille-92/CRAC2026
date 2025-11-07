@@ -13,7 +13,7 @@ int signe(float a);
 int ensemble(float valeur, float delta);
 int comparer(float valeur_comparer, float valeur_compareur, float delta);
 void Asserv(void *);
-// void calcul_traj(void *);
+void calcul_traj(void *);
 
 struct coo
 {
@@ -29,22 +29,24 @@ float tour_droit = 0;
 float distance_droit = 0, old_dist_droit = 0, diff_dist_droit = 0;
 float distance_gauche = 0, old_dist_gauche = 0, diff_dist_gauche = 0;
 float dist = 0, teta = 0, delta_x = 0, delta_y = 0, teta_act = 0, diff_teta = 0, teta_act_deg = 0, teta_deg = 0, diff_deg = 0;
-float pos_act[2] = {105, 120}, pos_fin[2] = {200005, 120}, pos_traj[2], E = 0, dist_a_parcourir = 10, off_teta = 0, off_teta_act = 0;
+float pos_act[2] = {105, 120}, pos_fin[2] = {105, 120}, pos_traj[2] = {0, 0}, E = 0, dist_a_parcourir = 10, off_teta = 0, off_teta_act = 0;
 int VIT_gauche = 0, VIT_droit = 0, i = 0, S_VIT_d = 0, S_VIT_g = 0, old_VIT_droit = 0, old_VIT_gauche = 0;
-float kpd = 3.0, kdd = 200.0, kpg = 3.0, kdg = 200.0, kpda = 4, kpga = 4, kdga = 20.0, kdda = 20.0, old_diff_dista = 0;
+float kpd = 4, kdd = 220.0, kpg = 4, kdg = 220.0, kpda = 4, kpga = 4, kdga = 20.0, kdda = 20.0, old_diff_dista = 0;
 float diff_dist_d = 0, diff_dist_g = 0, diff_dista = 0, old_diff_dist_d = 0, old_diff_dist_g = 0, VIT_Ad = 0, VIT_Ag = 0, teta_cons = 0;
 int cons = 0, dist_cons = 200, arriver = 0, suivi = 1;
 /*const float tic_tour_droit = 4121.7, tic_tour_gauche = 4052, Rayon = 11;*/
 const float tic_tour_droit = 3164.0, tic_tour_gauche = 3167.7, Rayon = 11.2;
 int packetSize = 0, fin = 100, n = 0;
 float Vg = 0, Vd = 0, diff_Vg = 0, diff_Vd = 0, old_diff_Vg = 0, old_diff_Vd = 0, VIT = 0;
+int num_point = 0, fin2 = 0, calc = 0;
+float dist1 = 0, dist2 = 0, teta1 = 0, teta2 = 0, teta_traj = 0;
 
 // BluetoothSerial Bt;
 DualVNH5019MotorShield md;
 ESP32Encoder encoder;
 ESP32Encoder encoder2;
 TaskHandle_t Asservissement;
-// TaskHandle_t trajectoire;
+TaskHandle_t trajectoire;
 
 void setup()
 {
@@ -68,7 +70,7 @@ void setup()
   //
   Serial.println("Encoder Start = " + String((int32_t)encoder.getCount()));
   xTaskCreate(Asserv, "Asserv", 32000, NULL, 15, &Asservissement);
-  // xTaskCreate(calcul_traj, "traj", 32000, NULL, 10, &trajectoire);
+  xTaskCreate(calcul_traj, "traj", 64000, NULL, 10, &trajectoire);
   CAN.setPins(RX_GPIO_NUM, TX_GPIO_NUM);
 
   // start the CAN bus at 500 kbps
@@ -78,10 +80,10 @@ void setup()
     while (1)
       ;
   }
-  liste_point[0] = {300, 400};
+  liste_point[0] = {0, 0};
   liste_point[1] = {1000, 400};
-  liste_point[2] = {1100, 1400};
-  liste_point[3] = {2000, 1400};
+  liste_point[2] = {300, 1000};
+  liste_point[3] = {2000, 300};
 }
 
 void loop()
@@ -116,11 +118,20 @@ void Asserv(void *)
     delta_x = pos_fin[0] - pos_act[0];
     delta_y = pos_fin[1] - pos_act[1];
     teta = atan2(delta_y, delta_x) + off_teta;
+    teta_traj = atan2(traj[suivi].y - pos_act[1], traj[suivi].x - pos_act[0]);
     teta_act = ((distance_droit - distance_gauche) / (20 * Rayon)) + off_teta_act;
     teta_act_deg = (teta_act * 180.0) / PI;
     teta_deg = (teta * 180.0) / PI;
     diff_deg = (diff_teta * 180.0) / PI;
     ////////////////////////////////////////angle modulo 2PI
+    while (teta_act > PI)
+      teta_act -= 2.0 * PI;
+    while (teta_act <= PI)
+      teta_act += 2.0 * PI;
+    while (teta > PI)
+      teta -= 2.0 * PI;
+    while (teta <= PI)
+      teta += 2.0 * PI;
 
     dist = sqrt(((pos_fin[0] - pos_act[0]) * (pos_fin[0] - pos_act[0])) + ((pos_fin[1] - pos_act[1]) * (pos_fin[1] - pos_act[1])));
     old_diff_dist_d = diff_dist_d;
@@ -131,13 +142,15 @@ void Asserv(void *)
     pos_act[1] = pos_act[1] + (sin(teta_act) * ((diff_dist_gauche + diff_dist_droit) / 2));
     old_VIT_droit = VIT_droit;
     old_VIT_gauche = VIT_gauche;
-    /*
-        pos_fin[0] = traj[suivi].x;
-        pos_fin[1] = traj[suivi].y;
-        if (comparer(pos_act[0], pos_fin[0], 10) && comparer(pos_act[1], pos_fin[1], 10))
-        {
-          suivi += 1;
-        }*/
+
+    pos_fin[0] = traj[suivi].x;
+    pos_fin[1] = traj[suivi].y;
+
+    if (!(comparer(teta_act, teta_cons, ((3 * PI) / 180.0))) && (S_VIT_d == 0) && (S_VIT_g == 0))
+      cons = 3;
+    else
+      cons = 0;
+
     switch (cons)
     {
     case 0:
@@ -148,7 +161,7 @@ void Asserv(void *)
       if (ensemble((diff_teta), (PI / 1.0)))
       {
 
-        if (comparer(pos_act[0], pos_fin[0], 100) && comparer(pos_act[1], pos_fin[1], 100))
+        if (comparer(pos_act[0], pos_fin[0], 150) && comparer(pos_act[1], pos_fin[1], 150))
         {
           VIT_droit = (diff_teta) * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
           VIT_gauche = (diff_teta) * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
@@ -159,14 +172,14 @@ void Asserv(void *)
         {
           VIT_droit = pow(cos(diff_teta), 3) * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
           VIT_gauche = pow(cos(diff_teta), 3) * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
-          VIT_Ad = -1*(1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
-          VIT_Ag = kpga * (diff_dista)+kdga * (diff_dista - old_diff_dista);
+          VIT_Ad = -1 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
+          VIT_Ag = kpga * (diff_dista) + kdga * (diff_dista - old_diff_dista);
         }
       }
       else
       {
         VIT_Ad = -2 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
-        VIT_Ag = 2 * kpga * (diff_dista)+2 * kdga * (diff_dista - old_diff_dista);
+        VIT_Ag = 2 * kpga * (diff_dista) + 2 * kdga * (diff_dista - old_diff_dista);
         VIT_droit = 0;
         VIT_gauche = 0;
       }
@@ -180,7 +193,7 @@ void Asserv(void *)
       if (ensemble((diff_teta), (PI / 1.0)))
       {
 
-        if (comparer(pos_act[0], pos_fin[0], 100) && comparer(pos_act[1], pos_fin[1], 100))
+        if (comparer(pos_act[0], pos_fin[0], 150) && comparer(pos_act[1], pos_fin[1], 150))
         {
           VIT_droit = cos(diff_teta + PI) * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
           VIT_gauche = cos(diff_teta + PI) * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
@@ -191,14 +204,14 @@ void Asserv(void *)
         {
           VIT_droit = pow(cos(diff_teta + PI), 3) * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
           VIT_gauche = pow(cos(diff_teta + PI), 3) * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
-          VIT_Ad = -1*(1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
-          VIT_Ag = kpga * (diff_dista)+kdga * (diff_dista - old_diff_dista);
+          VIT_Ad = -1 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
+          VIT_Ag = kpga * (diff_dista) + kdga * (diff_dista - old_diff_dista);
         }
       }
       else
       {
         VIT_Ad = -2 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
-        VIT_Ag = 2 * kpga * (diff_dista)+2 * kdga * (diff_dista - old_diff_dista);
+        VIT_Ag = 2 * kpga * (diff_dista) + 2 * kdga * (diff_dista - old_diff_dista);
         VIT_droit = 0;
         VIT_gauche = 0;
       }
@@ -208,7 +221,7 @@ void Asserv(void *)
       diff_teta = teta_cons - teta_act;
       diff_dista = diff_teta * 2 * PI * Rayon;
       VIT_Ad = -2 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
-      VIT_Ag = 2 * kpga * (diff_dista)+2 * kdga * (diff_dista - old_diff_dista);
+      VIT_Ag = 2 * kpga * (diff_dista) + 2 * kdga * (diff_dista - old_diff_dista);
       VIT_droit = 0;
       VIT_gauche = 0;
       break;
@@ -229,8 +242,10 @@ void Asserv(void *)
       VIT_droit = old_VIT_droit + signe(VIT_droit) * 5;
     if (VIT_gauche - old_VIT_gauche > 5)
       VIT_gauche = old_VIT_gauche + signe(VIT_gauche) * 5;
+
     if (ensemble(diff_teta, PI / 180.0) && !ensemble(diff_teta, (10 * PI) / 180.0))
       VIT_Ad += signe(VIT_Ad) * 40, VIT_Ag += signe(VIT_Ag) * 40;
+
     if (VIT_droit > abs(cos(diff_teta)) * LIMITE_VIT)
       VIT_droit = abs(cos(diff_teta)) * LIMITE_VIT;
     if (VIT_gauche > abs(cos(diff_teta)) * LIMITE_VIT)
@@ -254,11 +269,11 @@ void Asserv(void *)
     if (S_VIT_d < 20 && S_VIT_d > -20)
       S_VIT_d = 0;
     else
-      S_VIT_d += signe(S_VIT_d) * 20;
+      S_VIT_d += signe(S_VIT_d) * 10;
     if (S_VIT_g < 20 && S_VIT_g > -20)
       S_VIT_g = 0;
     else
-      S_VIT_g += signe(S_VIT_g) * 20;
+      S_VIT_g += signe(S_VIT_g) * 10;
     if (cons == -1)
       VIT_Ad = 0, VIT_Ag = 0, VIT_droit = 0, VIT_gauche = 0;
     md.setM2Speed((S_VIT_d) / 2.0);
@@ -268,51 +283,103 @@ void Asserv(void *)
     if (VIT_Ad == 0 && VIT_Ag == 0 && VIT_droit == 0 && VIT_gauche == 0)
       md.setBrakes(400, 400);
 
-    Serial.printf("PWM_G:%d PWM_D:%d X:%.1f Y%.1f diff_teta%.1f,cos:%.1f diff%.1f\n", S_VIT_g, S_VIT_d, pos_act[0], pos_act[1], diff_deg, cos(diff_teta),diff_dist_d);
+    //Serial.printf("PWM_G:%d PWM_D:%d X:%.1f Y%.1f diff_teta%.1f,cos:%.1f \n", S_VIT_g, S_VIT_d, pos_act[0], pos_act[1], diff_deg, cos(diff_teta));
     vTaskDelay(pdMS_TO_TICKS(5));
   }
-} /*
- void calcul_traj(void *)
- {
-   int num_point = 0, fin2 = 0;
-   float dist1 = 0, dist2 = 0, teta1 = 0, teta2 = 0;
-   dist1 = sqrt(((liste_point[0].x - pos_act[0]) * (liste_point[0].x - pos_act[0])) + ((liste_point[0].y - pos_act[1]) * (liste_point[0].y - pos_act[1])));
-   dist2 = sqrt(((liste_point[1].x - liste_point[0].x) * (liste_point[1].x - liste_point[0].x)) + ((liste_point[1].y - liste_point[0].y) * (liste_point[1].y - liste_point[0].x)));
+}
+void calcul_traj(void *)
+{
+  while (1)
+  {
+    if (comparer(pos_act[0], pos_fin[0], 400.0) && comparer(pos_act[1], pos_fin[1], 400) && (traj[suivi + 1].x != 0) && (traj[suivi + 1].y != 0))
+    {
+      if (traj[suivi].x == liste_point[0].x && traj[suivi].y == liste_point[0].y)
+      {
+        if ((comparer(pos_act[0], liste_point[0].x, 20) && comparer(pos_act[1], liste_point[0].y, 20)))
+          suivi += 1;
+      }
+      else
+        suivi += 1;
+    }
+    if (liste_point[0].x == 0 && liste_point[0].y == 0)
+      teta_cons = 0;
+    else
+      teta_cons = teta_act;
 
-   teta1 = atan2((liste_point[0].y-pos_act[1]), (liste_point[0].x-pos_act[0]));
-   teta2 = atan2((liste_point[1].y-liste_point[0].y), (liste_point[1].x-liste_point[0].x));
-   if (((pos_traj[0] != liste_point[0].x) || (pos_traj[1] != liste_point[0].y)))
-   {
-     fin = dist1 / 50.0;
-     dist_a_parcourir = dist1 / fin;
-     n = 0;
-     traj[0].x = pos_act[0];
-     traj[0].y = pos_act[1];
-     while ((comparer(traj[fin].x, liste_point[0].x, 2) == 0) || (comparer(traj[fin].y, liste_point[0].y, 2) == 0))
-     {
-       // Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d\n", traj[n].x, traj[n].y, dist, dist_a_parcourir, n);
-       traj[n + 1].x = traj[n].x + cos(teta1) * dist_a_parcourir;
-       traj[n + 1].y = traj[n].y + sin(teta1) * dist_a_parcourir;
-       n++;
-     }
-     pos_traj[0] = traj[n].x;
-     pos_traj[1] = traj[n].y;
-     fin2 = fin + dist2 / 50.0;
-     dist_a_parcourir = dist2 / fin2;
-     n = fin;
-     while ((comparer(traj[fin2].x, liste_point[1].x, 2) == 0) || (comparer(traj[fin2].y, liste_point[1].y, 2) == 0))
-     {
-       // Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d\n", traj[n].x, traj[n].y, dist, dist_a_parcourir, n);
-       traj[n + 1].x = traj[n].x + cos(teta2) * dist_a_parcourir;
-       traj[n + 1].y = traj[n].y + sin(teta2) * dist_a_parcourir;
-       n++;
-     }
-     suivi = 10;
-     // Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d\n", traj[n].x, traj[n].y, dist, dist_a_parcourir, n);
-   }
+    if ((comparer(pos_act[0], liste_point[0].x, 50) && comparer(pos_act[1], liste_point[0].y, 50)) || ((((liste_point[0].x == 0) || (liste_point[0].y == 0))) && (((liste_point[1].x != 0) || (liste_point[0].y != 0)))))
+    {
+      for (int i = 0; i <= 98; i++)
+      {
+        liste_point[i].x = liste_point[i + 1].x;
+        liste_point[i].y = liste_point[i + 1].y;
+      }
+    }
+    if (calc == 0)
+    {
+      dist1 = sqrt(((liste_point[0].x - pos_act[0]) * (liste_point[0].x - pos_act[0])) + ((liste_point[0].y - pos_act[1]) * (liste_point[0].y - pos_act[1])));
+      dist2 = sqrt(((liste_point[1].x - liste_point[0].x) * (liste_point[1].x - liste_point[0].x)) + ((liste_point[1].y - liste_point[0].y) * (liste_point[1].y - liste_point[0].y)));
 
-   vTaskDelay(pdMS_TO_TICKS(20));
- }*/
+      teta1 = atan2((liste_point[0].y - pos_act[1]), (liste_point[0].x - pos_act[0]));
+      teta2 = atan2((liste_point[1].y - liste_point[0].y), (liste_point[1].x - liste_point[0].x));
+    }
+    if ((liste_point[0].x != 0) && (liste_point[0].y != 0))
+    {
+      calc = 1;
+      if (((pos_traj[0] != liste_point[0].x) || (pos_traj[1] != liste_point[0].y)))
+      {
+        dist1 = sqrt(((liste_point[0].x - pos_act[0]) * (liste_point[0].x - pos_act[0])) + ((liste_point[0].y - pos_act[1]) * (liste_point[0].y - pos_act[1])));
+      dist2 = sqrt(((liste_point[1].x - liste_point[0].x) * (liste_point[1].x - liste_point[0].x)) + ((liste_point[1].y - liste_point[0].y) * (liste_point[1].y - liste_point[0].y)));
+
+      teta1 = atan2((liste_point[0].y - pos_act[1]), (liste_point[0].x - pos_act[0]));
+      teta2 = atan2((liste_point[1].y - liste_point[0].y), (liste_point[1].x - liste_point[0].x));
+        fin = dist1 / 10.0;
+        dist_a_parcourir = dist1 / fin;
+        n = 0;
+        traj[0].x = pos_act[0];
+        traj[0].y = pos_act[1];
+        if ((liste_point[0].x != 0) && (liste_point[0].y != 0))
+        {
+          while ((comparer(traj[fin].x, liste_point[0].x, 2) == 0) || (comparer(traj[fin].y, liste_point[0].y, 2) == 0))
+          {
+            //Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d\n,teta1=%f", traj[n].x, traj[n].y, dist1, dist_a_parcourir, n, teta1);
+            traj[n + 1].x = traj[n].x + cos(teta1) * dist_a_parcourir;
+            traj[n + 1].y = traj[n].y + sin(teta1) * dist_a_parcourir;
+            n++;
+          }
+          if (fin < 30)
+            suivi = fin;
+          else
+            suivi = 30;
+          traj[fin].x = liste_point[0].x;
+          traj[fin].y = liste_point[0].y;
+          pos_traj[0] = traj[n].x;
+          pos_traj[1] = traj[n].y;
+          fin2 = dist2 / 10.0;
+          dist_a_parcourir = dist2 / fin2;
+          fin2 += fin;
+          n = fin;
+        }
+        if ((liste_point[1].x != 0) && (liste_point[1].y != 0))
+        {
+          while ((comparer(traj[fin2].x, liste_point[1].x, 2) == 0) || (comparer(traj[fin2].y, liste_point[1].y, 2) == 0))
+          {
+            //Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d fin2=%d fin=%d\n", traj[n].x, traj[n].y, dist, dist_a_parcourir, n, fin2, fin);
+            traj[n + 1].x = traj[n].x + cos(teta2) * dist_a_parcourir;
+            traj[n + 1].y = traj[n].y + sin(teta2) * dist_a_parcourir;
+            n++;
+          }
+        }
+        if (fin2 < 30)
+          suivi = fin2;
+        else
+          suivi = 30;
+        calc = 0;
+        // Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d\n", traj[n].x, traj[n].y, dist, dist_a_parcourir, n);
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+}
 int signe(float a)
 {
   if (a >= 0)
