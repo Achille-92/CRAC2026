@@ -98,11 +98,8 @@ MARGE_BORDUREPISTE_X = 120 # Détection Lidar
 MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 
 # Coordonnées et angle de notre robot
-"""x_robot_depart = 400-125
+x_robot_depart = 400-125
 y_robot_depart = 1550+100
-angle_robot_depart = -90"""
-x_robot_depart = 1500
-y_robot_depart = 1000
 angle_robot_depart = -90
 
 x_robot_actuel = x_robot_depart
@@ -621,7 +618,7 @@ if __name__ == '__main__':
             verbose=True
         )
  
-        while (not stop_event.is_set() and Batteries[2][3] > 5 and len(Liste_actions)!=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
+        while (not stop_event.is_set() and Batteries[2][3] > 5): #and len(Liste_actions)!=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
             dico_envoi[0x01]=1
             temps = 0
             verif = False
@@ -814,8 +811,8 @@ if __name__ == '__main__':
                                 # CORRECTION : utiliser == au lieu de in "Avancer"
                                 if action[0] == "Avancer" and len(action) == 3:
                                     Liste_trajectoire.append([action[1], action[2]])
-
-
+                        else :
+                            Liste_trajectoire = [1,[x_robot_actuel,y_robot_actuel]]
                         print(Liste_trajectoire)
                         path_simplified_plot, = ax.plot(px_mm, py_mm, 'g-', linewidth=2,label='Chemin A*', marker='o', markersize=4, zorder=10)
                         
