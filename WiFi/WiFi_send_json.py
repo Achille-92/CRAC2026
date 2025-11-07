@@ -1,32 +1,25 @@
 import socket
 import json
 
-# Adresse IP de la Raspberry Pi 5
-HOST = "192.168.0.99"  # <-- remplace par l'IP réelle de la RPi5
+HOST = "192.168.0.99"  # IP de ton PC (ou de la RPi5)
 PORT = 5000
 
-# Exemple de listes
-Liste_actions = [["Consigne",1500,1000],["Rotation",90]]
-Liste_trajectoire = [[500,400],[2800,1000]]
+# Exemple de données
+Liste_actions = [["Consigne", 1500, 1000], ["Rotation", 90]]
+Liste_trajectoire = [[500, 400], [2800, 1000]]
 
-# Rassembler dans un dictionnaire (clé-valeur)
 donnees_pour_robot = {
     "Liste_actions": Liste_actions,
     "Liste_trajectoire": Liste_trajectoire
 }
 
-# Écriture dans un fichier JSON
-with open("donnees_pour_robot.json", "w") as f:
-    json.dump(donnees_pour_robot, f, indent=4)
+# Convertir en chaîne JSON
+message = json.dumps(donnees_pour_robot)
 
-# Lecture du fichier JSON
-with open("donnees_pour_robot.json", "rb") as f:
-    data = f.read()
-
-# Envoi via socket TCP
+# Création et envoi via socket TCP
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((HOST, PORT))
-client_socket.sendall(data)
+client_socket.sendall(message.encode())  # on envoie la chaîne encodée en UTF-8
 client_socket.close()
 
-print("Fichier donnees_pour_robot.json envoyé avec succès.")
+print("Données JSON envoyées avec succès.")
