@@ -1,4 +1,5 @@
 import socket
+import json
 
 HOST = ''       # écoute sur toutes les interfaces
 PORT = 5000     # port d'écoute
@@ -12,7 +13,7 @@ print(f"Serveur en attente sur le port {PORT}...")
 conn, addr = server_socket.accept()
 print(f"Connexion depuis {addr}")
 
-with open("donnees_recue.json", "wb") as f:
+with open("donnees_pour_robot.json", "wb") as f:
     while True:
         data = conn.recv(1024)
         if not data:
@@ -21,4 +22,14 @@ with open("donnees_recue.json", "wb") as f:
 
 conn.close()
 server_socket.close()
-print("Fichier donnees_recue.json sauvegardé avec succès.")
+print("Fichier donnees_pour_robot.json sauvegardé avec succès.")
+
+# Lecture et affichage du contenu JSON
+with open("donnees_pour_robot.json", "r") as f:
+    donnees_pour_robot = json.load(f)
+
+Liste_actions = donnees_pour_robot["Liste_actions"]
+Liste_trajectoire = donnees_pour_robot["Liste_trajectoire"]
+
+print("Liste_actions :", Liste_actions)
+print("Liste_trajectoire :", Liste_trajectoire)
