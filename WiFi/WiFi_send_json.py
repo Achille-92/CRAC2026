@@ -1,7 +1,8 @@
 import socket
 import json
+import time
 
-HOST = "192.168.0.99"  # IP de ton PC (ou de la RPi5)
+HOST = "192.168.0.99"  # IP de ton PC
 PORT = 5000
 
 # Exemple de données
@@ -16,10 +17,29 @@ donnees_pour_robot = {
 # Convertir en chaîne JSON
 message = json.dumps(donnees_pour_robot)
 
-# Création et envoi via socket TCP
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket.connect((HOST, PORT))
-client_socket.sendall(message.encode())  # on envoie la chaîne encodée en UTF-8
-client_socket.close()
+print("Démarrage de l'envoi en boucle...")
+print("Appuyez sur Ctrl+C pour arrêter")
 
-print("Données JSON envoyées avec succès.")
+try:
+    while True:
+        try:
+            # Création et envoi via socket TCP
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client_socket.connect((HOST, PORT))
+            client_socket.sendall(message.encode())
+            client_socket.close()
+            
+            print("Données JSON envoyées avec succès.")
+            
+            # Attendre un peu avant le prochain envoi (optionnel)
+            time.sleep(1)  # Pause de 1 seconde entre chaque envoi
+            
+        except ConnectionRefusedError:
+            print("Connexion refusée. Le serveur n'est pas disponible. Nouvelle tentative dans 2s...")
+            time.sleep(2)
+        except Exception as e:
+            print(f"Erreur lors de l'envoi : {e}. Nouvelle tentative dans 2s...")
+            time.sleep(2)
+            
+except KeyboardInterrupt:
+    print("\nArrêt de l'émetteur.")
