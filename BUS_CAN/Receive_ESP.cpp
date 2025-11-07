@@ -21,23 +21,15 @@ void setup() {
 }
 
 void loop() {
+
   int packetSize = CAN.parsePacket();
-
   if (packetSize) {
-    if (CAN.packetExtended()) {
-      Serial.print("Extended packet with id 0x");
-    } else {
-      Serial.print("Standard packet with id 0x");
-    }
+    uint32_t canId = CAN.packetId();
 
-    Serial.print(CAN.packetId(), HEX);
-    Serial.print(" and length ");
-    Serial.println(packetSize);
-
-    Serial.print("Data: ");
-    while (CAN.available()) {
-      Serial.print((char)CAN.read());
+    if (canId == 0x200 && packetSize == 4) {
+      CAN.readBytes((uint8_t*)&pos_act[0], 4);
+      Serial.print("Reçu X : ");
+      Serial.println(pos_act[0]);
     }
-    Serial.println();
   }
 }
