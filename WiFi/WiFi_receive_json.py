@@ -1,45 +1,48 @@
 import socket
 import json
-import time
 
-HOST = "192.168.0.99"  # IP de ton PC
+HOST = '0.0.0.0'
 PORT = 5000
 
-# Exemple de données
-Liste_actions = [["Consigne", 1500, 1000], ["Rotation", 90]]
-Liste_trajectoire = [[500, 400], [2800, 1000]]
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server_socket.bind((HOST, PORT))
+server_socket.listen(1)
 
-donnees_pour_robot = {
-    "Liste_actions": Liste_actions,
-    "Liste_trajectoire": Liste_trajectoire
-}
-
-# Convertir en chaîne JSON
-message = json.dumps(donnees_pour_robot)
-
-print("Démarrage de l'envoi en boucle...")
+print(f"Serveur en attente sur le port {PORT}...")
 print("Appuyez sur Ctrl+C pour arrêter")
 
 try:
     while True:
+        conn, addr = server_socket.accept()
+        print(f"\n--- Connexion depuis {addr} ---")
+        
+        # Réception des données (chaîne JSON)
+        data = b""
+        while True:
+            packet = conn.recv(1024)
+            if not packet:
+                break
+            data += packet
+        
+        conn.close()
+        
+        # Décodage et affichage
         try:
-            # Création et envoi via socket TCP
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.connect((HOST, PORT))
-            client_socket.sendall(message.encode())
-            client_socket.close()
+            donnees_pour_robot = json.loads(data.decode())
             
-            print("Données JSON envoyées avec succès.")
+            print("Données reçues :")
+            print(json.dumps(donnees_pour_robot, indent=4))
             
-            # Attendre un peu avant le prochain envoi (optionnel)
-            time.sleep(1)  # Pause de 1 seconde entre chaque envoi
+            Liste_actions = donnees_pour_robot["Liste_actions"]
+            Liste_trajectoire = donnees_pour_robot["Liste_trajectoire"]
             
-        except ConnectionRefusedError:
-            print("Connexion refusée. Le serveur n'est pas disponible. Nouvelle tentative dans 2s...")
-            time.sleep(2)
-        except Exception as e:
-            print(f"Erreur lors de l'envoi : {e}. Nouvelle tentative dans 2s...")
-            time.sleep(2)
-            
+            print("Liste_actions :", Liste_actions)
+            print("Liste_trajectoire :", Liste_trajectoire)
+        except json.JSONDecodeError:
+            print("Erreur : données JSON invalides")
+        
 except KeyboardInterrupt:
-    print("\nArrêt de l'émetteur.")
+    print("\nArrêt du serveur.")
+finally:
+    server_socket.close()
