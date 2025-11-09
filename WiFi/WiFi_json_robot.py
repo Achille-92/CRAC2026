@@ -12,12 +12,19 @@ HOST_RPI = "192.168.0.100"  # IP de la RPI4
 PORT_ENVOI = 5001
 
 # Données à envoyer vers la RPI
+x_robot_actuel = 500
+y_robot_actuel = 400
+angle_robot_actuel = 90
+x_ennemi = 2500
+y_ennemi = 1000
+Batteries = [[12,14,14,100],[12,14,14,100],[12,14,14,100]]
 donnees_vers_rpi = {
-    "commande": "demarrer",
-    "parametres": {
-        "vitesse": 100,
-        "direction": "avant"
-    }
+    "x_robot_actuel": x_robot_actuel,
+    "y_robot_actuel": y_robot_actuel,
+    "angle_robot_actuel": angle_robot_actuel,
+    "x_ennemi": x_ennemi,
+    "y_ennemi": y_ennemi,
+    "Batteries": Batteries
 }
 
 message = json.dumps(donnees_vers_rpi)
@@ -55,9 +62,11 @@ def recevoir_donnees():
                 
                 Liste_actions = donnees_robot["Liste_actions"]
                 Liste_trajectoire = donnees_robot["Liste_trajectoire"]
+                Ordre_receive = donnees_robot["Ordre_receive"]
                 
                 print(f"[Récepteur] Liste_actions : {Liste_actions}")
                 print(f"[Récepteur] Liste_trajectoire : {Liste_trajectoire}")
+                print(f"[Récepteur] Ordre_receive : {Ordre_receive}")
                 
             except json.JSONDecodeError:
                 print("[Récepteur] Erreur : données JSON invalides")
@@ -67,11 +76,19 @@ def recevoir_donnees():
     finally:
         server_socket.close()
 
-# Fonction pour envoyer des données vers la RPI
-def envoyer_donnees():
-    print("[Émetteur] Démarrage de l'envoi en boucle vers la RPI...")
-    time.sleep(2)  # Laisser le temps à la RPI de démarrer
+
+# Lancement des deux threads
+if __name__ == "__main__":
+    print("=== Ordinateur - Communication bidirectionnelle ===")
+    print("Appuyez sur Ctrl+C pour arrêter\n")
     
+    # Créer les threads
+    thread_reception = threading.Thread(target=recevoir_donnees, daemon=True)
+    
+    # Démarrer les threads
+    thread_reception.start()
+    
+    # Garder le programme actif
     try:
         while True:
             try:
@@ -89,26 +106,5 @@ def envoyer_donnees():
             except Exception as e:
                 print(f"[Émetteur] Erreur : {e}. Nouvelle tentative dans 2s...")
                 time.sleep(2)
-                
-    except KeyboardInterrupt:
-        print("[Émetteur] Arrêt.")
-
-# Lancement des deux threads
-if __name__ == "__main__":
-    print("=== Ordinateur - Communication bidirectionnelle ===")
-    print("Appuyez sur Ctrl+C pour arrêter\n")
-    
-    # Créer les threads
-    thread_reception = threading.Thread(target=recevoir_donnees, daemon=True)
-    thread_envoi = threading.Thread(target=envoyer_donnees, daemon=True)
-    
-    # Démarrer les threads
-    thread_reception.start()
-    thread_envoi.start()
-    
-    # Garder le programme actif
-    try:
-        while True:
-            time.sleep(1)
     except KeyboardInterrupt:
         print("\n\n=== Arrêt du programme Ordinateur ===")
