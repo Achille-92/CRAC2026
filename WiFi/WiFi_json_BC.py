@@ -14,37 +14,15 @@ PORT_RECEPTION = 5001
 # Données à envoyer
 Liste_actions = [["Consigne", 1500, 1000], ["Rotation", 90]]
 Liste_trajectoire = [[500, 400], [2800, 1000]]
+Ordre_receive = 0
 
 donnees_pour_robot = {
     "Liste_actions": Liste_actions,
-    "Liste_trajectoire": Liste_trajectoire
+    "Liste_trajectoire": Liste_trajectoire,
+    "Ordre_receive": Ordre_receive
 }
 
 message = json.dumps(donnees_pour_robot)
-
-# Fonction pour envoyer des données
-def envoyer_donnees():
-    print("[Émetteur] Démarrage de l'envoi en boucle...")
-    try:
-        while True:
-            try:
-                client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                client_socket.connect((HOST_PC, PORT_ENVOI))
-                client_socket.sendall(message.encode())
-                client_socket.close()
-                
-                print("[Émetteur] Données JSON envoyées avec succès.")
-                time.sleep(1)
-                
-            except ConnectionRefusedError:
-                print("[Émetteur] Connexion refusée. Nouvelle tentative dans 2s...")
-                time.sleep(2)
-            except Exception as e:
-                print(f"[Émetteur] Erreur : {e}. Nouvelle tentative dans 2s...")
-                time.sleep(2)
-                
-    except KeyboardInterrupt:
-        print("[Émetteur] Arrêt.")
 
 # Fonction pour recevoir des données
 def recevoir_donnees():
@@ -77,9 +55,19 @@ def recevoir_donnees():
                 print("[Récepteur] Données reçues depuis l'ordinateur :")
                 print(json.dumps(donnees_recues, indent=4))
                 
-                # Traitement des données reçues
-                if "commande" in donnees_recues:
-                    print(f"[Récepteur] Commande reçue : {donnees_recues['commande']}")
+                x_robot_actuel = donnees_recues["x_robot_actuel"]
+                y_robot_actuel = donnees_recues["y_robot_actuel"]
+                angle_robot_actuel = donnees_recues["angle_robot_actuel"]
+                x_ennemi = donnees_recues["x_ennemi"]
+                y_ennemi = donnees_recues["y_ennemi"]
+                Batteries = donnees_recues["Batteries"]
+
+                print(f"[Récepteur] x_robot_actuel : {x_robot_actuel}")
+                print(f"[Récepteur] y_robot_actuel : {y_robot_actuel}")
+                print(f"[Récepteur] angle_robot_actuel : {angle_robot_actuel}")
+                print(f"[Récepteur] x_ennemi : {x_ennemi}")
+                print(f"[Récepteur] y_ennemi : {y_ennemi}")
+                print(f"[Récepteur] Batteries : {Batteries}")
                 
             except json.JSONDecodeError:
                 print("[Récepteur] Erreur : données JSON invalides")
@@ -95,16 +83,28 @@ if __name__ == "__main__":
     print("Appuyez sur Ctrl+C pour arrêter\n")
     
     # Créer les threads
-    thread_envoi = threading.Thread(target=envoyer_donnees, daemon=True)
     thread_reception = threading.Thread(target=recevoir_donnees, daemon=True)
     
     # Démarrer les threads
-    thread_envoi.start()
     thread_reception.start()
     
     # Garder le programme actif
     try:
         while True:
-            time.sleep(1)
+            try:
+                client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                client_socket.connect((HOST_PC, PORT_ENVOI))
+                client_socket.sendall(message.encode())
+                client_socket.close()
+                
+                print("[Émetteur] Données JSON envoyées avec succès.")
+                time.sleep(1)
+                
+            except ConnectionRefusedError:
+                print("[Émetteur] Connexion refusée. Nouvelle tentative dans 2s...")
+                time.sleep(2)
+            except Exception as e:
+                print(f"[Émetteur] Erreur : {e}. Nouvelle tentative dans 2s...")
+                time.sleep(2)
     except KeyboardInterrupt:
         print("\n\n=== Arrêt du programme RPI4 ===")
