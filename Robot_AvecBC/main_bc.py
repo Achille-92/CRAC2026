@@ -39,6 +39,9 @@ Liste_GM_occuper = []
 Liste_noisettes_libres = [1,2,3,4,5,6,7,8]
 Liste_noisettes_prises = []
 
+Liste_GM_libres_old = Liste_GM_libres.copy()
+Liste_noisettes_libres_old = Liste_noisettes_libres.copy()
+
 Liste_zones_recup_noisettes_xy = [(400,1200),
                                   (400,400),
                                   (2600,1200),
@@ -499,17 +502,6 @@ if __name__ == '__main__':
     thread_reception = threading.Thread(target=recevoir_donnees, args=(stop_event,), daemon=True)
     thread_reception.start()
 
-    # ✅ OPTIMISATION 1 : Créer la connexion socket UNE SEULE FOIS
-    client_socket = None
-    if Reel:
-        try:
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.connect((HOST_PC, PORT_ENVOI))
-            print("✅ Connexion socket établie vers", HOST_PC)
-        except Exception as e:
-            print(f"❌ Erreur connexion socket : {e}")
-            client_socket = None
-
     try:
         # Initialisation des variables de trajectoire
         path_plot = None
@@ -541,8 +533,11 @@ if __name__ == '__main__':
             # ✅ OPTIMISATION : Initialiser Liste_trajectoire
             Liste_trajectoire = [0]
             
-            grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
-            
+            if Liste_GM_libres != Liste_GM_libres_old or Liste_noisettes_libres != Liste_noisettes_libres_old:
+                print("🔄 Mise à jour des zones...")
+                grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
+                Liste_GM_libres_old = Liste_GM_libres.copy()
+                Liste_noisettes_libres_old = Liste_noisettes_libres.copy()
             # ⭐ NOUVELLE DÉCISION si liste vide ⭐
             if len(Liste_actions) == 0:
                 action_en_cours = mise_a_jour_decision(
@@ -878,18 +873,6 @@ if __name__ == '__main__':
             print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
             print(Liste_actions)
 
-            ##### Simulation Mouvement Robot 
-            if not Reel: 
-                if(action_voulu in ["Rotation"]):
-                    if(angle_robot_actuel > angle_robot_voulu):
-                        angle_robot_actuel -= 5
-                    elif(angle_robot_actuel < angle_robot_voulu):
-                        angle_robot_actuel += 5
-                if(action_voulu in ["Consigne","Avancer"]):
-                    angle_robot_consigne = math.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel)
-                    x_robot_actuel += round(15*np.cos(angle_robot_consigne),0)
-                    y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
-
 
             # Mettre à jour robot, ennemi et consigne sur affichage
             robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
@@ -1046,26 +1029,18 @@ if __name__ == '__main__':
             y_ennemi_old = y_ennemi
             
             # ✅ OPTIMISATION 1 : Envoi via socket persistant
-            if client_socket and Reel:
-                try:
-                    donnees_pour_robot = {
-                        "Liste_actions": Liste_actions,
-                        "Liste_trajectoire": Liste_trajectoire,
-                        "Ordre_receive": ordre_receive
-                    }
-                    message = json.dumps(donnees_pour_robot)
-                    client_socket.sendall(message.encode() + b'\n')
-                except Exception as e:
-                    print(f"❌ Erreur envoi socket : {e}")
-                    # Tenter reconnexion
-                    try:
-                        client_socket.close()
-                        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        client_socket.connect((HOST_PC, PORT_ENVOI))
-                        print("✅ Reconnexion socket réussie")
-                    except:
-                        print("❌ Impossible de reconnecter")
-                        client_socket = None
+            
+            donnees_pour_robot = {
+                "Liste_actions": Liste_actions,
+                "Liste_trajectoire": Liste_trajectoire,
+                "Ordre_receive": ordre_receive
+            }
+            message = json.dumps(donnees_pour_robot)
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client_socket.connect((HOST_PC, PORT_ENVOI))
+            client_socket.sendall(message.encode())
+            client_socket.close()
+            time.sleep(0.01)
             
         time.sleep(2)
         stop_event.set()
