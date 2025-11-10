@@ -6,18 +6,28 @@ import numpy as np
 import threading
 import time
 import os
+import socket
+import json
 import matplotlib.pyplot as plt
 from functools import partial
 from matplotlib.widgets import Button
 from scipy.ndimage import binary_dilation
 from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries
 from calcul_mouv import euclidienne,astar_safe,simplify_path_safe,smooth_path_safe,creer_grille_avec_ennemi,initialiser_grille
-from fonction import Obstacles,calculer_pourcentage_batteries,gerer_basculement_batteries,clamp,calcul_angle_vers_point
+from fonction import Obstacles,gerer_basculement_batteries,clamp,calcul_angle_vers_point
 from gestion_zones_dynamiques import actualiser_zones_jeu, verifier_et_changer_cible_si_necessaire, mise_a_jour_decision, confirmer_action_terminee
 ########################################################################
 
-# A envoyer : Liste_actions, Liste_trajectoire, Ordre_receive
+# A envoyer : Liste_actions, Liste_trajectoire, ordre_receive
 # A recevoir : X_robot_actuel, Y_robot_actuel, Angle_robot_actuel, x_ennemi, y_ennemi, Batteries
+
+# Configuration pour l'envoi
+HOST_PC = "192.168.0.99"  # IP de l'ordinateur
+PORT_ENVOI = 5000
+
+# Configuration pour la réception
+HOST_RPI = '0.0.0.0'  # Écoute sur toutes les interfaces
+PORT_RECEPTION = 5001
 
 Reel = False
 
@@ -217,8 +227,72 @@ W_EFFICACITE = 0.05   # Importance de la cohérence (robot a objets → déposer
 # Distance max sur le terrain (pour normalisation)
 DISTANCE_MAX_TERRAIN = 3500  # Diagonale du terrain ≈ 3605mm
 
+donnees_pour_robot = {
+    "Liste_actions": Liste_actions,
+    "Liste_trajectoire": Liste_trajectoire,
+    "Ordre_receive": ordre_receive
+}
+
+message = json.dumps(donnees_pour_robot)
+
 ################## Fonction  ###########################################
-        
+
+# Fonction pour recevoir des données (OPTIMISÉE)
+def recevoir_donnees(stop_event):
+    global x_robot_actuel,y_robot_actuel,angle_robot_actuel,x_ennemi,y_ennemi,Batteries
+    print(f"[Récepteur] Serveur en attente sur le port {PORT_RECEPTION}...")
+    
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.settimeout(0.1)  # ✅ OPTIMISATION : Timeout pour éviter blocage
+    server_socket.bind((HOST_RPI, PORT_RECEPTION))
+    server_socket.listen(1)
+    
+    try:
+        while not stop_event.is_set():
+            try:
+                conn, addr = server_socket.accept()
+                conn.settimeout(0.1)  # ✅ OPTIMISATION : Timeout pour recv
+                print(f"\n[Récepteur] --- Connexion depuis {addr} ---")
+                
+                # Réception des données
+                data = b""
+                while True:
+                    try:
+                        packet = conn.recv(1024)
+                        if not packet:
+                            break
+                        data += packet
+                    except socket.timeout:
+                        break
+                
+                conn.close()
+                
+                # Décodage et affichage
+                if data:
+                    try:
+                        donnees_recues = json.loads(data.decode())
+                        
+                        print("[Récepteur] Données reçues depuis le robot")
+                        
+                        x_robot_actuel = donnees_recues["x_robot_actuel"]
+                        y_robot_actuel = donnees_recues["y_robot_actuel"]
+                        angle_robot_actuel = donnees_recues["angle_robot_actuel"]
+                        x_ennemi = donnees_recues["x_ennemi"]
+                        y_ennemi = donnees_recues["y_ennemi"]
+                        Batteries = donnees_recues["Batteries"]
+                        
+                    except json.JSONDecodeError:
+                        print("[Récepteur] Erreur : données JSON invalides")
+            except socket.timeout:
+                # Normal, on continue
+                pass
+            
+    except KeyboardInterrupt:
+        print("[Récepteur] Arrêt.")
+    finally:
+        server_socket.close()
+
 def arret_programme(event, stop_event=None):
     print("Bouton STOP pressé — arrêt demandé.")
     if stop_event is not None:
@@ -255,7 +329,8 @@ def on_click(event):
         elif event.button == 3:  # Bouton droit
             print(f"🖱️  Point affiché : ({round(x_clic, 0)}, {round(y_clic, 0)}) mm")
         
-        plt.draw()
+        # ✅ OPTIMISATION : draw_idle au lieu de draw
+        fig.canvas.draw_idle()
         bring_to_front(fig)
 
 
@@ -339,6 +414,9 @@ if __name__ == '__main__':
 
     stop_event = threading.Event()
 
+    # ✅ OPTIMISATION : Activer mode interactif matplotlib
+    plt.ion()
+
     fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button,bouton_stop,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line = init_affichage()
     cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
     bouton_stop.on_clicked(partial(arret_programme, stop_event=stop_event))
@@ -417,12 +495,30 @@ if __name__ == '__main__':
     ax_relacher_button = plt.axes([action_button_x_start + action_button_spacing, action_button_y, action_button_width, action_button_height])
     bouton_relacher = Button(ax_relacher_button, "🤖 RELACHER", color="lightyellow", hovercolor="orange")
     bouton_relacher.on_clicked(bouton_relacher_callback)
-    
+
+    thread_reception = threading.Thread(target=recevoir_donnees, args=(stop_event,), daemon=True)
+    thread_reception.start()
+
+    # ✅ OPTIMISATION 1 : Créer la connexion socket UNE SEULE FOIS
+    client_socket = None
+    if Reel:
+        try:
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client_socket.connect((HOST_PC, PORT_ENVOI))
+            print("✅ Connexion socket établie vers", HOST_PC)
+        except Exception as e:
+            print(f"❌ Erreur connexion socket : {e}")
+            client_socket = None
+
     try:
         # Initialisation des variables de trajectoire
         path_plot = None
         path_simplified_plot = None
         path_smooth_plot = None
+        
+        # ✅ OPTIMISATION : Compteur pour limiter l'affichage
+        compteur_affichage = 0
+        
         action_en_cours = mise_a_jour_decision(
             Liste_actions,
             x_robot_actuel, y_robot_actuel,
@@ -437,10 +533,14 @@ if __name__ == '__main__':
             verbose=True
         )
  
-        while (not stop_event.is_set() and Batteries[2][3] > 5 and len(Liste_actions)!=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
+        while (not stop_event.is_set() and Batteries[2][3] > 5): # ✅ CORRECTION : Retirer len(Liste_actions)!=0
             temps = 0
             verif = False
             step +=1
+            
+            # ✅ OPTIMISATION : Initialiser Liste_trajectoire
+            Liste_trajectoire = [0]
+            
             grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
             
             # ⭐ NOUVELLE DÉCISION si liste vide ⭐
@@ -455,8 +555,14 @@ if __name__ == '__main__':
                     Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
                     Liste_zones_gm_xy, Liste_zones_gm_angle,
                     R_securite,
+                    DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE,
                     verbose=True
                 )
+                
+                if len(Liste_actions) == 0:
+                    print("⏳ Aucune action disponible, attente...")
+                    time.sleep(0.1)
+                    continue
             
             if not Reel: 
                 x_ennemi += 6
@@ -526,12 +632,18 @@ if __name__ == '__main__':
 
             distance_robot_ennemi = math.sqrt((x_ennemi - x_robot_actuel)**2 + (y_ennemi - y_robot_actuel)**2)
             angle_ennemi = np.degrees(math.atan2(y_ennemi-y_ennemi_old,x_ennemi-x_ennemi_old))
+            
+            # ✅ OPTIMISATION 3 : Ne recalculer A* que si nécessaire
+            delta_x_ennemi = abs(x_ennemi - x_ennemi_old)
+            delta_y_ennemi = abs(y_ennemi - y_ennemi_old)
+            ennemi_a_bouge = (delta_x_ennemi > 50 or delta_y_ennemi > 50)  # Seuil 50mm
              
             # === CALCUL DE LA TRAJECTOIRE A* === 
             if action_voulu in ["Rotation", "Tourner","Attraper","Relacher"]:
                 pass  # rien, on attend la fin de la rotation
             else:
-                if action_voulu in ["Consigne",'Avancer'] or ((x_ennemi != x_ennemi_old) or (y_ennemi != y_ennemi_old)):
+                # ✅ OPTIMISATION : Ne recalculer que si ennemi a significativement bougé
+                if action_voulu in ["Consigne",'Avancer'] and (ennemi_a_bouge or step == 1):
                     Liste_actions = [action for action in Liste_actions if action[0] in ["Consigne","Rotation","Attraper","Relacher"]]
 
                     # Convertir les positions en cases
@@ -567,6 +679,8 @@ if __name__ == '__main__':
                         
                         # Afficher le chemin brut (optionnel, décommenter si souhaité)
                         px, py = zip(*path)
+                        if path_plot is not None:
+                            path_plot.remove()
                         path_plot, = ax.plot(px, py, 'b-', linewidth=1, alpha=0.3, label='A* brut')
                         
                         # Afficher le chemin simplifié
@@ -576,18 +690,15 @@ if __name__ == '__main__':
                         py_mm = [y * CASE_MM for y in py]
                         # Insérer actions avec rotation vers chaque point
                         print(f"📍 Création de {len(px_mm)} waypoints avec rotations")
-                        # ✅ Trouver l'index de la consigne actuelle
                         
                         # Effacer anciens plots juste avant création nouveaux
-                        if path_plot is not None:
-                            path_plot.remove()
-                            path_plot = None
                         if path_simplified_plot is not None:
                             path_simplified_plot.remove()
                             path_simplified_plot = None
                         if path_smooth_plot is not None:
                             path_smooth_plot.remove()
                             path_smooth_plot = None
+                            
                         nbr_point = 0
                         last_inserted = None  # (x,y) du dernier waypoint inséré pour éviter doublons consécutifs
 
@@ -621,17 +732,19 @@ if __name__ == '__main__':
                             nbr_point += 1
                             print(f"  → Waypoint {nbr_point}: Avancer vers ({x_cible:.0f}, {y_cible:.0f})")
 
-                        # Construire Liste_trajectoire en corrigant le test buggué
+                        # Construire Liste_trajectoire
                         if nbr_point >= 1:
                             Liste_trajectoire = []
                             Liste_trajectoire.append(nbr_point)
                             for action in Liste_actions:
-                                # CORRECTION : utiliser == au lieu de in "Avancer"
                                 if action[0] == "Avancer" and len(action) == 3:
                                     Liste_trajectoire.append([action[1], action[2]])
 
-
                         print(Liste_trajectoire)
+                        
+                        if path_simplified_plot is not None:
+                            path_simplified_plot.remove()
+                        path_simplified_plot, = ax.plot(px_mm, py_mm, 'g-', linewidth=2,label='Chemin A*', marker='o', markersize=4, zorder=10)
     
                     else:
                         print("❌ Aucun chemin trouvé par A*")
@@ -668,16 +781,14 @@ if __name__ == '__main__':
                 action_voulu = Liste_actions[0][0]
                 angle_robot_voulu = round(Liste_actions[0][1],0)
                 mouvement = True
-
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1:
                 print("Appeler Carte Actionneur pour : " + Liste_actions[0][0])
                 action_voulu = Liste_actions[0][0]
                 mouvement = False
-                    
 
             verif = False
             # ✅ Ne PAS recalculer pendant rotation (laisser tourner)
-            if action_voulu in ["Consigne","Avancer"]  or (x_ennemi != x_ennemi_old) or (y_ennemi != y_ennemi_old):
+            if action_voulu in ["Consigne","Avancer"]  or ennemi_a_bouge:
                 # Calculer distance à l'ennemi
                 dx_ennemi = x_ennemi - x_robot_actuel
                 dy_ennemi = y_ennemi - y_robot_actuel
@@ -686,15 +797,11 @@ if __name__ == '__main__':
                 # ✅ Vérifier si waypoints futurs bloqués par ennemi
                 trajectoire_bloquee = False
                 
-                # ✅ Vérifier SI ennemi bouge OU SI robot proche ennemi
-                delta_x_ennemi = abs(x_ennemi - x_ennemi_old)
-                delta_y_ennemi = abs(y_ennemi - y_ennemi_old)
-                ennemi_bouge_significatif = (delta_x_ennemi > 10 or delta_y_ennemi > 10)
-                robot_proche_ennemi = distance_ennemi < R_securite   # ✅ Nouveau
+                robot_proche_ennemi = distance_ennemi < R_securite
                 
                 # ✅ Recalculer si ennemi bouge OU si robot se rapproche
-                if ennemi_bouge_significatif or robot_proche_ennemi:
-                    if ennemi_bouge_significatif:
+                if ennemi_a_bouge or robot_proche_ennemi:
+                    if ennemi_a_bouge:
                         print(f"🔄 Ennemi a bougé : ({x_ennemi_old}, {y_ennemi_old}) → ({x_ennemi}, {y_ennemi})")
                     if robot_proche_ennemi:
                         print(f"⚠️  Robot proche ennemi : {distance_ennemi:.0f}mm (seuil {R_securite :.0f}mm)")
@@ -710,7 +817,7 @@ if __name__ == '__main__':
                             if dist_waypoint_ennemi < R_securite:
                                 print(f"⚠️  Waypoint ({x_waypoint:.0f}, {y_waypoint:.0f}) bloqué par ennemi à {dist_waypoint_ennemi:.0f}mm")
                                 trajectoire_bloquee = True
-                                break  # ✅ Sort dès qu'un waypoint bloqué
+                                break
                 
                 # Si ennemi dans zone critique ( rayon sécurité)
                 if distance_ennemi < (R_securite) or trajectoire_bloquee:
@@ -747,8 +854,7 @@ if __name__ == '__main__':
                         px_mm = [x * CASE_MM for x in px]
                         py_mm = [y * CASE_MM for y in py]
                         
-                        # Insérer nouveaux waypoints avec rotations
-                        # ✅ Effacer anciens plots
+                        # Effacer anciens plots
                         if path_plot is not None:
                             path_plot.remove()
                             path_plot = None
@@ -759,14 +865,6 @@ if __name__ == '__main__':
                         for i in range(len(py_mm)-1, 0, -1):
                             x_cible = px_mm[i]
                             y_cible = py_mm[i]
-                            
-                            if i > 0:
-                                x_precedent = px_mm[i-1]
-                                y_precedent = py_mm[i-1]
-                            else:
-                                x_precedent = x_robot_actuel
-                                y_precedent = y_robot_actuel
-                            
                             
                             Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
                             print(f"  → Nouveau waypoint: Avancer vers ({x_cible:.0f}, {y_cible:.0f})")
@@ -821,7 +919,6 @@ if __name__ == '__main__':
                 robot_angle_voulu_line.set_data([x0, x1], [y0, y1])
             else :
                 robot_angle_voulu_line.set_data([-20, -20], [-40, -40])
-            ################################################
             
             Ordre_Batteries = gerer_basculement_batteries(Batteries, U_last, Ordre_Batteries)
             battery_patches, battery_texts = afficher_batteries(ax, Batteries, Ordre_Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
@@ -853,6 +950,20 @@ if __name__ == '__main__':
             else:
                 A_voulu_text.set_color('green')
 
+            if Reel: 
+                if(abs(x_robot_actuel-x_robot_voulu)<10 and abs(y_robot_actuel-y_robot_voulu)<10 and action_voulu in ["Consigne","Avancer","Recul","Contournement"]):
+                    print("Bonne position")
+                    ordre_receive = 11
+                if(abs(angle_robot_actuel-angle_robot_voulu)<1) and action_voulu in ["Rotation","Tourner"]:
+                    print("Bon Angle")
+                    ordre_receive = 12
+            else :
+                if(abs(x_robot_actuel-x_robot_voulu)<30 and abs(y_robot_actuel-y_robot_voulu)<30 and action_voulu in ["Consigne","Avancer","Recul","Contournement"]):
+                    print("Bonne position")
+                    ordre_receive = 11
+                if(abs(angle_robot_actuel-angle_robot_voulu)<5) and action_voulu in ["Rotation","Tourner"]:
+                    print("Bon Angle")
+                    ordre_receive = 12
                     
             if (action_voulu in ["Consigne","Avancer"] and ordre_receive == 11) or \
                (action_voulu in ["Rotation"] and ordre_receive == 12) or \
@@ -918,30 +1029,61 @@ if __name__ == '__main__':
                         print("⚠️  AUCUNE ACTION DISPONIBLE - Mission terminée ou zones bloquées")
 
 
-            # MAJ de l'affichage et des Variables de Bouncing
-            plt.draw()
-            fig.canvas.draw()
-            fig.canvas.flush_events()
-            time.sleep(0.001)
+            # ✅ OPTIMISATION 2 : Limiter les mises à jour d'affichage (1 fois sur 3)
+            compteur_affichage += 1
+            if compteur_affichage >= 3:
+                fig.canvas.draw_idle()  # Plus rapide que draw()
+                fig.canvas.flush_events()
+                compteur_affichage = 0
+            
+            # ✅ OPTIMISATION 5 : Sleep plus long pour libérer le CPU
+            time.sleep(0.01)  # 10ms au lieu de 1ms
+            
             U_last = [Batteries[0][2],Batteries[1][2],Batteries[2][2]]
             x_robot_voulu_last = x_robot_voulu
             y_robot_voulu_last = y_robot_voulu
             x_ennemi_old = x_ennemi
             y_ennemi_old = y_ennemi
-            print("")
-
+            
+            # ✅ OPTIMISATION 1 : Envoi via socket persistant
+            if client_socket and Reel:
+                try:
+                    donnees_pour_robot = {
+                        "Liste_actions": Liste_actions,
+                        "Liste_trajectoire": Liste_trajectoire,
+                        "Ordre_receive": ordre_receive
+                    }
+                    message = json.dumps(donnees_pour_robot)
+                    client_socket.sendall(message.encode() + b'\n')
+                except Exception as e:
+                    print(f"❌ Erreur envoi socket : {e}")
+                    # Tenter reconnexion
+                    try:
+                        client_socket.close()
+                        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        client_socket.connect((HOST_PC, PORT_ENVOI))
+                        print("✅ Reconnexion socket réussie")
+                    except:
+                        print("❌ Impossible de reconnecter")
+                        client_socket = None
+            
         time.sleep(2)
         stop_event.set()
 
     except KeyboardInterrupt:
         print("Arrêt demandé par l'utilisateur.")
-        stop_event.set()  # signal aux threads de s'arrêter
-        # Attente que chaque thread termine proprement
-        if Reel :
-            os.system("sudo ifconfig can0 down")
+        stop_event.set()
         
     finally:
         print("Programme terminé proprement.")
+        
+        # ✅ Fermer la connexion socket
+        if client_socket:
+            try:
+                client_socket.close()
+                print("✅ Socket fermé")
+            except:
+                pass
         
         plt.close(fig)
 
