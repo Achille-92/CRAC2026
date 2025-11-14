@@ -456,6 +456,13 @@ def arret_programme(event, stop_event=None):
         bring_to_front(fig)
 
 def on_click(event):
+    """
+    Callback pour les clics sur la piste.
+    
+    COMPORTEMENT :
+    - Clic GAUCHE (bouton 1) : Ajoute une consigne PRIORITAIRE en début de Liste_actions
+    - Clic DROIT (bouton 3) : Affiche juste le point voulu (ancien comportement)
+    """
     global x_robot_voulu, y_robot_voulu, Liste_actions
     
     if event.inaxes == ax:
@@ -687,7 +694,7 @@ if __name__ == '__main__':
                     action_voulu = Liste_actions[0][0]
             else:
                 action_voulu = "Aucune"
-            
+            print(Liste_actions)
             # ✅ Demander calcul A* si nécessaire (NON BLOQUANT)
             delta_x_ennemi = abs(x_ennemi - x_ennemi_old)
             delta_y_ennemi = abs(y_ennemi - y_ennemi_old)
@@ -725,8 +732,6 @@ if __name__ == '__main__':
                     y_robot_actuel += round(5 * np.sin(angle_robot_consigne), 0)
             
             # Ordres CAN
-            dico_envoi[0x203] = x_robot_voulu
-            dico_envoi[0x204] = y_robot_voulu
             dico_envoi[0x205] = angle_robot_voulu
             
             # Mise à jour affichage
