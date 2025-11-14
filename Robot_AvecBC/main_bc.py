@@ -729,7 +729,8 @@ if __name__ == '__main__':
 
                         # Construire Liste_trajectoire
                         if nbr_point >= 1:
-                            Liste_trajectoire = []
+                            for indice in range(len(Liste_trajectoire)):
+                                Liste_trajectoire.pop(indice)
                             Liste_trajectoire.append(nbr_point)
                             for action in Liste_actions:
                                 if action[0] == "Avancer" and len(action) == 3:
