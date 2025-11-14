@@ -83,8 +83,8 @@ MARGE_BORDUREPISTE_X = 120
 MARGE_BORDUREPISTE_Y = 80
 
 # Coordonnées et angle de notre robot
-x_robot_depart = 350
-y_robot_depart = 1800
+x_robot_depart = 400-125
+y_robot_depart = 1550+100
 angle_robot_depart = -90
 
 x_robot_actuel = x_robot_depart
@@ -96,7 +96,7 @@ y_robot_voulu = -1
 angle_robot_voulu = -181
 
 # Ennemi
-x_ennemi = 1900
+x_ennemi = 2500
 y_ennemi = 1000
 x_ennemi_old = x_ennemi
 y_ennemi_old = y_ennemi
@@ -443,7 +443,7 @@ def calcul_ennemi(stop_event):
             xs, ys = zip(*buffer_points)
             x_ennemi = np.mean(xs)
             y_ennemi = np.mean(ys)
-            x_ennemi = 1500
+            x_ennemi = 2500
             y_ennemi = 1000
 
 
@@ -573,8 +573,8 @@ if __name__ == '__main__':
         tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
         tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
         
-        tache_lidar.start()
-        tache_calcul.start()
+        #tache_lidar.start()
+        #tache_calcul.start()
         tache_LectureCAN.start()
     
     try:
@@ -885,16 +885,16 @@ if __name__ == '__main__':
         print("Arrêt utilisateur")
         stop_event.set()
         if Reel:
-            tache_lidar.join()
-            tache_calcul.join()
+            #tache_lidar.join()
+            #tache_calcul.join()
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
     
     finally:
         print("Programme terminé")
         if Reel:
-            tache_lidar.join()
-            tache_calcul.join()
+            #tache_lidar.join()
+            #tache_calcul.join()
             tache_LectureCAN.join()
             etat = 2
             data_etat = struct.pack('<I', etat)
