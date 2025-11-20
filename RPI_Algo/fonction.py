@@ -760,10 +760,6 @@ def tester_classe_obstacles():
     print("\n--- SUPPRESSION ---")
     obs.retirer("danger")
     obs.lister()
-    
-    print("\n" + "="*70)
-    print("FIN DU TEST")
-    print("="*70 + "\n")
 
 
 """if __name__ == "__main__":
