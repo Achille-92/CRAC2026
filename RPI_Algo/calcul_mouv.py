@@ -446,9 +446,7 @@ if __name__ == "__main__":
     # Exécuter le test si le fichier est lancé directement
     tester_module()
 
-def verifier_cible_disponible(action_en_cours, 
-                               Liste_noisettes_libres, 
-                               Liste_GM_libres):
+def verifier_cible_disponible(action_en_cours,Liste_noisettes_libres,Liste_GM_libres):
     """
     Vérifie si la cible actuelle est toujours disponible.
     """
