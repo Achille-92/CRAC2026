@@ -36,14 +36,10 @@ def mettre_a_jour_zones_dynamiques(obs_manager, obs_manager_noisettes,
     rapport_zones = {}
     rapport_noisettes = {}
     
-    print("\n" + "="*70)
-    print("🔄 MISE À JOUR DYNAMIQUE DES ZONES")
-    print("="*70)
     
     # ========================================================================
     # GESTION DES ZONES (GARDEMANGER) - numérotées de 1 à 10
     # ========================================================================
-    print("\n--- ZONES GARDEMANGER ---")
     
     for numero_zone in range(1, 11):  # Zones 1 à 10
         nom_zone = f"zone{numero_zone}"
@@ -68,15 +64,9 @@ def mettre_a_jour_zones_dynamiques(obs_manager, obs_manager_noisettes,
             if etat_actuel != etat_souhaite:
                 if etat_souhaite:
                     obs_manager.activer(nom_zone)
-                    print(f"  ✅ Zone {numero_zone:2d} ACTIVÉE (zone {raison})")
                 else:
                     obs_manager.desactiver(nom_zone)
-                    print(f"  ⚪ Zone {numero_zone:2d} DÉSACTIVÉE (zone {raison})")
                 grilles_modifiees = True
-            else:
-                # Pas de changement
-                symbole = "✅" if etat_actuel else "⚪"
-                print(f"  {symbole} Zone {numero_zone:2d} déjà {'active' if etat_actuel else 'inactive'} (zone {raison})")
             
             rapport_zones[numero_zone] = {
                 "actif": etat_souhaite,
@@ -89,7 +79,6 @@ def mettre_a_jour_zones_dynamiques(obs_manager, obs_manager_noisettes,
     # ========================================================================
     # GESTION DES NOISETTES - numérotées de 1 à 8
     # ========================================================================
-    print("\n--- NOISETTES ---")
     
     for numero_noisette in range(1, 9):  # Noisettes 1 à 8
         nom_noisette = f"Noisette{numero_noisette}"
@@ -114,16 +103,10 @@ def mettre_a_jour_zones_dynamiques(obs_manager, obs_manager_noisettes,
             if etat_actuel != etat_souhaite:
                 if etat_souhaite:
                     obs_manager_noisettes.activer(nom_noisette)
-                    print(f"  🌰 Noisette {numero_noisette} ACTIVÉE ({raison})")
                 else:
                     obs_manager_noisettes.desactiver(nom_noisette)
-                    print(f"  ✓  Noisette {numero_noisette} DÉSACTIVÉE ({raison})")
                 grilles_modifiees = True
-            else:
-                # Pas de changement
-                symbole = "🌰" if etat_actuel else "✓ "
-                print(f"  {symbole} Noisette {numero_noisette} déjà {'active' if etat_actuel else 'inactive'} ({raison})")
-            
+    
             rapport_noisettes[numero_noisette] = {
                 "actif": etat_souhaite,
                 "raison": raison,
@@ -134,13 +117,11 @@ def mettre_a_jour_zones_dynamiques(obs_manager, obs_manager_noisettes,
     
     # ========================================================================
     # RÉSUMÉ
-    # ========================================================================
-    print("\n" + "-"*70)
+    # ========================================================================$
     if grilles_modifiees:
         print("⚠️  GRILLES MODIFIÉES : Régénération nécessaire")
     else:
         print("✓  Aucune modification - Grilles inchangées")
-    print("="*70 + "\n")
     
     return grilles_modifiees, rapport_zones, rapport_noisettes
 
@@ -615,7 +596,7 @@ def calculer_score_tache(x_tache, y_tache, type_tache, robot_a_objets,
     
     # 3. FACTEUR PRIORITÉ
     if type_tache == "Attraper":
-        f_priorite = 1.0
+        f_priorite = 1.0 
     else:
         f_priorite = 0.8
     
