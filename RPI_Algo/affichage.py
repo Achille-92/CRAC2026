@@ -213,16 +213,16 @@ def init_affichage():
 
     # Point voulu
     point_voulu_plot, = ax.plot([], [], 'bx', markersize=10, label="Point voulu")
-
     # Lignes d'angle
     robot_angle_line = Line2D([0, 0], [0, 0], color='blue', linewidth=2)
     robot_angle_voulu_line = Line2D([0, 0], [0, 0], color='green', linewidth=2)
     
-    
+    fig.canvas.draw()
+    background = fig.canvas.copy_from_bbox(ax.bbox)
 
     return (fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,
             ax_button, bouton_stop, point_voulu_plot, x_voulu_text, y_voulu_text, 
-            A_voulu_text, robot_angle_line, robot_angle_voulu_line)
+            A_voulu_text, robot_angle_line, robot_angle_voulu_line,background)
 
 
 def afficher_batteries(ax, Batteries, Ordre_Batteries, battery_patches, battery_texts,
