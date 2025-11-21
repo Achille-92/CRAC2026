@@ -1,6 +1,6 @@
-Reel = False
-x_robot_depart = 350
-y_robot_depart = 1800
+Reel = True
+x_robot_depart = 275 
+y_robot_depart = 1650
 angle_robot_depart = -90
 
 ################## Librairies ##########################################
@@ -693,11 +693,11 @@ if __name__ == '__main__':
     bouton_relacher.on_clicked(bouton_relacher_callback)
 
     if Reel: 
-        tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
+        #tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
         tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
         tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
         
-        tache_lidar.start()
+        #tache_lidar.start()
         tache_calcul.start()
         tache_LectureCAN.start()
     
@@ -1262,13 +1262,14 @@ if __name__ == '__main__':
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
-                        if key in [0x01,0x300,0x301,0x302]:
+                        if key in [0x01,0x207,0x300,0x301,0x302]:
                             format_value = struct.pack('<I',dico_envoi[key])
                         else :
                             format_value = struct.pack('<f',dico_envoi[key])
                         msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
                         bus.send(msg)
                         dico_envoi[key]=0
+                        time.sleep(0.0005)
             
 
             # MAJ de l'affichage et des Variables de Bouncing
@@ -1295,7 +1296,7 @@ if __name__ == '__main__':
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
         if Reel :
-            tache_lidar.join()
+            #tache_lidar.join()
             tache_calcul.join()
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
@@ -1306,7 +1307,7 @@ if __name__ == '__main__':
     finally:
         print("Programme terminé proprement.")
         if Reel :
-            tache_lidar.join()
+            #tache_lidar.join()
             tache_calcul.join()
             tache_LectureCAN.join()
             etat = 2
