@@ -1,6 +1,5 @@
-youssef@youssef:~/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG $  cd /home/youssef/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG ; /usr/bin/env /bin/python /home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 59183 -- /home/youssef/Desktop/CRAC2026/main.py 
-RTNETLINK answers: Device or resource busy
-/home/youssef/Desktop/CRAC2026/main.py:30: DeprecationWarning: The 'bustype' argument is deprecated since python-can v4.2.0, and scheduled for removal in python-can v5.0.0. Use 'interface' instead.
+youssef@youssef:~/Desktop/CRAC2026 $  /usr/bin/env /bin/python /home/youssef/.vscode/extensions/ms-python.debugpy-2025.16.0-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 41263 -- /home/youssef/Desktop/CRAC2026/main.py 
+/home/youssef/Desktop/CRAC2026/main.py:34: DeprecationWarning: The 'bustype' argument is deprecated since python-can v4.2.0, and scheduled for removal in python-can v5.0.0. Use 'interface' instead.
   bus = can.interface.Bus(
 🏗️  Gestionnaire obstacles initialisé : 300×200 cases
 🏗️  Gestionnaire obstacles initialisé : 300×200 cases
@@ -23,273 +22,35 @@ RTNETLINK answers: Device or resource busy
 ➕ Rectangle ajouté : Noisette7 @ (1000, 100) - (1200, 250)
 ➕ Rectangle ajouté : Noisette8 @ (1800, 100) - (2000, 250)
 ➕ Rectangle ajouté : grenier @ (600, 1550) - (2400, 2000)
-🗺️  Grille générée : 8100 cases obstacles, 2838 cases sécurité
-🗺️  Grille générée : 2400 cases obstacles, 9568 cases sécurité
+🗺️  Grille générée : 8100 cases obstacles, 3748 cases sécurité
+🗺️  Grille générée : 2400 cases obstacles, 10596 cases sécurité
 QStandardPaths: wrong permissions on runtime directory /run/user/1000, 0770 instead of 0700
 qt.qpa.wayland: Wayland does not support QWindow::requestActivate()
 ✅ Grille initialisée : 300×200 cases (3000×2000 mm)
-
-======================================================================
-🔄 MISE À JOUR DYNAMIQUE DES ZONES
-======================================================================
-
---- ZONES GARDEMANGER ---
-  ⚪ Zone  1 déjà inactive (zone libre)
-  ⚪ Zone  2 déjà inactive (zone libre)
-  ⚪ Zone  3 déjà inactive (zone libre)
-  ⚪ Zone  4 déjà inactive (zone libre)
-  ⚪ Zone  5 déjà inactive (zone libre)
-  ⚪ Zone  6 déjà inactive (zone libre)
-  ⚪ Zone  7 déjà inactive (zone libre)
-  ⚪ Zone  8 déjà inactive (zone libre)
-  ⚪ Zone  9 déjà inactive (zone libre)
-  ⚪ Zone 10 déjà inactive (zone libre)
-
---- NOISETTES ---
-  🌰 Noisette 1 déjà active (à éviter)
-  🌰 Noisette 2 déjà active (à éviter)
-  🌰 Noisette 3 déjà active (à éviter)
-  🌰 Noisette 4 déjà active (à éviter)
-  🌰 Noisette 5 déjà active (à éviter)
-  🌰 Noisette 6 déjà active (à éviter)
-  🌰 Noisette 7 déjà active (à éviter)
-  🌰 Noisette 8 déjà active (à éviter)
-
-----------------------------------------------------------------------
 ✓  Aucune modification - Grilles inchangées
-======================================================================
-
 
 ======================================================================
-✅ ACTION CHOISIE : Attraper zone 5
+✅ ACTION CHOISIE : Attraper zone 1
 ======================================================================
-   📍 Position : (1150, 1025) mm
-   🧭 Angle    : -90°
-   ⭐ Score    : 0.941
-   🔢 Position 1/2 choisie
-      (Zone avec 2 positions possibles)
+   📍 Position : (400, 1200) mm
+   🧭 Angle    : 180°
+   ⭐ Score    : 0.907
 ======================================================================
 
-
-======================================================================
-🔄 MISE À JOUR DYNAMIQUE DES ZONES
-======================================================================
-
---- ZONES GARDEMANGER ---
-  ⚪ Zone  1 déjà inactive (zone libre)
-  ⚪ Zone  2 déjà inactive (zone libre)
-  ⚪ Zone  3 déjà inactive (zone libre)
-  ⚪ Zone  4 déjà inactive (zone libre)
-  ⚪ Zone  5 déjà inactive (zone libre)
-  ⚪ Zone  6 déjà inactive (zone libre)
-  ⚪ Zone  7 déjà inactive (zone libre)
-  ⚪ Zone  8 déjà inactive (zone libre)
-  ⚪ Zone  9 déjà inactive (zone libre)
-  ⚪ Zone 10 déjà inactive (zone libre)
-
---- NOISETTES ---
-  🌰 Noisette 1 déjà active (à éviter)
-  🌰 Noisette 2 déjà active (à éviter)
-  🌰 Noisette 3 déjà active (à éviter)
-  🌰 Noisette 4 déjà active (à éviter)
-  🌰 Noisette 5 déjà active (à éviter)
-  🌰 Noisette 6 déjà active (à éviter)
-  🌰 Noisette 7 déjà active (à éviter)
-  🌰 Noisette 8 déjà active (à éviter)
-
-----------------------------------------------------------------------
 ✓  Aucune modification - Grilles inchangées
-======================================================================
-
-1
-
-Avant verif :
-Action en cours : Consigne
-X_actuel = 1500 Y_actuel = 1000 Angle_actuel = -90°
-X_voulu = 1150 Y_voulu = 1025 Angle_voulu = -181°
-🗺️  Calcul trajectoire A* : (150, 100) → (115, 102)
-🎯 Position ennemi : (2500, 1000)
-✅ Chemin trouvé : 36 points
-📉 Chemin simplifié : 36 → 2 points
-📏 Longueur trajectoire : 358 mm
-📍 Création de 2 waypoints avec rotations
-  → Skip waypoint identique à la Consigne (1150,1020)
-[]
 
 Après verif :
-Action en cours : Consigne
-X_actuel = 1500 Y_actuel = 1000 Angle_actuel = -90°
-X_voulu = 1150 Y_voulu = 1025 Angle_voulu = -181°
-[['Consigne', 1150, 1025], ['Rotation', -90], ['Attraper']]
-/home/youssef/Desktop/CRAC2026/main.py:1164: UserWarning: Glyph 129302 (\N{ROBOT FACE}) missing from current font.
-  fig.canvas.draw()
-/home/youssef/Desktop/CRAC2026/main.py:1165: UserWarning: Glyph 129302 (\N{ROBOT FACE}) missing from current font.
-  fig.canvas.flush_events()
-
+Action en cours : Avancer
+X_actuel = 350 Y_actuel = 1800 Angle_actuel = -90°
+X_voulu = 420 Y_voulu = 1280 Angle_voulu = -181°
+Liste_actions :  [['Avancer', 420, 1280], ['Avancer', 420, 1220], ['Consigne', 400, 1200], ['Rotation', 180], ['Attraper']]
+Liste_GM_libres :  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+Liste_GM_libres_precedente :  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+Liste_noisettes_libres :  [1, 2, 3, 4, 5, 6, 7, 8]
+Liste_noisettes_libres_precedente :  [1, 2, 3, 4, 5, 6, 7, 8]
+MAJ Batterie N°1
+MAJ Batterie N°2
+MAJ Batterie N°3
+Liste_trajectoire :  [3, [420, 1280], [420, 1220], [400, 1200]]
+Failed to transmit: Aucun espace tampon disponible [Error Code 105]
 Programme terminé proprement.
-youssef@youssef:~/Desktop/CRAC/CodeSecours_RP
-I5_Robot_YEK_YG $  cd /home/youssef/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG ; /usr/bin/env /bin/python /home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 38673 -- /home/youssef/Desktop/CRAC2026/main.py 
-RTNETLINK answers: Device or resource busy
-/home/youssef/Desktop/CRAC2026/main.py:30: DeprecationWarning: The 'bustype' argument is deprecated since python-can v4.2.0, and scheduled for removal in python-can v5.0.0. Use 'interface' instead.
-  bus = can.interface.Bus(
-🏗️  Gestionnaire obstacles initialisé : 300×200 cases
-🏗️  Gestionnaire obstacles initialisé : 300×200 cases
-➕ Carré ajouté : zone1 @ (1250, 1450) (200mm)
-➕ Carré ajouté : zone2 @ (1750, 1450) (200mm)
-➕ Carré ajouté : zone3 @ (100, 800) (200mm)
-➕ Carré ajouté : zone4 @ (800, 800) (200mm)
-➕ Carré ajouté : zone5 @ (1500, 800) (200mm)
-➕ Carré ajouté : zone6 @ (2200, 800) (200mm)
-➕ Carré ajouté : zone7 @ (2900, 800) (200mm)
-➕ Carré ajouté : zone8 @ (700, 100) (200mm)
-➕ Carré ajouté : zone9 @ (1500, 100) (200mm)
-➕ Carré ajouté : zone10 @ (2300, 100) (200mm)
-➕ Rectangle ajouté : Noisette1 @ (100, 1100) - (250, 1300)
-➕ Rectangle ajouté : Noisette2 @ (100, 300) - (250, 500)
-➕ Rectangle ajouté : Noisette3 @ (2750, 1100) - (2900, 1300)
-➕ Rectangle ajouté : Noisette4 @ (2750, 300) - (2900, 500)
-➕ Rectangle ajouté : Noisette5 @ (1050, 725) - (1250, 875)
-➕ Rectangle ajouté : Noisette6 @ (1750, 725) - (1950, 875)
-➕ Rectangle ajouté : Noisette7 @ (1000, 100) - (1200, 250)
-➕ Rectangle ajouté : Noisette8 @ (1800, 100) - (2000, 250)
-➕ Rectangle ajouté : grenier @ (600, 1550) - (2400, 2000)
-🗺️  Grille générée : 8100 cases obstacles, 2838 cases sécurité
-🗺️  Grille générée : 2400 cases obstacles, 9568 cases sécurité
-QStandardPaths: wrong permissions on runtime directory /run/user/1000, 0770 instead of 0700
-qt.qpa.wayland: Wayland does not support QWindow::requestActivate()
-✅ Grille initialisée : 300×200 cases (3000×2000 mm)
-
-======================================================================
-🔄 MISE À JOUR DYNAMIQUE DES ZONES
-======================================================================
-
---- ZONES GARDEMANGER ---
-  ⚪ Zone  1 déjà inactive (zone libre)
-  ⚪ Zone  2 déjà inactive (zone libre)
-  ⚪ Zone  3 déjà inactive (zone libre)
-  ⚪ Zone  4 déjà inactive (zone libre)
-  ⚪ Zone  5 déjà inactive (zone libre)
-  ⚪ Zone  6 déjà inactive (zone libre)
-  ⚪ Zone  7 déjà inactive (zone libre)
-  ⚪ Zone  8 déjà inactive (zone libre)
-  ⚪ Zone  9 déjà inactive (zone libre)
-  ⚪ Zone 10 déjà inactive (zone libre)
-
---- NOISETTES ---
-  🌰 Noisette 1 déjà active (à éviter)
-  🌰 Noisette 2 déjà active (à éviter)
-  🌰 Noisette 3 déjà active (à éviter)
-  🌰 Noisette 4 déjà active (à éviter)
-  🌰 Noisette 5 déjà active (à éviter)
-  🌰 Noisette 6 déjà active (à éviter)
-  🌰 Noisette 7 déjà active (à éviter)
-  🌰 Noisette 8 déjà active (à éviter)
-
-----------------------------------------------------------------------
-✓  Aucune modification - Grilles inchangées
-======================================================================
-
-
-======================================================================
-✅ ACTION CHOISIE : Attraper zone 5
-======================================================================
-   📍 Position : (1150, 1025) mm
-   🧭 Angle    : -90°
-   ⭐ Score    : 0.941
-   🔢 Position 1/2 choisie
-      (Zone avec 2 positions possibles)
-======================================================================
-
-
-======================================================================
-🔄 MISE À JOUR DYNAMIQUE DES ZONES
-======================================================================
-
---- ZONES GARDEMANGER ---
-  ⚪ Zone  1 déjà inactive (zone libre)
-  ⚪ Zone  2 déjà inactive (zone libre)
-  ⚪ Zone  3 déjà inactive (zone libre)
-  ⚪ Zone  4 déjà inactive (zone libre)
-  ⚪ Zone  5 déjà inactive (zone libre)
-  ⚪ Zone  6 déjà inactive (zone libre)
-  ⚪ Zone  7 déjà inactive (zone libre)
-  ⚪ Zone  8 déjà inactive (zone libre)
-  ⚪ Zone  9 déjà inactive (zone libre)
-  ⚪ Zone 10 déjà inactive (zone libre)
-
---- NOISETTES ---
-  🌰 Noisette 1 déjà active (à éviter)
-  🌰 Noisette 2 déjà active (à éviter)
-  🌰 Noisette 3 déjà active (à éviter)
-  🌰 Noisette 4 déjà active (à éviter)
-  🌰 Noisette 5 déjà active (à éviter)
-  🌰 Noisette 6 déjà active (à éviter)
-  🌰 Noisette 7 déjà active (à éviter)
-  🌰 Noisette 8 déjà active (à éviter)
-
-----------------------------------------------------------------------
-✓  Aucune modification - Grilles inchangées
-======================================================================
-
-1
-
-Avant verif :
-Action en cours : Consigne
-X_actuel = 1500 Y_actuel = 1000 Angle_actuel = -90°
-X_voulu = 1150 Y_voulu = 1025 Angle_voulu = -181°
-🗺️  Calcul trajectoire A* : (150, 100) → (115, 102)
-🎯 Position ennemi : (2500, 1000)
-✅ Chemin trouvé : 36 points
-📉 Chemin simplifié : 36 → 2 points
-📏 Longueur trajectoire : 358 mm
-📍 Création de 2 waypoints avec rotations
-  → Skip waypoint identique à la Consigne (1150,1020)
-[]
-
-Après verif :
-Action en cours : Consigne
-X_actuel = 1500 Y_actuel = 1000 Angle_actuel = -90°
-X_voulu = 1150 Y_voulu = 1025 Angle_voulu = -181°
-[['Consigne', 1150, 1025], ['Rotation', -90], ['Attraper']]
-/home/youssef/Desktop/CRAC2026/main.py:1164: UserWarning: Glyph 129302 (\N{ROBOT FACE}) missing from current font.
-  fig.canvas.draw()
-/home/youssef/Desktop/CRAC2026/main.py:1165: UserWarning: Glyph 129302 (\N{ROBOT FACE}) missing from current font.
-  fig.canvas.flush_events()
-
-Programme terminé proprement.
-^CTraceback (most recent call last):
-  File "/home/youssef/Desktop/CRAC2026/main.py", line 1179, in <module>
-    dico_envoi[0x207] = Liste_trajectoire[0]
-                        ~~~~~~~~~~~~~~~~~^^^
-IndexError: list index out of range
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "/usr/lib/python3.11/runpy.py", line 198, in _run_module_as_main
-    return _run_code(code, main_globals, None,
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.11/runpy.py", line 88, in _run_code
-    exec(code, run_globals)
-  File "/home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher/../../debugpy/__main__.py", line 71, in <module>
-    cli.main()
-  File "/home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher/../../debugpy/../debugpy/server/cli.py", line 508, in main
-    run()
-  File "/home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher/../../debugpy/../debugpy/server/cli.py", line 358, in run_file
-    runpy.run_path(target, run_name="__main__")
-  File "/home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/_vendored/pydevd/_pydevd_bundle/pydevd_runpy.py", line 310, in run_path
-    return _run_module_code(code, init_globals, run_name, pkg_name=pkg_name, script_name=fname)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/_vendored/pydevd/_pydevd_bundle/pydevd_runpy.py", line 127, in _run_module_code
-    _run_code(code, mod_globals, init_globals, mod_name, mod_spec, pkg_name, script_name)
-  File "/home/youssef/.vscode/extensions/ms-python.debugpy-2025.14.1-linux-arm64/bundled/libs/debugpy/_vendored/pydevd/_pydevd_bundle/pydevd_runpy.py", line 118, in _run_code
-    exec(code, run_globals)
-  File "/home/youssef/Desktop/CRAC2026/main.py", line 1216, in <module>
-    tache_LectureCAN.join()
-  File "/usr/lib/python3.11/threading.py", line 1112, in join
-    self._wait_for_tstate_lock()
-  File "/usr/lib/python3.11/threading.py", line 1132, in _wait_for_tstate_lock
-    if lock.acquire(block, timeout):
-       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-KeyboardInterrupt
-youssef@youssef:~/Desktop/CRAC/CodeSecours_RPI5_Robot_YEK_YG $ 
