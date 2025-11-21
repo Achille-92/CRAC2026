@@ -464,10 +464,16 @@ void calcul_traj(void *)
       else
         suivi += 1;
     }
-    if (liste_point[0].x == 0 && liste_point[0].y == 0)
+    /*if (liste_point[0].x == -1 && liste_point[0].y == -1)
+    {
       teta_cons = 0;
+      pos_fin[0] = pos_act[0];
+      pos_fin[1] = pos_act[1];
+      pos_fin[0] = traj[suivi].x;
+      pos_fin[1] = traj[suivi].y;
+    }
     else
-      teta_cons = teta_act;
+      teta_cons = teta_act;*/
 
     if ((comparer(pos_act[0], liste_point[0].x, 50) && comparer(pos_act[1], liste_point[0].y, 50)) || ((((liste_point[0].x == 0) || (liste_point[0].y == 0))) && (((liste_point[1].x != 0) || (liste_point[0].y != 0)))))
     {
@@ -477,34 +483,28 @@ void calcul_traj(void *)
         liste_point[i].y = liste_point[i + 1].y;
       }
     }
-    if (calc == 0)
-    {
-      dist1 = sqrt(((liste_point[0].x - pos_act[0]) * (liste_point[0].x - pos_act[0])) + ((liste_point[0].y - pos_act[1]) * (liste_point[0].y - pos_act[1])));
-      dist2 = sqrt(((liste_point[1].x - liste_point[0].x) * (liste_point[1].x - liste_point[0].x)) + ((liste_point[1].y - liste_point[0].y) * (liste_point[1].y - liste_point[0].y)));
-
-      teta1 = atan2((liste_point[0].y - pos_act[1]), (liste_point[0].x - pos_act[0]));
-      teta2 = atan2((liste_point[1].y - liste_point[0].y), (liste_point[1].x - liste_point[0].x));
-    }
     if ((liste_point[0].x != 0) && (liste_point[0].y != 0))
     {
       calc = 1;
-      if (((pos_traj[0] != liste_point[0].x) || (pos_traj[1] != liste_point[0].y)))
+      if ((!comparer(pos_traj[0], liste_point[0].x, 20) && !comparer(pos_traj[1], liste_point[0].y, 20)))
       {
         dist1 = sqrt(((liste_point[0].x - pos_act[0]) * (liste_point[0].x - pos_act[0])) + ((liste_point[0].y - pos_act[1]) * (liste_point[0].y - pos_act[1])));
-      dist2 = sqrt(((liste_point[1].x - liste_point[0].x) * (liste_point[1].x - liste_point[0].x)) + ((liste_point[1].y - liste_point[0].y) * (liste_point[1].y - liste_point[0].y)));
+        dist2 = sqrt(((liste_point[1].x - liste_point[0].x) * (liste_point[1].x - liste_point[0].x)) + ((liste_point[1].y - liste_point[0].y) * (liste_point[1].y - liste_point[0].y)));
 
-      teta1 = atan2((liste_point[0].y - pos_act[1]), (liste_point[0].x - pos_act[0]));
-      teta2 = atan2((liste_point[1].y - liste_point[0].y), (liste_point[1].x - liste_point[0].x));
+        teta1 = atan2((liste_point[0].y - pos_act[1]), (liste_point[0].x - pos_act[0]));
+        teta2 = atan2((liste_point[1].y - liste_point[0].y), (liste_point[1].x - liste_point[0].x));
+
         fin = dist1 / 10.0;
         dist_a_parcourir = dist1 / fin;
         n = 0;
         traj[0].x = pos_act[0];
         traj[0].y = pos_act[1];
+
         if ((liste_point[0].x != 0) && (liste_point[0].y != 0))
         {
           while ((comparer(traj[fin].x, liste_point[0].x, 2) == 0) || (comparer(traj[fin].y, liste_point[0].y, 2) == 0))
           {
-            //Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d\n,teta1=%f", traj[n].x, traj[n].y, dist1, dist_a_parcourir, n, teta1);
+            // Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d\n,teta1=%f", traj[n].x, traj[n].y, dist1, dist_a_parcourir, n, teta1);
             traj[n + 1].x = traj[n].x + cos(teta1) * dist_a_parcourir;
             traj[n + 1].y = traj[n].y + sin(teta1) * dist_a_parcourir;
             n++;
@@ -515,8 +515,10 @@ void calcul_traj(void *)
             suivi = 30;
           traj[fin].x = liste_point[0].x;
           traj[fin].y = liste_point[0].y;
+
           pos_traj[0] = traj[n].x;
           pos_traj[1] = traj[n].y;
+
           fin2 = dist2 / 10.0;
           dist_a_parcourir = dist2 / fin2;
           fin2 += fin;
@@ -526,7 +528,7 @@ void calcul_traj(void *)
         {
           while ((comparer(traj[fin2].x, liste_point[1].x, 2) == 0) || (comparer(traj[fin2].y, liste_point[1].y, 2) == 0))
           {
-            //Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d fin2=%d fin=%d\n", traj[n].x, traj[n].y, dist, dist_a_parcourir, n, fin2, fin);
+            Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d fin2=%d fin=%d\n", traj[n].x, traj[n].y, dist, dist_a_parcourir, n, fin2, fin);
             traj[n + 1].x = traj[n].x + cos(teta2) * dist_a_parcourir;
             traj[n + 1].y = traj[n].y + sin(teta2) * dist_a_parcourir;
             n++;
