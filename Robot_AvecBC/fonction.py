@@ -756,14 +756,8 @@ def tester_classe_obstacles():
     grid, grid_expanded, obstacle_array, expanded_array = obs.generer_grille()
     print(f"✅ Grille : {grid.shape}, {np.sum(grid)} cases obstacles")
     
-    # Retirer
-    print("\n--- SUPPRESSION ---")
     obs.retirer("danger")
     obs.lister()
-    
-    print("\n" + "="*70)
-    print("FIN DU TEST")
-    print("="*70 + "\n")
 
 
 """if __name__ == "__main__":
