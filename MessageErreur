@@ -1,6 +1,4 @@
-youssef@youssef:~/Desktop/CRAC2026 $  /usr/bin/env /bin/python /home/youssef/.vscode/extensions/ms-python.debugpy-2025.16.0-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 41263 -- /home/youssef/Desktop/CRAC2026/main.py 
-/home/youssef/Desktop/CRAC2026/main.py:34: DeprecationWarning: The 'bustype' argument is deprecated since python-can v4.2.0, and scheduled for removal in python-can v5.0.0. Use 'interface' instead.
-  bus = can.interface.Bus(
+yves@raspberrypi:~/Desktop/CRAC_2026 $  cd /home/yves/Desktop/CRAC_2026 ; /usr/bin/env /usr/bin/python /home/yves/.vscode/extensions/ms-python.debugpy-2025.16.0-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 40165 -- /home/yves/Desktop/CRAC_2026/main_bc.py 
 🏗️  Gestionnaire obstacles initialisé : 300×200 cases
 🏗️  Gestionnaire obstacles initialisé : 300×200 cases
 ➕ Carré ajouté : zone1 @ (1250, 1450) (200mm)
@@ -33,24 +31,40 @@ qt.qpa.wayland: Wayland does not support QWindow::requestActivate()
 ✅ ACTION CHOISIE : Attraper zone 1
 ======================================================================
    📍 Position : (400, 1200) mm
+[Récepteur] Serveur en attente sur le port 5001...
    🧭 Angle    : 180°
-   ⭐ Score    : 0.907
+   ⭐ Score    : 0.925
 ======================================================================
 
 ✓  Aucune modification - Grilles inchangées
+1
+
+Avant verif :
+Action en cours : Consigne
+X_actuel = 275 Y_actuel = 1650 Angle_actuel = -90°
+X_voulu = 400 Y_voulu = 1200 Angle_voulu = -181°
 
 Après verif :
 Action en cours : Avancer
-X_actuel = 350 Y_actuel = 1800 Angle_actuel = -90°
-X_voulu = 420 Y_voulu = 1280 Angle_voulu = -181°
-Liste_actions :  [['Avancer', 420, 1280], ['Avancer', 420, 1220], ['Consigne', 400, 1200], ['Rotation', 180], ['Attraper']]
-Liste_GM_libres :  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-Liste_GM_libres_precedente :  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-Liste_noisettes_libres :  [1, 2, 3, 4, 5, 6, 7, 8]
-Liste_noisettes_libres_precedente :  [1, 2, 3, 4, 5, 6, 7, 8]
-MAJ Batterie N°1
-MAJ Batterie N°2
-MAJ Batterie N°3
-Liste_trajectoire :  [3, [420, 1280], [420, 1220], [400, 1200]]
-Failed to transmit: Aucun espace tampon disponible [Error Code 105]
+X_actuel = 275 Y_actuel = 1650 Angle_actuel = -90°
+X_voulu = 410 Y_voulu = 1350 Angle_voulu = -181°
+Liste_actions :  [['Avancer', 410, 1350], ['Avancer', 420, 1280], ['Avancer', 420, 1220], ['Consigne', 400, 1200], ['Rotation', 180], ['Attraper']]
+/home/yves/Desktop/CRAC_2026/main_bc.py:1093: UserWarning: Glyph 129302 (\N{ROBOT FACE}) missing from font(s) DejaVu Sans.
+  fig.canvas.flush_events()
+✓  Aucune modification - Grilles inchangées
+2
+
+Avant verif :
+Action en cours : Avancer
+X_actuel = 275 Y_actuel = 1650 Angle_actuel = -90°
+X_voulu = 410 Y_voulu = 1350 Angle_voulu = -181°
+
+Après verif :
+Action en cours : Avancer
+X_actuel = 275 Y_actuel = 1650 Angle_actuel = -90°
+X_voulu = 410 Y_voulu = 1350 Angle_voulu = -181°
+Liste_actions :  [['Avancer', 410, 1350], ['Avancer', 420, 1280], ['Avancer', 420, 1220], ['Consigne', 400, 1200], ['Rotation', 180], ['Attraper']]
+^CArrêt demandé par l'utilisateur.
 Programme terminé proprement.
+✅ Socket fermé
+yves@raspberrypi:~/Desktop/CRAC_2026 $ 
