@@ -1,4 +1,4 @@
-yves@raspberrypi:~/Desktop/CRAC_2026 $  cd /home/yves/Desktop/CRAC_2026 ; /usr/bin/env /usr/bin/python /home/yves/.vscode/extensions/ms-python.debugpy-2025.16.0-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 40165 -- /home/yves/Desktop/CRAC_2026/main_bc.py 
+yves@raspberrypi:~/Desktop/CRAC_2026 $  cd /home/yves/Desktop/CRAC_2026 ; /usr/bin/env /usr/bin/python /home/yves/.vscode/extensions/ms-python.debugpy-2025.16.0-linux-arm64/bundled/libs/debugpy/adapter/../../debugpy/launcher 39713 -- /home/yves/Desktop/CRAC_2026/main_bc.py 
 🏗️  Gestionnaire obstacles initialisé : 300×200 cases
 🏗️  Gestionnaire obstacles initialisé : 300×200 cases
 ➕ Carré ajouté : zone1 @ (1250, 1450) (200mm)
@@ -26,12 +26,19 @@ QStandardPaths: wrong permissions on runtime directory /run/user/1000, 0770 inst
 qt.qpa.wayland: Wayland does not support QWindow::requestActivate()
 ✅ Grille initialisée : 300×200 cases (3000×2000 mm)
 ✓  Aucune modification - Grilles inchangées
+✅ Interface graphique prête
+[Récepteur] Serveur en attente sur le port 5001...
+/home/yves/Desktop/CRAC_2026/main_bc.py:616: UserWarning: Glyph 129302 (\N{ROBOT FACE}) missing from font(s) DejaVu Sans.
+  fig.canvas.draw()
+/home/yves/Desktop/CRAC_2026/main_bc.py:617: UserWarning: Glyph 129302 (\N{ROBOT FACE}) missing from font(s) DejaVu Sans.
+  fig.canvas.flush_events()
+⏳ Tentative de connexion au robot...
+✅ Connecté au robot sur 192.168.0.99:5000
 
 ======================================================================
 ✅ ACTION CHOISIE : Attraper zone 1
 ======================================================================
    📍 Position : (400, 1200) mm
-[Récepteur] Serveur en attente sur le port 5001...
    🧭 Angle    : 180°
    ⭐ Score    : 0.925
 ======================================================================
@@ -49,7 +56,7 @@ Action en cours : Avancer
 X_actuel = 275 Y_actuel = 1650 Angle_actuel = -90°
 X_voulu = 410 Y_voulu = 1350 Angle_voulu = -181°
 Liste_actions :  [['Avancer', 410, 1350], ['Avancer', 420, 1280], ['Avancer', 420, 1220], ['Consigne', 400, 1200], ['Rotation', 180], ['Attraper']]
-/home/yves/Desktop/CRAC_2026/main_bc.py:1093: UserWarning: Glyph 129302 (\N{ROBOT FACE}) missing from font(s) DejaVu Sans.
+/home/yves/Desktop/CRAC_2026/main_bc.py:1122: UserWarning: Glyph 129302 (\N{ROBOT FACE}) missing from font(s) DejaVu Sans.
   fig.canvas.flush_events()
 ✓  Aucune modification - Grilles inchangées
 2
@@ -64,7 +71,239 @@ Action en cours : Avancer
 X_actuel = 275 Y_actuel = 1650 Angle_actuel = -90°
 X_voulu = 410 Y_voulu = 1350 Angle_voulu = -181°
 Liste_actions :  [['Avancer', 410, 1350], ['Avancer', 420, 1280], ['Avancer', 420, 1220], ['Consigne', 400, 1200], ['Rotation', 180], ['Attraper']]
-^CArrêt demandé par l'utilisateur.
-Programme terminé proprement.
-✅ Socket fermé
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57441) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57442) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57443) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57444) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57445) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57446) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57447) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57448) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57449) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57450) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57451) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57452) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57453) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57454) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57455) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57456) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57457) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57458) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57459) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57460) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57461) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57462) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57463) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57464) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57465) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57466) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57467) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57468) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57469) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57470) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57471) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57472) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57473) ---
+[Récepteur] Données reçues depuis le robot
+[Errno 9] Mauvais descripteur de fichier
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57474) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57475) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57476) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57477) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57478) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57479) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57480) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57481) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57482) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57483) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57484) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57485) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57486) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57487) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57488) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57489) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57490) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57491) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57492) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57493) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57494) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57495) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57496) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57497) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57498) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57499) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57500) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57501) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57502) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57503) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57504) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57505) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57506) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57507) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57508) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57509) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57510) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57511) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57512) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57513) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57514) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57515) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57516) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57517) ---
+[Récepteur] Données reçues depuis le robot
+
+[Récepteur] --- Connexion depuis ('192.168.0.99', 57518) ---
+[Récepteur] Données reçues depuis le robot
 yves@raspberrypi:~/Desktop/CRAC_2026 $ 
