@@ -162,57 +162,61 @@ def astar_safe(start, goal, safety_weight=2.0, grid_dynamique=None):
 
 # === SIMPLIFICATION SÉCURISÉE DU CHEMIN ===
 
-def simplify_path_safe(path, min_clearance):
+def simplify_path_safe(path, min_clearance, grid_dynamique=None):
     """
     Simplifie le chemin en gardant une distance minimale aux obstacles.
-    
     Args:
         path: Liste de tuples (x, y) représentant le chemin
         min_clearance: Distance minimale aux obstacles en cases
-    
+        grid_dynamique: Grille incluant obstacles dynamiques (optionnel)
     Returns:
         Chemin simplifié (liste de tuples)
     """
     if _config is None:
         raise RuntimeError("Grille non initialisée ! Appeler initialiser_grille() d'abord.")
-    
+
+    # Utiliser grid_dynamique si fourni, sinon grid_expanded
+    grille = grid_dynamique if grid_dynamique is not None else _config.grid_expanded
+
     if len(path) <= 2:
         return path
-    
+
     simplified = [path[0]]
     i = 0
-    
+
     while i < len(path) - 1:
         j = len(path) - 1
         found = False
-        
+
         while j > i + 1:
-            if is_line_clear_safe(path[i], path[j], min_clearance):
+            if is_line_clear_safe(path[i], path[j], min_clearance, grille):
                 simplified.append(path[j])
                 i = j
                 found = True
                 break
             j -= 1
-        
+
         if not found:
             i += 1
             if i < len(path):
                 simplified.append(path[i])
-    
+
     return simplified
 
 
-def is_line_clear_safe(p1, p2, min_clearance):
+def is_line_clear_safe(p1, p2, min_clearance, grille=None):
     """
     Vérifie si la ligne entre deux points est libre ET à distance minimale des obstacles.
-    Utilise l'algorithme de Bresenham.
+    Args:
+        grille: Grille à utiliser (optionnel, sinon utilise grid_expanded global)
     """
     if _config is None:
         raise RuntimeError("Grille non initialisée ! Appeler initialiser_grille() d'abord.")
-    
+
+    grille_utilisee = grille if grille is not None else _config.grid_expanded
     x0, y0 = p1
     x1, y1 = p2
-    
+
     # Algorithme de Bresenham
     points = []
     dx = abs(x1 - x0)
@@ -220,7 +224,7 @@ def is_line_clear_safe(p1, p2, min_clearance):
     x, y = x0, y0
     x_inc = 1 if x1 > x0 else -1
     y_inc = 1 if y1 > y0 else -1
-    
+
     if dx > dy:
         error = dx / 2
         while x != x1:
@@ -240,50 +244,48 @@ def is_line_clear_safe(p1, p2, min_clearance):
                 error += dy
             y += y_inc
     points.append((x1, y1))
-    
+
     # Vérifier que tous les points sont libres ET à distance minimale
     for x, y in points:
         if x < 0 or x >= _config.width or y < 0 or y >= _config.height:
             return False
-        if _config.grid_expanded[x, y]:
+        if grille_utilisee[x, y]:
             return False
         if _config.distance_map[x, y] < min_clearance:
             return False
-    
+
     return True
 
 
 # === LISSAGE SÉCURISÉ ===
 
-def smooth_path_safe(path, smoothness):
+def smooth_path_safe(path, smoothness, grid_dynamique=None):
     """
     Lisse le chemin en vérifiant la sécurité avec des splines cubiques.
-    
     Args:
-        path: Liste de tuples (x, y) représentant le chemin
-        smoothness: Paramètre de lissage (plus élevé = plus lisse)
-    
-    Returns:
-        Tuple (x_smooth, y_smooth) ou (x, y) si échec
+        grid_dynamique: Grille incluant obstacles dynamiques (optionnel)
     """
     if _config is None:
         raise RuntimeError("Grille non initialisée ! Appeler initialiser_grille() d'abord.")
-    
+
     if not path or len(path) < 4:
         if path:
             x, y = zip(*path)
             return x, y
         return None, None
-    
+
     x, y = zip(*path)
-    
+
+    # Utiliser grid_dynamique si fourni, sinon grid_expanded
+    grille = grid_dynamique if grid_dynamique is not None else _config.grid_expanded
+
     # Essayer différents niveaux de lissage
     for s in [smoothness, smoothness*2, smoothness*4]:
         try:
             tck, u = splprep([x, y], s=s, k=min(3, len(path)-1))
             u_fine = np.linspace(0, 1, len(path) * 4)
             x_smooth, y_smooth = splev(u_fine, tck)
-            
+
             # Vérifier que la spline est sûre
             safe = True
             for i in range(len(x_smooth)):
@@ -291,15 +293,15 @@ def smooth_path_safe(path, smoothness):
                 if xi < 0 or xi >= _config.width or yi < 0 or yi >= _config.height:
                     safe = False
                     break
-                if _config.grid_expanded[xi, yi] or _config.distance_map[xi, yi] < 2:
+                if grille[xi, yi] or _config.distance_map[xi, yi] < 2:
                     safe = False
                     break
-            
+
             if safe:
                 return x_smooth, y_smooth
         except:
             continue
-    
+
     # Si aucun lissage ne fonctionne, retourner le chemin simplifié
     return x, y
 
