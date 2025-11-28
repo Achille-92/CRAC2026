@@ -14,12 +14,17 @@ int ensemble(float valeur, float delta);
 int comparer(float valeur_comparer, float valeur_compareur, float delta);
 void Asserv(void *);
 void calcul_traj(void *);
-
+void recalage_X(void);
+void recalage_Y(void);
+void aquisition(void);
+void saturation(void);
+void asserv_vitesse(void);
 struct coo
 {
   float x;
   float y;
 };
+float coef[100] = {0};
 coo traj[1000] = {0, 0};
 coo liste_point[100] = {0, 0};
 int tic_gauche = 0;
@@ -29,8 +34,8 @@ float tour_droit = 0;
 float distance_droit = 0, old_dist_droit = 0, diff_dist_droit = 0;
 float distance_gauche = 0, old_dist_gauche = 0, diff_dist_gauche = 0;
 float dist = 0, teta = 0, delta_x = 0, delta_y = 0, teta_act = 0, diff_teta = 0, teta_act_deg = 0, teta_deg = 0, diff_deg = 0;
-float pos_act[2] = {105, 120}, pos_fin[2] = {105, 120}, pos_traj[2] = {0, 0}, E = 0, dist_a_parcourir = 10, off_teta = 0, off_teta_act = 0;
-int VIT_gauche = 0, VIT_droit = 0, i = 0, S_VIT_d = 0, S_VIT_g = 0, old_VIT_droit = 0, old_VIT_gauche = 0;
+float pos_act[2] = {2725, 1650}, pos_fin[2] = {275, 1650}, pos_traj[2] = {0, 0}, E = 0, dist_a_parcourir = 10, off_teta = 0, off_teta_act = -PI / 2.0;
+int VIT_gauche = 0, VIT_droit = 0, i = 0, S_VIT_d = 0, S_VIT_g = 0, old_VIT_droit = 0, old_VIT_gauche = 0, old_VIT_Ag = 0, old_VIT_Ad = 0;
 float kpd = 4, kdd = 220.0, kpg = 4, kdg = 220.0, kpda = 4, kpga = 4, kdga = 20.0, kdda = 20.0, old_diff_dista = 0;
 float diff_dist_d = 0, diff_dist_g = 0, diff_dista = 0, old_diff_dist_d = 0, old_diff_dist_g = 0, VIT_Ad = 0, VIT_Ag = 0, teta_cons = 0;
 int cons = 0, dist_cons = 200, arriver = 0, suivi = 1;
@@ -38,8 +43,10 @@ int cons = 0, dist_cons = 200, arriver = 0, suivi = 1;
 const float tic_tour_droit = 3164.0, tic_tour_gauche = 3167.7, Rayon = 11.2;
 int packetSize = 0, fin = 100, n = 0;
 float Vg = 0, Vd = 0, diff_Vg = 0, diff_Vd = 0, old_diff_Vg = 0, old_diff_Vd = 0, VIT = 0;
-int num_point = 0, fin2 = 0, calc = 0;
-float dist1 = 0, dist2 = 0, teta1 = 0, teta2 = 0, teta_traj = 0;
+int num_point = 0, fin2 = 0, calc = 0, callage = 0, type = 0;
+float dist1 = 0, dist2 = 0, teta1 = 0, teta2 = 0, teta_traj = 0, temp = 0, scoef = 0, distance_point = 0;
+int kpvd = 0, kpvg = 0, kdvd = 0, kdvg = 0, point = 0, itat = 0;
+
 
 float teta_recu = -181, teta_cons_recu = -181;
 int etat_ESP_RPI = 0, etat_RPI = 0;
@@ -93,7 +100,8 @@ void setup()
   liste_point[3] = {2000, 300};
 }
 
-void loop() {
+void loop(){
+
   //liste_point[12].x = 145;
   // Lecture CAN centralisée
   int packetSize = CAN.parsePacket();
@@ -243,88 +251,43 @@ void loop() {
       break;
     }
 }
-
 void Asserv(void *)
 {
   int finish = 1;
   while (1)
   {
-
     tic_droit = encoder2.getCount();
     tic_gauche = encoder.getCount();
-    tour_droit = (float)tic_droit / tic_tour_droit;
-    tour_gauche = (float)tic_gauche / tic_tour_gauche;
-    old_dist_droit = distance_droit;
-    old_dist_gauche = distance_gauche;
-    distance_droit = tour_droit * 40.0 * PI;
-    distance_gauche = tour_gauche * 40.0 * PI;
-    diff_dist_droit = distance_droit - old_dist_droit;
-    diff_dist_gauche = distance_gauche - old_dist_gauche;
-    Vg = diff_dist_gauche / 5.0;
-    Vd = diff_dist_droit / 5.0;
-    old_diff_Vd = diff_Vd;
-    old_diff_Vg = diff_Vg;
-    diff_Vg = VIT - Vg;
-    diff_Vd = VIT - Vd;
+    aquisition();
+    if (callage == 1 && type == 1)
+      recalage_X(), callage = 0, temp = millis();
+    else if (callage == 1 && type == 0)
+      recalage_Y(), callage = 0;
 
-    delta_x = pos_fin[0] - pos_act[0];
-    delta_y = pos_fin[1] - pos_act[1];
-    teta = atan2(delta_y, delta_x) + off_teta;
-    teta_traj = atan2(traj[suivi].y - pos_act[1], traj[suivi].x - pos_act[0]);
-    teta_act = (teta_recu*PI/180.0) + ((distance_droit - distance_gauche) / (20 * Rayon)) + off_teta_act;
-    teta_act_deg = (teta_act * 180.0) / PI;
-    teta_deg = (teta * 180.0) / PI;
-    diff_deg = (diff_teta * 180.0) / PI;
+    /*if ((millis() - temp) > 5000 && E == 0)
+      callage = 1,type = 1, E = 1;
+
+    if ((millis() - temp) > 5000 && E == 1)
+      callage = 1,type = 0, E = 2;*/
     ////////////////////////////////////////angle modulo 2PI
-    if (teta_act > PI)
-      teta_act -= 2.0 * PI;
-    if (teta_act < -PI)
-      teta_act += 2.0 * PI;
 
-    if (teta_act_deg > 180)
-      teta_act_deg -= 360;
-    if (teta_act_deg < -180)
-      teta_act_deg += 360;
-
-    if (teta > PI)
-      teta -= 2.0 * PI;
-    else if (teta < -PI)
-      teta += 2.0 * PI;
-    
-    if (teta_deg > 180)
-      teta_deg -= 360;
-    if (teta_deg < -180)
-      teta_deg += 360;
-
-    dist = sqrt(((pos_fin[0] - pos_act[0]) * (pos_fin[0] - pos_act[0])) + ((pos_fin[1] - pos_act[1]) * (pos_fin[1] - pos_act[1])));
-    old_diff_dist_d = diff_dist_d;
-    old_diff_dist_g = diff_dist_g;
-    old_diff_dista = diff_dista;
-    diff_dista = diff_teta * 2 * PI * Rayon;
-    pos_act[0] = pos_act[0] + (cos(teta_act) * ((diff_dist_droit + diff_dist_gauche) / 2));
-    pos_act[1] = pos_act[1] + (sin(teta_act) * ((diff_dist_gauche + diff_dist_droit) / 2));
-    old_VIT_droit = VIT_droit;
-    old_VIT_gauche = VIT_gauche;
-
-    pos_fin[0] = traj[suivi].x;
-    pos_fin[1] = traj[suivi].y;
-
-    if (!(comparer(teta_act, teta_cons, ((3 * PI) / 180.0))) && (S_VIT_d == 0) && (S_VIT_g == 0))
+    /*if (!(comparer(teta_act, teta_cons, ((3 * PI) / 180.0))) && (S_VIT_d == 0) && (S_VIT_g == 0))
       cons = 3;
     else
-      cons = 0;
+      cons = 0;*/
 
     switch (cons)
     {
     case 0:
       diff_teta = teta - teta_act;
       diff_dista = diff_teta * 2 * PI * Rayon;
+
       diff_dist_d = dist - diff_dist_droit;
       diff_dist_g = dist - diff_dist_gauche;
-      if (ensemble((diff_teta), (PI / 1.0)))
+      if (ensemble((diff_teta), (PI / 6.0)))
       {
 
-        if (comparer(pos_act[0], pos_fin[0], 150) && comparer(pos_act[1], pos_fin[1], 150))
+        if (comparer(pos_act[0], pos_fin[0], 20) && comparer(pos_act[1], pos_fin[1], 20))
         {
           VIT_droit = (diff_teta) * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
           VIT_gauche = (diff_teta) * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
@@ -351,6 +314,7 @@ void Asserv(void *)
     case 1:
       diff_teta = teta - teta_act + PI;
       diff_dista = diff_teta * 2 * PI * Rayon;
+
       diff_dist_d = dist - diff_dist_droit;
       diff_dist_g = dist - diff_dist_gauche;
       if (ensemble((diff_teta), (PI / 1.0)))
@@ -383,6 +347,7 @@ void Asserv(void *)
     case 2:
       diff_teta = teta_cons - teta_act;
       diff_dista = diff_teta * 2 * PI * Rayon;
+
       VIT_Ad = -2 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
       VIT_Ag = 2 * kpga * (diff_dista) + 2 * kdga * (diff_dista - old_diff_dista);
       VIT_droit = 0;
@@ -392,6 +357,7 @@ void Asserv(void *)
       diff_teta = teta - teta_act;
       diff_dist_d = dist - diff_dist_droit;
       diff_dist_g = dist - diff_dist_gauche;
+
       VIT_droit = cos(diff_teta) * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
       VIT_gauche = cos(diff_teta) * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
       VIT_Ad = 0;
@@ -401,31 +367,7 @@ void Asserv(void *)
       cons = 0;
       break;
     }
-    if (VIT_droit - old_VIT_droit > 5)
-      VIT_droit = old_VIT_droit + signe(VIT_droit) * 5;
-    if (VIT_gauche - old_VIT_gauche > 5)
-      VIT_gauche = old_VIT_gauche + signe(VIT_gauche) * 5;
-
-    if (ensemble(diff_teta, PI / 180.0) && !ensemble(diff_teta, (10 * PI) / 180.0))
-      VIT_Ad += signe(VIT_Ad) * 40, VIT_Ag += signe(VIT_Ag) * 40;
-
-    if (VIT_droit > abs(cos(diff_teta)) * LIMITE_VIT)
-      VIT_droit = abs(cos(diff_teta)) * LIMITE_VIT;
-    if (VIT_gauche > abs(cos(diff_teta)) * LIMITE_VIT)
-      VIT_gauche = abs(cos(diff_teta)) * LIMITE_VIT;
-    if (VIT_droit < -abs(cos(diff_teta)) * LIMITE_VIT)
-      VIT_droit = -abs(cos(diff_teta)) * LIMITE_VIT;
-    if (VIT_gauche < -abs(cos(diff_teta)) * LIMITE_VIT)
-      VIT_gauche = -abs(cos(diff_teta)) * LIMITE_VIT;
-
-    if (VIT_Ad > LIMITE_VIT)
-      VIT_Ad = LIMITE_VIT;
-    if (VIT_Ag > LIMITE_VIT)
-      VIT_Ag = LIMITE_VIT;
-    if (VIT_Ad < -LIMITE_VIT)
-      VIT_Ad = -LIMITE_VIT;
-    if (VIT_Ag < -LIMITE_VIT)
-      VIT_Ag = -LIMITE_VIT;
+    saturation();
     S_VIT_g = VIT_gauche + VIT_Ag;
     S_VIT_d = VIT_droit + VIT_Ad;
 
@@ -433,28 +375,33 @@ void Asserv(void *)
       S_VIT_d = 0;
     else
       S_VIT_d += signe(S_VIT_d) * 10;
+
     if (S_VIT_g < 20 && S_VIT_g > -20)
       S_VIT_g = 0;
     else
       S_VIT_g += signe(S_VIT_g) * 10;
+
     if (cons == -1)
       VIT_Ad = 0, VIT_Ag = 0, VIT_droit = 0, VIT_gauche = 0;
-    md.setM2Speed((S_VIT_d) / 2.0);
 
+    md.setM2Speed((S_VIT_d) / 2.0);
     md.setM1Speed((S_VIT_g) / 2.0);
 
     if (VIT_Ad == 0 && VIT_Ag == 0 && VIT_droit == 0 && VIT_gauche == 0)
       md.setBrakes(400, 400);
 
-    //Serial.printf("PWM_G:%d PWM_D:%d X:%.1f Y%.1f diff_teta%.1f,cos:%.1f \n", S_VIT_g, S_VIT_d, pos_act[0], pos_act[1], diff_deg, cos(diff_teta));
+    // Serial.printf("X=%.1f Y=%.1f,X_fin=%.1f Y_fin=%.1f,Liste_X=%.1f Liste_Y=%.1f suivi=%d\n", pos_act[0], pos_act[1], pos_fin[0], pos_fin[1], liste_point[0].x, liste_point[0].y, suivi);
+    //  Serial.printf("PWM_G:%d PWM_D:%d X:%.1f Y%.1f diff_teta%.1f,cos:%.1f \n", S_VIT_g, S_VIT_d, pos_act[0], pos_act[1], diff_deg, cos(diff_teta));
     vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
 void calcul_traj(void *)
 {
+  int calc_traj = 0;
   while (1)
   {
-    if (comparer(pos_act[0], pos_fin[0], 400.0) && comparer(pos_act[1], pos_fin[1], 400) && (traj[suivi + 1].x != 0) && (traj[suivi + 1].y != 0))
+    aquisition();
+    /*if (comparer(pos_act[0], pos_fin[0], 300.0) && comparer(pos_act[1], pos_fin[1], 300) && (traj[suivi + 1].x != 0) && (traj[suivi + 1].y != 0))
     {
       if (traj[suivi].x == liste_point[0].x && traj[suivi].y == liste_point[0].y)
       {
@@ -463,7 +410,8 @@ void calcul_traj(void *)
       }
       else
         suivi += 1;
-    }
+    }*/
+
     /*if (liste_point[0].x == -1 && liste_point[0].y == -1)
     {
       teta_cons = 0;
@@ -475,7 +423,7 @@ void calcul_traj(void *)
     else
       teta_cons = teta_act;*/
 
-    if ((comparer(pos_act[0], liste_point[0].x, 50) && comparer(pos_act[1], liste_point[0].y, 50)) || ((((liste_point[0].x == 0) || (liste_point[0].y == 0))) && (((liste_point[1].x != 0) || (liste_point[0].y != 0)))))
+    if ((comparer(pos_act[0], liste_point[0].x, 70) && comparer(pos_act[1], liste_point[0].y, 70)) || ((((liste_point[0].x == 0) || (liste_point[0].y == 0))) && (((liste_point[1].x != 0) || (liste_point[0].y != 0)))))
     {
       for (int i = 0; i <= 98; i++)
       {
@@ -483,10 +431,64 @@ void calcul_traj(void *)
         liste_point[i].y = liste_point[i + 1].y;
       }
     }
-    if ((liste_point[0].x != 0) && (liste_point[0].y != 0))
+    if (liste_point[0].x != 0 && liste_point[0].y != 0)
+    {
+      pos_fin[0] = liste_point[0].x;
+      pos_fin[1] = liste_point[0].y;
+    }
+    switch (itat)
+    {
+    case 0:
+      cons = 0;
+      if ((Vg <= 0.1) && (liste_point[1].x == 0) && (liste_point[1].y == 0))
+        itat = 1;
+      break;
+    case 1:
+      cons = 2;
+      if ((liste_point[1].x != 0) && (liste_point[1].y != 0))
+        itat = 0;
+      break;
+    }
+    //Serial.printf("X=%.1f Y=%.1f",liste_point[2].x,liste_point[2].y);
+    //point = 0;
+    // Serial.printf("X=%.1f Y=%.1f X=%.1f Y=%.1f \n", pos_fin[0], pos_fin[1], pos_act[0], pos_act[1]);
+
+    /* for (int i = 0; i < 98; i++)
+     {
+       if (liste_point[i].x > 0)
+         point++;
+     }
+     if (point > 0)
+     {
+       pos_traj[0] = 0;
+       pos_traj[1] = 0;
+       scoef = 0;
+       for (int i = 0; i < point; i++)
+       {
+         distance_point = sqrt((liste_point[i].x - liste_point[0].x) * (liste_point[i].x - liste_point[0].x) + (liste_point[i].y - liste_point[0].y) * (liste_point[i].y - liste_point[0].y));
+         coef[i] = (abs(cos(diff_teta)) * 30.0) / (i*distance_point + 1);
+         coef[0] = 1;
+         if (coef[i] > 1.0)
+           coef[i] = 1;
+         pos_traj[0] += liste_point[i].x * coef[i];
+         pos_traj[1] += liste_point[i].y * coef[i];
+         scoef += coef[i];
+         Serial.printf("coef%d=%.1f ",i, coef[i]);
+       }
+       pos_fin[0] = pos_traj[0] / scoef;
+       pos_fin[1] = pos_traj[1] / scoef;
+       Serial.printf("X=%.1f Y=%.1f X=%.1f Y=%.1f X=%.1f Y=%.1f point=%d\n", pos_fin[0], pos_fin[1], pos_traj[0], pos_traj[1], pos_act[0], pos_act[1],point);
+     }
+     else
+     {
+       pos_fin[0] = pos_act[0];
+       pos_fin[1] = pos_act[1];
+     }*/
+    /*if ((liste_point[0].x != 0) && (liste_point[0].y != 0))
     {
       calc = 1;
-      if ((!comparer(pos_traj[0], liste_point[0].x, 20) && !comparer(pos_traj[1], liste_point[0].y, 20)))
+      suivi = 0;
+      if (calc_traj==1||(!comparer(pos_traj[0], liste_point[0].x, 20) || !comparer(pos_traj[1], liste_point[0].y, 20)))
       {
         dist1 = sqrt(((liste_point[0].x - pos_act[0]) * (liste_point[0].x - pos_act[0])) + ((liste_point[0].y - pos_act[1]) * (liste_point[0].y - pos_act[1])));
         dist2 = sqrt(((liste_point[1].x - liste_point[0].x) * (liste_point[1].x - liste_point[0].x)) + ((liste_point[1].y - liste_point[0].y) * (liste_point[1].y - liste_point[0].y)));
@@ -502,17 +504,13 @@ void calcul_traj(void *)
 
         if ((liste_point[0].x != 0) && (liste_point[0].y != 0))
         {
-          while ((comparer(traj[fin].x, liste_point[0].x, 2) == 0) || (comparer(traj[fin].y, liste_point[0].y, 2) == 0))
+          while (!(comparer(traj[fin].x, liste_point[0].x, 2)) || !(comparer(traj[fin].y, liste_point[0].y, 2)))
           {
-            // Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d\n,teta1=%f", traj[n].x, traj[n].y, dist1, dist_a_parcourir, n, teta1);
+            Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d,teta1=%f,fin1=%d\n", traj[n].x, traj[n].y, dist1, dist_a_parcourir, n, teta1,fin);
             traj[n + 1].x = traj[n].x + cos(teta1) * dist_a_parcourir;
             traj[n + 1].y = traj[n].y + sin(teta1) * dist_a_parcourir;
             n++;
           }
-          if (fin < 30)
-            suivi = fin;
-          else
-            suivi = 30;
           traj[fin].x = liste_point[0].x;
           traj[fin].y = liste_point[0].y;
 
@@ -526,7 +524,7 @@ void calcul_traj(void *)
         }
         if ((liste_point[1].x != 0) && (liste_point[1].y != 0))
         {
-          while ((comparer(traj[fin2].x, liste_point[1].x, 2) == 0) || (comparer(traj[fin2].y, liste_point[1].y, 2) == 0))
+          while (!(comparer(traj[fin2].x, liste_point[1].x, 2) ) || !(comparer(traj[fin2].y, liste_point[1].y, 2)))
           {
             Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d fin2=%d fin=%d\n", traj[n].x, traj[n].y, dist, dist_a_parcourir, n, fin2, fin);
             traj[n + 1].x = traj[n].x + cos(teta2) * dist_a_parcourir;
@@ -534,14 +532,11 @@ void calcul_traj(void *)
             n++;
           }
         }
-        if (fin2 < 30)
-          suivi = fin2;
-        else
-          suivi = 30;
         calc = 0;
+        calc_traj=0;
         // Serial.printf("X=%f Y=%f dist=%f dista=%f n=%d\n", traj[n].x, traj[n].y, dist, dist_a_parcourir, n);
       }
-    }
+    }*/
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
@@ -566,4 +561,190 @@ int ensemble(float valeur, float delta)
     return 1;
   else
     return 0;
+}
+
+void recalage_X(void)
+
+{
+  int delta = 0, finish = 1;
+  aquisition();
+  teta_cons = PI / 2.0;
+  diff_teta = teta_cons - teta_act;
+  diff_dista = diff_teta * 2.0 * PI * Rayon;
+
+  VIT_Ad = -1 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
+  VIT_Ag = kpga * (diff_dista) + kdga * (diff_dista - old_diff_dista);
+
+  while (1 || ((fabs(diff_teta) > (5.0 * PI / 180.0)) && (VIT_Ad != 0) && (Vg != 0)))
+  {
+    aquisition();
+
+    diff_teta = teta_cons - teta_act;
+    diff_dista = diff_teta * 2.0 * PI * Rayon;
+    VIT_Ad = -1 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
+    VIT_Ag = kpga * (diff_dista) + kdga * (diff_dista - old_diff_dista);
+    saturation();
+
+    md.setM2Speed(2 * VIT_Ad);
+    md.setM1Speed(2 * VIT_Ag);
+  }
+  finish = 1;
+
+  md.setM2Speed(-70);
+  md.setM1Speed(-70);
+  temp = millis();
+  while (finish == 1)
+  {
+    aquisition();
+    if (diff_dist_droit != 0 && diff_dist_gauche != 0 && (millis() - temp > 500))
+      finish = 0;
+  }
+  md.setM2Speed(0);
+  md.setM1Speed(0);
+  pos_act[0] = 105;
+  delta = (PI / 2.0) - teta_act;
+  off_teta_act = delta;
+}
+
+void recalage_Y(void)
+{
+  int delta = 0, finish = 1;
+  aquisition();
+  if (pos_act[0] > 1500)
+    teta_cons = PI;
+  else
+    teta_cons = 0;
+
+  diff_teta = teta_cons - teta_act;
+  diff_dista = diff_teta * 2.0 * PI * Rayon;
+
+  VIT_Ad = -1 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
+  VIT_Ag = kpga * (diff_dista) + kdga * (diff_dista - old_diff_dista);
+
+  while ((fabs(diff_teta) > (5.0 * PI / 180.0)) && (VIT_Ad != 0))
+  {
+    aquisition();
+
+    diff_teta = teta_cons - teta_act;
+    diff_dista = diff_teta * 2.0 * PI * Rayon;
+    VIT_Ad = -1 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
+    VIT_Ag = kpga * (diff_dista) + kdga * (diff_dista - old_diff_dista);
+    saturation();
+
+    md.setM2Speed(VIT_Ad / 6.0);
+    md.setM1Speed(VIT_Ag / 6.0);
+  }
+  finish = 1;
+
+  md.setM2Speed(-70);
+  md.setM1Speed(-70);
+  temp = millis();
+  while (finish == 1)
+  {
+    aquisition();
+    if (diff_dist_droit != 0 && diff_dist_gauche != 0 && (millis() - temp > 500))
+      finish = 0;
+  }
+  md.setM2Speed(0);
+  md.setM1Speed(0);
+  pos_act[0] = 105;
+  delta = (PI / 2.0) - teta_act;
+  off_teta_act = delta;
+}
+
+void aquisition(void)
+{
+  tic_droit = encoder2.getCount();
+  tic_gauche = encoder.getCount();
+
+  tour_droit = (float)tic_droit / tic_tour_droit;
+  tour_gauche = (float)tic_gauche / tic_tour_gauche;
+
+  old_dist_droit = distance_droit;
+  old_dist_gauche = distance_gauche;
+
+  distance_droit = tour_droit * 40.0 * PI;
+  distance_gauche = tour_gauche * 40.0 * PI;
+
+  diff_dist_droit = distance_droit - old_dist_droit;
+  diff_dist_gauche = distance_gauche - old_dist_gauche;
+
+  Vg = abs(diff_dist_gauche / 5.0);
+  Vd = abs(diff_dist_droit / 5.0);
+
+  old_diff_Vd = diff_Vd;
+  old_diff_Vg = diff_Vg;
+
+  diff_Vg = S_VIT_g - Vg;
+  diff_Vd = S_VIT_d - Vd;
+
+  delta_x = pos_fin[0] - pos_act[0];
+  delta_y = pos_fin[1] - pos_act[1];
+
+  teta = atan2(delta_y, delta_x) + off_teta;
+  teta_traj = atan2(traj[suivi].y - pos_act[1], traj[suivi].x - pos_act[0]);
+  teta_act = (teta_recu*PI/180.0)+((distance_droit - distance_gauche) / (20 * Rayon)) + off_teta_act;
+
+  while (teta_act > PI)
+    teta_act -= 2.0 * PI;
+  while (teta_act <= -PI)
+    teta_act += 2.0 * PI;
+  while (teta > PI)
+    teta -= 2.0 * PI;
+  while (teta <= -PI)
+    teta += 2.0 * PI;
+
+  teta_act_deg = (teta_act * 180.0) / PI;
+  teta_deg = (teta * 180.0) / PI;
+  diff_deg = (diff_teta * 180.0) / PI;
+  // Serial.printf("teta_act=%.1f\n", teta_act_deg);
+
+  dist = sqrt(((pos_fin[0] - pos_act[0]) * (pos_fin[0] - pos_act[0])) + ((pos_fin[1] - pos_act[1]) * (pos_fin[1] - pos_act[1])));
+  old_diff_dist_d = diff_dist_d;
+  old_diff_dist_g = diff_dist_g;
+
+  old_diff_dista = diff_dista;
+  diff_dista = diff_teta * 2 * PI * Rayon;
+
+  pos_act[0] = pos_act[0] + (cos(teta_act) * ((diff_dist_droit + diff_dist_gauche) / 2));
+  pos_act[1] = pos_act[1] + (sin(teta_act) * ((diff_dist_gauche + diff_dist_droit) / 2));
+
+  old_VIT_droit = VIT_droit;
+  old_VIT_gauche = VIT_gauche;
+}
+
+void saturation(void)
+
+{
+  if (VIT_droit - old_VIT_droit > 5)
+    VIT_droit = old_VIT_droit + signe(VIT_droit) * 5;
+  if (VIT_gauche - old_VIT_gauche > 5)
+    VIT_gauche = old_VIT_gauche + signe(VIT_gauche) * 5;
+
+  if (ensemble(diff_teta, PI / 180.0))
+    VIT_Ad += signe(VIT_Ad) * 40, VIT_Ag += signe(VIT_Ag) * 40;
+
+  if (VIT_droit > abs(cos(diff_teta)) * LIMITE_VIT)
+    VIT_droit = abs(cos(diff_teta)) * LIMITE_VIT;
+  if (VIT_gauche > abs(cos(diff_teta)) * LIMITE_VIT)
+    VIT_gauche = abs(cos(diff_teta)) * LIMITE_VIT;
+  if (VIT_droit < -abs(cos(diff_teta)) * LIMITE_VIT)
+    VIT_droit = -abs(cos(diff_teta)) * LIMITE_VIT;
+  if (VIT_gauche < -abs(cos(diff_teta)) * LIMITE_VIT)
+    VIT_gauche = -abs(cos(diff_teta)) * LIMITE_VIT;
+
+  if (VIT_Ad > LIMITE_VIT)
+    VIT_Ad = LIMITE_VIT;
+  if (VIT_Ag > LIMITE_VIT)
+    VIT_Ag = LIMITE_VIT;
+  if (VIT_Ad < -LIMITE_VIT)
+    VIT_Ad = -LIMITE_VIT;
+  if (VIT_Ag < -LIMITE_VIT)
+    VIT_Ag = -LIMITE_VIT;
+}
+
+void asserv_vitesse(void)
+{
+  // VIT_droit = kpvd*diff_Vd+kdvd*(diff_Vd-old_diff_Vd);
+  // VIT_gauche = kpvg*diff_Vg+kdvg*(diff_Vg-old_diff_Vg);
 }
