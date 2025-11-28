@@ -395,8 +395,9 @@ if __name__ == '__main__':
             bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
             bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
         
- 
-        while (not stop_event.is_set() and Batteries[2][3] > 5 and len(Liste_actions)!=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
+        while(len(Liste_actions) == 0):
+            print("Attente de modification de Liste_actions")
+        while (not stop_event.is_set() and Batteries[2][3] > 5): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
             dico_envoi[0x01]=1
             temps = 0
             step +=1
@@ -574,7 +575,7 @@ if __name__ == '__main__':
             client_socket.sendall(message.encode())
             client_socket.close()
             time.sleep(0.01)
-
+            
         time.sleep(2)
         stop_event.set()
 
@@ -587,6 +588,10 @@ if __name__ == '__main__':
             tache_calcul.join()
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
+        
+    except Exception as e:
+        print(e)
+        thread_reception.join()
         
     except Exception as e:
         print(e)
