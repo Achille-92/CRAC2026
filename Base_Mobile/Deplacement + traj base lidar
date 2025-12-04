@@ -294,10 +294,10 @@ void Asserv(void *)
       callage = 1,type = 0, E = 2;*/
     ////////////////////////////////////////angle modulo 2PI
 
-    /*if (!(comparer(teta_act, teta_cons, ((3 * PI) / 180.0))) && (S_VIT_d == 0) && (S_VIT_g == 0))
-      cons = 3;
+    if ((!(comparer(teta_act, teta_cons, ((3 * PI) / 180.0)))) && (comparer(pos_act[0], pos_fin[0], 30) && comparer(pos_act[1], pos_fin[1], 30))&&(S_VIT_d==0)&&(S_VIT_g==0))
+      cons = 2;
     else
-      cons = 0;*/
+      cons = 0;
 
     switch (cons)
     {
@@ -375,6 +375,7 @@ void Asserv(void *)
       VIT_Ag = 2 * kpga * (diff_dista) + 2 * kdga * (diff_dista - old_diff_dista);
       VIT_droit = 0;
       VIT_gauche = 0;
+
       break;
     case 3:
       diff_teta = teta - teta_act;
