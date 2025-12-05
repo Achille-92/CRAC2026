@@ -240,12 +240,14 @@ boutons_noisettes = []  # Liste pour stocker les 8 boutons des Noisettes
 
 # Variables pour le fonctionnement Logique du Robot
 action_en_cours = None
+action_precedente = None
 trajectoire_bloquee = False
 trajectoire_calculee = False
 ordre_receive = 0
 step = 0
 robot_a_objets = False
 changement_noisette_GM = False
+var_mouvement = 0
 SEUIL_MOUVEMENT_ENNEMI = 20
 DEBUG = False
 #######################
@@ -1014,7 +1016,12 @@ if __name__ == '__main__':
                 except queue.Empty:
                     print("⚠️ Timeout : Aucun résultat reçu du thread A*")
 
-               
+            if action_voulu in ["Consigne"] and action_precedente not in ["Consigne"]:
+                dico_envoi[0x206]=1
+            elif action_voulu in ["Attraper","Relacher"] and action_precedente not in ["Attraper","Relacher"]:
+                dico_envoi[0x206]=2
+            else :
+                dico_envoi[0x206]=100
             print("\nAprès verif :")
             print("Action en cours : "+action_voulu)
             print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
@@ -1059,8 +1066,8 @@ if __name__ == '__main__':
                     y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
 
             # Envoi des Ordres de Consigne à la Carte Moteur
-            if angle_robot_voulu != -181 :
-                dico_envoi[0x205] = float(angle_robot_voulu)
+            if angle_robot_voulu != -181 and action_voulu in ["Rotation", "Tourner"]:
+                dico_envoi[0x205] = angle_robot_voulu + 360
             ################################################
 
             # Mettre à jour robot, ennemi et consigne sur affichage
@@ -1144,7 +1151,7 @@ if __name__ == '__main__':
 
             # Si robot est à la position de consigne  
             if Reel: 
-                if(abs(x_robot_actuel-x_robot_voulu)<50 and abs(y_robot_actuel-y_robot_voulu)<50 and action_voulu in ["Consigne","Avancer","Recul","Contournement"]):
+                if(abs(x_robot_actuel-x_robot_voulu)<80 and abs(y_robot_actuel-y_robot_voulu)<80 and action_voulu in ["Consigne","Avancer"]):
                     print("Bonne position")
                     ordre_receive = 11
                 if(abs(angle_robot_actuel-angle_robot_voulu)<1) and action_voulu in ["Rotation","Tourner"]:
@@ -1244,7 +1251,7 @@ if __name__ == '__main__':
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
-                        if key in [0x01,0x207,0x300,0x301,0x302]:
+                        if key in [0x01,0x206,0x207,0x300,0x301,0x302]:
                             format_value = struct.pack('<I',dico_envoi[key])
                         else :
                             format_value = struct.pack('<f',dico_envoi[key])
@@ -1268,8 +1275,8 @@ if __name__ == '__main__':
             Liste_GM_libres_precedente = Liste_GM_libres.copy()
             Liste_noisettes_libres_precedente = Liste_noisettes_libres.copy()
             Liste_actions_precedente = Liste_actions.copy()
-            
-            time.sleep(0.001)
+            action_precedente = action_voulu
+            time.sleep(0.0001)
         time.sleep(2) 
         stop_event.set()
 
