@@ -1,5 +1,5 @@
-Reel = True
-x_robot_depart = 275 
+Reel = False
+x_robot_depart = 2725 
 y_robot_depart = 1650
 angle_robot_depart = -90
 
@@ -15,6 +15,7 @@ import time
 import os
 import can
 import struct
+import random
 import matplotlib.pyplot as plt
 from functools import partial
 from matplotlib.widgets import Button
@@ -41,9 +42,19 @@ for ID in Liste_ID:
     dico_envoi[ID]= 0
 #################################################
 
+# Perimètre de sécurité
+R_ROBOT = 150
+R_ENNEMI = 150
+MARGE_MIN = 50
+R_securite = R_ROBOT + R_ENNEMI + MARGE_MIN  # = 400mm
+MARGE_SECURITE_ENNEMI = MARGE_MIN  # Marge pour l'affichage de la zone ennemi
+############################
+
 # Listes pour la Stratégie
+#Liste_actions = [['Consigne', 2825, 500+R_ROBOT], ['Rotation', -90], ['Attraper']]
 Liste_actions = []
 Liste_trajectoire = []
+Liste_noisettes_libres_temp = [4]
 
 Liste_GM_libres = [1,2,3,4,5,6,7,8,9,10]
 Liste_GM_occuper = []
@@ -54,23 +65,23 @@ Liste_GM_libres_precedente = Liste_GM_libres.copy()
 Liste_noisettes_libres_precedente = Liste_noisettes_libres.copy()
 Liste_actions_precedente = Liste_actions.copy()
 
-Liste_zones_recup_noisettes_xy = [(400,1200),
-                                  (400,400),
-                                  (2600,1200),
-                                  (2600,400),
-                                  ((1150,1025),(1150,575)),
-                                  ((1850,1025),(1850,575)),
-                                  (1100,400),
-                                  (1900,400)]
+Liste_zones_recup_noisettes_xy = [((175,1300+R_ROBOT),(175,1100-R_ROBOT)),
+                                  ((175,500+R_ROBOT),(175,300-R_ROBOT)),
+                                  ((2825,1300+R_ROBOT),(2825,1100-R_ROBOT)),
+                                  ((2825,500+R_ROBOT),(2825,300-R_ROBOT)),
+                                  ((950-R_ROBOT,800),(1250+R_ROBOT,800)),
+                                  ((1750-R_ROBOT,800),(1950+R_ROBOT,800)),
+                                  ((1000-R_ROBOT,175),(1200+R_ROBOT,175)),
+                                  ((1800-R_ROBOT,175),(2000+R_ROBOT,175)),]
 
-Liste_zones_recup_noisettes_angle = [180,
-                                     180,
-                                     0,
-                                     0,
+Liste_zones_recup_noisettes_angle = [(-90,90),
                                      (-90,90),
                                      (-90,90),
-                                     -90,
-                                     -90]
+                                     (-90,90),
+                                     (0,180),
+                                     (0,180),
+                                     (0,180),
+                                     (0,180),]
 Liste_zones_gm_xy = [(1250,1200),
                      (1750,1200),
                      (350,800),
@@ -125,19 +136,11 @@ angle_robot_voulu = -181
 ############
 
 # Coordonnées Ennemi
-x_ennemi = 2500
+x_ennemi = 500
 y_ennemi = 1000
 x_ennemi_old = x_ennemi
 y_ennemi_old = y_ennemi
 ########
-
-# Perimètre de sécurité
-R_ROBOT = 130
-R_ENNEMI = 150
-MARGE_MIN = 100
-R_securite = R_ROBOT + R_ENNEMI + MARGE_MIN  # = 400mm
-MARGE_SECURITE_ENNEMI = MARGE_MIN  # Marge pour l'affichage de la zone ennemi
-############################
 
 # Variable pour les Grilles du A*
 EPS_EQ = 5
@@ -723,21 +726,21 @@ if __name__ == '__main__':
             x_robot_actuel, y_robot_actuel,
             x_ennemi, y_ennemi,
             robot_a_objets,
-            Liste_noisettes_libres,
+            Liste_noisettes_libres_temp,  # ← Liste restreinte
             Liste_GM_libres,
             Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
             Liste_zones_gm_xy, Liste_zones_gm_angle,
             R_securite,
             DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE,
-            verbose=True
+            verbose=True,
+            grid_expanded=grid_expanded, case_mm=CASE_MM
         )
- 
+        
         while (not stop_event.is_set() and Batteries[2][3] > 5 and len(Liste_actions)!=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
             dico_envoi[0x01]=1
             temps = 0
-            verif = False
             step +=1
-            
+
             grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
             # ⭐ NOUVELLE DÉCISION si liste vide ⭐
             if len(Liste_actions) == 0:
@@ -751,7 +754,8 @@ if __name__ == '__main__':
                     Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
                     Liste_zones_gm_xy, Liste_zones_gm_angle,
                     R_securite,
-                    verbose=True
+                    verbose=True,
+                        grid_expanded=grid_expanded, case_mm=CASE_MM
                 )
             ########################################
 
@@ -764,7 +768,6 @@ if __name__ == '__main__':
                 action_voulu = Liste_actions[0][0]
                 x_robot_voulu = Liste_actions[0][1]
                 y_robot_voulu = Liste_actions[0][2]
-                verif = True
                 mouvement = True
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
                 action_voulu = Liste_actions[0][0]
@@ -800,7 +803,6 @@ if __name__ == '__main__':
                     action_voulu = Liste_actions[0][0]
                     x_robot_voulu = Liste_actions[0][1]
                     y_robot_voulu = Liste_actions[0][2]
-                    verif = True
                     mouvement = True
                 elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
                     action_voulu = Liste_actions[0][0]
@@ -931,7 +933,6 @@ if __name__ == '__main__':
                 action_voulu = Liste_actions[0][0]
                 x_robot_voulu = Liste_actions[0][1]
                 y_robot_voulu = Liste_actions[0][2]
-                verif = True
                 mouvement = True
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2: # Si la consigne est un angle
                 action_voulu = Liste_actions[0][0]
@@ -943,8 +944,6 @@ if __name__ == '__main__':
                 action_voulu = Liste_actions[0][0]
                 mouvement = False
                     
-
-            verif = False
             # ✅ Ne PAS recalculer pendant rotation (laisser tourner)
             # Si ennemi dans zone critique (rayon sécurité)
             if distance_robot_ennemi < (R_securite) or trajectoire_bloquee:
@@ -1026,13 +1025,8 @@ if __name__ == '__main__':
             print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
             print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
             print("Liste_actions : ", Liste_actions)
-            print("Liste_GM_libres : ",Liste_GM_libres)
-            print("Liste_GM_libres_precedente : ",Liste_GM_libres_precedente)
-            print("Liste_noisettes_libres : ",Liste_noisettes_libres)
-            print("Liste_noisettes_libres_precedente : ",Liste_noisettes_libres_precedente)
             # ========== MISE À JOUR AUTOMATIQUE DE Liste_trajectoire ==========
             # Recalculer la trajectoire en fonction des actions restantes
-            
             
             # Compter et extraire tous les points "Avancer"
             points_avancer = [
@@ -1070,7 +1064,8 @@ if __name__ == '__main__':
                     y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
 
             # Envoi des Ordres de Consigne à la Carte Moteur
-            dico_envoi[0x205]=angle_robot_voulu
+            if angle_robot_voulu != -181 and action_voulu in ["Rotation", "Tourner"]:
+                dico_envoi[0x205] = angle_robot_voulu + 360
             ################################################
 
             # Mettre à jour robot, ennemi et consigne sur affichage
@@ -1119,33 +1114,26 @@ if __name__ == '__main__':
             battery_patches, battery_texts = afficher_batteries(ax, Batteries, Ordre_Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             
             ### Envoi des Ordres à la Carte Alim
-            if(Ordre_Batteries[0]==1):
-                dico_envoi[0x300]=1
-            else :
-                dico_envoi[0x300]=0
-            if(Ordre_Batteries[1]==1):
-                dico_envoi[0x301]=1
-            else :
-                dico_envoi[0x301]=0
-            if(Ordre_Batteries[2]==1):
-                dico_envoi[0x302]=1
-            else :
-                dico_envoi[0x302]=0
+            if Reel:
+                if(Ordre_Batteries[0]==1):
+                    dico_envoi[0x300]=1
+                else :
+                    dico_envoi[0x300]=0
+                if(Ordre_Batteries[1]==1):
+                    dico_envoi[0x301]=1
+                else :
+                    dico_envoi[0x301]=0
+                if(Ordre_Batteries[2]==1):
+                    dico_envoi[0x302]=1
+                else :
+                    dico_envoi[0x302]=0
             #######################################
             
             # Affichage texte Coordonées
-            robot_info_text.set_text(
-                f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°"
-            )
-            x_voulu_text.set_text(
-                f"X = {x_robot_voulu:.1f}"
-            )
-            y_voulu_text.set_text(
-                f"Y = {y_robot_voulu:.1f}"
-            )
-            A_voulu_text.set_text(
-                f"A = {angle_robot_voulu:.1f}°"
-            )
+            robot_info_text.set_text(f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°")
+            x_voulu_text.set_text(f"X = {x_robot_voulu:.1f}")
+            y_voulu_text.set_text(f"Y = {y_robot_voulu:.1f}")
+            A_voulu_text.set_text(f"A = {angle_robot_voulu:.1f}°")
 
             if(abs(x_robot_actuel-x_robot_voulu)>10):
                 x_voulu_text.set_color('black')
@@ -1162,7 +1150,7 @@ if __name__ == '__main__':
 
             # Si robot est à la position de consigne  
             if Reel: 
-                if(abs(x_robot_actuel-x_robot_voulu)<10 and abs(y_robot_actuel-y_robot_voulu)<10 and action_voulu in ["Consigne","Avancer","Recul","Contournement"]):
+                if(abs(x_robot_actuel-x_robot_voulu)<50 and abs(y_robot_actuel-y_robot_voulu)<50 and action_voulu in ["Consigne","Avancer","Recul","Contournement"]):
                     print("Bonne position")
                     ordre_receive = 11
                 if(abs(angle_robot_actuel-angle_robot_voulu)<1) and action_voulu in ["Rotation","Tourner"]:
@@ -1201,6 +1189,10 @@ if __name__ == '__main__':
                     if DEBUG :
                         print(f"🔄 Vidage de la liste d'actions (ancien objectif terminé)")
                     Liste_actions.clear()
+
+                    # ⭐ ACTUALISER LES ZONES **AVANT** LA NOUVELLE DÉCISION ⭐
+                    grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
+
                     
                     # ⭐ FORCER une nouvelle décision immédiatement ⭐
                     if DEBUG :
@@ -1216,7 +1208,8 @@ if __name__ == '__main__':
                         Liste_zones_gm_xy, Liste_zones_gm_angle,
                         R_securite,
                         DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE,
-                        verbose=True
+                        verbose=True,
+                        grid_expanded=grid_expanded, case_mm=CASE_MM
                     )
                     
                     if len(Liste_actions) == 0:
@@ -1237,7 +1230,8 @@ if __name__ == '__main__':
                         Liste_zones_gm_xy, Liste_zones_gm_angle,
                         R_securite,
                         DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE,
-                        verbose=True
+                        verbose=True,
+                        grid_expanded=grid_expanded, case_mm=CASE_MM
                     )
                     
                     if len(Liste_actions) == 0:
