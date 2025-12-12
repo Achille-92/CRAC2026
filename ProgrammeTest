@@ -125,8 +125,8 @@ angle_robot_voulu = -181
 ############
 
 # Coordonnées Ennemi
-x_ennemi = 500
-y_ennemi = 1000
+x_ennemi = 1500
+y_ennemi = 0
 x_ennemi_old = x_ennemi
 y_ennemi_old = y_ennemi
 ########
@@ -247,7 +247,7 @@ ordre_receive = 0
 step = 0
 robot_a_objets = False
 changement_noisette_GM = False
-var_mouvement = 0
+old_ordre_mouvement = 0
 SEUIL_MOUVEMENT_ENNEMI = 20
 DEBUG = False
 #######################
@@ -695,11 +695,11 @@ if __name__ == '__main__':
     bouton_relacher.on_clicked(bouton_relacher_callback)
 
     if Reel: 
-        #tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
+        tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
         tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
         tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
         
-        #tache_lidar.start()
+        tache_lidar.start()
         tache_calcul.start()
         tache_LectureCAN.start()
     
@@ -756,10 +756,6 @@ if __name__ == '__main__':
                 )
             ########################################
 
-            """if not Reel: 
-                x_ennemi += 3
-                y_ennemi += 2"""
-
             # Lire l'action courante
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
                 action_voulu = Liste_actions[0][0]
@@ -813,9 +809,10 @@ if __name__ == '__main__':
             angle_ennemi = np.degrees(math.atan2(y_ennemi-y_ennemi_old,x_ennemi-x_ennemi_old))
             mouvement_ennemi = math.sqrt((x_ennemi - x_ennemi_old)**2 + (y_ennemi - y_ennemi_old)**2)
             ennemi_a_bouge_significativement = mouvement_ennemi > SEUIL_MOUVEMENT_ENNEMI
-
+            print("distance_robot_ennemi : ",distance_robot_ennemi)
+            print("R_securite : ",R_securite)
             # === CALCUL DE LA TRAJECTOIRE A* === 
-            if action_voulu in ["Rotation", "Tourner","Attraper","Relacher"]:
+            if action_voulu in ["Rotation", "Tourner","Attraper","Relacher"] and old_ordre_mouvement == 3:
                 pass  # rien, on attend la fin de la rotation
             else:
                 # === CALCUL DE LA TRAJECTOIRE A* ===
@@ -1016,12 +1013,15 @@ if __name__ == '__main__':
                 except queue.Empty:
                     print("⚠️ Timeout : Aucun résultat reçu du thread A*")
 
-            if action_voulu in ["Consigne"] and action_precedente not in ["Consigne"]:
+            if (distance_robot_ennemi < R_securite):
+                dico_envoi[0x206]=3
+            elif action_voulu in ["Consigne","Avancer"]:
                 dico_envoi[0x206]=1
-            elif action_voulu in ["Attraper","Relacher"] and action_precedente not in ["Attraper","Relacher"]:
+            elif action_voulu in ["Attraper","Relacher"]:
                 dico_envoi[0x206]=2
             else :
                 dico_envoi[0x206]=100
+
             print("\nAprès verif :")
             print("Action en cours : "+action_voulu)
             print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
@@ -1239,7 +1239,7 @@ if __name__ == '__main__':
                     del dico_envoi[key]
             # On remplit le dictionnaire d'envoi du CAN avec les points de la trajectoire
             if len(Liste_trajectoire) != 0:
-                print("Liste_trajectoire : ",Liste_trajectoire)
+                #print("Liste_trajectoire : ",Liste_trajectoire)
                 dico_envoi[0x207] = Liste_trajectoire[0]
                 for couple in range(1,len(Liste_trajectoire)):
                     dico_envoi[0x208+2*(couple-1)]=Liste_trajectoire[couple][0]
@@ -1247,7 +1247,8 @@ if __name__ == '__main__':
             ##################################""
             """for couple in dico_envoi.items():
                 print(hex(couple[0])," : ",couple[1])"""
-
+            old_ordre_mouvement = dico_envoi[0x206]
+            print("dico_envoi[0x206] : ",dico_envoi[0x206])
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
@@ -1260,7 +1261,7 @@ if __name__ == '__main__':
                         dico_envoi[key]=0
                         time.sleep(0.0005)
             
-
+            
             # MAJ de l'affichage et des Variables de Bouncing
             compteur_affichage += 1
             if compteur_affichage >= FREQUENCE_AFFICHAGE:
@@ -1285,7 +1286,7 @@ if __name__ == '__main__':
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
         if Reel :
-            #tache_lidar.join()
+            tache_lidar.join()
             tache_calcul.join()
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
@@ -1296,7 +1297,7 @@ if __name__ == '__main__':
     finally:
         print("Programme terminé proprement.")
         if Reel :
-            #tache_lidar.join()
+            tache_lidar.join()
             tache_calcul.join()
             tache_LectureCAN.join()
             etat = 2
