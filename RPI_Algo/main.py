@@ -56,6 +56,8 @@ Liste_actions = []
 Liste_trajectoire = []
 Liste_noisettes_libres_temp = [4]
 
+Liste_actions_ennemi = []
+
 Liste_GM_libres = [1,2,3,4,5,6,7,8,9,10]
 Liste_GM_occuper = []
 Liste_noisettes_libres = [1,2,3,4,5,6,7,8]
@@ -250,6 +252,15 @@ changement_noisette_GM = False
 old_ordre_mouvement = 0
 SEUIL_MOUVEMENT_ENNEMI = 20
 DEBUG = False
+if Reel:
+    TOL_POS_X = 80
+    TOL_POS_Y = 80
+    TOL_POS_A = 1
+else :
+    TOL_POS_X = 16
+    TOL_POS_Y = 16
+    TOL_POS_A = 5
+
 #######################
 
 # ==================== PARAMÈTRES DE L'ALGORITHME ====================
@@ -735,11 +746,17 @@ if __name__ == '__main__':
             grid_expanded=grid_expanded, case_mm=CASE_MM
         )
         
+        Liste_actions_ennemi = [[int(x_robot_actuel-10),int(y_robot_actuel-10)],[400,400],[400,1500],[1500,1500]]
+        n_init = len(Liste_actions_ennemi)
         while (not stop_event.is_set() and Batteries[2][3] > 5 and len(Liste_actions)!=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
             dico_envoi[0x01]=1
             temps = 0
             step +=1
-
+            if len(Liste_actions_ennemi)>n_init-1:
+                Liste_actions_ennemi[0] = [int(x_robot_actuel-10),int(y_robot_actuel-10)]
+            
+            x_ennemi_voulu = int(Liste_actions_ennemi[0][0])
+            y_ennemi_voulu = int(Liste_actions_ennemi[0][1])
             grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
             # ⭐ NOUVELLE DÉCISION si liste vide ⭐
             if len(Liste_actions) == 0:
@@ -777,7 +794,7 @@ if __name__ == '__main__':
             # ⭐ RÉÉVALUATION : Vérifier si la cible est toujours disponible ⭐
             action_en_cours = verifier_et_changer_cible_si_necessaire(
                 action_en_cours,
-                Liste_actions,
+                Liste_actions, 
                 Liste_noisettes_libres,
                 Liste_GM_libres,
                 x_robot_actuel, y_robot_actuel,
@@ -806,16 +823,26 @@ if __name__ == '__main__':
                 elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1:
                     action_voulu = Liste_actions[0][0]
                     mouvement = False
-
+            """if step == 30:
+                Liste_noisettes_libres = [1,2,3,5,6,7,8]
+                Liste_noisettes_prises = [4]
+            if step == 20 :
+                x_ennemi = 2500
+                y_ennemi = 1500
+            if step == 40 :
+                x_ennemi = 1500
+                y_ennemi = 0"""
             distance_robot_ennemi = math.sqrt((x_ennemi - x_robot_actuel)**2 + (y_ennemi - y_robot_actuel)**2)
             angle_ennemi = np.degrees(math.atan2(y_ennemi-y_ennemi_old,x_ennemi-x_ennemi_old))
             mouvement_ennemi = math.sqrt((x_ennemi - x_ennemi_old)**2 + (y_ennemi - y_ennemi_old)**2)
             ennemi_a_bouge_significativement = mouvement_ennemi > SEUIL_MOUVEMENT_ENNEMI
+
+            angle_ennemi_consigne = np.degrees(math.atan2(y_ennemi - y_ennemi_voulu, x_ennemi - x_ennemi_voulu))
             print("distance_robot_ennemi : ",distance_robot_ennemi)
             print("R_securite : ",R_securite)
 
             # === CALCUL DE LA TRAJECTOIRE A* === 
-            if action_voulu in ["Rotation", "Tourner","Attraper","Relacher"] and old_ordre_mouvement == 3:
+            if action_voulu in ["Rotation","Attraper","Relacher"] and old_ordre_mouvement == 3:
                 pass  # rien, on attend la fin de la rotation
             else:
                 # === CALCUL DE LA TRAJECTOIRE A* ===
@@ -903,24 +930,11 @@ if __name__ == '__main__':
                             else:
                                 print("❌ Aucun chemin trouvé par A*")
                                 if distance_robot_ennemi < R_securite:
-                                    print("BESOIN DE RECULER")
-                                    ratio = R_securite / distance_robot_ennemi
-                                    x_recul = round(x_ennemi - (x_ennemi-x_robot_actuel) * ratio, 0)
-                                    y_recul = round(y_ennemi - (y_ennemi-y_robot_actuel) * ratio, 0)
-                                    x_recul = clamp(x_recul, R_ROBOT, X_PISTE-R_ROBOT)
-                                    y_recul = clamp(y_recul, R_ROBOT, Y_PISTE-R_ROBOT)
-                                    Liste_actions = [action for action in Liste_actions if(action[0] in ["Consigne","Rotation"])]
-                                    Liste_actions.insert(0, ["Avancer", int(x_recul), int(y_recul)])
-                                    angle_prochain_point = calcul_angle_vers_point(
-                                        x_robot_actuel, y_robot_actuel,
-                                        Liste_actions[0][1], Liste_actions[0][2]
-                                    )
-                                    if(angle_prochain_point != angle_robot_actuel):
-                                        Liste_actions.insert(0, ["Tourner", angle_prochain_point])
+                                    print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
                                 else:
                                     print("CHEMIN INACCESSIBLE, RECALCUL DE TRAJECTOIRE")
                                     x_robot_voulu = x_robot_actuel
-                                    y_robot_voulu = y_robot_actuel
+                                    y_robot_voulu = y_robot_actuel 
                         else:
                             print("⚠️ Résultat obsolète (demande annulée ou recalculée)")
                     except queue.Empty:
@@ -941,80 +955,6 @@ if __name__ == '__main__':
                 print("Appeler Carte Moteur pour : " + Liste_actions[0][0])
                 action_voulu = Liste_actions[0][0]
                 mouvement = False
-                    
-            # Si ennemi dans zone critique (rayon sécurité)
-            if distance_robot_ennemi < (R_securite):
-                print(f"⚠️  ENNEMI DÉTECTÉ à {distance_robot_ennemi:.0f}mm ! Recalcul trajectoire...")
-
-                # Nettoyer waypoints intermédiaires
-                Liste_actions = [act for act in Liste_actions if act[0] in ["Consigne", "Rotation"]]
-                # Préparer recalcul
-                x_robot_voulu = Liste_actions[0][1]
-                y_robot_voulu = Liste_actions[0][2]
-
-                start_case = (int(x_robot_actuel // CASE_MM), int(y_robot_actuel // CASE_MM))
-                goal_case = (int(x_robot_voulu // CASE_MM), int(y_robot_voulu // CASE_MM))
-
-                if DEBUG :
-                    print(f"🗺️  RECALCUL A* : {start_case} → {goal_case}")
-                    print(f"🎯 Position ennemi : ({x_ennemi}, {y_ennemi}) mm")
-
-                # Créer grille avec ennemi
-                grid_avec_ennemi = creer_grille_avec_ennemi(
-                    grid_expanded, x_ennemi, y_ennemi,
-                    R_ROBOT, R_ENNEMI, MARGE_ENNEMI, CASE_MM
-                )
-
-                # Envoyer la demande au thread A*
-                index_demande = len(Liste_actions)  # Utiliser un index unique pour identifier la demande
-                queue_astar_demande.put((start_case, goal_case, grid_avec_ennemi, index_demande))
-
-                # Attendre le résultat (avec timeout pour éviter le blocage)
-                try:
-                    index_resultat, path_simplified = queue_astar_resultat.get(timeout=2.0)
-                    if index_resultat == index_demande:  # Vérifier que le résultat correspond à la demande
-                        if path_simplified and len(path_simplified) > 1:
-                            print(f"✅ NOUVELLE trajectoire : {len(path_simplified)} points")
-
-                            # Convertir en mm
-                            px, py = zip(*path_simplified)
-                            px_mm = [x * CASE_MM for x in px]
-                            py_mm = [y * CASE_MM for y in py]
-
-                            # Insérer nouveaux waypoints avec rotations
-                            # ✅ Effacer anciens plots
-                            if path_plot is not None:
-                                path_plot.remove()
-                                path_plot = None
-                            if path_simplified_plot is not None:
-                                path_simplified_plot.remove()
-                                path_simplified_plot = None
-
-                            nbr_point = 0
-                            for i in range(len(py_mm)-1, 0, -1):
-                                x_cible = px_mm[i]
-                                y_cible = py_mm[i]
-
-                                if i > 0:
-                                    x_precedent = px_mm[i-1]
-                                    y_precedent = py_mm[i-1]
-                                else:
-                                    x_precedent = x_robot_actuel
-                                    y_precedent = y_robot_actuel
-
-                                if abs(x_cible - x_robot_voulu) > 10 or abs(y_cible - y_robot_voulu) > 10 :
-                                    Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
-                                    nbr_point += 1
-                                if DEBUG :
-                                    print(f"  → Nouveau waypoint: Avancer vers ({x_cible:.0f}, {y_cible:.0f})")
-                            # Afficher nouveau chemin
-                            path_simplified_plot, = ax.plot(px_mm, py_mm, 'g-', linewidth=2, label='Nouveau chemin', marker='o', markersize=4, zorder=10)
-                        else:
-                            print("❌ Aucun chemin trouvé par A*")
-                    else:
-                        print("⚠️ Résultat obsolète (demande annulée ou recalculée)")
-                except queue.Empty:
-                    print("⚠️ Timeout : Aucun résultat reçu du thread A*")
             
             if (distance_robot_ennemi < R_securite):
                 dico_envoi[0x206]=3
@@ -1054,21 +994,24 @@ if __name__ == '__main__':
                     Liste_trajectoire.append(1)
                     Liste_trajectoire.extend(points_avancer)
             # ====================================================================
-            
+
             ##### Simulation Mouvement Robot 
             if not Reel: 
-                if(action_voulu in ["Rotation"]):
-                    if(angle_robot_actuel > angle_robot_voulu):
-                        angle_robot_actuel -= 5
-                    elif(angle_robot_actuel < angle_robot_voulu):
-                        angle_robot_actuel += 5
-                if(action_voulu in ["Consigne","Avancer"]):
-                    angle_robot_consigne = math.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel)
-                    x_robot_actuel += round(15*np.cos(angle_robot_consigne),0)
-                    y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
+                if dico_envoi[0x206]!=3:
+                    if(action_voulu in ["Rotation"]):
+                        if(angle_robot_actuel > angle_robot_voulu):
+                            angle_robot_actuel -= 5
+                        elif(angle_robot_actuel < angle_robot_voulu):
+                            angle_robot_actuel += 5
+                    if(action_voulu in ["Consigne","Avancer"]):
+                        angle_robot_consigne = math.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel)
+                        x_robot_actuel += round(10*np.cos(angle_robot_consigne),0)
+                        y_robot_actuel += round(10*np.sin(angle_robot_consigne),0)
+                x_ennemi -= round(40*np.cos(math.radians(angle_ennemi_consigne)),0)
+                y_ennemi -= round(40*np.sin(math.radians(angle_ennemi_consigne)),0)
 
             # Envoi des Ordres de Consigne à la Carte Moteur
-            if angle_robot_voulu != -181 and action_voulu in ["Rotation", "Tourner"]:
+            if angle_robot_voulu != -181 and action_voulu in ["Rotation"]:
                 dico_envoi[0x205] = angle_robot_voulu + 360
             ################################################
 
@@ -1139,35 +1082,34 @@ if __name__ == '__main__':
             y_voulu_text.set_text(f"Y = {y_robot_voulu:.1f}")
             A_voulu_text.set_text(f"A = {angle_robot_voulu:.1f}°")
 
-            if(abs(x_robot_actuel-x_robot_voulu)>10):
+            if(abs(x_robot_actuel-x_robot_voulu)>=TOL_POS_X):
                 x_voulu_text.set_color('black')
             else:
                 x_voulu_text.set_color('green')
-            if(abs(y_robot_actuel-y_robot_voulu)>10):
+            if(abs(y_robot_actuel-y_robot_voulu)>=TOL_POS_Y):
                 y_voulu_text.set_color('black')
             else:
-                y_voulu_text.set_color('green')
-            if(abs(angle_robot_actuel-angle_robot_voulu)>1):
+                y_voulu_text.set_color('green') 
+            if(abs(angle_robot_actuel-angle_robot_voulu)>=TOL_POS_A):
                 A_voulu_text.set_color('black')
             else:
                 A_voulu_text.set_color('green')
 
             # Si robot est à la position de consigne  
-            if Reel: 
-                if(abs(x_robot_actuel-x_robot_voulu)<80 and abs(y_robot_actuel-y_robot_voulu)<80 and action_voulu in ["Consigne","Avancer"]):
-                    print("Bonne position")
-                    ordre_receive = 11
-                if(abs(angle_robot_actuel-angle_robot_voulu)<1) and action_voulu in ["Rotation","Tourner"]:
-                    print("Bon Angle")
-                    ordre_receive = 12
-            else :
-                if(abs(x_robot_actuel-x_robot_voulu)<16 and abs(y_robot_actuel-y_robot_voulu)<16 and action_voulu in ["Consigne","Avancer","Recul","Contournement"]):
-                    print("Bonne position")
-                    ordre_receive = 11
-                    print(ordre_receive)
-                if(abs(angle_robot_actuel-angle_robot_voulu)<5) and action_voulu in ["Rotation","Tourner"]:
-                    print("Bon Angle")
-                    ordre_receive = 12
+            if(abs(x_robot_actuel-x_robot_voulu)<TOL_POS_X and abs(y_robot_actuel-y_robot_voulu)<TOL_POS_Y and action_voulu in ["Consigne","Avancer"]):
+                print("Bonne position")
+                ordre_receive = 11
+            if(abs(angle_robot_actuel-angle_robot_voulu)<TOL_POS_A) and action_voulu in ["Rotation"]:
+                print("Bon Angle")
+                ordre_receive = 12  
+
+            print("x_ennemi : ",x_ennemi," y_ennemi : ",y_ennemi)
+            print("x_ennemi_voulu : ",x_ennemi_voulu," y_ennemi_voulu : ",y_ennemi_voulu)
+            print("Liste_actions_ennemi : ",Liste_actions_ennemi)
+            if(abs(x_ennemi-x_ennemi_voulu)<TOL_POS_X and abs(y_ennemi-y_ennemi_voulu)<TOL_POS_Y):
+                print("Bonne position Ennemi")
+                if(len(Liste_actions_ennemi)!=1):
+                    Liste_actions_ennemi.pop(0)
                     
             if (action_voulu in ["Consigne","Avancer"] and ordre_receive == 11) or \
                (action_voulu in ["Rotation"] and ordre_receive == 12) or \
