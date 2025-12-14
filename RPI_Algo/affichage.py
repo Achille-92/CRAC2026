@@ -200,16 +200,24 @@ def init_affichage():
     ax.set_aspect('equal', adjustable='box')
 
     # Textes d'info
+    chronometre_text = ax.text(2900, 2500, "", color='black', fontsize=8, ha='left', va='top')
+    info_alim_rpi = ax.text(2200, 2500, "", color='black', fontsize=8, ha='left', va='top')
     robot_info_text = ax.text(1500, 2200, "", color='black', fontsize=8, ha='left', va='top')
     x_voulu_text = ax.text(1500, 2100, "", color='black', fontsize=8, ha='left', va='top')
     y_voulu_text = ax.text(2000, 2100, "", color='black', fontsize=8, ha='left', va='top')
     A_voulu_text = ax.text(2500, 2100, "", color='black', fontsize=8, ha='left', va='top')
     
     # Bouton STOP
-    ax_button = plt.axes([0.07, 0.93, 0.15, 0.05])
-    bouton_stop = Button(ax_button, 'STOP', color='red', hovercolor='orange')
+    ax_button_stop = plt.axes([0.02, 0.93, 0.15, 0.05])
+    bouton_stop = Button(ax_button_stop, 'STOP', color='red', hovercolor='orange')
     bouton_stop.label.set_fontsize(11)
     bouton_stop.label.set_color('white')
+
+    # ⭐ NOUVEAU : Bouton START ⭐
+    ax_button_start = plt.axes([0.19, 0.93, 0.15, 0.05])  # Position à droite du bouton STOP
+    bouton_start = Button(ax_button_start, 'START', color='green', hovercolor='lightgreen')
+    bouton_start.label.set_fontsize(11)
+    bouton_start.label.set_color('white')
 
     # Point voulu
     point_voulu_plot, = ax.plot([], [], 'bx', markersize=10, label="Point voulu")
@@ -221,8 +229,9 @@ def init_affichage():
     background = fig.canvas.copy_from_bbox(ax.bbox)
 
     return (fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,
-            ax_button, bouton_stop, point_voulu_plot, x_voulu_text, y_voulu_text, 
-            A_voulu_text, robot_angle_line, robot_angle_voulu_line,background)
+            ax_button_stop, bouton_stop, ax_button_start, bouton_start,
+            point_voulu_plot, x_voulu_text, y_voulu_text, 
+            A_voulu_text, robot_angle_line, robot_angle_voulu_line,background,info_alim_rpi,chronometre_text)
 
 
 def afficher_batteries(ax, Batteries, Ordre_Batteries, battery_patches, battery_texts,
