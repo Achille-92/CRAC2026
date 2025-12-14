@@ -373,10 +373,15 @@ def mise_a_jour_decision(Liste_actions,
                         Liste_zones_gm_xy, Liste_zones_gm_angle,
                         R_securite,
                         DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE,
-                        verbose=True):
+                        verbose=True,
+                        grid_expanded=None, case_mm=10):
     """
     Fonction de décision qui choisit la prochaine action.
-    Version améliorée pour multi-positions.
+    Version améliorée pour multi-positions + test faisabilité A*.
+    
+    Args:
+        grid_expanded: Grille des obstacles (optionnel, pour test A*)
+        case_mm: Taille d'une case en mm
     """
     
     # Choisir la meilleure action (et la meilleure position)
@@ -388,7 +393,8 @@ def mise_a_jour_decision(Liste_actions,
         Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
         Liste_zones_gm_xy, Liste_zones_gm_angle,
         R_securite,
-        DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE
+        DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE,
+        grid_expanded=grid_expanded, case_mm=case_mm
     )
     
     # Ajouter l'action à la liste
@@ -404,11 +410,17 @@ def choisir_prochaine_action(x_robot_actuel, y_robot_actuel,
                             Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
                             Liste_zones_gm_xy, Liste_zones_gm_angle,
                             R_securite,
-                            DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE):
+                            DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE,
+                            grid_expanded=None, case_mm=10):
     """
     Choisit la prochaine action en gérant plusieurs positions possibles par zone.
     
     ⚠️ VERSION AMÉLIORÉE : Gère 1, 2, 3, 4+ positions par zone
+    ⭐ NOUVELLE : Teste la faisabilité du chemin A* avant de retenir une action
+    
+    Args:
+        grid_expanded: Grille des obstacles (optionnel, pour test A*)
+        case_mm: Taille d'une case en mm (pour conversion)
     
     Returns:
         dict ou None: {
@@ -418,24 +430,23 @@ def choisir_prochaine_action(x_robot_actuel, y_robot_actuel,
             'y': float,
             'angle': float,
             'score': float,
-            'position_index': int  # Nouvelle clé : index de la position choisie (0, 1, 2, 3...)
+            'position_index': int
         }
     """
+    from calcul_mouv import astar_safe
     
-    meilleur_score = -float('inf')
-    meilleure_action = None
+    # Liste pour stocker toutes les actions candidates avec leur faisabilité
+    actions_candidates = []
     
     # ===== PHASE 1 : Si le robot n'a pas d'objets → ATTRAPER =====
     if not robot_a_objets:
         for num_noisette in Liste_noisettes_libres:
-            index = num_noisette - 1  # Conversion numéro → index
+            index = num_noisette - 1
             
-            # Extraire toutes les positions possibles pour cette Noisette
             zone_data = Liste_zones_recup_noisettes_xy[index]
             angle_data = Liste_zones_recup_noisettes_angle[index]
             positions = extraire_positions_zone(zone_data, angle_data)
             
-            # Tester chaque position et garder la meilleure
             for pos_index, (x, y, angle) in enumerate(positions):
                 score = calculer_score_tache(
                     x, y, "Attraper", 
@@ -445,30 +456,38 @@ def choisir_prochaine_action(x_robot_actuel, y_robot_actuel,
                     DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE
                 )
                 
-                if score > meilleur_score:
-                    meilleur_score = score
-                    meilleure_action = {
-                        'type': 'Attraper',
-                        'numero_zone': num_noisette,
-                        'x': x,
-                        'y': y,
-                        'angle': angle,
-                        'score': score,
-                        'position_index': pos_index,  # Nouveau : index de la position
-                        'nb_positions': len(positions)  # Info : nombre total de positions
-                    }
+                # ⭐ TESTER LA FAISABILITÉ DU CHEMIN A* ⭐
+                chemin_possible = True
+                if grid_expanded is not None:
+                    try:
+                        start = (int(x_robot_actuel / case_mm), int(y_robot_actuel / case_mm))
+                        goal = (int(x / case_mm), int(y / case_mm))
+                        path = astar_safe(start, goal, safety_weight=2.0, grid_dynamique=grid_expanded)
+                        chemin_possible = (path is not None and len(path) > 0)
+                    except:
+                        chemin_possible = False
+                
+                actions_candidates.append({
+                    'type': 'Attraper',
+                    'numero_zone': num_noisette,
+                    'x': x,
+                    'y': y,
+                    'angle': angle,
+                    'score': score,
+                    'position_index': pos_index,
+                    'nb_positions': len(positions),
+                    'chemin_possible': chemin_possible
+                })
     
     # ===== PHASE 2 : Si le robot a des objets → RELACHER =====
     else:
         for num_gm in Liste_GM_libres:
-            index = num_gm - 1  # Conversion numéro → index
+            index = num_gm - 1
             
-            # Extraire toutes les positions possibles pour ce GM
             zone_data = Liste_zones_gm_xy[index]
             angle_data = Liste_zones_gm_angle[index]
             positions = extraire_positions_zone(zone_data, angle_data)
             
-            # Tester chaque position et garder la meilleure
             for pos_index, (x, y, angle) in enumerate(positions):
                 score = calculer_score_tache(
                     x, y, "Relacher",
@@ -478,20 +497,46 @@ def choisir_prochaine_action(x_robot_actuel, y_robot_actuel,
                     DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE
                 )
                 
-                if score > meilleur_score:
-                    meilleur_score = score
-                    meilleure_action = {
-                        'type': 'Relacher',
-                        'numero_zone': num_gm,
-                        'x': x,
-                        'y': y,
-                        'angle': angle,
-                        'score': score,
-                        'position_index': pos_index,  # Nouveau : index de la position
-                        'nb_positions': len(positions)  # Info : nombre total de positions
-                    }
+                # ⭐ TESTER LA FAISABILITÉ DU CHEMIN A* ⭐
+                chemin_possible = True
+                if grid_expanded is not None:
+                    try:
+                        start = (int(x_robot_actuel / case_mm), int(y_robot_actuel / case_mm))
+                        goal = (int(x / case_mm), int(y / case_mm))
+                        path = astar_safe(start, goal, safety_weight=2.0, grid_dynamique=grid_expanded)
+                        chemin_possible = (path is not None and len(path) > 0)
+                    except:
+                        chemin_possible = False
+                
+                actions_candidates.append({
+                    'type': 'Relacher',
+                    'numero_zone': num_gm,
+                    'x': x,
+                    'y': y,
+                    'angle': angle,
+                    'score': score,
+                    'position_index': pos_index,
+                    'nb_positions': len(positions),
+                    'chemin_possible': chemin_possible
+                })
     
-    return meilleure_action
+    # ⭐ SÉLECTIONNER LA MEILLEURE ACTION PARMI LES ACCESSIBLES ⭐
+    actions_accessibles = [a for a in actions_candidates if a['chemin_possible']]
+    
+    if len(actions_accessibles) > 0:
+        meilleure_action = max(actions_accessibles, key=lambda a: a['score'])
+        del meilleure_action['chemin_possible']
+        return meilleure_action
+    else:
+        if len(actions_candidates) > 0:
+            print("⚠️  ATTENTION : Aucune action avec chemin A* trouvé !")
+            print("   → Choix de la meilleure action par score (peut être inaccessible)")
+            meilleure_action = max(actions_candidates, key=lambda a: a['score'])
+            del meilleure_action['chemin_possible']
+            return meilleure_action
+        else:
+            return None
+
 
 def ajouter_action_a_liste(Liste_actions, action_choisie, verbose=True):
     """
