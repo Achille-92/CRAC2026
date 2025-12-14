@@ -309,7 +309,7 @@ def smooth_path_safe(path, smoothness, grid_dynamique=None):
 # === GRILLE DYNAMIQUE AVEC ENNEMI ===
 
 def creer_grille_avec_ennemi(grid_expanded_statique, x_ennemi, y_ennemi, 
-                               r_robot, r_ennemi, marge_min, case_mm=10):
+                               r_robot, r_ennemi, marge_min, case_mm,marge_trajectoire):
     """
     Crée une grille combinant les obstacles statiques et la zone de l'ennemi.
     
@@ -330,7 +330,7 @@ def creer_grille_avec_ennemi(grid_expanded_statique, x_ennemi, y_ennemi,
     
     # Calculer le rayon de sécurité autour de l'ennemi
     R_securite = r_robot + r_ennemi + marge_min
-    rayon_case = int(R_securite // case_mm)
+    rayon_case = int((R_securite+marge_trajectoire) // case_mm)
     
     # Convertir position ennemi en cases
     x_ennemi_case = int(x_ennemi // case_mm)
@@ -446,7 +446,9 @@ if __name__ == "__main__":
     # Exécuter le test si le fichier est lancé directement
     tester_module()
 
-def verifier_cible_disponible(action_en_cours,Liste_noisettes_libres,Liste_GM_libres):
+def verifier_cible_disponible(action_en_cours, 
+                               Liste_noisettes_libres, 
+                               Liste_GM_libres):
     """
     Vérifie si la cible actuelle est toujours disponible.
     """
