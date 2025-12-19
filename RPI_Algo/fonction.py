@@ -703,17 +703,18 @@ def gerer_basculement_batteries(Batteries, U_last, Ordre_Batteries, seuil_critiq
     Returns:
         Ordre_Batteries: Ordre mis à jour
     """
-    if Batteries[0][2] != U_last[0] and Batteries[0][3] <= seuil_critique:
+    if (Batteries[0][2] > Batteries[0][0]) and Batteries[0][2] !=0:
+        print("Utilisation Bat1")
+        Ordre_Batteries = [1, 0, 0]
+    
+    elif Batteries[1][2] > Batteries[1][0]:
         print("Utilisation Bat2")
         Ordre_Batteries = [0, 1, 0]
     
-    if Batteries[1][2] != U_last[1] and Batteries[1][3] <= seuil_critique:
-        print("Utilisation Bat3")
+    elif Batteries[2][2] > Batteries[2][0] :
+        print("Utilisation Bat2")
         Ordre_Batteries = [0, 0, 1]
-    
-    if Batteries[2][2] != U_last[2] and Batteries[2][3] <= seuil_critique:
-        print("Batteries déchargées")
-    
+
     return Ordre_Batteries
 
 
@@ -781,4 +782,3 @@ def calcul_angle_vers_point(x_actuel, y_actuel, x_suivant, y_suivant):
 def distance_euclidienne(x1, y1, x2, y2):
     """Calcule la distance euclidienne entre deux points"""
     return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-
