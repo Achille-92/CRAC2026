@@ -1,4 +1,4 @@
-Reel = False
+Reel = True
 x_robot_depart = 2725 
 y_robot_depart = 1650
 angle_robot_depart = -90
@@ -250,7 +250,7 @@ temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
 temps_retour = 15 # Temps restant pour revenir au départ en fin de match
-temps_max = 200
+temps_max = 3600
 
 action_en_cours = None
 action_precedente = None
@@ -350,11 +350,14 @@ def calcul_points(stop_event):
     """
 
     lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)                       # connexion au Lidar
-    
+
+    lidar.stop_motor()
+    time.sleep(1)
+
     print("INFO:", lidar.get_info())                                    # Affichage d'informations propres au Lidar
     print("HEALTH:", lidar.get_health())
-
-    lidar.start_motor()                                                 # Démarrage du moteur du Lidar
+    lidar.start_motor()   
+    time.sleep(5)                                             # Démarrage du moteur du Lidar
     global  x_robot_actuel, y_robot_actuel, angle_robot_actuel
     x_point = 0
     y_point = 0
@@ -447,11 +450,11 @@ def LectureCAN(stop_event):
 
 
         elif msg.arbitration_id == 0x10C:
-            V_rpi = struct.unpack('f', bytes(msg.data))[0]
-
+            V_rpi = struct.unpack('H', bytes(msg.data[:2]))[0]
+            V_rpi /=1000
         elif msg.arbitration_id == 0x10D:
-            I_rpi = struct.unpack('f', bytes(msg.data))[0]
-        
+            I_rpi = struct.unpack('H', bytes(msg.data[:2]))[0]
+            I_rpi /=1000
 
 def calcul_ennemi(stop_event):
     """
@@ -743,12 +746,12 @@ if __name__ == '__main__':
     temps_demarage = time.time()
     try:
         if Reel: 
-            tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
-            tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
+            #tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
+            #tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
             tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
             
-            tache_lidar.start()
-            tache_calcul.start()
+            #tache_lidar.start()
+            #tache_calcul.start()
             tache_LectureCAN.start()
         
         # 🚀 Démarrage thread A*
@@ -1297,8 +1300,8 @@ if __name__ == '__main__':
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
         if Reel :
-            tache_lidar.join()
-            tache_calcul.join()
+            #tache_lidar.join()
+            #tache_calcul.join()
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
         tache_astar.join()
@@ -1308,8 +1311,8 @@ if __name__ == '__main__':
     finally:
         print("Programme terminé proprement.")
         if Reel :
-            tache_lidar.join()
-            tache_calcul.join()
+            #tache_lidar.join()
+            #tache_calcul.join()
             tache_LectureCAN.join()
             etat = 2
             data_etat = struct.pack('<I',etat)
