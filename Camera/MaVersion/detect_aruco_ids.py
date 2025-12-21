@@ -6,7 +6,7 @@ data = np.load('calibration_data.npz')
 mtx, dist = data['mtx'], data['dist']
 
 # Paramètres
-CAMERA_INDEX = 1  # 0 = caméra intégrée, 1 = webcam USB
+CAMERA_INDEX = 0  # 0 = caméra intégrée, 1 = webcam USB
 
 # Initialisation caméra
 cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_DSHOW)
