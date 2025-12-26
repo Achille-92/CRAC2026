@@ -7,15 +7,15 @@ import json
 
 @dataclass
 class Config:
-    tags_largeur_mm: float = 910.0
-    tags_longueur_mm: float = 450.0
-    ajout_horizontal_mm: float = 303.0
-    ajout_vertical_mm: float = 225.0
-    tag_taille_mm: float = 100.0
-    tag_taille_mm_Noisette: float = 40.0
-    hauteur_Noisette_mm: float = 180.0  # Hauteur du plan élevé
-    hauteur_camera_mm: float = 1480.0
-    camera_largeur: int = 1280
+    tags_largeur_mm: float = 910.0   # Largeur entre les tags
+    tags_longueur_mm: float = 450.0  # Longueur entre les tags
+    ajout_horizontal_mm: float = 303.0  # Marge à gauche et à droite
+    ajout_vertical_mm: float = 225.0    # Marge en haut et en bas
+    tag_taille_mm: float = 100.0           # Tags de référence (20 à 23)
+    tag_taille_mm_Noisette: float = 40.0     # Tags mobiles (36, 47)
+    hauteur_Noisette_mm: float = 30.0      # Hauteur du plan élevé
+    hauteur_camera_mm: float = 1480.0     # Hauteur estimée de la caméra
+    camera_largeur: int = 1280             # Résolution de la caméra
     camera_longueur: int = 720
     tag_reference: Tuple[int, ...] = (20, 21, 22, 23)
     tag_calibration: int = 36
@@ -23,11 +23,13 @@ class Config:
 
     @property
     def largeur_totale_mm(self) -> float:
-        return self.tags_largeur_mm
+        """Renvoi un entier qui correspond à la largeur totale de la Piste"""
+        return self.tags_largeur_mm + 2 * self.ajout_horizontal_mm
 
     @property
     def longueur_totale_mm(self) -> float:
-        return self.tags_longueur_mm
+        """Renvoi un entier qui correspond à la longueur totale de la Piste"""
+        return self.tags_longueur_mm + 2 * self.ajout_vertical_mm
 
 class CalculHomographie:
     def __init__(self, config: Config):
@@ -41,12 +43,16 @@ class CalculHomographie:
         self.tag_memory = {tag_id: deque(maxlen=10) for tag_id in config.tag_reference}
 
     def position_tag_reference(self) -> Dict[int, np.ndarray]:
+        """Renvoi un dictionnaire avec comme clé les N° des Tag de référence, et comme valeur les coordonnées (x,y) des coins extérieurs des Tag dans le plan de référence"""
         cfg = self.config
+        demi_taille = cfg.tag_taille_mm / 2
+
+        # Coins extérieurs des tags de référence (basés sur les coins extérieurs des tags)
         positions = {
-            22: np.array([0, 0]),
-            23: np.array([cfg.tags_largeur_mm, 0]),
-            20: np.array([0, cfg.tags_longueur_mm]),
-            21: np.array([cfg.tags_largeur_mm, cfg.tags_longueur_mm]),
+            22: np.array([0, 0]),  # Coin supérieur droit (origine)
+            23: np.array([cfg.tags_largeur_mm, 0]),  # Coin supérieur gauche
+            20: np.array([0, cfg.tags_longueur_mm]),  # Coin inférieur droit
+            21: np.array([cfg.tags_largeur_mm, cfg.tags_longueur_mm]),  # Coin inférieur gauche
         }
         return positions
 
@@ -55,18 +61,18 @@ class CalculHomographie:
         demi_taille = cfg.tag_taille_mm / 2
         positions = {
             22: np.array([demi_taille, demi_taille]),  # Coin supérieur droit
-            23: np.array([cfg.tags_largeur_mm - demi_taille, demi_taille]),  # Coin supérieur gauche
-            20: np.array([demi_taille, cfg.tags_longueur_mm - demi_taille]),  # Coin inférieur droit
-            21: np.array([cfg.tags_largeur_mm - demi_taille, cfg.tags_longueur_mm - demi_taille]),  # Coin inférieur gauche
+            23: np.array([cfg.largeur_totale_mm - demi_taille, demi_taille]),  # Coin supérieur gauche
+            20: np.array([demi_taille, cfg.longueur_totale_mm - demi_taille]),  # Coin inférieur droit
+            21: np.array([cfg.largeur_totale_mm - demi_taille, cfg.longueur_totale_mm - demi_taille]),  # Coin inférieur gauche
         }
         return positions
 
     def tag_vers_coin(self, tag_id: int) -> int:
         num_coin = {
-            22: 3,
-            23: 2,
-            21: 1,
-            20: 0,
+            22: 3,  # coin bas-gauche
+            23: 2,  # coin bas-droit
+            21: 1,  # coin haut-droit
+            20: 0,  # coin haut-gauche
         }
         return num_coin[tag_id]
 
@@ -230,12 +236,27 @@ class CalculHomographie:
 
         return transformed[0, 0]
 
+class CorrectionParallaxe:
+    def __init__(self, config: Config, centre_image: np.ndarray):
+        self.config = config
+        self.centre_image = centre_image
+        self.facteur_parallaxe = config.hauteur_Noisette_mm / config.hauteur_camera_mm
+
+    def correct_position(self, observed_pixel: np.ndarray) -> np.ndarray:
+        displacement = observed_pixel - self.centre_image
+        corrected = observed_pixel - displacement * self.facteur_parallaxe
+        return corrected
+
 class ArUcoDetector:
     def __init__(self, dictionary_type=cv2.aruco.DICT_4X4_50):
         self.aruco_dict = cv2.aruco.getPredefinedDictionary(dictionary_type)
         self.detecteur = cv2.aruco.ArucoDetector(self.aruco_dict)
 
-    def detect(self, image: np.ndarray) -> Tuple[Dict[int, np.ndarray], np.ndarray]:
+    def detect(self, image: np.ndarray) -> Tuple[List[Tuple[int, np.ndarray]], np.ndarray]:
+        """
+        Détecte les tags ArUco et retourne une liste de tuples (tag_id, coins)
+        pour supporter plusieurs tags avec le même ID
+        """
         if len(image.shape) == 3:
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         else:
@@ -243,10 +264,10 @@ class ArUcoDetector:
 
         coins, id, rejected = self.detecteur.detectMarkers(gray)
 
-        detected_tags = {}
+        detected_tags = []
         if id is not None:
             for i, tag_id in enumerate(id.flatten()):
-                detected_tags[int(tag_id)] = coins[i][0]
+                detected_tags.append((int(tag_id), coins[i][0]))
 
         return detected_tags, gray
 
@@ -316,6 +337,7 @@ class ArUcoTrackingSystem:
         self.mode_calibration_active = False
         self.plan_reference_calcule = False
         self.plan_elevated_calcule = False
+        self.correction_parallaxe = CorrectionParallaxe(config, np.array([config.camera_largeur / 2, config.camera_longueur / 2]))
 
         if matrice_antidstorsion:
             self.load_calibration(matrice_antidstorsion)
@@ -336,22 +358,12 @@ class ArUcoTrackingSystem:
             return cv2.undistort(image, self.camera_matrix, self.dist_coeffs)
         return image
 
-    def sort_corners(self, corners: np.ndarray) -> List[np.ndarray]:
-        center = np.mean(corners, axis=0)
-
-        def compare(corner):
-            x, y = corner
-            return np.arctan2(y - center[1], x - center[0])
-
-        sorted_corners = sorted(corners, key=compare)
-        return sorted_corners
-
     def process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, Dict]:
         results = {
             'homographie_ok': self.plan_reference_calcule,
             'homographie_elevated_ok': self.plan_elevated_calcule,
             'tag_reference': {},
-            'tag_mobile': {},
+            'tag_mobile': [],
             'calibration_mode': self.mode_calibration_active,
             'calibration_complete': self.calibration_mode.is_complete()
         }
@@ -359,19 +371,31 @@ class ArUcoTrackingSystem:
         undistorted = self.undistort_image(frame)
         undistorted_copie = undistorted.copy()
 
-        detected_tags, gray = self.detecteur.detect(undistorted)
+        detected_tags_list, gray = self.detecteur.detect(undistorted)
 
-        for tag_id, coins in detected_tags.items():
+        # Dessiner les contours de tous les tags détectés
+        for tag_id, coins in detected_tags_list:
             coins_int = coins.astype(np.int32)
             if tag_id in self.config.tag_reference:
                 cv2.polylines(undistorted_copie, [coins_int], True, (255, 0, 0), 1)
             elif tag_id in self.config.tag_mobile:
-                cv2.polylines(undistorted_copie, [coins_int], True, (255, 0, 255), 2)
+                # Définir la couleur selon le numéro du tag
+                if tag_id == 36:
+                    color = (255, 0, 0)  # Bleu pour tag 36
+                elif tag_id == 47:
+                    color = (0, 255, 255)  # Jaune pour tag 47
+                else:
+                    color = (255, 0, 255)  # Magenta par défaut
+                cv2.polylines(undistorted_copie, [coins_int], True, color, 2)
 
-        tag_reference = {tid: coins for tid, coins in detected_tags.items()
-                        if tid in self.config.tag_reference}
+        # Créer un dictionnaire pour les tags de référence (un seul de chaque)
+        tag_reference = {}
+        for tag_id, coins in detected_tags_list:
+            if tag_id in self.config.tag_reference:
+                if tag_id not in tag_reference:
+                    tag_reference[tag_id] = coins
 
-        if not self.plan_reference_calcule and len(tag_reference) >= 4:
+        if not self.plan_reference_calcule and len(tag_reference) >= 3:
             homographie_ok = self.homographie.calcul_homographie(tag_reference)
             if homographie_ok:
                 self.plan_reference_calcule = True
@@ -382,38 +406,41 @@ class ArUcoTrackingSystem:
                         results['tag_reference'][tid] = ref_positions[tid].tolist()
 
         if self.plan_reference_calcule:
-            # Dessiner le rectangle du plan de référence
-            haut_droit_mm = np.array([0, 0])
-            haut_gauche_mm = np.array([self.config.tags_largeur_mm, 0])
-            bas_droit_mm = np.array([0, self.config.tags_longueur_mm])
-            bas_gauche_mm = np.array([self.config.tags_largeur_mm, self.config.tags_longueur_mm])
+            # Dessiner le rectangle du plan de référence étendu (en vert)
+            if len(tag_reference) >= 3:
+                cfg = self.config
 
-            haut_droit_pixel = self.homographie.point_ref_to_cam(haut_droit_mm)
-            haut_gauche_pixel = self.homographie.point_ref_to_cam(haut_gauche_mm)
-            bas_droit_pixel = self.homographie.point_ref_to_cam(bas_droit_mm)
-            bas_gauche_pixel = self.homographie.point_ref_to_cam(bas_gauche_mm)
+                haut_droit_mm = np.array([-cfg.ajout_horizontal_mm, -cfg.ajout_vertical_mm])
+                haut_gauche_mm = np.array([cfg.tags_largeur_mm + cfg.ajout_horizontal_mm, -cfg.ajout_vertical_mm])
+                bas_droit_mm = np.array([-cfg.ajout_horizontal_mm, cfg.tags_longueur_mm + cfg.ajout_vertical_mm])
+                bas_gauche_mm = np.array([cfg.tags_largeur_mm + cfg.ajout_horizontal_mm, cfg.tags_longueur_mm + cfg.ajout_vertical_mm])
 
-            if haut_droit_pixel is not None and haut_gauche_pixel is not None and bas_droit_pixel is not None and bas_gauche_pixel is not None:
-                reference_rectangle = np.array([
-                    haut_droit_pixel.astype(int),
-                    haut_gauche_pixel.astype(int),
-                    bas_gauche_pixel.astype(int),
-                    bas_droit_pixel.astype(int)
-                ], dtype=np.int32)
+                haut_droit_pixel = self.homographie.point_ref_to_cam(haut_droit_mm)
+                haut_gauche_pixel = self.homographie.point_ref_to_cam(haut_gauche_mm)
+                bas_droit_pixel = self.homographie.point_ref_to_cam(bas_droit_mm)
+                bas_gauche_pixel = self.homographie.point_ref_to_cam(bas_gauche_mm)
 
-                cv2.polylines(undistorted_copie, [reference_rectangle], True, (0, 255, 0), 3)
+                if haut_droit_pixel is not None and haut_gauche_pixel is not None and bas_droit_pixel is not None and bas_gauche_pixel is not None:
+                    extended_rectangle = np.array([
+                        haut_droit_pixel.astype(int),
+                        haut_gauche_pixel.astype(int),
+                        bas_gauche_pixel.astype(int),
+                        bas_droit_pixel.astype(int)
+                    ], dtype=np.int32)
+
+                    cv2.polylines(undistorted_copie, [extended_rectangle], True, (0, 255, 0), 3)
 
         if self.mode_calibration_active:
             target = self.calibration_mode.get_current_target()
             if target is not None:
-                instruction_text = f"MODE CALIBRATION - Positionner Tag {self.config.tag_calibration} au-dessus du Tag {target} puis appuyer sur ESPACE"
+                instruction_text = f"MODE CALIBRATION - Positionner Tag {self.config.tag_calibration} dans le coin {target} puis appuyer sur ESPACE"
                 cv2.putText(undistorted_copie, instruction_text, (10, 30),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
                 cv2.putText(undistorted_copie, f"Progression: {self.calibration_mode.current_index}/4", (10, 60),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
             else:
                 cv2.putText(undistorted_copie, "CALIBRATION TERMINEE - Appuyer sur 'S' pour sauvegarder", (10, 30),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
         if self.calibration_mode.is_complete() and not self.plan_elevated_calcule:
             homographie_elevated_ok = self.homographie.calcul_homographie_elevated(self.calibration_mode.calibration_points)
@@ -429,28 +456,43 @@ class ArUcoTrackingSystem:
                     corners = self.calibration_mode.calibration_points[tag_id]
                     all_corners.extend(corners)
 
-            if len(all_corners) == 16:  # 4 coins par tag, 4 tags
+            if len(all_corners) == 16:
                 all_corners = np.array(all_corners, dtype=np.float32)
 
-                # Trier les coins pour former un rectangle cohérent
                 center = np.mean(all_corners, axis=0)
                 sorted_corners = sorted(all_corners, key=lambda corner: np.arctan2(corner[1] - center[1], corner[0] - center[0]))
 
-                # Prendre les 4 coins les plus extrêmes
                 sorted_corners = np.array(sorted_corners, dtype=np.float32)
                 hull = cv2.convexHull(sorted_corners.reshape(-1, 1, 2))
                 if hull is not None and len(hull) >= 4:
                     elevated_rectangle = hull.squeeze().astype(int)
                     cv2.polylines(undistorted_copie, [elevated_rectangle], True, (255, 0, 255), 3)
-                    # Affichage plan surlevé
 
-        tag_mobile = {tid: coins for tid, coins in detected_tags.items()
-                     if tid in self.config.tag_mobile}
+        # Collecter tous les tags mobiles (peut avoir plusieurs fois le même ID)
+        tag_mobile_list = []
+        for tag_id, coins in detected_tags_list:
+            if tag_id in self.config.tag_mobile:
+                tag_mobile_list.append((tag_id, coins))
 
-        if tag_mobile and self.plan_elevated_calcule:
-            for tag_id, coins in tag_mobile.items():
+        if tag_mobile_list and self.plan_elevated_calcule:
+            cfg = self.config
+            
+            # Afficher l'en-tête dans la console
+            print("\n" + "="*80)
+            print(f"Frame - {len(tag_mobile_list)} tag(s) mobile(s) détecté(s)")
+            print("="*80)
+            
+            for idx, (tag_id, coins) in enumerate(tag_mobile_list):
+                # Définir la couleur selon le numéro du tag
+                if tag_id == 36:
+                    color = (255, 0, 0)  # Bleu pour tag 36
+                elif tag_id == 47:
+                    color = (0, 255, 255)  # Jaune pour tag 47
+                else:
+                    color = (255, 0, 255)  # Magenta par défaut
+
                 # Dessiner le contour du tag dans le plan de la caméra
-                cv2.polylines(undistorted_copie, [coins.astype(np.int32)], True, (255, 0, 255), 2)
+                cv2.polylines(undistorted_copie, [coins.astype(np.int32)], True, color, 2)
 
                 # Calculer le centre du tag dans le plan de la caméra
                 centre_pixel = np.mean(coins, axis=0)
@@ -459,20 +501,16 @@ class ArUcoTrackingSystem:
                 pos_elevated = self.homographie.point_cam_to_elevated(centre_pixel)
 
                 if pos_elevated is not None:
-                    # Afficher les coordonnées du centre du tag dans le plan surélevé
-                    coord_text = f"Tag {tag_id} Eleve: ({pos_elevated[0]:.0f}, {pos_elevated[1]:.0f})"
-                    cv2.putText(undistorted_copie, coord_text,
-                                tuple(centre_pixel.astype(int) + np.array([15, 30])),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2)
+                    # Les coordonnées du plan élevé sont dans le système étendu
+                    pos_ref_extended_mm = pos_elevated.copy()
+                    
+                    # Pour dessiner le carré, il faut convertir vers le système du rectangle bleu
+                    pos_ref_mm = pos_elevated - np.array([cfg.ajout_horizontal_mm, cfg.ajout_vertical_mm])
 
-                    # Utiliser directement les coordonnées du plan surélevé pour dessiner dans le plan de référence
-                    pos_ref_mm = pos_elevated.copy()
-
-                    # Afficher les coordonnées du centre du tag projeté dans le plan de référence
-                    coord_text_ref = f"Tag {tag_id} Proj Ref: ({pos_ref_mm[0]:.0f}, {pos_ref_mm[1]:.0f})"
-                    cv2.putText(undistorted_copie, coord_text_ref,
-                                tuple(centre_pixel.astype(int) + np.array([15, 60])),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    # Afficher les coordonnées dans la console
+                    print(f"\nTag {tag_id} (instance {idx + 1}):")
+                    print(f"  Plan élevé    : X = {pos_elevated[0]:7.1f} mm, Y = {pos_elevated[1]:7.1f} mm")
+                    print(f"  Plan référence: X = {pos_ref_extended_mm[0]:7.1f} mm, Y = {pos_ref_extended_mm[1]:7.1f} mm")
 
                     # Dessiner le contour du tag projeté dans le plan de référence
                     demi_taille = self.config.tag_taille_mm_Noisette / 2
@@ -492,77 +530,53 @@ class ArUcoTrackingSystem:
 
                     if len(projected_corners_cam) == 4:
                         projected_corners_cam = np.array(projected_corners_cam, dtype=np.int32)
-                        cv2.polylines(undistorted_copie, [projected_corners_cam], True, (0, 255, 0), 2)
+                        cv2.polylines(undistorted_copie, [projected_corners_cam], True, color, 2)
 
-                    results['tag_mobile'][tag_id] = {
+                    # Ajouter à la liste des résultats
+                    results['tag_mobile'].append({
+                        'tag_id': tag_id,
                         'elevated_mm': pos_elevated.tolist(),
-                        'ref_mm': pos_ref_mm.tolist(),
+                        'ref_mm': pos_ref_extended_mm.tolist(),
                         'pixel_center': centre_pixel.tolist()
-                    }
+                    })
+            
+            print("="*80)
 
         if not self.mode_calibration_active:
-            status_text = f"Tags ref: {len(tag_reference)}/4 | Tags mobiles: {len(tag_mobile)}"
-            color = (0, 255, 0) if results['homographie_ok'] else (0, 0, 255)
-            cv2.putText(undistorted_copie, status_text, (10, 30),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-
-            if results['homographie_ok']:
-                cv2.putText(undistorted_copie, "Homographie Plan Ref OK", (10, 60),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-            else:
-                cv2.putText(undistorted_copie, "Homographie INVALIDE - besoin de 4 tags", (10, 60),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-
-            if self.plan_elevated_calcule:
-                cv2.putText(undistorted_copie, "Homographie Plan Eleve OK", (10, 90),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-
-                if tag_mobile:
-                    y_pos = 120
-                    for tag_id in tag_mobile:
-                        if tag_id in results['tag_mobile']:
-                            data = results['tag_mobile'][tag_id]
-                            pos_elevated = data['elevated_mm']
-                            pos_ref = data['ref_mm']
-
-                            cv2.putText(undistorted_copie, f"Tag {tag_id} Eleve: ({pos_elevated[0]:.0f}, {pos_elevated[1]:.0f})", (10, y_pos),
-                                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 2)
-                            y_pos += 25
-                            cv2.putText(undistorted_copie, f"Tag {tag_id} Proj Ref: ({pos_ref[0]:.0f}, {pos_ref[1]:.0f})", (10, y_pos),
-                                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                            y_pos += 25
-
             cv2.putText(undistorted_copie, "Appuyer sur 'E' pour calibrer plan eleve", (10, undistorted_copie.shape[0] - 40),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
             cv2.putText(undistorted_copie, "Appuyer sur 'L' pour charger calibration", (10, undistorted_copie.shape[0] - 20),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
         return undistorted_copie, results
 
-    def handle_calibration_capture(self, detected_tags: Dict[int, np.ndarray]) -> bool:
-        if self.config.tag_calibration in detected_tags:
-            tag_corners = detected_tags[self.config.tag_calibration]
-            success = self.calibration_mode.capture_position(tag_corners)
-            if success:
-                target = self.calibration_mode.get_current_target()
-                if target is None:
-                    print("Calibration complete! Appuyer sur 'S' pour sauvegarder.")
-                else:
-                    print(f"Position capturée! Placer le tag sur la position {target} et appuyer sur ESPACE")
-                return True
-        else:
-            print(f"Tag {self.config.tag_calibration} non détecté")
+    def handle_calibration_capture(self, detected_tags_list: List[Tuple[int, np.ndarray]]) -> bool:
+        # Chercher le tag de calibration dans la liste
+        for tag_id, tag_corners in detected_tags_list:
+            if tag_id == self.config.tag_calibration:
+                success = self.calibration_mode.capture_position(tag_corners)
+                if success:
+                    target = self.calibration_mode.get_current_target()
+                    if target is None:
+                        print("Calibration complete! Appuyer sur 'S' pour sauvegarder.")
+                    else:
+                        print(f"Position capturée! Placer le tag dans le coin {target} et appuyer sur ESPACE")
+                    return True
+        
+        print(f"Tag {self.config.tag_calibration} non détecté")
         return False
 
 def main():
     config = Config()
-    config.hauteur_Noisette_mm = 180.0  # Hauteur du plan élevé
+    config.hauteur_Noisette_mm = 180.0
 
     print("=" * 80)
     print("Système de Tracking ArUco avec Double Plan")
     print("=" * 80)
     print(f"\nConfiguration:")
-    print(f"  - Plan de référence: {config.tags_largeur_mm:.0f} x {config.tags_longueur_mm:.0f} mm")
+    print(f"  - Plan de référence étendu: {config.largeur_totale_mm:.0f} x {config.longueur_totale_mm:.0f} mm")
+    print(f"  - Rectangle tags: {config.tags_largeur_mm:.0f} x {config.tags_longueur_mm:.0f} mm")
+    print(f"  - Marges: {config.ajout_horizontal_mm:.0f} x {config.ajout_vertical_mm:.0f} mm")
     print(f"  - Taille des tags de calibration: {config.tag_taille_mm:.0f} mm")
     print(f"  - Taille des tags mobiles: {config.tag_taille_mm_Noisette:.0f} mm")
     print(f"  - Hauteur plan élevé: +{config.hauteur_Noisette_mm:.0f} mm")
@@ -576,7 +590,7 @@ def main():
     print("INSTRUCTIONS:")
     print("  - Appuyer sur 'E' pour entrer en mode calibration du plan élevé")
     print("  - En mode calibration:")
-    print("    1. Positionner le tag 36 au-dessus de chaque tag de référence (20, 21, 22, 23)")
+    print("    1. Positionner le tag 36 dans les 4 coins extérieurs du rectangle")
     print("    2. Appuyer sur ESPACE à chaque position pour capturer")
     print("    3. Appuyer sur 'S' pour sauvegarder la calibration")
     print("    4. Appuyer sur 'R' pour recommencer la calibration")
@@ -622,10 +636,10 @@ def main():
                 system.mode_calibration_active = True
                 system.calibration_mode.reset()
                 print("\nMode calibration du plan élevé activé")
-                print(f"Positionner le tag {config.tag_calibration} au-dessus du tag {system.calibration_mode.get_current_target()}")
+                print(f"Positionner le tag {config.tag_calibration} dans le coin {system.calibration_mode.get_current_target()} et appuyer sur ESPACE")
             elif key == ord(' ') and system.mode_calibration_active:
-                detected_tags, _ = system.detecteur.detect(system.undistort_image(frame))
-                system.handle_calibration_capture(detected_tags)
+                detected_tags_list, _ = system.detecteur.detect(system.undistort_image(frame))
+                system.handle_calibration_capture(detected_tags_list)
             elif key == ord('s') and system.mode_calibration_active and system.calibration_mode.is_complete():
                 system.calibration_mode.save_calibration()
                 system.mode_calibration_active = False
@@ -634,7 +648,7 @@ def main():
             elif key == ord('r') and system.mode_calibration_active:
                 system.calibration_mode.reset()
                 print("\nCalibration réinitialisée")
-                print(f"Positionner le tag {config.tag_calibration} au-dessus du tag {system.calibration_mode.get_current_target()}")
+                print(f"Positionner le tag {config.tag_calibration} dans le coin {system.calibration_mode.get_current_target()} et appuyer sur ESPACE")
             elif key == ord('l') and not system.mode_calibration_active:
                 if system.calibration_mode.load_calibration():
                     system.homographie.calcul_homographie_elevated(system.calibration_mode.calibration_points)
