@@ -27,8 +27,9 @@ from gestion_zones_dynamiques import verifier_et_changer_cible_si_necessaire, mi
 ########################################################################
 
 # Config CAN 
-Liste_ID = [0x01,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10C,0x10D,0x200,0x201,0x202] # ID sur lesquels la RPI va recevoir des données
-Filtre = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID]
+Liste_ID_recoit = [0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10C,0x10D] # ID sur lesquels la RPI va recevoir des données
+Liste_ID_envoi = [0x01,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x300,0x301,0x302,0x303]
+Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
     os.system('sudo ip link set can0 type can bitrate 500000')
     os.system('sudo ifconfig can0 up')
@@ -36,9 +37,9 @@ if Reel:
         channel='can0',
         bustype='socketcan',
         bitrate=500000,
-        can_filters=Filtre)
+        can_filters=Filtre_CAN)
 dico_envoi = {}
-for ID in Liste_ID:
+for ID in Liste_ID_envoi:
     dico_envoi[ID]= 0
 #################################################
 
@@ -201,11 +202,13 @@ expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes]) if 
 # ======================================================= #
 
 # Variables fonctionnelles des Batteries
-Batteries = [[12,14,14,100],[12,14,14,100],[12,14,14,100]] # Vref-, Vref+, Vactuel, % de charge
-U_last = [0,0,0]
-Ordre_Batteries = [1,0,0]
-V_rpi = 12.4
-I_rpi = 0.059
+Batteries = [[10,15,15,100],[10,15,15,100],[10,15,15,100]] # V décharge, V charge, V actuel, % de charge
+U_last = [1,0,0]
+Ordre_Batteries = [1,1,1]
+lim_Bat_RPI = 11.0
+V_rpi = 12.0
+I_rpi = 0
+Mode_Test_Bat = True
 ############################
 
 # Variables pour l'affichage des rectangles de batteries et des textes
@@ -250,6 +253,7 @@ temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
 temps_retour = 15 # Temps restant pour revenir au départ en fin de match
+temps_max = 3600
 
 action_en_cours = None
 action_precedente = None
@@ -349,11 +353,14 @@ def calcul_points(stop_event):
     """
 
     lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)                       # connexion au Lidar
-    
+
+    lidar.stop_motor()
+    time.sleep(1)
+
     print("INFO:", lidar.get_info())                                    # Affichage d'informations propres au Lidar
     print("HEALTH:", lidar.get_health())
-
-    lidar.start_motor()                                                 # Démarrage du moteur du Lidar
+    lidar.start_motor()   
+    time.sleep(5)                                             # Démarrage du moteur du Lidar
     global  x_robot_actuel, y_robot_actuel, angle_robot_actuel
     x_point = 0
     y_point = 0
@@ -397,14 +404,14 @@ def LectureCAN(stop_event):
     Si l'ID du message n'est pas dans la Liste_ID, saute
     Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
     """
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID, Batteries, dico_envoi, bus, V_rpi, I_rpi
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, dico_envoi, bus, V_rpi, I_rpi
     while not stop_event.is_set():
         msg = bus.recv(0.01)  # attend 10 ms max
         if msg is None:
             continue  # pas de message, on repart
 
         # Vérifie qu'on a bien reçu 4 octets avant de décoder
-        if msg.arbitration_id not in Liste_ID:
+        if msg.arbitration_id not in Liste_ID_recoit:
             continue  # on saute les autres trames
 
         if msg.arbitration_id == 0x100:
@@ -418,39 +425,38 @@ def LectureCAN(stop_event):
 
         # Batteries
         elif msg.arbitration_id == 0x103:
-            Batteries[0][0] = struct.unpack('f', bytes(msg.data))[0]
+            Batteries[0][0] = struct.unpack('<H', bytes(msg.data[:2]))[0]
 
         elif msg.arbitration_id == 0x104:
-            Batteries[0][1] = struct.unpack('f', bytes(msg.data))[0]
+            Batteries[0][1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
 
         elif msg.arbitration_id == 0x105:
-            Batteries[0][2] = struct.unpack('f', bytes(msg.data))[0]
+            Batteries[0][2] = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
 
         elif msg.arbitration_id == 0x106:
-            Batteries[1][0] = struct.unpack('f', bytes(msg.data))[0]
+            Batteries[1][0] = struct.unpack('<H', bytes(msg.data[:2]))[0]
 
         elif msg.arbitration_id == 0x107:
-            Batteries[1][1] = struct.unpack('f', bytes(msg.data))[0]
+            Batteries[1][1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
 
         elif msg.arbitration_id == 0x108:
-            Batteries[1][2] = struct.unpack('f', bytes(msg.data))[0]
+            Batteries[1][2] = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
 
         elif msg.arbitration_id == 0x109:
-            Batteries[2][0] = struct.unpack('f', bytes(msg.data))[0]
+            Batteries[2][0] = struct.unpack('<H', bytes(msg.data[:2]))[0]
 
         elif msg.arbitration_id == 0x10A:
-            Batteries[2][1] = struct.unpack('f', bytes(msg.data))[0]
+            Batteries[2][1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
 
         elif msg.arbitration_id == 0x10B:
-            Batteries[2][2] = struct.unpack('f', bytes(msg.data))[0]
+            Batteries[2][2] = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
 
 
         elif msg.arbitration_id == 0x10C:
-            V_rpi = struct.unpack('f', bytes(msg.data))[0]
+            V_rpi = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
 
         elif msg.arbitration_id == 0x10D:
-            I_rpi = struct.unpack('f', bytes(msg.data))[0]
-        
+            I_rpi = struct.unpack('<H', bytes(msg.data[:2]))[0]/1000
 
 def calcul_ennemi(stop_event):
     """
@@ -742,12 +748,12 @@ if __name__ == '__main__':
     temps_demarage = time.time()
     try:
         if Reel: 
-            tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
-            tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
+            #tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
+            #tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
             tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
             
-            tache_lidar.start()
-            tache_calcul.start()
+            #tache_lidar.start()
+            #tache_calcul.start()
             tache_LectureCAN.start()
         
         # 🚀 Démarrage thread A*
@@ -784,21 +790,26 @@ if __name__ == '__main__':
         Liste_actions_ennemi = [[int(x_robot_actuel-10),int(y_robot_actuel-10)],[1500,900]]
         n_init = len(Liste_actions_ennemi)
 
-        while (not stop_event.is_set() and Batteries[2][3] > 5 and len(Liste_actions)!=0 and temps_restant >=0): # Tant que le Flag de Thread n'est pas levé et que les batteries sont suffisamment chargées
+        while (not stop_event.is_set() and V_rpi > lim_Bat_RPI and len(Liste_actions)!=0 and temps_restant >=0): # Tant que le Flag de Thread n'est pas levé et que la batterie RPI est suffisamment chargées
             dico_envoi[0x01]=1
+
             temps_ecoules = time.time() - temps_demarage
-            temps_restant = 100 - temps_ecoules
+            temps_restant = temps_max - temps_ecoules
+
             step +=1
-            if len(Liste_actions_ennemi)>n_init-1:
-                Liste_actions_ennemi[0] = [int(x_robot_actuel-10),int(y_robot_actuel-10)]
-            
-            x_ennemi_voulu = int(Liste_actions_ennemi[0][0])
-            y_ennemi_voulu = int(Liste_actions_ennemi[0][1])
+            # Simu déplacement robot ennemi
+            if not Reel:
+                if len(Liste_actions_ennemi)>n_init-1:
+                    Liste_actions_ennemi[0] = [int(x_robot_actuel-10),int(y_robot_actuel-10)]
+                
+                x_ennemi_voulu = int(Liste_actions_ennemi[0][0])
+                y_ennemi_voulu = int(Liste_actions_ennemi[0][1])
 
-            angle_ennemi_consigne = np.degrees(math.atan2(y_ennemi_voulu - y_ennemi, x_ennemi_voulu - x_ennemi))
+                angle_ennemi_consigne = np.degrees(math.atan2(y_ennemi_voulu - y_ennemi, x_ennemi_voulu - x_ennemi))
 
-            x_ennemi += round(20*np.cos(math.radians(angle_ennemi_consigne)),0)
-            y_ennemi += round(20*np.sin(math.radians(angle_ennemi_consigne)),0)
+                x_ennemi += round(20*np.cos(math.radians(angle_ennemi_consigne)),0)
+                y_ennemi += round(20*np.sin(math.radians(angle_ennemi_consigne)),0)
+            ###
 
             grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
 
@@ -835,11 +846,10 @@ if __name__ == '__main__':
                 action_voulu,
                 DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE
             )
+
             if temps_restant <= temps_retour:
                 Liste_actions.clear() 
                 Liste_actions = [["Consigne",int(x_robot_depart),int(y_robot_depart)]]
-            print("Liste_actions",Liste_actions)
-            print("action en cours après vérification :", action_en_cours)
             
             if len(Liste_actions) > 0:
                 if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
@@ -962,11 +972,9 @@ if __name__ == '__main__':
                                     if action_en_cours['type'] in ["Attraper"]:
                                         Liste_noisettes_libres_temp = [nbr for nbr in Liste_noisettes_libres if nbr != action_en_cours['numero_zone']]
                                         Liste_noisettes_GM_temp = Liste_GM_libres.copy()
-                                        print("Liste_noisettes_libres_temp après suppression de la cible inaccessible :", Liste_noisettes_libres_temp)
                                     if action_en_cours['type'] in ["Relacher"]:
                                         Liste_noisettes_libres_temp = Liste_noisettes_libres.copy()
                                         Liste_noisettes_GM_temp = [nbr for nbr in Liste_GM_libres if nbr != action_en_cours['numero_zone']]
-                                        print("Liste_noisettes_GM_temp après suppression de la cible inaccessible :", Liste_noisettes_GM_temp)
                                     
                                     if not(temps_restant <= temps_retour):
                                         action_en_cours = verifier_et_changer_cible_si_necessaire(
@@ -987,7 +995,6 @@ if __name__ == '__main__':
                                         )
                                     Liste_noisettes_libres_temp = []
                                     Liste_noisettes_GM_temp = []
-                                    print("action en cours après vérification :", action_en_cours)
                         else:
                             print("⚠️ Résultat obsolète (demande annulée ou recalculée)")
                     except queue.Empty:
@@ -1058,8 +1065,8 @@ if __name__ == '__main__':
                             angle_robot_actuel += 45
                     if(action_voulu in ["Consigne","Avancer"]):
                         angle_robot_consigne = math.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel)
-                        x_robot_actuel += round(30*np.cos(angle_robot_consigne),0)
-                        y_robot_actuel += round(30*np.sin(angle_robot_consigne),0)
+                        x_robot_actuel += round(10*np.cos(angle_robot_consigne),0)
+                        y_robot_actuel += round(10*np.sin(angle_robot_consigne),0)
 
             # Envoi des Ordres de Consigne à la Carte Moteur
             if angle_robot_voulu != -181 and action_voulu in ["Rotation"]:
@@ -1100,32 +1107,42 @@ if __name__ == '__main__':
 
             # === GESTION BATTERIES avec les fonctions ===
             # SIMULATION Perte Batterie
-            if not Reel: 
-                if Ordre_Batteries == [1,0,0]:
-                    Batteries[0][2] -=0.001
-                elif Ordre_Batteries == [0,1,0]:
-                    Batteries[1][2] -=0.001
-                elif Ordre_Batteries == [0,0,1]:
-                    Batteries[2][2] -=0.001
-                
-            Batteries = calculer_pourcentage_batteries(Batteries, U_last)
-            Ordre_Batteries = gerer_basculement_batteries(Batteries, U_last, Ordre_Batteries)
-            battery_patches, battery_texts = afficher_batteries(ax, Batteries, Ordre_Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
+
+            if step > 1:
+                Batteries = calculer_pourcentage_batteries(Batteries, U_last)
+                battery_patches, battery_texts = afficher_batteries(ax, Batteries, Ordre_Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
 
             ### Envoi des Ordres à la Carte Alim
-            if Reel:
-                if(Ordre_Batteries[0]==1):
-                    dico_envoi[0x300]=1
+            if Mode_Test_Bat:
+                if Batteries[0][3]>5.0:
+                    Ordre_Batteries[0]=1
                 else :
-                    dico_envoi[0x300]=0
-                if(Ordre_Batteries[1]==1):
-                    dico_envoi[0x301]=1
+                    Ordre_Batteries[0]=0
+                if Batteries[1][3]>5.0:
+                    Ordre_Batteries[1]=1
                 else :
-                    dico_envoi[0x301]=0
-                if(Ordre_Batteries[2]==1):
-                    dico_envoi[0x302]=1
+                    Ordre_Batteries[1]=0
+                if Batteries[2][3]>5.0:
+                    Ordre_Batteries[2]=1
                 else :
-                    dico_envoi[0x302]=0
+                    Ordre_Batteries[2]=0
+
+            if(Ordre_Batteries[0]==1):
+                dico_envoi[0x300]=1
+            else :
+                dico_envoi[0x300]=0
+            if(Ordre_Batteries[1]==1):
+                dico_envoi[0x301]=1
+            else :
+                dico_envoi[0x301]=0
+            if(Ordre_Batteries[2]==1):
+                dico_envoi[0x302]=1
+            else :
+                dico_envoi[0x302]=0
+            if Mode_Test_Bat:
+                dico_envoi[0x303]=1
+            else:
+                dico_envoi[0x303]=0
             #######################################
             
             # Affichage texte Coordonées
@@ -1149,6 +1166,10 @@ if __name__ == '__main__':
             else:
                 A_voulu_text.set_color('green')
 
+            if V_rpi >= lim_Bat_RPI+0.3:
+                info_alim_rpi.set_color('black')
+            else:
+                info_alim_rpi.set_color('red')
             # Si robot est à la position de consigne  
             if(abs(x_robot_actuel-x_robot_voulu)<TOL_POS_X and abs(y_robot_actuel-y_robot_voulu)<TOL_POS_Y and action_voulu in ["Consigne","Avancer"]):
                 print("Bonne position")
@@ -1182,7 +1203,7 @@ if __name__ == '__main__':
                         Liste_GM_libres, Liste_GM_occuper,
                         verbose=True
                     )
-                    #print("Robot a objets :", robot_a_objets)
+                    
                     # ⭐ VIDER TOUTE LA LISTE car l'objectif change ⭐
                     Liste_actions.clear()
 
@@ -1209,7 +1230,6 @@ if __name__ == '__main__':
                             verbose=True,
                             grid_expanded=grid_expanded, case_mm=CASE_MM
                         )
-                    print("action en cours après nouvelle décision 1 :", action_en_cours)
                     
                     if len(Liste_actions) == 0:
                         print("⚠️  AUCUNE ACTION DISPONIBLE - Mission terminée ou zones bloquées")
@@ -1234,7 +1254,7 @@ if __name__ == '__main__':
                             verbose=True,
                             grid_expanded=grid_expanded, case_mm=CASE_MM
                         )
-                    print("action en cours après nouvelle décision 2 :", action_en_cours)
+                        
                     if len(Liste_actions) == 0:
                         print("⚠️  AUCUNE ACTION DISPONIBLE - Mission terminée ou zones bloquées")
             
@@ -1254,7 +1274,6 @@ if __name__ == '__main__':
                 print(hex(couple[0])," : ",couple[1])"""
             
             old_ordre_mouvement = dico_envoi[0x206]
-            
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
@@ -1284,6 +1303,8 @@ if __name__ == '__main__':
             Liste_actions_precedente = Liste_actions.copy()
             print("")
             time.sleep(0.0001)
+        if V_rpi <= lim_Bat_RPI:
+            print("Batterie RPI trop faible")
         time.sleep(2) 
         stop_event.set()
 
@@ -1292,8 +1313,8 @@ if __name__ == '__main__':
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
         if Reel :
-            tache_lidar.join()
-            tache_calcul.join()
+            #tache_lidar.join()
+            #tache_calcul.join()
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
         tache_astar.join()
@@ -1303,8 +1324,8 @@ if __name__ == '__main__':
     finally:
         print("Programme terminé proprement.")
         if Reel :
-            tache_lidar.join()
-            tache_calcul.join()
+            #tache_lidar.join()
+            #tache_calcul.join()
             tache_LectureCAN.join()
             etat = 2
             data_etat = struct.pack('<I',etat)
