@@ -181,7 +181,7 @@ def init_affichage():
     Retourne les objets utiles : figure, axes, plots et boutons.
     """
     # Chargement et configuration de l'image
-    img = mpimg.imread("/home/youssef/Desktop/CRAC2026/Piste.png")
+    img = mpimg.imread("Piste.png")
     img = np.rot90(img, 2)  # rotation de 180°
 
     fig, ax = plt.subplots(figsize=(600/100, 400/100), dpi=100)
