@@ -148,6 +148,42 @@ class Obstacles:
         print(f"➕ Rectangle ajouté : {nom} @ {coin_bas_gauche_mm} - {coin_haut_droit_mm}")
     
     
+    
+    def ajouter_rectangle_oriente(self, nom: str, centre_mm: Tuple[int, int],
+                                  longueur_mm: int, largeur_mm: int, angle_deg: float,
+                                  actif: bool = True, priorite: int = 0) -> None:
+        """
+        Ajoute un obstacle rectangulaire orienté.
+        
+        Args:
+            nom: Identifiant unique
+            centre_mm: (x, y) centre du rectangle en mm
+            longueur_mm: Longueur du rectangle (dans la direction de l'angle) en mm
+            largeur_mm: Largeur du rectangle (perpendiculaire à l'angle) en mm
+            angle_deg: Angle de rotation en degrés (0° = horizontal, 90° = vertical)
+            actif: Si True, obstacle actif dès création
+            priorite: Ordre de traitement
+            
+        Example:
+            >>> obs.ajouter_rectangle_oriente("noisette1", (175, 1200), 150, 50, 0)
+            >>> obs.ajouter_rectangle_oriente("noisette2", (1500, 800), 150, 50, 90)
+        """
+        obstacle = Obstacle(
+            nom=nom,
+            forme="rectangle_oriente",
+            params={
+                "centre": centre_mm,
+                "longueur": longueur_mm,
+                "largeur": largeur_mm,
+                "angle": angle_deg
+            },
+            actif=actif,
+            priorite=priorite
+        )
+        self._obstacles[nom] = obstacle
+        self._invalider_cache()
+        print(f"➕ Rectangle orienté ajouté : {nom} @ {centre_mm} ({longueur_mm}×{largeur_mm}mm, {angle_deg}°)")
+
     def ajouter_cercle(self, nom: str, centre_mm: Tuple[int, int],
                       rayon_mm: int, actif: bool = True, priorite: int = 0) -> None:
         """
@@ -401,6 +437,8 @@ class Obstacles:
                 cases = self._generer_rectangle(obs.params)
             elif obs.forme == "cercle":
                 cases = self._generer_cercle(obs.params)
+            elif obs.forme == "rectangle_oriente":
+                cases = self._generer_rectangle_oriente(obs.params)
             elif obs.forme == "polygone":
                 cases = self._generer_polygone(obs.params)
             else:
@@ -477,6 +515,78 @@ class Obstacles:
         return cases
     
     
+    
+    def _generer_rectangle_oriente(self, params: dict) -> Set[Tuple[int, int]]:
+        """
+        Génère les cases d'un rectangle orienté.
+        Utilise une transformation matricielle pour calculer les points du rectangle tourné.
+        """
+        cx_mm, cy_mm = params["centre"]
+        longueur_mm = params["longueur"]
+        largeur_mm = params["largeur"]
+        angle_deg = params["angle"]
+        
+        # Conversion en cases
+        cx = cx_mm / self.case_mm
+        cy = cy_mm / self.case_mm
+        demi_longueur = longueur_mm / (2 * self.case_mm)
+        demi_largeur = largeur_mm / (2 * self.case_mm)
+        
+        # Angle en radians
+        angle_rad = math.radians(angle_deg)
+        cos_a = math.cos(angle_rad)
+        sin_a = math.sin(angle_rad)
+        
+        # Calculer les 4 coins du rectangle avant rotation
+        # Coin 1: (-demi_longueur, -demi_largeur)
+        # Coin 2: (+demi_longueur, -demi_largeur)
+        # Coin 3: (+demi_longueur, +demi_largeur)
+        # Coin 4: (-demi_longueur, +demi_largeur)
+        
+        coins_local = [
+            (-demi_longueur, -demi_largeur),
+            (+demi_longueur, -demi_largeur),
+            (+demi_longueur, +demi_largeur),
+            (-demi_longueur, +demi_largeur)
+        ]
+        
+        # Appliquer la rotation et translation à chaque coin
+        coins_global = []
+        for (lx, ly) in coins_local:
+            # Rotation
+            rx = lx * cos_a - ly * sin_a
+            ry = lx * sin_a + ly * cos_a
+            # Translation
+            gx = rx + cx
+            gy = ry + cy
+            coins_global.append((gx, gy))
+        
+        # Trouver la bounding box
+        min_x = min(p[0] for p in coins_global)
+        max_x = max(p[0] for p in coins_global)
+        min_y = min(p[1] for p in coins_global)
+        max_y = max(p[1] for p in coins_global)
+        
+        # Parcourir tous les points dans la bounding box
+        cases = set()
+        for x in range(int(min_x) - 1, int(max_x) + 2):
+            for y in range(int(min_y) - 1, int(max_y) + 2):
+                # Vérifier si le point est dans le rectangle
+                # Transformer le point dans le repère local du rectangle
+                dx = x - cx
+                dy = y - cy
+                # Rotation inverse
+                local_x = dx * cos_a + dy * sin_a
+                local_y = -dx * sin_a + dy * cos_a
+                
+                # Vérifier si dans le rectangle
+                if abs(local_x) <= demi_longueur and abs(local_y) <= demi_largeur:
+                    # Vérifier les limites du terrain
+                    if 0 <= x < self.width and 0 <= y < self.height:
+                        cases.add((int(x), int(y)))
+        
+        return cases
+
     def _generer_cercle(self, params: dict) -> Set[Tuple[int, int]]:
         """Génère les cases d'un cercle."""
         cx_mm, cy_mm = params["centre"]
