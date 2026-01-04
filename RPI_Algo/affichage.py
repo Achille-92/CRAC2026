@@ -175,7 +175,7 @@ def bring_to_front(fig):
 # INITIALISATION DE L'AFFICHAGE
 # ============================================================================
 
-def init_affichage():
+def init_affichage(x_robot_depart,y_robot_depart,R_ROBOT):
     """
     Initialise la fenetre graphique pour le robot et l'ennemi.
     Retourne les objets utiles : figure, axes, plots et boutons.
@@ -190,6 +190,18 @@ def init_affichage():
 
     # Objets graphiques
     robot_plot = ax.scatter([], [], s=50, c='blue', marker='o', label="Robot")
+    # Cercle de sécurité du robot
+    cercle_robot_patch = plt.Circle(
+        (x_robot_depart, y_robot_depart),
+        R_ROBOT,
+        color='lightgreen',
+        fill=False,
+        linestyle='--',
+        linewidth=2,
+        alpha=0.8,
+        zorder=3
+    )
+    ax.add_patch(cercle_robot_patch)
     ennemi_plot = ax.scatter([], [], s=50, c='red', marker='o', label="Ennemi")
     consigne_plot = ax.scatter([], [], s=50, c='green', marker='x', label="Consigne")
     scat = ax.scatter([], [], s=5, c='blue', alpha=0.5, label="Points Lidar")
@@ -231,7 +243,7 @@ def init_affichage():
     return (fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,
             ax_button_stop, bouton_stop, ax_button_start, bouton_start,
             point_voulu_plot, x_voulu_text, y_voulu_text, 
-            A_voulu_text, robot_angle_line, robot_angle_voulu_line,background,info_alim_rpi,chronometre_text)
+            A_voulu_text, robot_angle_line, robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch)
 
 
 def afficher_batteries(ax, Batteries, Ordre_Batteries, battery_patches, battery_texts,
@@ -309,3 +321,90 @@ def afficher_batteries(ax, Batteries, Ordre_Batteries, battery_patches, battery_
 # ============================================================================
 # FIN DU FICHIER
 # ============================================================================
+def dessiner_noisettes(ax, Liste_noisette_xya, longueur=150, largeur=50, 
+                       alpha=0.6, linewidth=2):
+    """
+    Dessine des rectangles orientés représentant les noisettes avec couleurs.
+    
+    Args:
+        ax: Axes matplotlib
+        Liste_noisette_xya: Liste de quadruplets [x_centre, y_centre, angle_degres, couleur]
+                           où couleur peut être "J" (jaune), "B" (bleu), ou une couleur matplotlib
+        longueur: Longueur du rectangle en mm (dans la direction de l'angle)
+        largeur: Largeur du rectangle en mm (perpendiculaire à l'angle)
+        alpha: Transparence (0-1)
+        linewidth: Épaisseur du contour
+        
+    Returns:
+        list: Liste des patches créés
+    """
+    import matplotlib.patches as patches_module
+    import matplotlib.transforms as transforms
+    
+    # Dictionnaire de conversion des codes couleurs
+    couleurs_map = {
+        'J': 'gold',        # Jaune
+        'B': 'dodgerblue',  # Bleu
+        'R': 'red',         # Rouge (si besoin)
+        'V': 'green',       # Vert (si besoin)
+    }
+    
+    patches_noisettes = []
+    
+    for i, noisette_data in enumerate(Liste_noisette_xya):
+        # Gérer les formats : [x, y, angle] ou [x, y, angle, couleur]
+        if len(noisette_data) == 3:
+            x_centre, y_centre, angle_deg = noisette_data
+            couleur_code = 'brown'  # Couleur par défaut
+        elif len(noisette_data) == 4:
+            x_centre, y_centre, angle_deg, couleur_code = noisette_data
+        else:
+            print(f"⚠️ Format invalide pour noisette {i+1}: {noisette_data}")
+            continue
+        
+        # Convertir le code couleur en couleur matplotlib
+        if couleur_code in couleurs_map:
+            couleur = couleurs_map[couleur_code]
+        else:
+            couleur = couleur_code  # Utiliser directement si c'est déjà une couleur matplotlib
+        
+        # Créer un rectangle orienté
+        # matplotlib.patches.Rectangle utilise le coin inférieur gauche
+        # On doit calculer ce coin à partir du centre
+        
+        # Angle en radians
+        angle_rad = np.deg2rad(angle_deg)
+        
+        # Coin inférieur gauche du rectangle (avant rotation)
+        # Le rectangle est centré, donc décalage de -longueur/2, -largeur/2
+        coin_x = -longueur / 2
+        coin_y = -largeur / 2
+        
+        # Créer le rectangle
+        rect = patches_module.Rectangle(
+            (coin_x, coin_y),  # Position du coin (avant transformation)
+            longueur,          # Longueur
+            largeur,           # Largeur
+            linewidth=linewidth,
+            edgecolor='black',
+            facecolor=couleur,
+            alpha=alpha,
+            zorder=5
+        )
+        
+        # Appliquer la rotation et la translation
+        t = transforms.Affine2D().rotate(angle_rad).translate(x_centre, y_centre) + ax.transData
+        rect.set_transform(t)
+        
+        # Ajouter à l'axe
+        ax.add_patch(rect)
+        patches_noisettes.append(rect)
+        
+        # Ajouter un numéro avec la couleur du code
+        """text_color = 'white' if couleur_code in ['B', 'R'] else 'black'
+        ax.text(x_centre, y_centre, str(i+1), 
+                ha='center', va='center', 
+                fontsize=8, color=text_color, 
+                fontweight='bold', zorder=6)"""
+    
+    return patches_noisettes
