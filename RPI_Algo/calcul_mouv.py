@@ -473,3 +473,207 @@ def verifier_cible_disponible(action_en_cours,
             return False
     
     return False
+
+import math
+import numpy as np
+
+
+def filtrer_points_trajectoire(points_mm, seuil_angle=5.0, distance_min=50):
+    """
+    Filtre les points d'une trajectoire pour ne garder que les changements de direction significatifs.
+    
+    Args:
+        points_mm: Liste de points [[x1, y1], [x2, y2], ...]
+        seuil_angle: Angle minimum (en degrés) pour considérer un changement de direction
+        distance_min: Distance minimale (en mm) entre deux points conservés
+    
+    Returns:
+        Liste de points filtrés
+    
+    Exemple:
+        >>> points = [[100, 100], [110, 110], [120, 120], [130, 200], [140, 210]]
+        >>> filtrer_points_trajectoire(points, seuil_angle=5.0, distance_min=50)
+        [[100, 100], [120, 120], [140, 210]]  # Seulement 3 points au lieu de 5
+    """
+    if len(points_mm) <= 2:
+        return points_mm  # Pas assez de points pour filtrer
+    
+    points_filtres = [points_mm[0]]  # Toujours garder le premier point
+    
+    for i in range(1, len(points_mm) - 1):
+        point_precedent = points_filtres[-1]
+        point_actuel = points_mm[i]
+        point_suivant = points_mm[i + 1]
+        
+        # Calculer les vecteurs
+        vec1_x = point_actuel[0] - point_precedent[0]
+        vec1_y = point_actuel[1] - point_precedent[1]
+        
+        vec2_x = point_suivant[0] - point_actuel[0]
+        vec2_y = point_suivant[1] - point_actuel[1]
+        
+        # Calculer l'angle entre les deux vecteurs
+        norme1 = math.sqrt(vec1_x**2 + vec1_y**2)
+        norme2 = math.sqrt(vec2_x**2 + vec2_y**2)
+        
+        if norme1 < 1 or norme2 < 1:
+            continue  # Vecteurs trop courts, on saute
+        
+        # Produit scalaire
+        dot_product = vec1_x * vec2_x + vec1_y * vec2_y
+        cos_angle = dot_product / (norme1 * norme2)
+        cos_angle = max(-1, min(1, cos_angle))  # Clamp pour éviter erreurs d'arrondi
+        
+        angle_rad = math.acos(cos_angle)
+        angle_deg = math.degrees(angle_rad)
+        
+        # Distance depuis le dernier point conservé
+        distance = math.sqrt(
+            (point_actuel[0] - point_precedent[0])**2 + 
+            (point_actuel[1] - point_precedent[1])**2
+        )
+        
+        # Garder le point si :
+        # - Changement de direction significatif OU
+        # - Distance suffisante depuis le dernier point conservé
+        if angle_deg > seuil_angle or distance > distance_min:
+            points_filtres.append(point_actuel)
+    
+    # Toujours garder le dernier point (destination finale)
+    points_filtres.append(points_mm[-1])
+    
+    return points_filtres
+
+
+def filtrer_points_douglas_peucker(points_mm, epsilon=30.0):
+    """
+    Algorithme de Douglas-Peucker pour simplifier une trajectoire.
+    Plus agressif que le filtre par angle.
+    
+    Args:
+        points_mm: Liste de points [[x1, y1], [x2, y2], ...]
+        epsilon: Distance maximale (en mm) d'un point à la ligne simplifiée
+    
+    Returns:
+        Liste de points simplifiés
+    
+    Info:
+        - epsilon petit (10-20mm) : conserve plus de détails
+        - epsilon moyen (30-50mm) : bon compromis
+        - epsilon grand (>50mm) : trajectoire très simplifiée
+    """
+    if len(points_mm) <= 2:
+        return points_mm
+    
+    # Trouver le point le plus éloigné de la ligne (premier-dernier)
+    dmax = 0
+    index_max = 0
+    
+    x1, y1 = points_mm[0]
+    x2, y2 = points_mm[-1]
+    
+    for i in range(1, len(points_mm) - 1):
+        x0, y0 = points_mm[i]
+        
+        # Distance perpendiculaire du point à la ligne
+        numerateur = abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1)
+        denominateur = math.sqrt((y2 - y1)**2 + (x2 - x1)**2)
+        
+        if denominateur < 0.001:
+            distance = 0
+        else:
+            distance = numerateur / denominateur
+        
+        if distance > dmax:
+            dmax = distance
+            index_max = i
+    
+    # Si le point le plus éloigné est trop loin, on subdivise
+    if dmax > epsilon:
+        # Récursion sur les deux segments
+        resultats1 = filtrer_points_douglas_peucker(points_mm[:index_max + 1], epsilon)
+        resultats2 = filtrer_points_douglas_peucker(points_mm[index_max:], epsilon)
+        
+        # Combiner les résultats (sans dupliquer le point du milieu)
+        return resultats1[:-1] + resultats2
+    else:
+        # Tous les points sont proches de la ligne, on ne garde que les extrémités
+        return [points_mm[0], points_mm[-1]]
+
+
+def filtrer_points_par_distance(points_mm, distance_min=100):
+    """
+    Filtre simple : ne garde qu'un point tous les X mm.
+    Le plus rapide mais peut manquer des virages importants.
+    
+    Args:
+        points_mm: Liste de points [[x1, y1], [x2, y2], ...]
+        distance_min: Distance minimale (en mm) entre deux points conservés
+    
+    Returns:
+        Liste de points filtrés
+    """
+    if len(points_mm) <= 1:
+        return points_mm
+    
+    points_filtres = [points_mm[0]]
+    
+    for point in points_mm[1:]:
+        dernier_point = points_filtres[-1]
+        distance = math.sqrt(
+            (point[0] - dernier_point[0])**2 + 
+            (point[1] - dernier_point[1])**2
+        )
+        
+        if distance >= distance_min:
+            points_filtres.append(point)
+    
+    # Toujours garder le dernier point
+    if points_filtres[-1] != points_mm[-1]:
+        points_filtres.append(points_mm[-1])
+    
+    return points_filtres
+
+
+# ==============================================================================
+# FONCTION RECOMMANDÉE À UTILISER DANS MAIN.PY
+# ==============================================================================
+
+def optimiser_trajectoire(points_mm, methode='douglas-peucker', **kwargs):
+    """
+    Fonction principale pour optimiser une trajectoire.
+    
+    Args:
+        points_mm: Liste de points [[x1, y1], [x2, y2], ...]
+        methode: 'douglas-peucker' (recommandé), 'angle', ou 'distance'
+        **kwargs: Paramètres spécifiques à chaque méthode
+    
+    Returns:
+        Liste de points optimisés
+    
+    Exemples:
+        >>> # Méthode recommandée (Douglas-Peucker)
+        >>> points_opt = optimiser_trajectoire(points, methode='douglas-peucker', epsilon=30)
+        
+        >>> # Alternative par angle
+        >>> points_opt = optimiser_trajectoire(points, methode='angle', seuil_angle=5, distance_min=50)
+        
+        >>> # Alternative par distance
+        >>> points_opt = optimiser_trajectoire(points, methode='distance', distance_min=100)
+    """
+    if methode == 'douglas-peucker':
+        epsilon = kwargs.get('epsilon', 30.0)
+        return filtrer_points_douglas_peucker(points_mm, epsilon)
+    
+    elif methode == 'angle':
+        seuil_angle = kwargs.get('seuil_angle', 5.0)
+        distance_min = kwargs.get('distance_min', 50)
+        return filtrer_points_trajectoire(points_mm, seuil_angle, distance_min)
+    
+    elif methode == 'distance':
+        distance_min = kwargs.get('distance_min', 100)
+        return filtrer_points_par_distance(points_mm, distance_min)
+    
+    else:
+        raise ValueError(f"Méthode inconnue : {methode}. Utilisez 'douglas-peucker', 'angle', ou 'distance'")
+
