@@ -260,47 +260,85 @@ def exemple_utilisation():
 """if __name__ == "__main__":
     exemple_utilisation()"""
 
-def actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, case_mm):
+def actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, 
+                         obs_manager, obs_manager_noisettes,
+                         Liste_noisette_xya,  # ⭐ NOUVEAU PARAMÈTRE
+                         obstacle_scatter, expanded_scatter, distance_map, 
+                         ax, width, height, CASE_MM):
     """
-    Met à jour l'état des zones et régénère les grilles si nécessaire.
-    Version ultra-simple : ne touche PAS aux boutons.
+    Met à jour les grilles en fonction des noisettes présentes dans Liste_noisette_xya.
+    
+    Args:
+        Liste_noisette_xya: Liste des noisettes [[x, y, angle, couleur], ...]
+    
+    Returns:
+        Toutes les variables mises à jour
     """
-
-    # Mettre à jour les états selon les listes
-    grilles_modifiees, _, _ = mettre_a_jour_zones_dynamiques(
-        obs_manager, obs_manager_noisettes,
-        Liste_GM_libres, Liste_GM_occuper,
-        Liste_noisettes_libres, Liste_noisettes_prises
+    from scipy.ndimage import distance_transform_edt
+    import numpy as np
+    
+    print("🔄 Actualisation des zones de jeu basée sur Liste_noisette_xya")
+    
+    # 1️⃣ RÉINITIALISER obs_manager_noisettes
+    # Supprimer TOUTES les noisettes existantes
+    # ⭐ CORRECTION : Utiliser _obstacles au lieu de obstacles
+    noisettes_a_supprimer = [nom for nom in obs_manager_noisettes._obstacles.keys()]
+    for nom in noisettes_a_supprimer:
+        obs_manager_noisettes.retirer(nom)  # ⭐ CORRECTION : retirer au lieu de supprimer_obstacle
+    
+    # 2️⃣ AJOUTER les noisettes présentes dans Liste_noisette_xya
+    for i, noisette_data in enumerate(Liste_noisette_xya, 1):
+        if len(noisette_data) >= 3:
+            x, y, angle = noisette_data[0], noisette_data[1], noisette_data[2]
+            obs_manager_noisettes.ajouter_rectangle_oriente(
+                f"Noisette{i}", 
+                (x, y),
+                150,   # Longueur
+                50,    # Largeur
+                angle,
+                actif=True
+            )
+    
+    # 3️⃣ RÉGÉNÉRER les grilles
+    grid_zones, grid_zones_expanded, obstacle_array_zones, expanded_array_zones = obs_manager.generer_grille()
+    grid_noisettes, grid_noisettes_expanded, obstacle_array_noisettes, expanded_array_noisettes = obs_manager_noisettes.generer_grille()
+    
+    # Combiner les grilles
+    grid = np.logical_or(grid_zones, grid_noisettes).astype(int)
+    grid_expanded = np.logical_or(grid_zones_expanded, grid_noisettes_expanded).astype(int)
+    
+    # Combiner les arrays pour l'affichage
+    if len(obstacle_array_zones) > 0 and len(obstacle_array_noisettes) > 0:
+        obstacle_array = np.vstack([obstacle_array_zones, obstacle_array_noisettes])
+        expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes])
+    elif len(obstacle_array_zones) > 0:
+        obstacle_array = obstacle_array_zones
+        expanded_array = expanded_array_zones
+    else:
+        obstacle_array = obstacle_array_noisettes
+        expanded_array = expanded_array_noisettes
+    
+    # 4️⃣ RECALCULER la carte de distance
+    distance_map = distance_transform_edt(~grid_expanded)
+    
+    # 5️⃣ METTRE À JOUR l'affichage
+    if obstacle_scatter is not None:
+        obstacle_scatter.remove()
+    if expanded_scatter is not None:
+        expanded_scatter.remove()
+    
+    from affichage import afficher_obstacles
+    obstacle_scatter, expanded_scatter = afficher_obstacles(
+        ax, obstacle_array, expanded_array, CASE_MM,
+        show_expanded=True, show_obstacles=False
     )
     
-    # Régénérer si nécessaire
-    if grilles_modifiees:
-        print("🔄 Régénération des grilles...")
-        
-        grid, grid_expanded, obstacle_array, expanded_array = \
-            regenerer_grilles_combinees(obs_manager, obs_manager_noisettes)
-        
-        # Recalculer distance map
-        from scipy.ndimage import distance_transform_edt
-        distance_map = distance_transform_edt(~grid_expanded)
-        initialiser_grille(grid_expanded, distance_map, width, height, case_mm)
-        
-        # Mettre à jour affichage
-        if obstacle_scatter is not None:
-            obstacle_scatter.remove()
-            obstacle_scatter = None
-        if expanded_scatter is not None:
-            expanded_scatter.remove()
-            expanded_scatter = None
-        
-        obstacle_scatter, expanded_scatter = afficher_obstacles(
-            ax, obstacle_array, expanded_array, case_mm,
-            show_expanded=True, show_obstacles=False
-        )
-        
-        print("✅ Grilles mises à jour")
-    return grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, case_mm
- 
+    print(f"✅ Grilles actualisées : {len(Liste_noisette_xya)} noisettes actives")
+    
+    return (grid, grid_expanded, obstacle_array, expanded_array,
+            obs_manager, obs_manager_noisettes,
+            obstacle_scatter, expanded_scatter, distance_map,
+            ax, width, height, CASE_MM)
 
 
 def verifier_et_changer_cible_si_necessaire(action_en_cours,
