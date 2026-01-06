@@ -805,6 +805,64 @@ def detecter_changements_noisettes(liste_actuelle, liste_precedente):
             return True
     
     return False
+
+
+def verifier_segments_trajectoire_ennemi(Liste_actions, x_ennemi, y_ennemi, R_securite, MARGE_TRAJECTOIRE, CASE_MM):
+    """
+    Vérifie si un segment de la trajectoire (entre deux points "Avancer" ou "Consigne"/"Avancer")
+    passe dans la zone de sécurité de l'ennemi.
+    Si oui, retourne True pour demander un recalcul de trajectoire.
+    """
+    global demande_recalcul_traj
+
+    # Extraire tous les points "Avancer" ou "Consigne" de Liste_actions
+    points_trajectoire = []
+    for action in Liste_actions:
+        if isinstance(action, list) and len(action) >= 3 and action[0] in ["Avancer", "Consigne"]:
+            points_trajectoire.append((action[1], action[2]))
+
+    # Si moins de 2 points, pas de segment à vérifier
+    if len(points_trajectoire) < 2:
+        return False
+
+    # Parcourir chaque segment consécutif
+    for i in range(len(points_trajectoire) - 1):
+        x1, y1 = points_trajectoire[i]
+        x2, y2 = points_trajectoire[i + 1]
+
+        # Calculer la distance minimale entre ce segment et l'ennemi
+        distance_min = distance_segment_point(x1, y1, x2, y2, x_ennemi, y_ennemi)
+
+        # Si la distance est inférieure à la marge de sécurité, demander un recalcul
+        if distance_min <= (R_securite + MARGE_TRAJECTOIRE):
+            print(f"⚠️ Segment {i} ({x1},{y1})→({x2},{y2}) trop proche de l'ennemi (distance={distance_min:.1f} < {R_securite + MARGE_TRAJECTOIRE})")
+            demande_recalcul_traj = True
+            return True
+
+    return False
+
+def distance_segment_point(x1, y1, x2, y2, px, py):
+    """
+    Calcule la distance minimale entre un segment (x1,y1)-(x2,y2) et un point (px,py).
+    """
+    # Vecteur segment
+    seg_x = x2 - x1
+    seg_y = y2 - y1
+    seg_length_sq = seg_x**2 + seg_y**2
+
+    # Cas particulier : segment de longueur nulle
+    if seg_length_sq == 0:
+        return math.sqrt((px - x1)**2 + (py - y1)**2)
+
+    # Projection du point sur le segment
+    t = max(0, min(1, ((px - x1) * seg_x + (py - y1) * seg_y) / seg_length_sq))
+    proj_x = x1 + t * seg_x
+    proj_y = y1 + t * seg_y
+
+    # Distance entre le point et sa projection
+    return math.sqrt((px - proj_x)**2 + (py - proj_y)**2)
+
+
 ########################################################################
 
 ############################### Programme principal ####################
@@ -980,8 +1038,8 @@ if __name__ == '__main__':
 
                     angle_ennemi_consigne = np.degrees(math.atan2(y_ennemi_voulu - y_ennemi, x_ennemi_voulu - x_ennemi))
 
-                    x_ennemi += round(20*np.cos(math.radians(angle_ennemi_consigne)),0)
-                    y_ennemi += round(20*np.sin(math.radians(angle_ennemi_consigne)),0)
+                    x_ennemi += round(15*np.cos(math.radians(angle_ennemi_consigne)),0)
+                    y_ennemi += round(15*np.sin(math.radians(angle_ennemi_consigne)),0)
             ###
 
             # ======================== Tri Noisettes ============================================= #
@@ -1125,13 +1183,21 @@ if __name__ == '__main__':
                 for action in Liste_actions:
                     if action[0] in ["Consigne","Avancer"]:
                         distance_point_ennemi = math.sqrt((action[1] - x_ennemi)**2 + (action[2] - y_ennemi)**2)
-                        if distance_point_ennemi <= R_securite+MARGE_TRAJECTOIRE:
+                        # ⭐ UTILISER LE MÊME RAYON QUE LA GRILLE
+                        rayon_detection = (R_securite + MARGE_TRAJECTOIRE)  # Marge de sécurité supplémentaire
+                        if distance_point_ennemi <= rayon_detection:
+                            print("Point de Traj dans Périmètre ennemi")
                             demande_recalcul_traj = True
                             break
-
-
+            if Strategie and len(Liste_trajectoire) > 0:
+                verifier_segments_trajectoire_ennemi(
+                    Liste_actions,
+                    x_ennemi, y_ennemi,
+                    R_securite, MARGE_TRAJECTOIRE,
+                    CASE_MM
+                )
+            print("demande_recalcul_traj : ",demande_recalcul_traj)
             # === CALCUL DE LA TRAJECTOIRE A* === 
-            
             if action_voulu in ["Rotation","Attraper","Relacher"] and old_ordre_mouvement == 3:
                 pass  # rien, on attend la fin de la rotation
             else:
@@ -1226,12 +1292,13 @@ if __name__ == '__main__':
                                     print("CHEMIN INACCESSIBLE, RECALCUL DE TRAJECTOIRE")
                                     """print(action_en_cours['numero_zone'])
                                     print(action_en_cours['type'])"""
-                                    if action_en_cours['type'] in ["Attraper"]:
-                                        Liste_noisettes_libres_temp = [nbr for nbr in Liste_noisettes_libres if nbr != action_en_cours['numero_zone']]
-                                        Liste_noisettes_GM_temp = Liste_GM_libres.copy()
-                                    if action_en_cours['type'] in ["Relacher"]:
-                                        Liste_noisettes_libres_temp = Liste_noisettes_libres.copy()
-                                        Liste_noisettes_GM_temp = [nbr for nbr in Liste_GM_libres if nbr != action_en_cours['numero_zone']]
+                                    """if Strategie:
+                                        if action_en_cours['type'] in ["Attraper"]:
+                                            Liste_noisettes_libres_temp = [nbr for nbr in Liste_noisettes_libres if nbr != action_en_cours['numero_zone']]
+                                            Liste_noisettes_GM_temp = Liste_GM_libres.copy()
+                                        if action_en_cours['type'] in ["Relacher"]:
+                                            Liste_noisettes_libres_temp = Liste_noisettes_libres.copy()
+                                            Liste_noisettes_GM_temp = [nbr for nbr in Liste_GM_libres if nbr != action_en_cours['numero_zone']]"""
                                     
                                     """if not(temps_restant <= temps_retour):
                                         action_en_cours = verifier_et_changer_cible_si_necessaire(
