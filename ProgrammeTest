@@ -3,7 +3,7 @@ couleur = "J"
 Reel = True
 if couleur == "J":
     x_robot_depart = 2725 
-    y_robot_depart = 1650
+    y_robot_depart = 1670
     angle_robot_depart = -90
 else:
     x_robot_depart = 275 
@@ -71,22 +71,22 @@ if not Strategie:
         ["Consigne",2500,1000],
         ["Consigne",2650,900],
         ["Consigne",2825,900],
-        ["Rotation",90],
-        ["Consigne",2825,1650],
+        #["Rotation",90],
+        ["Consigne",2725,1600],
         ['Consigne', 2329, 1176],
         ['Consigne', 1547, 1037],
         ['Consigne', 1500, 800],
-        ["Rotation",0],
+        #["Rotation",0],
         ['Consigne',2100-R_ROBOT-2*MARGE_GM,800],
         ["Rotation",180],
         ['Consigne', 900+R_ROBOT+2*MARGE_GM,800],
         ['Consigne', 1500,200],
-        ["Rotation",0],
+        #["Rotation",0],
         ['Consigne', 2200-R_ROBOT-2*MARGE_GM,200],
         ['Consigne', 1500,200],
-        ["Rotation",180],
+        #["Rotation",180],
         ['Consigne', 800+R_ROBOT+2*MARGE_GM,200],
-        ["Rotation",0]
+        #["Rotation",0]
     ]
 else :
     Liste_actions = [
@@ -1672,7 +1672,7 @@ if __name__ == '__main__':
             Liste_noisettes_libres_precedente = Liste_noisettes_libres.copy()
             Liste_actions_precedente = Liste_actions.copy()
             print("")
-            time.sleep(0.0001)
+            time.sleep(0.000005)
         if V_rpi <= lim_Bat_RPI:
             print("Batterie RPI trop faible")
         time.sleep(2) 
