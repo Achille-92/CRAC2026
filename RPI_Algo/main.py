@@ -1,895 +1,1712 @@
-"""
-fonction.py - Module de gestion des obstacles et batteries
-Version avec classe Obstacles pour gestion dynamique
-"""
+couleur = "J"
 
-import numpy as np
-from scipy.ndimage import binary_dilation
-from dataclasses import dataclass
-from typing import List, Tuple, Optional, Set
+Reel = True
+if couleur == "J":
+    x_robot_depart = 2725 
+    y_robot_depart = 1670
+    angle_robot_depart = -90
+else:
+    x_robot_depart = 275 
+    y_robot_depart = 1650
+    angle_robot_depart = -90
+
+Strategie = False
+Simul_mvt = True
+Simul_mvt_ennemi = True
+Lidar_on = False
+################## Librairies ##########################################
+import matplotlib
+matplotlib.use('Qt5Agg')
+from rplidar import RPLidar
 import math
+import numpy as np
+import threading, queue
+from collections import deque
+import time 
+import os
+import can
+import struct
+import random
+import matplotlib.pyplot as plt
+from functools import partial
+from matplotlib.widgets import Button
+from scipy.ndimage import binary_dilation
+from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes
+from calcul_mouv import euclidienne,astar_safe,simplify_path_safe,smooth_path_safe,creer_grille_avec_ennemi,initialiser_grille,optimiser_trajectoire
+from fonction import Obstacles,calculer_pourcentage_batteries
+from gestion_zones_dynamiques import verifier_et_changer_cible_si_necessaire, mise_a_jour_decision, confirmer_action_terminee,actualiser_zones_jeu
+########################################################################
 
-# ============================================================================
-# CLASSE OBSTACLE - Représente un obstacle individuel
-# ============================================================================
+# Config CAN 
+Liste_ID_recoit = [0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10C,0x10D] # ID sur lesquels la RPI va recevoir des données
+Liste_ID_envoi = [0x01,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x300,0x301,0x302,0x303]
+Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
+if Reel: 
+    os.system('sudo ip link set can0 type can bitrate 500000')
+    os.system('sudo ifconfig can0 up')
+    bus = can.interface.Bus(
+        channel='can0',
+        bustype='socketcan',
+        bitrate=500000,
+        can_filters=Filtre_CAN)
+dico_envoi = {}
+for ID in Liste_ID_envoi:
+    dico_envoi[ID]= 0
+#################################################
 
-@dataclass
-class Obstacle:
+# Perimètre de sécurité
+R_ROBOT = 150
+R_ENNEMI = 150
+MARGE_ENNEMI = 100
+MARGE_NOISETTE = 20
+MARGE_GM = 20
+MARGE_TRAJECTOIRE = 20
+R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
+############################
+
+# Listes pour la Stratégie
+if not Strategie:
+    Liste_actions = [
+        ["Consigne",2550,1400],
+        ["Consigne",2500,1000],
+        ["Consigne",2650,900],
+        ["Consigne",2825,900],
+        #["Rotation",90],
+        ["Consigne",2725,1600],
+        ['Consigne', 2329, 1176],
+        ['Consigne', 1547, 1037],
+        ['Consigne', 1500, 800],
+        #["Rotation",0],
+        ['Consigne',2100-R_ROBOT-2*MARGE_GM,800],
+        ["Rotation",180],
+        ['Consigne', 900+R_ROBOT+2*MARGE_GM,800],
+        ['Consigne', 1500,200],
+        #["Rotation",0],
+        ['Consigne', 2200-R_ROBOT-2*MARGE_GM,200],
+        ['Consigne', 1500,200],
+        #["Rotation",180],
+        ['Consigne', 800+R_ROBOT+2*MARGE_GM,200],
+        #["Rotation",0]
+    ]
+else :
+    Liste_actions = [
+        ["Consigne",2825,500+R_ROBOT+2*MARGE_NOISETTE],
+        ["Rotation",-90]
+    ]
+
+Liste_trajectoire = []
+Liste_noisettes_libres_temp = [4]
+
+Liste_actions_ennemi = []
+
+Liste_GM_libres = [1,2,3,4,5,6,7,8,9,10]
+Liste_GM_occuper = []
+Liste_noisettes_libres = [1,2,3,4,5,6,7,8]
+Liste_noisettes_prises = []
+
+Liste_GM_libres_precedente = Liste_GM_libres.copy()
+Liste_noisettes_libres_precedente = Liste_noisettes_libres.copy()
+Liste_actions_precedente = Liste_actions.copy()
+
+Liste_noisette_xya = [
+    [175,1275,0,"J"],[175,1175,0,"J"],[175,1125,0,"B"],[175,1225,0,"B"],
+    [175,425,0,"J"],[175,475,0,"J"],[175,325,0,"B"],[175,375,0,"B"],
+
+    [2825,1275,0,"J"],[2825,1175,0,"B"],[2825,1125,0,"B"],[2825,1225,0,"J"],
+    [2825,425,0,"J"],[2825,475,0,"B"],[2825,325,0,"B"],[2825,375,0,"J"],
+
+    [1075,800,90,"J"],[1125,800,90,"J"],[1175,800,90,"B"],[1225,800,90,"B"],
+    [1775,800,90,"B"],[1825,800,90,"J"],[1875,800,90,"B"],[1925,800,90,"J"],
+
+    [1025,175,90,"B"],[1075,175,90,"B"],[1125,175,90,"J"],[1175,175,90,"J"],
+    [1825,175,90,"B"],[1875,175,90,"J"],[1925,175,90,"B"],[1975,175,90,"J"],
+] 
+
+Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
+
+Liste_emplacement_zones_Noisette_xy =(
+    ((100,1300),(250,1300),(100,1100),(250,1100)),
+    ((100,500),(250,500),(100,300),(250,300)),
+    ((2750,1300),(2900,1300),(2750,1100),(2900,1100)),
+    ((2750,500),(2900,500),(2750,300),(2900,300)),
+    ((1050,875),(1250,875),(1050,725),(1250,725)),
+    ((1750,875),(1950,875),(1750,725),(1950,725)),
+    ((1000,250),(1200,250),(1000,100),(1200,100)),
+    ((1800,250),(2000,250),(1800,100),(2000,100))
+)
+
+Liste_positions_Noisettes_theoriques = [
+    # Zones 1-4 (verticales) : positions de bas en haut
+    [(175, 1125), (175, 1175), (175, 1225), (175, 1275)],  # Zone 1 (gauche haut)
+    [(175, 325), (175, 375), (175, 425), (175, 475)],      # Zone 2 (gauche bas)
+    [(2825, 1125), (2825, 1175), (2825, 1225), (2825, 1275)],  # Zone 3 (droite haut)
+    [(2825, 325), (2825, 375), (2825, 425), (2825, 475)],      # Zone 4 (droite bas)
+    
+    # Zones 5-8 (horizontales) : positions de gauche à droite
+    [(1075, 800), (1125, 800), (1175, 800), (1225, 800)],  # Zone 5
+    [(1775, 800), (1825, 800), (1875, 800), (1925, 800)],  # Zone 6
+    [(1025, 175), (1075, 175), (1125, 175), (1175, 175)],  # Zone 7
+    [(1825, 175), (1875, 175), (1925, 175), (1975, 175)],  # Zone 8
+]
+SEUIL_ASSOCIATION = 50
+
+Liste_Noisette_zone_Noisette = [[],[],[],[],[],[],[],[]]
+Liste_Noisette_zone_Noisette_triee = [[],[],[],[],[],[],[],[]]
+Liste_Noisette_ordre_couleur = [[-1],[-1],[-1],[-1],[-1],[-1],[-1],[-1]]
+
+Liste_zones_recup_noisettes_xy = [((175,1300+R_ROBOT+2*MARGE_NOISETTE),(175,1100-R_ROBOT-2*MARGE_NOISETTE)),
+                                  ((175,500+R_ROBOT+2*MARGE_NOISETTE),(175,300-R_ROBOT-2*MARGE_NOISETTE)),
+                                  ((2825,1300+R_ROBOT+2*MARGE_NOISETTE),(2825,1100-R_ROBOT-2*MARGE_NOISETTE)),
+                                  ((2825,500+R_ROBOT+2*MARGE_NOISETTE),(2825,300-R_ROBOT-2*MARGE_NOISETTE)),
+                                  ((950-R_ROBOT-2*MARGE_NOISETTE,800),(1250+R_ROBOT+2*MARGE_NOISETTE,800)),
+                                  ((1750-R_ROBOT-2*MARGE_NOISETTE,800),(1950+R_ROBOT+2*MARGE_NOISETTE,800)),
+                                  ((1000-R_ROBOT-2*MARGE_NOISETTE,175),(1200+R_ROBOT+2*MARGE_NOISETTE,175)),
+                                  ((1800-R_ROBOT-2*MARGE_NOISETTE,175),(2000+R_ROBOT+2*MARGE_NOISETTE,175)),]
+
+Liste_zones_recup_noisettes_angle = [(-90,90),
+                                     (-90,90),
+                                     (-90,90),
+                                     (-90,90),
+                                     (0,180),
+                                     (0,180),
+                                     (0,180),
+                                     (0,180),]
+
+Liste_zones_gm_xy = [((1150-R_ROBOT-2*MARGE_GM,1450),(1250,1350-R_ROBOT-2*MARGE_GM)),
+                     ((1750,1350-R_ROBOT-2*MARGE_GM),(1850+R_ROBOT+2*MARGE_GM,1450),),
+                     (200+R_ROBOT+2*MARGE_GM,800),
+                     ((800,900+R_ROBOT+2*MARGE_GM),(800,700-R_ROBOT-2*MARGE_GM),(700-R_ROBOT-2*MARGE_GM,800),(900+R_ROBOT+2*MARGE_GM,800)),
+                     ((1500,900+R_ROBOT+2*MARGE_GM),(1500,700-R_ROBOT-2*MARGE_GM),(1400-R_ROBOT-2*MARGE_GM,800),(1600+R_ROBOT+2*MARGE_GM,800)),
+                     ((2200,900+R_ROBOT+2*MARGE_GM),(2200,700-R_ROBOT-2*MARGE_GM),(2100-R_ROBOT-2*MARGE_GM,800),(2300+R_ROBOT+2*MARGE_GM,800)),
+                     (2800-R_ROBOT-2*MARGE_GM,800),
+                     (700,200+R_ROBOT+2*MARGE_GM),
+                     (1500,200+R_ROBOT+2*MARGE_GM),
+                     (2300,200+R_ROBOT+2*MARGE_GM)]
+
+Liste_zones_gm_angle = [(0,90),
+                        (90,180),
+                        180,
+                        (-90,90,0,180),
+                        (-90,90,0,180),
+                        (-90,90,0,180),
+                        0,
+                        -90,
+                        -90,
+                        -90]
+###########################################
+
+# Lidar
+PORT_NAME = '/dev/ttyUSB0'
+BAUDRATE = 256000
+lidar = None
+pile_calcul = queue.Queue(maxsize=500)
+####################################
+
+# Queues pour calcul A* en thread
+queue_astar_demande = queue.Queue()
+queue_astar_resultat = queue.Queue()
+##########################################
+
+# Piste
+X_PISTE = 3000
+Y_PISTE = 2000
+MARGE_BORDUREPISTE_X = 120 # Détection Lidar
+MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
+DISTANCE_MAX_TERRAIN = 3605  # Diagonale du terrain ≈ 3605mm
+#############################################
+
+# Coordonnées et angle de notre robot (coordonnées initiales en haut)
+x_robot_actuel = x_robot_depart
+y_robot_actuel = y_robot_depart
+angle_robot_actuel = angle_robot_depart
+
+x_robot_voulu = -1
+y_robot_voulu = -1
+angle_robot_voulu = -181
+############
+
+# Coordonnées Ennemi
+
+if couleur == "J":
+    x_ennemi = 275
+    y_ennemi = 1650
+else:
+    x_ennemi = 2725 
+    y_ennemi = 1650
+
+x_ennemi_old = x_ennemi
+y_ennemi_old = y_ennemi
+########
+
+# Variable pour les Grilles du A*
+CASE_MM = 10
+width = X_PISTE//CASE_MM
+height = Y_PISTE//CASE_MM
+rayon_total_case = (R_ROBOT + MARGE_GM) // CASE_MM  # = 20 cases = 200mm
+####################
+
+# === CRÉATION DES OBSTACLES avec la classe Obstacles === #
+obs_manager = Obstacles(X_PISTE,Y_PISTE,R_ROBOT,MARGE_GM,CASE_MM)
+obs_manager_noisettes = Obstacles(X_PISTE,Y_PISTE,R_ROBOT,MARGE_NOISETTE,CASE_MM)
+
+zones_centres = [
+    (1250, 1450), (1750, 1450),           # 2 zones centrales
+    (100, 800), (800, 800), (1500, 800), (2200, 800), (2900, 800),  # 5 zones ligne médiane
+    (700, 100), (1500, 100), (2300, 100),  # 3 zones ligne basse
+]
+
+for i, (x, y) in enumerate(zones_centres, 1):
+    obs_manager.ajouter_carre(f"zone{i}", (x, y), 200, actif=False)  # INACTIVES au départ
+
+# Ajout des Noisettes orientées à partir de Liste_noisette_xya
+# Format: [x_centre, y_centre, angle_degrés, couleur] ou [x_centre, y_centre, angle_degrés]
+# Dimensions: 150mm (longueur) × 50mm (largeur)
+for i, noisette_data in enumerate(Liste_noisette_xya, 1):
+    # Gérer les formats avec ou sans couleur
+    if len(noisette_data) >= 3:
+        x, y, angle = noisette_data[0], noisette_data[1], noisette_data[2]
+        # La couleur (4e élément) est optionnelle et n'affecte que l'affichage visuel,
+        # pas les obstacles pour l'algorithme A*
+        obs_manager_noisettes.ajouter_rectangle_oriente(
+            f"Noisette{i}", 
+            (x, y),      # Centre
+            150,         # Longueur (dans la direction de l'angle)
+            50,          # Largeur (perpendiculaire)
+            angle,       # Angle en degrés
+            actif=True
+        )
+
+obs_manager.ajouter_rectangle("grenier", (600, 1550), (2400, 2000), actif=True)
+# ======================================================= #
+
+# === Création des Grilles pour A* ====================== #
+
+# Générer les grilles séparément
+grid_zones, grid_zones_expanded, obstacle_array_zones, expanded_array_zones = obs_manager.generer_grille()
+grid_noisettes, grid_noisettes_expanded, obstacle_array_noisettes, expanded_array_noisettes = obs_manager_noisettes.generer_grille()
+
+# Combiner les deux grilles (union logique OR)
+grid = np.logical_or(grid_zones, grid_noisettes).astype(int)
+grid_expanded = np.logical_or(grid_zones_expanded, grid_noisettes_expanded).astype(int)
+
+# Combiner les arrays d'obstacles pour l'affichage
+obstacle_array = np.vstack([obstacle_array_zones, obstacle_array_noisettes]) if len(obstacle_array_zones) > 0 and len(obstacle_array_noisettes) > 0 else (obstacle_array_zones if len(obstacle_array_zones) > 0 else obstacle_array_noisettes)
+expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes]) if len(expanded_array_zones) > 0 and len(expanded_array_noisettes) > 0 else (expanded_array_zones if len(expanded_array_zones) > 0 else expanded_array_noisettes)
+# ======================================================= #
+
+# Variables fonctionnelles des Batteries
+Batteries = [[10,15,15,100],[10,15,15,100],[10,15,15,100]] # V décharge, V charge, V actuel, % de charge
+U_last = [1,0,0]
+Ordre_Batteries = [1,1,1]
+lim_Bat_RPI = 11.0
+V_rpi = 12.0
+I_rpi = 0
+Mode_Test_Bat = True
+############################
+
+# Variables pour l'affichage des rectangles de batteries et des textes
+battery_patches = []
+battery_texts = [] 
+couleurs = ['red', 'orange', 'yellow', 'lime', 'green']
+seuils = [1, 20, 50, 75, 90]
+largeur_rect = 50       # largeur en mm
+hauteur_rect = 150      # hauteur en mm
+espacement = 0         # espace entre rectangles
+espacement_salves = 200 # espace entre chaque salve
+y_base = 2050           # position verticale (en haut de la piste)
+marge_texte = 20  # espace horizontal entre texte et rectangle
+texte_offset_y = 80  # décalage vertical du texte par rapport aux rectangles
+longueur_trait = 100  # longueur trait de direction
+compteur_affichage = 0
+FREQUENCE_AFFICHAGE = 4
+##########################
+
+# Objets et variables pour la fenêtre graphique
+fig = None 
+ax = None
+robot_plot = None
+scat = None
+#############
+
+# Objets pour la zone de sécurité dynamique de l'ennemi
+zone_ennemi_scatter = None
+cercle_ennemi_patch = None
+############################
+
+# Variables globales pour les boutons et l'affichage des obstacles
+obstacle_scatter = None
+expanded_scatter = None
+boutons_zones = []  # Liste pour stocker les 10 boutons des zones carrées
+boutons_noisettes = []  # Liste pour stocker les 8 boutons des Noisettes
+############################################################################
+
+# Variables pour le fonctionnement Logique du Robot
+lancement_strategie = False
+temps_demarage = 0
+temps_ecoules = 0
+temps_restant = 100
+temps_retour = 15 # Temps restant pour revenir au départ en fin de match
+temps_max = 3600
+
+action_en_cours = None
+action_precedente = None
+trajectoire_calculee = False
+ordre_receive = 0
+step = 0
+robot_a_objets = False
+changement_noisette_GM = False
+demande_recalcul_traj = False
+old_ordre_mouvement = 0
+SEUIL_MOUVEMENT_ENNEMI = 10
+DEBUG = False
+if Reel:
+    TOL_POS_X = 80
+    TOL_POS_Y = 80
+    TOL_POS_A = 1
+else :
+    TOL_POS_X = 16 
+    TOL_POS_Y = 16
+    TOL_POS_A = 5
+
+#######################
+
+# ==================== PARAMÈTRES DE L'ALGORITHME ====================
+# Poids de la moyenne pondérée (somme = 1.0)
+W_DISTANCE = 0.65     # Importance de la proximité de l'objectif
+W_SECURITE = 0.2     # Importance de l'évitement du robot ennemi
+W_PRIORITE = 0.1     # Importance du type de tâche (récolte vs dépôt)
+W_EFFICACITE = 0.05   # Importance de la cohérence (robot a objets → déposer)
+
+SAFETY_WEIGHT = 2.0  # Poids de sécurité pour A*
+# Expansion des obstacles
+from scipy.ndimage import binary_dilation
+structure = np.zeros((2*rayon_total_case+1, 2*rayon_total_case+1))
+y_grid, x_grid = np.ogrid[-rayon_total_case:rayon_total_case+1, -rayon_total_case:rayon_total_case+1]
+mask = x_grid*x_grid + y_grid*y_grid <= rayon_total_case*rayon_total_case
+structure[mask] = 1
+grid_expanded = binary_dilation(grid, structure=structure)
+
+# Carte de distance aux obstacles (pour A* pondéré)
+from scipy.ndimage import distance_transform_edt
+distance_map = distance_transform_edt(~grid_expanded)
+
+################## Fonction Threads ##########################################
+
+def tache_calcul_astar(stop_event):
     """
-    Représente un obstacle unique sur le terrain.
-    
-    Attributes:
-        nom: Identifiant unique de l'obstacle
-        forme: Type d'obstacle ('carre', 'rectangle', 'cercle', 'polygone')
-        params: Paramètres spécifiques selon la forme
-        actif: Si True, l'obstacle est pris en compte
-        priorite: Ordre de traitement (0 = priorité max)
-    """
-    nom: str
-    forme: str
-    params: dict
-    actif: bool = True
-    priorite: int = 0
-    
-    def __str__(self):
-        etat = "✅ ACTIF" if self.actif else "⚪ INACTIF"
-        return f"{etat} | {self.nom:15s} | {self.forme:10s}"
-
-
-# ============================================================================
-# CLASSE OBSTACLES - Gestionnaire principal
-# ============================================================================
-
-class Obstacles:
-    """
-    Gestionnaire dynamique des obstacles du terrain.
-    
-    Permet d'ajouter, retirer, activer/désactiver des obstacles
-    et de générer les grilles pour l'algorithme A*.
-    
-    Exemple d'utilisation:
-        >>> obs_manager = Obstacles(3000, 2000, 150, 50, 10)
-        >>> obs_manager.ajouter_carre("zone1", (1500, 800), 200)
-        >>> obs_manager.ajouter_rectangle("grenier", (600, 1550), (2400, 2000))
-        >>> grid = obs_manager.generer_grille()
-        >>> obs_manager.desactiver("zone1")
+    Thread dédié au calcul A*.
+    Attend des demandes dans queue_astar_demande et renvoie les résultats dans queue_astar_resultat.
+    Format demande : (start_case, goal_case, grid_avec_ennemi, index_dans_liste_actions)
+    Format résultat : (index_dans_liste_actions, path_simplified ou None)
     """
     
-    def __init__(self, terrain_w_mm: int, terrain_h_mm: int, 
-                 rayon_robot_mm: int, marge_obstacles_mm: int, case_mm: int = 10):
-        """
-        Initialise le gestionnaire d'obstacles.
-        
-        Args:
-            terrain_w_mm: Largeur du terrain en mm
-            terrain_h_mm: Hauteur du terrain en mm
-            rayon_robot_mm: Rayon du robot en mm
-            marge_obstacles_mm: Marge de sécurité autour des obstacles en mm
-            case_mm: Taille d'une case en mm (défaut: 10)
-        """
-        # Paramètres du terrain
-        self.terrain_w_mm = terrain_w_mm
-        self.terrain_h_mm = terrain_h_mm
-        self.case_mm = case_mm
-        self.width = terrain_w_mm // case_mm
-        self.height = terrain_h_mm // case_mm
-        
-        # Paramètres de sécurité
-        self.rayon_robot_mm = rayon_robot_mm
-        self.marge_obstacles_mm = marge_obstacles_mm
-        self.rayon_total_case = (rayon_robot_mm + marge_obstacles_mm) // case_mm
-        
-        # Dictionnaire des obstacles (nom -> Obstacle)
-        self._obstacles: dict[str, Obstacle] = {}
-        
-        # Cache pour éviter recalculs inutiles
-        self._cache_grid = None
-        self._cache_valide = False
-        
-        print(f"🏗️  Gestionnaire obstacles initialisé : {self.width}×{self.height} cases")
-    
-    
-    # ========================================================================
-    # AJOUT D'OBSTACLES
-    # ========================================================================
-    
-    def ajouter_carre(self, nom: str, centre_mm: Tuple[int, int], 
-                      cote_mm: int, actif: bool = True, priorite: int = 0) -> None:
-        """
-        Ajoute un obstacle carré.
-        
-        Args:
-            nom: Identifiant unique
-            centre_mm: (x, y) centre du carré en mm
-            cote_mm: Côté du carré en mm
-            actif: Si True, obstacle actif dès création
-            priorite: Ordre de traitement
+    while not stop_event.is_set():
+        try:
+            # Attendre une demande (timeout pour vérifier stop_event)
+            demande = queue_astar_demande.get(timeout=0.1)
             
-        Example:
-            >>> obs.ajouter_carre("zone1", (1250, 1450), 200)
-        """
-        obstacle = Obstacle(
-            nom=nom,
-            forme="carre",
-            params={"centre": centre_mm, "cote": cote_mm},
-            actif=actif,
-            priorite=priorite
-        )
-        self._obstacles[nom] = obstacle
-        self._invalider_cache()
-        print(f"➕ Carré ajouté : {nom} @ {centre_mm} ({cote_mm}mm)")
-    
-    
-    def ajouter_rectangle(self, nom: str, coin_bas_gauche_mm: Tuple[int, int],
-                         coin_haut_droit_mm: Tuple[int, int], 
-                         actif: bool = True, priorite: int = 0) -> None:
-        """
-        Ajoute un obstacle rectangulaire.
-        
-        Args:
-            nom: Identifiant unique
-            coin_bas_gauche_mm: (x_min, y_min) en mm
-            coin_haut_droit_mm: (x_max, y_max) en mm
-            actif: Si True, obstacle actif dès création
-            priorite: Ordre de traitement
+            start_case, goal_case, grid_avec_ennemi, index = demande
+            if DEBUG :
+                print(f"🔷 Calcul A* : {start_case} → {goal_case}")
             
-        Example:
-            >>> obs.ajouter_rectangle("grenier", (600, 1550), (2400, 2000))
-        """
-        obstacle = Obstacle(
-            nom=nom,
-            forme="rectangle",
-            params={"coin_bg": coin_bas_gauche_mm, "coin_hd": coin_haut_droit_mm},
-            actif=actif,
-            priorite=priorite
-        )
-        self._obstacles[nom] = obstacle
-        self._invalider_cache()
-        print(f"➕ Rectangle ajouté : {nom} @ {coin_bas_gauche_mm} - {coin_haut_droit_mm}")
-    
-    
-    
-    def ajouter_rectangle_oriente(self, nom: str, centre_mm: Tuple[int, int],
-                                  longueur_mm: int, largeur_mm: int, angle_deg: float,
-                                  actif: bool = True, priorite: int = 0) -> None:
-        """
-        Ajoute un obstacle rectangulaire orienté.
-        
-        Args:
-            nom: Identifiant unique
-            centre_mm: (x, y) centre du rectangle en mm
-            longueur_mm: Longueur du rectangle (dans la direction de l'angle) en mm
-            largeur_mm: Largeur du rectangle (perpendiculaire à l'angle) en mm
-            angle_deg: Angle de rotation en degrés (0° = horizontal, 90° = vertical)
-            actif: Si True, obstacle actif dès création
-            priorite: Ordre de traitement
+            # Calcul A*
+            debut = time.time()
+            path = astar_safe(start_case, goal_case, SAFETY_WEIGHT, grid_dynamique=grid_avec_ennemi)
             
-        Example:
-            >>> obs.ajouter_rectangle_oriente("noisette1", (175, 1200), 150, 50, 0)
-            >>> obs.ajouter_rectangle_oriente("noisette2", (1500, 800), 150, 50, 90)
-        """
-        obstacle = Obstacle(
-            nom=nom,
-            forme="rectangle_oriente",
-            params={
-                "centre": centre_mm,
-                "longueur": longueur_mm,
-                "largeur": largeur_mm,
-                "angle": angle_deg
-            },
-            actif=actif,
-            priorite=priorite
-        )
-        self._obstacles[nom] = obstacle
-        self._invalider_cache()
-        print(f"➕ Rectangle orienté ajouté : {nom} @ {centre_mm} ({longueur_mm}×{largeur_mm}mm, {angle_deg}°)")
-
-    def ajouter_cercle(self, nom: str, centre_mm: Tuple[int, int],
-                      rayon_mm: int, actif: bool = True, priorite: int = 0) -> None:
-        """
-        Ajoute un obstacle circulaire.
-        
-        Args:
-            nom: Identifiant unique
-            centre_mm: (x, y) centre du cercle en mm
-            rayon_mm: Rayon du cercle en mm
-            actif: Si True, obstacle actif dès création
-            priorite: Ordre de traitement
-            
-        Example:
-            >>> obs.ajouter_cercle("zone_danger", (1500, 1000), 300)
-        """
-        obstacle = Obstacle(
-            nom=nom,
-            forme="cercle",
-            params={"centre": centre_mm, "rayon": rayon_mm},
-            actif=actif,
-            priorite=priorite
-        )
-        self._obstacles[nom] = obstacle
-        self._invalider_cache()
-        print(f"➕ Cercle ajouté : {nom} @ {centre_mm} (r={rayon_mm}mm)")
-    
-    
-    def ajouter_polygone(self, nom: str, sommets_mm: List[Tuple[int, int]],
-                        actif: bool = True, priorite: int = 0) -> None:
-        """
-        Ajoute un obstacle polygonal.
-        
-        Args:
-            nom: Identifiant unique
-            sommets_mm: Liste de (x, y) des sommets en mm
-            actif: Si True, obstacle actif dès création
-            priorite: Ordre de traitement
-            
-        Example:
-            >>> obs.ajouter_polygone("zone_tri", [(100,100), (200,100), (150,200)])
-        """
-        obstacle = Obstacle(
-            nom=nom,
-            forme="polygone",
-            params={"sommets": sommets_mm},
-            actif=actif,
-            priorite=priorite
-        )
-        self._obstacles[nom] = obstacle
-        self._invalider_cache()
-        print(f"➕ Polygone ajouté : {nom} ({len(sommets_mm)} sommets)")
-    
-    
-    # ========================================================================
-    # ACTIVATION / DÉSACTIVATION
-    # ========================================================================
-    
-    def activer(self, nom: str) -> bool:
-        """
-        Active un obstacle.
-        
-        Args:
-            nom: Nom de l'obstacle
-            
-        Returns:
-            True si succès, False si obstacle inexistant
-        """
-        if nom not in self._obstacles:
-            print(f"❌ Obstacle '{nom}' introuvable")
-            return False
-        
-        self._obstacles[nom].actif = True
-        self._invalider_cache()
-        print(f"✅ Obstacle '{nom}' activé")
-        return True
-    
-    
-    def desactiver(self, nom: str) -> bool:
-        """
-        Désactive un obstacle (ne sera plus pris en compte).
-        
-        Args:
-            nom: Nom de l'obstacle
-            
-        Returns:
-            True si succès, False si obstacle inexistant
-        """
-        if nom not in self._obstacles:
-            print(f"❌ Obstacle '{nom}' introuvable")
-            return False
-        
-        self._obstacles[nom].actif = False
-        self._invalider_cache()
-        print(f"🔴 Obstacle '{nom}' désactivé")
-        return True
-    
-    
-    def basculer(self, nom: str) -> bool:
-        """
-        Inverse l'état actif/inactif d'un obstacle.
-        
-        Args:
-            nom: Nom de l'obstacle
-            
-        Returns:
-            True si succès, False si obstacle inexistant
-        """
-        if nom not in self._obstacles:
-            print(f"❌ Obstacle '{nom}' introuvable")
-            return False
-        
-        self._obstacles[nom].actif = not self._obstacles[nom].actif
-        etat = "activé" if self._obstacles[nom].actif else "désactivé"
-        self._invalider_cache()
-        print(f"🔄 Obstacle '{nom}' {etat}")
-        return True
-    
-    
-    # ========================================================================
-    # SUPPRESSION
-    # ========================================================================
-    
-    def retirer(self, nom: str) -> bool:
-        """
-        Retire définitivement un obstacle.
-        
-        Args:
-            nom: Nom de l'obstacle
-            
-        Returns:
-            True si succès, False si obstacle inexistant
-        """
-        if nom not in self._obstacles:
-            print(f"❌ Obstacle '{nom}' introuvable")
-            return False
-        
-        del self._obstacles[nom]
-        self._invalider_cache()
-        print(f"🗑️  Obstacle '{nom}' retiré")
-        return True
-    
-    
-    def retirer_tous(self) -> None:
-        """Retire tous les obstacles."""
-        count = len(self._obstacles)
-        self._obstacles.clear()
-        self._invalider_cache()
-        print(f"🗑️  {count} obstacles retirés")
-    
-    
-    # ========================================================================
-    # CONSULTATION
-    # ========================================================================
-    
-    def lister(self, filtre_actif: Optional[bool] = None) -> None:
-        """
-        Affiche la liste des obstacles.
-        
-        Args:
-            filtre_actif: Si True, seulement actifs. Si False, seulement inactifs.
-                         Si None, tous les obstacles.
-        """
-        print("\n📋 LISTE DES OBSTACLES")
-        print("=" * 70)
-        
-        obstacles_tries = sorted(self._obstacles.values(), 
-                                key=lambda o: (o.priorite, o.nom))
-        
-        count = 0
-        for obs in obstacles_tries:
-            if filtre_actif is None or obs.actif == filtre_actif:
-                print(f"  {obs}")
-                count += 1
-        
-        if count == 0:
-            print("  (aucun obstacle)")
-        
-        print("=" * 70)
-        print(f"Total : {len(self._obstacles)} obstacles ({count} affichés)\n")
-    
-    
-    def existe(self, nom: str) -> bool:
-        """Vérifie si un obstacle existe."""
-        return nom in self._obstacles
-    
-    
-    def est_actif(self, nom: str) -> Optional[bool]:
-        """
-        Vérifie si un obstacle est actif.
-        
-        Returns:
-            True si actif, False si inactif, None si inexistant
-        """
-        if nom not in self._obstacles:
-            return None
-        return self._obstacles[nom].actif
-    
-    
-    def compter(self, actifs_seulement: bool = False) -> int:
-        """
-        Compte les obstacles.
-        
-        Args:
-            actifs_seulement: Si True, compte seulement les actifs
-            
-        Returns:
-            Nombre d'obstacles
-        """
-        if actifs_seulement:
-            return sum(1 for obs in self._obstacles.values() if obs.actif)
-        return len(self._obstacles)
-    
-    
-    # ========================================================================
-    # GÉNÉRATION DE GRILLE
-    # ========================================================================
-    
-    def generer_grille(self, utiliser_cache: bool = True) -> Tuple[np.ndarray, np.ndarray, 
-                                                                      np.ndarray, np.ndarray]:
-        """
-        Génère les grilles d'obstacles pour l'algorithme A*.
-        
-        Args:
-            utiliser_cache: Si True et cache valide, retourne le cache
-            
-        Returns:
-            tuple: (grid, grid_expanded, obstacle_array, expanded_array)
-                - grid: Grille booléenne des obstacles
-                - grid_expanded: Grille avec marges de sécurité
-                - obstacle_array: Array numpy des positions d'obstacles
-                - expanded_array: Array numpy des zones de sécurité
-        """
-        # Utiliser cache si valide
-        if utiliser_cache and self._cache_valide and self._cache_grid is not None:
-            return self._cache_grid
-        
-        # Créer ensemble de cases occupées
-        obstacles_cases: Set[Tuple[int, int]] = set()
-        
-        # Trier par priorité
-        obstacles_tries = sorted(
-            [obs for obs in self._obstacles.values() if obs.actif],
-            key=lambda o: o.priorite
-        )
-        
-        # Générer cases pour chaque obstacle
-        for obs in obstacles_tries:
-            if obs.forme == "carre":
-                cases = self._generer_carre(obs.params)
-            elif obs.forme == "rectangle":
-                cases = self._generer_rectangle(obs.params)
-            elif obs.forme == "cercle":
-                cases = self._generer_cercle(obs.params)
-            elif obs.forme == "rectangle_oriente":
-                cases = self._generer_rectangle_oriente(obs.params)
-            elif obs.forme == "polygone":
-                cases = self._generer_polygone(obs.params)
+            if path and len(path) > 1:
+                path_simplified = simplify_path_safe(path, min_clearance=5, grid_dynamique=grid_avec_ennemi)
+                if DEBUG :
+                    print(f"✅ A* terminé en {time.time()-debut:.3f}s : {len(path)} → {len(path_simplified)} points")
             else:
-                print(f"⚠️  Forme inconnue : {obs.forme}")
-                continue
+                path_simplified = None
+                if DEBUG :
+                    print(f"⚠️  A* : aucun chemin trouvé")
             
-            obstacles_cases.update(cases)
-        
-        # Conversion en grille
-        grid = np.zeros((self.width, self.height), dtype=bool)
-        for (x, y) in obstacles_cases:
-            grid[x, y] = True
-        
-        # Expansion avec marge de sécurité
-        structure = np.zeros((2*self.rayon_total_case+1, 2*self.rayon_total_case+1))
-        y_grid, x_grid = np.ogrid[-self.rayon_total_case:self.rayon_total_case+1, 
-                                   -self.rayon_total_case:self.rayon_total_case+1]
-        mask = x_grid*x_grid + y_grid*y_grid <= self.rayon_total_case*self.rayon_total_case
-        structure[mask] = 1
-        grid_expanded = binary_dilation(grid, structure=structure)
-        
-        # Conversion en arrays pour affichage
-        obstacle_array = np.argwhere(grid)
-        expanded_array = np.argwhere(grid_expanded & ~grid)
-        
-        # Mise en cache
-        self._cache_grid = (grid, grid_expanded, obstacle_array, expanded_array)
-        self._cache_valide = True
-        
-        print(f"🗺️  Grille générée : {len(obstacles_cases)} cases obstacles, "
-              f"{len(expanded_array)} cases sécurité")
-        
-        return grid, grid_expanded, obstacle_array, expanded_array
+            # Envoyer le résultat
+            queue_astar_resultat.put((index, path_simplified))
+            
+        except queue.Empty:
+            continue
+        except Exception as e:
+            if DEBUG :
+                print(f"❌ Erreur thread A*: {e}")
+            import traceback
+            traceback.print_exc()
     
+
+def calcul_points(stop_event):
+    """
+    Argument : flag "stop_event"
+    Modification : variables globales "pile_points"
+
+    Utilisation :
+    Création de l'objet "lidar"
+    Calcul de l'angle total et des coordonnées des points
+    Saturation des valeurs pour les limites de l'aire de jeu, puis pour oublier les bords
+    """
+
+    lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)                       # connexion au Lidar
+
+    lidar.stop_motor()
+    time.sleep(1)
+
+    print("INFO:", lidar.get_info())                                    # Affichage d'informations propres au Lidar
+    print("HEALTH:", lidar.get_health())
+    lidar.start_motor()   
+    time.sleep(5)                                             # Démarrage du moteur du Lidar
+    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel
+    x_point = 0
+    y_point = 0
+
+    try:
+        # On lit les scans tant que le stop_event n’est pas activé
+        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096):
+            if stop_event.is_set():   # si on demande l’arrêt → on sort
+                break
+
+            for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
+                phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
+                angle_total = phi - math.radians(angle_robot_actuel) - math.radians(11)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+
+                x_point = x_robot_actuel + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
+                y_point = y_robot_actuel - distance * math.sin(angle_total)
+
+                # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
+                x_point = max(0, min(X_PISTE, int(x_point)))
+                y_point = max(0, min(Y_PISTE, int(y_point)))
+
+                if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                    pile_calcul.put((x_point, y_point))
+
+    except Exception as e:                                                      # En cas d'exception on affiche l'erreur
+        print("Erreur dans le thread Lidar:", e)
+    finally:                                                                    # Et on arrête le Lidar
+        # Nettoyage du Lidar
+        print("Arrêt du Lidar...")
+        lidar.stop()
+        lidar.stop_motor()
+        lidar.disconnect()
+
+def LectureCAN(stop_event):
+    """
+    Argument : flag "stop_event"
+    Modification : variables globales x_robot, y_robot, angle_robot, Batteries
+
+    Utilisation :
+    Lis le Bus CAN
+    Si l'ID du message n'est pas dans la Liste_ID, saute
+    Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
+    """
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, dico_envoi, bus, V_rpi, I_rpi
+    while not stop_event.is_set():
+        msg = bus.recv(0.01)  # attend 10 ms max
+        if msg is None:
+            continue  # pas de message, on repart
+
+        # Vérifie qu'on a bien reçu 4 octets avant de décoder
+        if msg.arbitration_id not in Liste_ID_recoit:
+            continue  # on saute les autres trames
+
+        if msg.arbitration_id == 0x100:
+            x_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x101:
+            y_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x102:
+            angle_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
+
+        # Batteries
+        elif msg.arbitration_id == 0x103:
+            Batteries[0][0] = struct.unpack('<H', bytes(msg.data[:2]))[0]
+
+        elif msg.arbitration_id == 0x104:
+            Batteries[0][1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
+
+        elif msg.arbitration_id == 0x105:
+            Batteries[0][2] = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
+
+        elif msg.arbitration_id == 0x106:
+            Batteries[1][0] = struct.unpack('<H', bytes(msg.data[:2]))[0]
+
+        elif msg.arbitration_id == 0x107:
+            Batteries[1][1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
+
+        elif msg.arbitration_id == 0x108:
+            Batteries[1][2] = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
+
+        elif msg.arbitration_id == 0x109:
+            Batteries[2][0] = struct.unpack('<H', bytes(msg.data[:2]))[0]
+
+        elif msg.arbitration_id == 0x10A:
+            Batteries[2][1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
+
+        elif msg.arbitration_id == 0x10B:
+            Batteries[2][2] = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
+
+
+        elif msg.arbitration_id == 0x10C:
+            V_rpi = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
+
+        elif msg.arbitration_id == 0x10D:
+            I_rpi = struct.unpack('<H', bytes(msg.data[:2]))[0]/1000
+
+def calcul_ennemi(stop_event):
+    """
+    Arguments : flag stop_event
+    Modification : buffer_points, x_ennemi, y_ennemi
+
+    Utilisation :
+    Récupére le haut de la pile_calcul, puis le remet dans buffer_points
+    Moyenne les coordonées des points de la pile, donne x_ennemi et y_ennemi
+    """
+    global x_ennemi, y_ennemi
+
+    buffer_points = deque(maxlen=50)
+
+    while not stop_event.is_set():
+        try:
+            # Récupère un point du Lidar
+            p = pile_calcul.get(timeout=0.1)
+            buffer_points.append(p)
+        except queue.Empty:
+            pass
+
+        # Calcul barycentre, angle et vitesse
+        if buffer_points:
+            xs, ys = zip(*buffer_points)
+            x_ennemi = np.mean(xs)
+            y_ennemi = np.mean(ys)
+##############################################################################
+
+################## Fonction ##################################################
+def arret_programme(event, stop_event=None):
+    print("Bouton STOP pressé — arrêt demandé.")
+    if stop_event is not None:
+        stop_event.set()
+        bring_to_front(fig)
+
+def demarrage_strategie(event):
+    """Fonction appelée quand le bouton START est pressé."""
+    global lancement_strategie
+    lancement_strategie = not lancement_strategie  # Toggle (bascule) de l'état
     
-    # ========================================================================
-    # GÉNÉRATEURS DE FORMES (méthodes privées)
-    # ========================================================================
+    if lancement_strategie:
+        print("✅ Bouton START pressé — Stratégie ACTIVÉE")
+    else:
+        print("⏸️  Bouton START pressé — Stratégie DÉSACTIVÉE")
     
-    def _generer_carre(self, params: dict) -> Set[Tuple[int, int]]:
-        """Génère les cases d'un carré."""
-        cx_mm, cy_mm = params["centre"]
-        cote_mm = params["cote"]
-        
-        cx = cx_mm // self.case_mm
-        cy = cy_mm // self.case_mm
-        demi_cote = (cote_mm // self.case_mm) // 2
-        
-        cases = set()
-        for x in range(cx - demi_cote, cx + demi_cote):
-            for y in range(cy - demi_cote, cy + demi_cote):
-                if 0 <= x < self.width and 0 <= y < self.height:
-                    cases.add((x, y))
-        
-        return cases
+    bring_to_front(fig)
+
+def on_click(event):
+    """
+    Callback pour les clics sur la piste.
     
+    COMPORTEMENT :
+    - Clic GAUCHE (bouton 1) : Ajoute une consigne PRIORITAIRE en début de Liste_actions
+    - Clic DROIT (bouton 3) : Affiche juste le point voulu (ancien comportement)
+    """
+    global x_robot_voulu, y_robot_voulu, Liste_actions, Strategie
     
-    def _generer_rectangle(self, params: dict) -> Set[Tuple[int, int]]:
-        """Génère les cases d'un rectangle."""
-        x_min_mm, y_min_mm = params["coin_bg"]
-        x_max_mm, y_max_mm = params["coin_hd"]
+    if event.inaxes == ax:  # Clic dans la zone du graphique
+        x_clic = event.xdata
+        y_clic = event.ydata
         
-        x_min = x_min_mm // self.case_mm
-        x_max = x_max_mm // self.case_mm
-        y_min = y_min_mm // self.case_mm
-        y_max = y_max_mm // self.case_mm
+        # Mettre à jour l'affichage du point voulu
+        x_robot_voulu = x_clic
+        y_robot_voulu = y_clic
+        point_voulu_plot.set_data([round(x_robot_voulu, 0)], [round(y_robot_voulu, 0)])
         
-        cases = set()
-        for x in range(x_min, x_max):
-            for y in range(y_min, y_max):
-                if 0 <= x < self.width and 0 <= y < self.height:
-                    cases.add((x, y))
+        # ⭐ CLIC GAUCHE : Ajouter une consigne PRIORITAIRE ⭐
+        if event.button == 1:  # Bouton gauche
+
+            if not Strategie:
+                Liste_actions.insert(-1,["Consigne", round(int(x_clic), 0), round(int(y_clic), 0)])
+            else :
+                # Vider la liste (modifie la liste globale, pas une copie locale)
+                Liste_actions.clear()
+                # Ajouter la consigne cliquée
+                Liste_actions.append(["Consigne", round(int(x_clic), 0), round(int(y_clic), 0)])
         
-        return cases
+        # ⭐ CLIC DROIT : Juste afficher (pas d'ajout) ⭐
+        elif event.button == 3:  # Bouton droit
+            if DEBUG :
+                print(f"🖱️  Point affiché : ({round(x_clic, 0)}, {round(y_clic, 0)}) mm")
+        
+        plt.draw()
+        bring_to_front(fig)
+
+
+def bouton_attraper_callback(event):
+    """
+    Callback pour le bouton Attraper.
+    Modifie ordre_receive à 21 si l action en cours est "Attraper".
+    """
+    global ordre_receive, action_voulu
     
+    # Vérifier qu il y a une action en cours
+    if len(Liste_actions) > 0 and action_voulu == "Attraper":
+        ordre_receive = 21
+
+
+def bouton_relacher_callback(event):
+    """
+    Callback pour le bouton Relacher.
+    Modifie ordre_receive à 22 si l action en cours est "Relacher".
+    """
+    global ordre_receive, action_voulu
     
+    # Vérifier qu il y a une action en cours
+    if len(Liste_actions) > 0 and action_voulu == "Relacher":
+        ordre_receive = 22   
+
+
+
+def toggle_zone(event, zone_num):
+    """
+    Callback pour basculer l'état d'une zone (actif/inactif).
+    VERSION SIMPLIFIÉE : Modifie UNIQUEMENT les listes.
+    La mise à jour se fait automatiquement via verifier_changement_listes().
     
-    def _generer_rectangle_oriente(self, params: dict) -> Set[Tuple[int, int]]:
-        """
-        Génère les cases d'un rectangle orienté.
-        Utilise une transformation matricielle pour calculer les points du rectangle tourné.
-        """
-        cx_mm, cy_mm = params["centre"]
-        longueur_mm = params["longueur"]
-        largeur_mm = params["largeur"]
-        angle_deg = params["angle"]
+    Args:
+        event: Événement du bouton
+        zone_num: Numéro de la zone (1 à 10)
+    """
+    global Liste_GM_libres, Liste_GM_occuper,changement_noisette_GM
+    
+    # Vérifier l'état actuel dans les listes
+    if zone_num in Liste_GM_libres:
+        # Zone libre → la rendre occupée
+        Liste_GM_libres.remove(zone_num)
+        Liste_GM_occuper.append(zone_num)
+        print(f"📦 Bouton Zone {zone_num} : Libre → Occupée")
+        changement_noisette_GM = True
         
-        # Conversion en cases
-        cx = cx_mm / self.case_mm
-        cy = cy_mm / self.case_mm
-        demi_longueur = longueur_mm / (2 * self.case_mm)
-        demi_largeur = largeur_mm / (2 * self.case_mm)
+    elif zone_num in Liste_GM_occuper:
+        # Zone occupée → la rendre libre
+        Liste_GM_occuper.remove(zone_num)
+        Liste_GM_libres.append(zone_num)
+        print(f"📦 Bouton Zone {zone_num} : Occupée → Libre")
+        changement_noisette_GM = True
         
-        # Angle en radians
-        angle_rad = math.radians(angle_deg)
-        cos_a = math.cos(angle_rad)
-        sin_a = math.sin(angle_rad)
+    else:
+        print(f"⚠️ Zone {zone_num} dans un état incohérent !")
+        print(f"   Libres: {Liste_GM_libres}")
+        print(f"   Occupées: {Liste_GM_occuper}")
+    
+    # La mise à jour visuelle se fera automatiquement
+    # via verifier_changement_listes() dans la boucle principale
+
+
+def toggle_noisette(event, noisette_num):
+    """
+    Callback pour basculer l'état d'une Noisette (actif/inactif).
+    VERSION SIMPLIFIÉE : Modifie UNIQUEMENT les listes.
+    La mise à jour se fait automatiquement via verifier_changement_listes().
+    
+    Args:
+        event: Événement du bouton
+        noisette_num: Numéro de la Noisette (1 à 8)
+    """
+    global Liste_noisettes_libres, Liste_noisettes_prises, changement_noisette_GM
+    
+    # Vérifier l'état actuel dans les listes
+    if noisette_num in Liste_noisettes_libres:
+        # Noisette libre (obstacle) → la prendre (passable)
+        Liste_noisettes_libres.remove(noisette_num)
+        Liste_noisettes_prises.append(noisette_num)
+        print(f"🌰 Bouton Noisette {noisette_num} : Libre (obstacle) → Prise (passable)")
+        changement_noisette_GM = True
         
-        # Calculer les 4 coins du rectangle avant rotation
-        # Coin 1: (-demi_longueur, -demi_largeur)
-        # Coin 2: (+demi_longueur, -demi_largeur)
-        # Coin 3: (+demi_longueur, +demi_largeur)
-        # Coin 4: (-demi_longueur, +demi_largeur)
+    elif noisette_num in Liste_noisettes_prises:
+        # Noisette prise → la remettre libre
+        Liste_noisettes_prises.remove(noisette_num)
+        Liste_noisettes_libres.append(noisette_num)
+        print(f"🌰 Bouton Noisette {noisette_num} : Prise → Libre (obstacle)")
+        changement_noisette_GM = True
         
-        coins_local = [
-            (-demi_longueur, -demi_largeur),
-            (+demi_longueur, -demi_largeur),
-            (+demi_longueur, +demi_largeur),
-            (-demi_longueur, +demi_largeur)
-        ]
+    else:
+        print(f"⚠️ Noisette {noisette_num} dans un état incohérent !")
+        print(f"   Libres: {Liste_noisettes_libres}")
+        print(f"   Prises: {Liste_noisettes_prises}")
+
+def update_display(background):
+    """Mise à jour optimisée avec blitting"""
+    # Restaurer le fond
+    fig.canvas.restore_region(background)
+    
+    # Redessiner uniquement les éléments qui changent
+    ax.draw_artist(robot_plot)
+    ax.draw_artist(ennemi_plot)
+    ax.draw_artist(scat)
+    ax.draw_artist(robot_info_text)
+    ax.draw_artist(info_alim_rpi)
+    ax.draw_artist(chronometre_text)
+    ax.draw_artist(x_voulu_text)
+    ax.draw_artist(y_voulu_text)
+    ax.draw_artist(A_voulu_text)
+    ax.draw_artist(cercle_robot_patch)
+    fig.canvas.blit(ax.bbox)
+    fig.canvas.flush_events()
+
+def associer_noisette_a_emplacement(noisette, positions_theoriques, seuil=SEUIL_ASSOCIATION):
+    """
+    Associe une noisette à son emplacement théorique le plus proche.
+    
+    Args:
+        noisette: [x, y, angle, couleur]
+        positions_theoriques: Liste des 4 positions [[x1,y1], [x2,y2], ...]
+        seuil: Distance max pour valider l'association
+    
+    Returns:
+        index (0-3) ou None si trop loin
+    """
+    x_noisette, y_noisette = noisette[0], noisette[1]
+    
+    distances = []
+    for idx, (x_theo, y_theo) in enumerate(positions_theoriques):
+        distance = math.sqrt((x_noisette - x_theo)**2 + (y_noisette - y_theo)**2)
+        distances.append((idx, distance))
+    
+    # Trouver l'emplacement le plus proche
+    idx_min, dist_min = min(distances, key=lambda x: x[1])
+    
+    if dist_min <= seuil:
+        return idx_min
+    else:
+        return None  # Noisette trop éloignée (erreur de détection ?)
+    
+def detecter_changements_noisettes(liste_actuelle, liste_precedente):
+    """
+    Détecte si Liste_noisette_xya a changé (ajout, suppression ou modification).
+    
+    Args:
+        liste_actuelle: Liste_noisette_xya actuelle
+        liste_precedente: Liste_noisette_xya de l'itération précédente
+    
+    Returns:
+        bool: True si changement détecté
+    """
+    # Vérification rapide : même longueur ?
+    if len(liste_actuelle) != len(liste_precedente):
+        return True
+    
+    # Vérification détaillée : mêmes éléments ?
+    for i, noisette_actuelle in enumerate(liste_actuelle):
+        if i >= len(liste_precedente):
+            return True
         
-        # Appliquer la rotation et translation à chaque coin
-        coins_global = []
-        for (lx, ly) in coins_local:
-            # Rotation
-            rx = lx * cos_a - ly * sin_a
-            ry = lx * sin_a + ly * cos_a
-            # Translation
-            gx = rx + cx
-            gy = ry + cy
-            coins_global.append((gx, gy))
+        noisette_precedente = liste_precedente[i]
         
-        # Trouver la bounding box
-        min_x = min(p[0] for p in coins_global)
-        max_x = max(p[0] for p in coins_global)
-        min_y = min(p[1] for p in coins_global)
-        max_y = max(p[1] for p in coins_global)
+        # Comparer les 4 premiers éléments [x, y, angle, couleur]
+        if (noisette_actuelle[0] != noisette_precedente[0] or
+            noisette_actuelle[1] != noisette_precedente[1] or
+            noisette_actuelle[2] != noisette_precedente[2] or
+            noisette_actuelle[3] != noisette_precedente[3]):
+            return True
+    
+    return False
+
+
+def verifier_segments_trajectoire_ennemi(Liste_actions, x_ennemi, y_ennemi, R_securite, MARGE_TRAJECTOIRE, CASE_MM):
+    """
+    Vérifie si un segment de la trajectoire (entre deux points "Avancer" ou "Consigne"/"Avancer")
+    passe dans la zone de sécurité de l'ennemi.
+    Si oui, retourne True pour demander un recalcul de trajectoire.
+    """
+    global demande_recalcul_traj
+
+    # Extraire tous les points "Avancer" ou "Consigne" de Liste_actions
+    points_trajectoire = []
+    for action in Liste_actions:
+        if isinstance(action, list) and len(action) >= 3 and action[0] in ["Avancer", "Consigne"]:
+            points_trajectoire.append((action[1], action[2]))
+
+    # Si moins de 2 points, pas de segment à vérifier
+    if len(points_trajectoire) < 2:
+        return False
+
+    # Parcourir chaque segment consécutif
+    for i in range(len(points_trajectoire) - 1):
+        x1, y1 = points_trajectoire[i]
+        x2, y2 = points_trajectoire[i + 1]
+
+        # Calculer la distance minimale entre ce segment et l'ennemi
+        distance_min = distance_segment_point(x1, y1, x2, y2, x_ennemi, y_ennemi)
+
+        # Si la distance est inférieure à la marge de sécurité, demander un recalcul
+        if distance_min <= (R_securite + MARGE_TRAJECTOIRE):
+            print(f"⚠️ Segment {i} ({x1},{y1})→({x2},{y2}) trop proche de l'ennemi (distance={distance_min:.1f} < {R_securite + MARGE_TRAJECTOIRE})")
+            demande_recalcul_traj = True
+            return True
+
+    return False
+
+def distance_segment_point(x1, y1, x2, y2, px, py):
+    """
+    Calcule la distance minimale entre un segment (x1,y1)-(x2,y2) et un point (px,py).
+    """
+    # Vecteur segment
+    seg_x = x2 - x1
+    seg_y = y2 - y1
+    seg_length_sq = seg_x**2 + seg_y**2
+
+    # Cas particulier : segment de longueur nulle
+    if seg_length_sq == 0:
+        return math.sqrt((px - x1)**2 + (py - y1)**2)
+
+    # Projection du point sur le segment
+    t = max(0, min(1, ((px - x1) * seg_x + (py - y1) * seg_y) / seg_length_sq))
+    proj_x = x1 + t * seg_x
+    proj_y = y1 + t * seg_y
+
+    # Distance entre le point et sa projection
+    return math.sqrt((px - proj_x)**2 + (py - proj_y)**2)
+
+
+########################################################################
+
+############################### Programme principal ####################
+
+if __name__ == '__main__':
+
+    stop_event = threading.Event()
+
+    buffer_points = deque(maxlen=50)
+
+    fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
+    cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
+    bouton_stop.on_clicked(partial(arret_programme, stop_event=stop_event))
+    bouton_start.on_clicked(demarrage_strategie)  # ⭐ Connexion du bouton START ⭐
+    
+    obstacle_scatter, expanded_scatter = afficher_obstacles(ax,obstacle_array,expanded_array,CASE_MM,show_expanded=True,show_obstacles=False)
+    zone_ennemi_scatter, cercle_ennemi_patch = afficher_zone_securite_ennemi(ax,x_ennemi, y_ennemi,R_ROBOT, R_ENNEMI,MARGE_ENNEMI,CASE_MM,X_PISTE,Y_PISTE,show_zone=True,show_cercle=False)
+    
+    # ========== DESSIN DES NOISETTES AVEC COULEURS ==========
+    patches_noisettes = dessiner_noisettes(ax, Liste_noisette_xya, 
+                                           longueur=150, largeur=50,
+                                           alpha=0.7, linewidth=2)
+    # ========================================================
+    
+    initialiser_grille(grid_expanded, distance_map, width, height, CASE_MM)
+
+    grid, grid_expanded, obstacle_array, expanded_array, \
+    obs_manager, obs_manager_noisettes, \
+    obstacle_scatter, expanded_scatter, distance_map, \
+    ax, width, height, CASE_MM = actualiser_zones_jeu(
+        grid, grid_expanded, obstacle_array, expanded_array,
+        obs_manager, obs_manager_noisettes,
+        Liste_noisette_xya,  # ⭐ NOUVEAU
+        obstacle_scatter, expanded_scatter, distance_map,
+        ax, width, height, CASE_MM
+    )
+    # création du trait, initialement à la position du robot
+    ax.add_line(robot_angle_line)
+    ax.add_line(robot_angle_voulu_line)
+
+    # ========== CRÉATION DES 10 BOUTONS POUR LES ZONES ==========
+    # Position de départ des boutons (à droite de l'écran)
+    button_width = 0.12
+    button_height = 0.08
+    button_x = 0.87  # Position X à droite
+    button_y_start = 0.73  # Position Y de départ (en haut)
+    button_spacing = 0.08  # Espacement vertical entre les boutons
+    
+    for i in range(1, 11):  # Créer 10 boutons pour les zones 1 à 10
+        # Calculer la position Y de chaque bouton
+        button_y = button_y_start - (i - 1) * button_spacing
         
-        # Parcourir tous les points dans la bounding box
-        cases = set()
-        for x in range(int(min_x) - 1, int(max_x) + 2):
-            for y in range(int(min_y) - 1, int(max_y) + 2):
-                # Vérifier si le point est dans le rectangle
-                # Transformer le point dans le repère local du rectangle
-                dx = x - cx
-                dy = y - cy
-                # Rotation inverse
-                local_x = dx * cos_a + dy * sin_a
-                local_y = -dx * sin_a + dy * cos_a
+        # Créer l'axe pour le bouton
+        ax_zone_button = plt.axes([button_x, button_y, button_width, button_height])
+        
+        # Créer le bouton avec le texte initial (INACTIF au départ)
+        zone_button = Button(ax_zone_button, f'Zone {i}\n✗ INACTIF', color='lightgreen', hovercolor='green')
+        
+        # Connecter le callback avec le numéro de zone
+        zone_button.on_clicked(partial(toggle_zone, zone_num=i))
+        
+        # Stocker le bouton dans la liste
+        boutons_zones.append(zone_button)
+        
+    # ========== CRÉATION DES 8 BOUTONS POUR LES NOISETTES ==========
+    # Position des boutons (en bas de l'écran, horizontalement)
+    noisette_button_width = 0.08
+    noisette_button_height = 0.06
+    noisette_button_y = 0.02  # Position Y en bas
+    noisette_button_x_start = 0.02  # Position X de départ (centrée)
+    noisette_button_spacing = 0.09  # Espacement horizontal entre les boutons
+    
+    for i in range(1, 9):  # Créer 8 boutons pour les Noisettes 1 à 8
+        # Calculer la position X de chaque bouton
+        noisette_button_x = noisette_button_x_start + (i - 1) * noisette_button_spacing
+        
+        # Créer l'axe pour le bouton
+        ax_noisette_button = plt.axes([noisette_button_x, noisette_button_y, noisette_button_width, noisette_button_height])
+        
+        # Créer le bouton avec le texte initial (ACTIF au départ)
+        noisette_button = Button(ax_noisette_button, f'N{i}\n✓ ACTIF', color='lightcoral', hovercolor='red')
+        
+        # Connecter le callback avec le numéro de Noisette
+        noisette_button.on_clicked(partial(toggle_noisette, noisette_num=i))
+        
+        # Stocker le bouton dans la liste
+        boutons_noisettes.append(noisette_button)
+
+
+    # ========== CRÉATION DES 2 BOUTONS ATTRAPER ET RELACHER ==========
+    # Position des boutons (en haut de l écran, centrés)
+    action_button_width = 0.12
+    action_button_height = 0.08
+    action_button_y = 0.92  # Position Y en haut
+    action_button_x_start = 0.38  # Position X de départ (centrés)
+    action_button_spacing = 0.14  # Espacement horizontal entre les boutons
+    
+    # Bouton ATTRAPER
+    ax_attraper_button = plt.axes([action_button_x_start, action_button_y, action_button_width, action_button_height])
+    bouton_attraper = Button(ax_attraper_button, "🤖 ATTRAPER", color="lightblue", hovercolor="blue")
+    bouton_attraper.on_clicked(bouton_attraper_callback)
+    
+    # Bouton RELACHER
+    ax_relacher_button = plt.axes([action_button_x_start + action_button_spacing, action_button_y, action_button_width, action_button_height])
+    bouton_relacher = Button(ax_relacher_button, "🤖 RELACHER", color="lightyellow", hovercolor="orange")
+    bouton_relacher.on_clicked(bouton_relacher_callback)
+
+    while(lancement_strategie==False):
+        plt.pause(0.1)
+    temps_demarage = time.time()
+    try:
+        if Reel: 
+            if Lidar_on:
+                tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
+                tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
+            tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
+            
+            if Lidar_on:
+                tache_lidar.start()
+                tache_calcul.start()
+            tache_LectureCAN.start()
+        
+        # 🚀 Démarrage thread A*
+        tache_astar = threading.Thread(target=tache_calcul_astar, args=(stop_event,), daemon=True)
+        tache_astar.start()
+    
+        dico_envoi[0x200]=x_robot_depart
+        dico_envoi[0x201]=y_robot_depart
+        dico_envoi[0x202]=angle_robot_depart
+        if Reel: 
+            bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
+        
+        # Initialisation des variables de trajectoire
+        path_plot = None
+        path_simplified_plot = None
+        path_smooth_plot = None
+        """if Strategie:
+            action_en_cours = mise_a_jour_decision(
+                Liste_actions,
+                x_robot_actuel, y_robot_actuel,
+                x_ennemi, y_ennemi,
+                robot_a_objets,
+                Liste_noisettes_libres_temp,  # ← Liste restreinte
+                Liste_GM_libres,
+                Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
+                Liste_zones_gm_xy, Liste_zones_gm_angle,
+                R_securite,
+                DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE,
+                verbose=True,
+                grid_expanded=grid_expanded, case_mm=CASE_MM
+            )"""
+        
+        Liste_actions_ennemi = [[int(x_robot_actuel-10),int(y_robot_actuel-10)],[1500,900]]
+        n_init = len(Liste_actions_ennemi)
+
+        while (not stop_event.is_set() and V_rpi > lim_Bat_RPI and len(Liste_actions)!=0 and temps_restant >=0): # Tant que le Flag de Thread n'est pas levé et que la batterie RPI est suffisamment chargées
+            dico_envoi[0x01]=1
+
+            temps_ecoules = time.time() - temps_demarage
+            temps_restant = temps_max - temps_ecoules
+
+            step +=1
+
+            
+            # Simu déplacement robot ennemi
+            if not Reel:
+                if Simul_mvt_ennemi:
+                    if len(Liste_actions_ennemi)>n_init-1:
+                        Liste_actions_ennemi[0] = [int(x_robot_actuel-10),int(y_robot_actuel-10)]
+                    
+                    x_ennemi_voulu = int(Liste_actions_ennemi[0][0])
+                    y_ennemi_voulu = int(Liste_actions_ennemi[0][1])
+
+                    angle_ennemi_consigne = np.degrees(math.atan2(y_ennemi_voulu - y_ennemi, x_ennemi_voulu - x_ennemi))
+
+                    x_ennemi += round(15*np.cos(math.radians(angle_ennemi_consigne)),0)
+                    y_ennemi += round(15*np.sin(math.radians(angle_ennemi_consigne)),0)
+            ###
+
+            # ======================== Tri Noisettes ============================================= #
+            for Noisette in Liste_noisette_xya:
+                index_zone_Noisette = 0
+                for emplacement_zone_noisette in Liste_emplacement_zones_Noisette_xy:
+                    coin_hg = emplacement_zone_noisette[0]
+                    coin_hd = emplacement_zone_noisette[1]
+                    coin_bg = emplacement_zone_noisette[2]
+                    coin_bd = emplacement_zone_noisette[3]
+                    if (coin_hg[0] <= Noisette[0] <= coin_bd[0]) and (coin_hg[1] >= Noisette[1] >= coin_bd[1]):
+                        if Noisette not in Liste_Noisette_zone_Noisette[index_zone_Noisette]:
+                            Liste_Noisette_zone_Noisette[index_zone_Noisette].append(Noisette)
+                    index_zone_Noisette += 1
+
+            index_zone_Noisette = 0
+            for zone_noisette in Liste_Noisette_zone_Noisette:
                 
-                # Vérifier si dans le rectangle
-                if abs(local_x) <= demi_longueur and abs(local_y) <= demi_largeur:
-                    # Vérifier les limites du terrain
-                    if 0 <= x < self.width and 0 <= y < self.height:
-                        cases.add((int(x), int(y)))
-        
-        return cases
-
-    def _generer_cercle(self, params: dict) -> Set[Tuple[int, int]]:
-        """Génère les cases d'un cercle."""
-        cx_mm, cy_mm = params["centre"]
-        rayon_mm = params["rayon"]
-        
-        cx = cx_mm // self.case_mm
-        cy = cy_mm // self.case_mm
-        rayon = rayon_mm // self.case_mm
-        
-        cases = set()
-        for dx in range(-rayon, rayon + 1):
-            for dy in range(-rayon, rayon + 1):
-                if dx*dx + dy*dy <= rayon*rayon:
-                    x = cx + dx
-                    y = cy + dy
-                    if 0 <= x < self.width and 0 <= y < self.height:
-                        cases.add((x, y))
-        
-        return cases
-    
-    
-    def _generer_polygone(self, params: dict) -> Set[Tuple[int, int]]:
-        """
-        Génère les cases d'un polygone.
-        Utilise l'algorithme de scan-line.
-        """
-        sommets_mm = params["sommets"]
-        if len(sommets_mm) < 3:
-            return set()
-        
-        # Convertir en cases
-        sommets = [(x // self.case_mm, y // self.case_mm) for x, y in sommets_mm]
-        
-        # Trouver bounding box
-        x_min = min(x for x, y in sommets)
-        x_max = max(x for x, y in sommets)
-        y_min = min(y for x, y in sommets)
-        y_max = max(y for x, y in sommets)
-        
-        cases = set()
-        
-        # Point-in-polygon test pour chaque case
-        for x in range(max(0, x_min), min(self.width, x_max + 1)):
-            for y in range(max(0, y_min), min(self.height, y_max + 1)):
-                if self._point_dans_polygone((x, y), sommets):
-                    cases.add((x, y))
-        
-        return cases
-    
-    
-    def _point_dans_polygone(self, point: Tuple[int, int], 
-                            sommets: List[Tuple[int, int]]) -> bool:
-        """
-        Test si un point est dans un polygone (ray casting algorithm).
-        """
-        x, y = point
-        n = len(sommets)
-        inside = False
-        
-        p1x, p1y = sommets[0]
-        for i in range(1, n + 1):
-            p2x, p2y = sommets[i % n]
-            if y > min(p1y, p2y):
-                if y <= max(p1y, p2y):
-                    if x <= max(p1x, p2x):
-                        if p1y != p2y:
-                            xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
-                        if p1x == p2x or x <= xinters:
-                            inside = not inside
-            p1x, p1y = p2x, p2y
-        
-        return inside
-    
-    
-    def _invalider_cache(self) -> None:
-        """Invalide le cache de grille."""
-        self._cache_valide = False
-
-
-# ============================================================================
-# FONCTION COMPATIBLE AVEC ANCIEN CODE
-# ============================================================================
-
-def creer_obstacles(terrain_w_mm, terrain_h_mm, 
-                    rayon_robot_mm, marge_obstacles_mm, case_mm):
-    """
-    Fonction de compatibilité avec l'ancien code.
-    Crée les obstacles par défaut de la Coupe de France de Robotique.
-    
-    ⚠️  DEPRECATED : Utilisez plutôt la classe Obstacles
-    
-    Returns:
-        tuple: (grid, grid_expanded, obstacle_array, expanded_array)
-    """
-    # Créer gestionnaire
-    obs_manager = Obstacles(terrain_w_mm, terrain_h_mm, 
-                           rayon_robot_mm, marge_obstacles_mm, case_mm)
-    
-    # Ajouter obstacles par défaut (Coupe de France 2024/2025)
-    zones_centres = [
-        (1250, 1450), (1750, 1450),
-        (100, 800), (800, 800), (1500, 800), (2200, 800), (2900, 800),
-        (700, 100), (1500, 100), (2300, 100),
-    ]
-    
-    for i, (x, y) in enumerate(zones_centres, 1):
-        obs_manager.ajouter_carre(f"zone{i}", (x, y), 200, actif=True)
-
-    zones_noisettes = [
-        [(100,1100),(250,1300)],
-         [(100,300),(250,500)],
-         [(2750,1100),(2900,1300)],
-         [(2750,300),(2900,500)],
-         [(1050,725),(1250,875)],
-         [(1750,725),(1950,875)],
-         [(1000,100),(1200,250)],
-         [(1800,100),(2000,250)]
-    ]
-    i = 1
-    for noisettes in zones_noisettes :
-        x1 = noisettes[0][0]
-        y1 = noisettes[0][1]
-        x2 = noisettes[1][0]
-        y2 = noisettes[1][1]
-        obs_manager.ajouter_rectangle(f"Noisette{i}", (x1, y1), (x2, y2), actif=True)
-        i+=1
-    # Zone rectangulaire (grenier)
-    obs_manager.ajouter_rectangle("grenier", (600, 1550), (2400, 2000), actif=True)
-    
-    return obs_manager.generer_grille()
-
-
-# ============================================================================
-# FONCTIONS POUR LA ZONE DE SÉCURITÉ DYNAMIQUE DE L'ENNEMI
-# ============================================================================
-
-def creer_zone_securite_ennemi(x_ennemi, y_ennemi, r_robot, r_ennemi, 
-                                marge_securite=50, case_mm=10,
-                                terrain_w_mm=3000, terrain_h_mm=2000):
-    """
-    Crée une zone de sécurité circulaire autour de la position de l'ennemi.
-    Cette zone est considérée comme un obstacle temporaire.
-    
-    Args:
-        x_ennemi: Position x de l'ennemi en mm
-        y_ennemi: Position y de l'ennemi en mm
-        r_robot: Rayon du robot en mm
-        r_ennemi: Rayon de l'ennemi en mm
-        marge_securite: Marge de sécurité supplémentaire en mm (défaut: 50mm)
-        case_mm: Taille d'une case en mm
-        terrain_w_mm: Largeur du terrain en mm
-        terrain_h_mm: Hauteur du terrain en mm
-    
-    Returns:
-        tuple: (zone_ennemi_array, R_securite)
-            - zone_ennemi_array: Array numpy des coordonnées (x,y) en mm de la zone
-            - R_securite: Rayon total de la zone de sécurité en mm
-    """
-    # Calcul du rayon de sécurité total
-    R_securite = r_robot + r_ennemi + marge_securite
-    
-    # Conversion en cases
-    width, height = terrain_w_mm // case_mm, terrain_h_mm // case_mm
-    x_ennemi_case = int(x_ennemi // case_mm)
-    y_ennemi_case = int(y_ennemi // case_mm)
-    rayon_case = int(R_securite // case_mm)
-    
-    # Création de la zone circulaire
-    zone_points = []
-    
-    for dx in range(-rayon_case, rayon_case + 1):
-        for dy in range(-rayon_case, rayon_case + 1):
-            # Vérifier si le point est dans le cercle
-            if dx*dx + dy*dy <= rayon_case*rayon_case:
-                x_case = x_ennemi_case + dx
-                y_case = y_ennemi_case + dy
+                # ⭐ CRÉER UN DICTIONNAIRE {index_absolu: noisette}
+                noisettes_avec_index = {}
                 
-                # Vérifier que le point est dans les limites du terrain
-                if 0 <= x_case < width and 0 <= y_case < height:
-                    # Convertir en mm
-                    x_mm = x_case * case_mm
-                    y_mm = y_case * case_mm
-                    zone_points.append([x_mm, y_mm])
-    
-    zone_ennemi_array = np.array(zone_points) if zone_points else np.array([]).reshape(0, 2)
-    
-    return zone_ennemi_array, R_securite
+                positions_theo = Liste_positions_Noisettes_theoriques[index_zone_Noisette]
+                
+                for noisette in zone_noisette:
+                    idx_absolu = associer_noisette_a_emplacement(noisette, positions_theo)
+                    
+                    if idx_absolu is not None:
+                        noisettes_avec_index[idx_absolu] = noisette
+                    else:
+                        print(f"⚠️ Noisette {noisette} non associée dans zone {index_zone_Noisette}")
+                
+                # ⭐ TRIER PAR INDEX ABSOLU (0,1,2,3)
+                indices_tries = sorted(noisettes_avec_index.keys())
+                zone_noisette_triee = [noisettes_avec_index[i] for i in indices_tries]
+                
+                Liste_Noisette_zone_Noisette_triee[index_zone_Noisette] = zone_noisette_triee
+                index_zone_Noisette += 1
+
+            for idx_zone, zone_noisette in enumerate(Liste_Noisette_zone_Noisette_triee):
+                Liste_temp = []
+                
+                positions_theo = Liste_positions_Noisettes_theoriques[idx_zone]
+                
+                for noisette in zone_noisette:
+                    # Retrouver l'index absolu de cette noisette
+                    idx_absolu = associer_noisette_a_emplacement(noisette, positions_theo)
+                    
+                    if idx_absolu is not None and noisette[3] != couleur:
+                        Liste_temp.append(idx_absolu)  # ⭐ INDEX ABSOLU (0-3)
+                Liste_Noisette_ordre_couleur[idx_zone]=Liste_temp
+
+            print("Liste_Noisette_ordre_couleur : ",Liste_Noisette_ordre_couleur)
+            # ================================================================================================= #
+
+            """if temps_restant <90:
+                Liste_noisette_xya = []"""
+            
+            """changement_noisettes_detecte = detecter_changements_noisettes(
+                Liste_noisette_xya, 
+                Liste_noisette_xya_precedente
+            )"""
+
+            """if changement_noisettes_detecte:
+                print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
+                
+                grid, grid_expanded, obstacle_array, expanded_array, \
+                obs_manager, obs_manager_noisettes, \
+                obstacle_scatter, expanded_scatter, distance_map, \
+                ax, width, height, CASE_MM = actualiser_zones_jeu(
+                    grid, grid_expanded, obstacle_array, expanded_array,
+                    obs_manager, obs_manager_noisettes,
+                    Liste_noisette_xya,  # ⭐ NOUVEAU
+                    obstacle_scatter, expanded_scatter, distance_map,
+                    ax, width, height, CASE_MM
+                )
+                
+                # Forcer le recalcul de trajectoire
+                demande_recalcul_traj = True
+                changement_noisette_GM = True  # Pour compatibilité
+            """
+            # Lire l'action courante
+            if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
+                action_voulu = Liste_actions[0][0]
+                x_robot_voulu = Liste_actions[0][1] 
+                y_robot_voulu = Liste_actions[0][2]
+                mouvement = True
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
+                action_voulu = Liste_actions[0][0]
+                angle_robot_voulu = round(Liste_actions[0][1],0)
+                mouvement = True
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1:
+                print("Appeler Carte Moteur pour : " + Liste_actions[0][0])
+                action_voulu = Liste_actions[0][0]
+                mouvement = False
+            #####################################
+
+            # ⭐ RÉÉVALUATION : Vérifier si la cible est toujours disponible ⭐
+            """if Strategie:
+                action_en_cours = verifier_et_changer_cible_si_necessaire(
+                    action_en_cours,
+                    Liste_actions,
+                    Liste_noisettes_libres,
+                    Liste_GM_libres,
+                    x_robot_actuel, y_robot_actuel,
+                    x_ennemi, y_ennemi,
+                    robot_a_objets,
+                    Liste_zones_recup_noisettes_xy,
+                    Liste_zones_recup_noisettes_angle,
+                    Liste_zones_gm_xy,
+                    Liste_zones_gm_angle,
+                    R_securite,
+                    action_voulu,
+                    DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE
+                )"""
+
+            if temps_restant <= temps_retour:
+                Liste_actions.clear() 
+                Liste_actions = [["Consigne",int(x_robot_depart),int(y_robot_depart)],["Rotation",0]]
+            
+            if len(Liste_actions) > 0:
+                if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
+                    action_voulu = Liste_actions[0][0]
+                    x_robot_voulu = Liste_actions[0][1]
+                    y_robot_voulu = Liste_actions[0][2]
+                    mouvement = True
+                elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
+                    action_voulu = Liste_actions[0][0]
+                    angle_robot_voulu = round(Liste_actions[0][1],0)
+                    mouvement = True
+                elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1:
+                    action_voulu = Liste_actions[0][0]
+                    mouvement = False
+
+            
+            distance_robot_ennemi = math.sqrt((x_ennemi - x_robot_actuel)**2 + (y_ennemi - y_robot_actuel)**2)
+            angle_ennemi = np.degrees(math.atan2(y_ennemi-y_ennemi_old,x_ennemi-x_ennemi_old))
+            mouvement_ennemi = math.sqrt((x_ennemi - x_ennemi_old)**2 + (y_ennemi - y_ennemi_old)**2)
+            
+            # Détection besoin de recalculer la trajectoire car point suivant dans zone ennemi
+            if Strategie:
+                for action in Liste_actions:
+                    if action[0] in ["Consigne","Avancer"]:
+                        distance_point_ennemi = math.sqrt((action[1] - x_ennemi)**2 + (action[2] - y_ennemi)**2)
+                        # ⭐ UTILISER LE MÊME RAYON QUE LA GRILLE
+                        rayon_detection = (R_securite + MARGE_TRAJECTOIRE)  # Marge de sécurité supplémentaire
+                        if distance_point_ennemi <= rayon_detection:
+                            print("Point de Traj dans Périmètre ennemi")
+                            demande_recalcul_traj = True
+                            break
+            """if Strategie and len(Liste_trajectoire) > 0:
+                verifier_segments_trajectoire_ennemi(
+                    Liste_actions,
+                    x_ennemi, y_ennemi,
+                    R_securite, MARGE_TRAJECTOIRE,
+                    CASE_MM
+                )"""
+            print("demande_recalcul_traj : ",demande_recalcul_traj)
+            # === CALCUL DE LA TRAJECTOIRE A* ===
+            if Strategie: 
+                if action_voulu in ["Rotation","Attraper","Relacher"] and old_ordre_mouvement == 3:
+                    pass  # rien, on attend la fin de la rotation
+                else:
+                    # === CALCUL DE LA TRAJECTOIRE A* ===
+                    if action_voulu in ["Consigne"]  or changement_noisette_GM or demande_recalcul_traj:
+                        demande_recalcul_traj = False
+                        if changement_noisette_GM == True :
+                            changement_noisette_GM = False
+                        Liste_actions_temps = Liste_actions
+                        Liste_actions = [action for action in Liste_actions if action[0] in ["Consigne","Rotation","Attraper","Relacher"]]
+                        # Convertir les positions en cases
+                        start_case = (int(x_robot_actuel // CASE_MM), int(y_robot_actuel // CASE_MM))
+                        goal_case = (int(x_robot_voulu // CASE_MM), int(y_robot_voulu // CASE_MM))
 
 
-# ============================================================================
-# FONCTIONS POUR LES BATTERIES
-# ============================================================================
+                        # Créer la grille dynamique
+                        grid_avec_ennemi = creer_grille_avec_ennemi(
+                            grid_expanded, x_ennemi, y_ennemi,
+                            R_ROBOT, R_ENNEMI, MARGE_ENNEMI, CASE_MM,MARGE_TRAJECTOIRE
+                        )
 
-def calculer_pourcentage_batteries(Batteries, U_last):
-    """
-    Calcule le pourcentage de charge de chaque batterie.
-    
-    Args:
-        Batteries: Liste de 3 batteries [[Vmin, Vmax, Vactuel, %], ...]
-        U_last: Liste des dernières tensions [U1, U2, U3]
-    
-    Returns:
-        Batteries: Liste mise à jour avec les nouveaux pourcentages
-    """
-    for i in range(len(Batteries)):
-        #if Batteries[i][2] != U_last[i] and Batteries[i][0] != 0 and Batteries[i][1] != 0:
-        if Batteries[i][0] != 0 and Batteries[i][1] != 0:
-            print(f"MAJ Batterie N°{i+1}")
-            Batteries[i][3] = 100 * (Batteries[i][2] - Batteries[i][0]) / (Batteries[i][1] - Batteries[i][0])
-            Batteries[i][3] = round(Batteries[i][3], 2)
-    
-    return Batteries
+                        # Envoyer la demande au thread A*
+                        index_demande = len(Liste_actions)  # Utiliser un index unique pour identifier la demande
+                        queue_astar_demande.put((start_case, goal_case, grid_avec_ennemi, index_demande))
+                        # Attendre le résultat (avec timeout pour éviter le blocage)
+                        try:
+                            index_resultat, path_simplified = queue_astar_resultat.get(timeout=2.0)
+                            if index_resultat == index_demande:  # Vérifier que le résultat correspond à la demande
+                                if path_simplified:
 
+                                    # Lisser le chemin
+                                    x_smooth, y_smooth = smooth_path_safe(path_simplified,SAFETY_WEIGHT, grid_dynamique=grid_avec_ennemi)
 
-def gerer_basculement_batteries(Batteries, U_last, Ordre_Batteries, seuil_critique=5.0):
-    """
-    Gère le basculement automatique entre batteries quand l'une est déchargée.
-    
-    Args:
-        Batteries: Liste des états des batteries
-        U_last: Liste des dernières tensions
-        Ordre_Batteries: Liste [1,0,0] ou [0,1,0] ou [0,0,1]
-        seuil_critique: Seuil de pourcentage pour basculer (défaut: 5.0%)
-    
-    Returns:
-        Ordre_Batteries: Ordre mis à jour
-    """
-    if (Batteries[0][2] > Batteries[0][0]) and Batteries[0][2] !=0:
-        print("Utilisation Bat1")
-        Ordre_Batteries = [1, 0, 0]
-    
-    elif Batteries[1][2] > Batteries[1][0]:
-        print("Utilisation Bat2")
-        Ordre_Batteries = [0, 1, 0]
-    
-    elif Batteries[2][2] > Batteries[2][0] :
-        print("Utilisation Bat2")
-        Ordre_Batteries = [0, 0, 1]
+                                    # Calculer la longueur
+                                    path_length = sum(euclidienne(path_simplified[i], path_simplified[i+1]) for i in range(len(path_simplified)-1))
+                                    path_length_mm = path_length * CASE_MM
 
-    return Ordre_Batteries
+                                    # Afficher le chemin brut (optionnel)
+                                    px, py = zip(*path_simplified)
+                                    path_plot, = ax.plot(px, py, 'b-', linewidth=1, alpha=0.3, label='A* brut')
 
+                                    # Afficher le chemin simplifié
+                                    px_mm = [x * CASE_MM for x in px]
+                                    py_mm = [y * CASE_MM for y in py]
 
-# ============================================================================
-# FONCTION DE TEST
-# ============================================================================
+                                    # Effacer anciens plots
+                                    if path_plot is not None:
+                                        path_plot.remove()
+                                        path_plot = None
+                                    if path_simplified_plot is not None:
+                                        path_simplified_plot.remove()
+                                        path_simplified_plot = None
+                                    if path_smooth_plot is not None:
+                                        path_smooth_plot.remove()
+                                        path_smooth_plot = None
 
-def tester_classe_obstacles():
-    """Fonction de test pour la classe Obstacles."""
-    print("\n" + "="*70)
-    print("TEST DE LA CLASSE OBSTACLES")
-    print("="*70 + "\n")
-    
-    # Créer gestionnaire
-    obs = Obstacles(3000, 2000, 150, 50, 10)
-    
-    # Ajouter différents types d'obstacles
-    print("\n--- AJOUT D'OBSTACLES ---")
-    obs.ajouter_carre("zone1", (1250, 1450), 200)
-    obs.ajouter_carre("zone2", (1750, 1450), 200, actif=False)
-    obs.ajouter_rectangle("grenier", (600, 1550), (2400, 2000))
-    obs.ajouter_cercle("danger", (1500, 1000), 300)
-    obs.ajouter_polygone("triangle", [(100, 100), (300, 100), (200, 300)])
-    
-    # Lister
-    print("\n--- LISTE COMPLÈTE ---")
-    obs.lister()
-    
-    # Activer/Désactiver
-    print("\n--- ACTIVATION/DÉSACTIVATION ---")
-    obs.desactiver("zone1")
-    obs.activer("zone2")
-    obs.basculer("grenier")
-    
-    print("\n--- OBSTACLES ACTIFS ---")
-    obs.lister(filtre_actif=True)
-    
-    # Générer grille
-    print("\n--- GÉNÉRATION GRILLE ---")
-    grid, grid_expanded, obstacle_array, expanded_array = obs.generer_grille()
-    print(f"✅ Grille : {grid.shape}, {np.sum(grid)} cases obstacles")
-    
-    obs.retirer("danger")
-    obs.lister()
+                                    # ⭐ OPTIMISATION DE TRAJECTOIRE - DÉBUT
+                                    points_bruts = [[int(px_mm[i]), int(py_mm[i])] for i in range(len(px_mm))]
+                                    points_optimises = optimiser_trajectoire(points_bruts, methode='douglas-peucker', epsilon=20)
+                                    print(f"📊 Optimisation : {len(points_bruts)} → {len(points_optimises)} points")
 
+                                    for i in range(len(points_optimises)-1, 0, -1):
+                                        x_cible, y_cible = points_optimises[i]
+                                        if abs(x_cible - x_robot_voulu) > 10 or abs(y_cible - y_robot_voulu) > 10:
+                                            Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
+                                    # ⭐ OPTIMISATION DE TRAJECTOIRE - FIN
+                                    
+                                    x_optimises = [int(pt[0]) for pt in points_optimises]
+                                    y_optimises = [int(pt[1]) for pt in points_optimises]
 
-"""if __name__ == "__main__":
-    # Exécuter le test si le fichier est lancé directement
-    tester_classe_obstacles()"""
+                                    # 3️⃣ Dessiner UNE SEULE ligne avec tous les points
+                                    path_simplified_plot, = ax.plot(
+                                        x_optimises, y_optimises, 
+                                        'g-',           # Ligne verte continue
+                                        linewidth=2, 
+                                        label='Chemin A*', 
+                                        marker='o',     # Marqueurs ronds
+                                        markersize=4, 
+                                        zorder=10
+                                    )
+                                    # Afficher le chemin lissé
+                                    if x_smooth is not None and y_smooth is not None:
+                                        x_smooth_mm = [x * CASE_MM for x in x_smooth]
+                                        y_smooth_mm = [y * CASE_MM for y in y_smooth]
+                                    
+                                else:
+                                    print("❌ Aucun chemin trouvé par A*")
+                                    if distance_robot_ennemi < R_securite:
+                                        print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
+                                        Liste_actions = Liste_actions_temps
+                                    else:
+                                        print("CHEMIN INACCESSIBLE, RECALCUL DE TRAJECTOIRE")
+                                        """print(action_en_cours['numero_zone'])
+                                        print(action_en_cours['type'])"""
+                                        """if Strategie:
+                                            if action_en_cours['type'] in ["Attraper"]:
+                                                Liste_noisettes_libres_temp = [nbr for nbr in Liste_noisettes_libres if nbr != action_en_cours['numero_zone']]
+                                                Liste_noisettes_GM_temp = Liste_GM_libres.copy()
+                                            if action_en_cours['type'] in ["Relacher"]:
+                                                Liste_noisettes_libres_temp = Liste_noisettes_libres.copy()
+                                                Liste_noisettes_GM_temp = [nbr for nbr in Liste_GM_libres if nbr != action_en_cours['numero_zone']]"""
+                                        
+                                        """if not(temps_restant <= temps_retour):
+                                            action_en_cours = verifier_et_changer_cible_si_necessaire(
+                                                action_en_cours,
+                                                Liste_actions,
+                                                Liste_noisettes_libres_temp,
+                                                Liste_noisettes_GM_temp,
+                                                x_robot_actuel, y_robot_actuel,
+                                                x_ennemi, y_ennemi,
+                                                robot_a_objets,
+                                                Liste_zones_recup_noisettes_xy,
+                                                Liste_zones_recup_noisettes_angle,
+                                                Liste_zones_gm_xy,
+                                                Liste_zones_gm_angle,
+                                                R_securite,
+                                                action_voulu,
+                                                DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE
+                                            )"""
+                                        Liste_noisettes_libres_temp = []
+                                        Liste_noisettes_GM_temp = []
+                            else:
+                                print("⚠️ Résultat obsolète (demande annulée ou recalculée)")
+                        except queue.Empty:
+                            print("⚠️ Timeout : Aucun résultat reçu du thread A*")
 
-def clamp(val, min_val, max_val):
-    return max(min_val, min(val, max_val))
+            if type(Liste_actions[0]) == list and len(Liste_actions[0])==3: # Si la consigne est une coordonnée
+                action_voulu = Liste_actions[0][0]
+                x_robot_voulu = Liste_actions[0][1]
+                y_robot_voulu = Liste_actions[0][2]
+                mouvement = True
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2: # Si la consigne est un angle
+                action_voulu = Liste_actions[0][0]
+                angle_robot_voulu = round(Liste_actions[0][1],0)
+                mouvement = True
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1:
+                print("Appeler Carte Moteur pour : " + Liste_actions[0][0])
+                action_voulu = Liste_actions[0][0]
+                mouvement = False
+            
+            if (distance_robot_ennemi < R_securite):
+                dico_envoi[0x206]=3
+            elif action_voulu in ["Consigne","Avancer"]:
+                dico_envoi[0x206]=1
+            elif action_voulu in ["Attraper","Relacher"]:
+                dico_envoi[0x206]=2
+            else :
+                dico_envoi[0x206]=100
+               
+            print("Après verif :")
+            print("Action en cours : "+action_voulu)
+            print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
+            #print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
+            print("Liste_actions : ", Liste_actions)
+            if len(Liste_trajectoire) != 0:
+                print("Liste_trajectoire : ",Liste_trajectoire)
+            print(Batteries)
+            # ========== MISE À JOUR AUTOMATIQUE DE Liste_trajectoire ==========
+            # Trouver la première rotation (s'il y en a une)
+            index_rotation = None
+            for i, action in enumerate(Liste_actions):
+                if isinstance(action, list) and len(action) >= 2 and action[0] == "Rotation":
+                    index_rotation = i
+                    break
 
-def calcul_angle_vers_point(x_actuel, y_actuel, x_suivant, y_suivant):
-    """
-    Calcule l'angle absolu (en degrés 0–360) à viser pour aller vers (x_suivant, y_suivant)
-    depuis (x_actuel, y_actuel).
-    """
-    dx = x_suivant - x_actuel
-    dy = y_suivant - y_actuel
-    angle = (math.degrees(math.atan2(dy, dx)) + 360) % 360
-    return round(angle, 2)
+            # Extraire TOUS les points "Avancer" ou "Consigne" AVANT la rotation
+            if index_rotation is not None:
+                points_avancer = [
+                    [int(action[1]), int(action[2])] 
+                    for i, action in enumerate(Liste_actions)
+                    if i < index_rotation
+                    and isinstance(action, list) 
+                    and len(action) >= 3 
+                    and action[0] in ["Avancer", "Consigne"]
+                ]
+            else:
+                # Pas de rotation : prendre tous les points
+                points_avancer = [
+                    [int(action[1]), int(action[2])] 
+                    for action in Liste_actions 
+                    if isinstance(action, list) 
+                    and len(action) >= 3 
+                    and action[0] in ["Avancer", "Consigne"]
+                ]
 
+            # Remplir Liste_trajectoire
+            if len(points_avancer) >= 2:
+                Liste_trajectoire.clear()
+                Liste_trajectoire.append(len(points_avancer))
+                Liste_trajectoire.extend(points_avancer)
+            elif len(points_avancer) == 1 and len(Liste_actions) > 0:
+                premiere_action = Liste_actions[0]
+                if isinstance(premiere_action, list) and len(premiere_action) >= 3 and premiere_action[0] in ["Consigne", "Avancer"]:
+                    Liste_trajectoire.clear()
+                    Liste_trajectoire.append(1)
+                    Liste_trajectoire.extend(points_avancer)
+                        
+            # ====================================================================
 
-def distance_euclidienne(x1, y1, x2, y2):
-    """Calcule la distance euclidienne entre deux points"""
-    return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            ##### Simulation Mouvement Robot 
+            if not Reel: 
+                if Simul_mvt :
+                    if dico_envoi[0x206]!=3:
+                        if(action_voulu in ["Rotation"]):
+                            if(angle_robot_actuel > angle_robot_voulu):
+                                angle_robot_actuel -= 10
+                            elif(angle_robot_actuel < angle_robot_voulu):
+                                angle_robot_actuel += 10
+                        if(action_voulu in ["Consigne","Avancer"]):
+                            angle_robot_consigne = math.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel)
+                            x_robot_actuel += round(5*np.cos(angle_robot_consigne),0)
+                            y_robot_actuel += round(5*np.sin(angle_robot_consigne),0)
+
+            # Envoi des Ordres de Consigne à la Carte Moteur
+            if angle_robot_voulu != -181 and action_voulu in ["Rotation"]:
+                dico_envoi[0x205] = angle_robot_voulu + 360
+            ################################################
+
+            ############## MISE À JOUR AFFICHAGE ################
+            # Mettre à jour robot, ennemi et consigne sur affichage
+            robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
+            cercle_robot_patch.center = (x_robot_actuel, y_robot_actuel)
+            
+            # 🔄 Mettre à jour la zone de sécurité dynamique de l'ennemi
+            zone_ennemi_scatter, cercle_ennemi_patch = mettre_a_jour_zone_ennemi(
+                zone_ennemi_scatter, cercle_ennemi_patch,
+                x_ennemi, y_ennemi, R_ROBOT, R_ENNEMI,
+                MARGE_ENNEMI, CASE_MM,
+                X_PISTE, Y_PISTE
+            )
+            
+            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
+            if Strategie:
+                if (action_voulu in ["Consigne","Avancer"]):
+                    consigne_plot.set_offsets([[x_robot_voulu, y_robot_voulu]])
+                else :
+                    consigne_plot.set_offsets([[-20, -20]])
+            else :
+                # Récupérer tous les points "Consigne" dans Liste_actions
+                points_consigne = [
+                    (action[1], action[2])
+                    for action in Liste_actions
+                    if isinstance(action, list) and len(action) >= 3 and action[0] in ["Consigne", "Avancer"]
+                ]
+
+                if points_consigne:
+                    # Afficher tous les points "Consigne" simultanément
+                    consigne_plot.set_offsets(points_consigne)
+                else:
+                    # Si aucun point "Consigne", masquer l'affichage
+                    consigne_plot.set_offsets([[-20, -20]])
+
+            x0, y0 = x_robot_actuel, y_robot_actuel
+            x1 = x0 + longueur_trait * math.cos(math.radians(angle_robot_actuel))
+            y1 = y0 + longueur_trait * math.sin(math.radians(angle_robot_actuel))
+            robot_angle_line.set_data([x0, x1], [y0, y1])
+            
+            if (action_voulu in ["Rotation"]):
+                x0, y0 = x_robot_actuel, y_robot_actuel
+                x1 = x0 + longueur_trait * math.cos(math.radians(angle_robot_voulu))
+                y1 = y0 + longueur_trait * math.sin(math.radians(angle_robot_voulu))
+                robot_angle_voulu_line.set_data([x0, x1], [y0, y1])
+            else :
+                robot_angle_voulu_line.set_data([-20, -20], [-40, -40])
+            ################################################
+            
+
+            # === GESTION BATTERIES avec les fonctions ===
+            # SIMULATION Perte Batterie
+
+            if step > 1:
+                Batteries = calculer_pourcentage_batteries(Batteries, U_last)
+                battery_patches, battery_texts = afficher_batteries(ax, Batteries, Ordre_Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
+
+            ### Envoi des Ordres à la Carte Alim
+            if Mode_Test_Bat:
+                if Batteries[0][3]>5.0:
+                    Ordre_Batteries[0]=1
+                else :
+                    Ordre_Batteries[0]=0
+                if Batteries[1][3]>5.0:
+                    Ordre_Batteries[1]=1
+                else :
+                    Ordre_Batteries[1]=0
+                if Batteries[2][3]>5.0:
+                    Ordre_Batteries[2]=1
+                else :
+                    Ordre_Batteries[2]=0
+
+            if(Ordre_Batteries[0]==1):
+                dico_envoi[0x300]=1
+            else :
+                dico_envoi[0x300]=0
+            if(Ordre_Batteries[1]==1):
+                dico_envoi[0x301]=1
+            else :
+                dico_envoi[0x301]=0
+            if(Ordre_Batteries[2]==1):
+                dico_envoi[0x302]=1
+            else :
+                dico_envoi[0x302]=0
+            if Mode_Test_Bat:
+                dico_envoi[0x303]=1
+            else:
+                dico_envoi[0x303]=0
+            #######################################
+            
+            # Affichage texte Coordonées
+            chronometre_text.set_text(f"Temps : {int(temps_restant)} s")
+            info_alim_rpi.set_text(f"V_rpi = {V_rpi:.1f} V\nI_rpi = {I_rpi*1000:.1f} mA")
+            robot_info_text.set_text(f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°")
+            x_voulu_text.set_text(f"X = {x_robot_voulu:.1f}")
+            y_voulu_text.set_text(f"Y = {y_robot_voulu:.1f}")
+            A_voulu_text.set_text(f"A = {angle_robot_voulu:.1f}°")
+
+            if(abs(x_robot_actuel-x_robot_voulu)>=TOL_POS_X):
+                x_voulu_text.set_color('black')
+            else:
+                x_voulu_text.set_color('green')
+            if(abs(y_robot_actuel-y_robot_voulu)>=TOL_POS_Y):
+                y_voulu_text.set_color('black')
+            else:
+                y_voulu_text.set_color('green') 
+            if(abs(angle_robot_actuel-angle_robot_voulu)>=TOL_POS_A):
+                A_voulu_text.set_color('black')
+            else:
+                A_voulu_text.set_color('green')
+
+            if V_rpi >= lim_Bat_RPI+0.3:
+                info_alim_rpi.set_color('black')
+            else:
+                info_alim_rpi.set_color('red')
+            # Si robot est à la position de consigne  
+            if(abs(x_robot_actuel-x_robot_voulu)<TOL_POS_X and abs(y_robot_actuel-y_robot_voulu)<TOL_POS_Y and action_voulu in ["Consigne","Avancer"]):
+                print("Bonne position")
+                ordre_receive = 11
+            if(abs(angle_robot_actuel-angle_robot_voulu)<TOL_POS_A) and action_voulu in ["Rotation"]:
+                print("Bon Angle")
+                ordre_receive = 12  
+
+            if not Reel:
+                if Simul_mvt_ennemi:
+                    if(abs(x_ennemi-x_ennemi_voulu)<TOL_POS_X and abs(y_ennemi-y_ennemi_voulu)<TOL_POS_Y):
+                        if(len(Liste_actions_ennemi)!=1):
+                            Liste_actions_ennemi.pop(0)
+                    
+            if (action_voulu in ["Consigne","Avancer"] and ordre_receive == 11) or \
+               (action_voulu in ["Rotation"] and ordre_receive == 12) or \
+               (action_voulu == "Attraper" and ordre_receive == 21) or \
+               (action_voulu == "Relacher" and ordre_receive == 22):
+                
+                # Retirer l'action de la liste 
+                Liste_actions.pop(0) 
+                
+                if Strategie:
+                    if not any(a[0] == "Avancer" for a in Liste_actions if isinstance(a, list) and len(a) >= 2):
+                        trajectoire_calculee = False  # Permettre un nouveau calcul
+                    # ⭐ SI c'est une action ATTRAPER ou RELACHER ⭐
+                    if action_voulu in ["Attraper", "Relacher"]:
+                        # Confirmer l'action
+                        # robot_a_objets = True/False
+                        """robot_a_objets = confirmer_action_terminee(
+                            action_en_cours,
+                            robot_a_objets,
+                            Liste_noisettes_libres, Liste_noisettes_prises,
+                            Liste_GM_libres, Liste_GM_occuper,
+                            verbose=True
+                        )"""
+                        
+                        # ⭐ VIDER TOUTE LA LISTE car l'objectif change ⭐
+                        Liste_actions.clear()
+
+                        # ⭐ ACTUALISER LES ZONES **AVANT** LA NOUVELLE DÉCISION ⭐
+                        grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
+
+                        
+                        # ⭐ FORCER une nouvelle décision immédiatement ⭐
+                        if DEBUG :
+                            print(f"🎯 Prise de nouvelle décision (nouvel objectif)")
+                            
+                        if not(temps_restant <= temps_retour):
+                            """action_en_cours = mise_a_jour_decision(
+                                Liste_actions,
+                                x_robot_actuel, y_robot_actuel,
+                                x_ennemi, y_ennemi,
+                                robot_a_objets,
+                                Liste_noisettes_libres,
+                                Liste_GM_libres,
+                                Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
+                                Liste_zones_gm_xy, Liste_zones_gm_angle,
+                                R_securite,
+                                DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE,
+                                verbose=True,
+                                grid_expanded=grid_expanded, case_mm=CASE_MM
+                            )"""
+                        
+                        if len(Liste_actions) == 0:
+                            print("⚠️  AUCUNE ACTION DISPONIBLE - Mission terminée ou zones bloquées")
+                
+                ordre_receive = 0
+                
+                
+                """if Strategie:
+                    # ⭐ Pour les actions normales (Consigne/Rotation), nouvelle décision si liste vide ⭐
+                    if action_voulu not in ["Attraper", "Relacher"] and len(Liste_actions) == 0:
+                        
+                        if not(temps_restant <= temps_retour):
+                            action_en_cours = mise_a_jour_decision(
+                                Liste_actions,
+                                x_robot_actuel, y_robot_actuel,
+                                x_ennemi, y_ennemi,
+                                robot_a_objets,
+                                Liste_noisettes_libres,
+                                Liste_GM_libres,
+                                Liste_zones_recup_noisettes_xy, Liste_zones_recup_noisettes_angle,
+                                Liste_zones_gm_xy, Liste_zones_gm_angle,
+                                R_securite,
+                                DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE,
+                                verbose=True,
+                                grid_expanded=grid_expanded, case_mm=CASE_MM
+                            )
+                            
+                        if len(Liste_actions) == 0:
+                            print("⚠️  AUCUNE ACTION DISPONIBLE - Mission terminée ou zones bloquées")"""
+            
+            # On supprime, dans le dico, les anciens points de la trajectoire
+            for key in list(dico_envoi.keys()):
+                if 0x207 <= key <= 0x2FF:
+                    del dico_envoi[key]
+            # On remplit le dictionnaire d'envoi du CAN avec les points de la trajectoire
+            if len(Liste_trajectoire) != 0:
+                dico_envoi[0x207] = Liste_trajectoire[0]
+                for couple in range(1,len(Liste_trajectoire)):
+                    dico_envoi[0x208+2*(couple-1)]=Liste_trajectoire[couple][0]
+                    dico_envoi[0x209+2*(couple-1)]=Liste_trajectoire[couple][1]
+            ##################################
+
+            """for couple in dico_envoi.items():
+                print(hex(couple[0])," : ",couple[1])"""
+            
+            old_ordre_mouvement = dico_envoi[0x206]
+            if Reel :
+                for key, value in dico_envoi.items() :
+                    if value != 0:
+                        if key in [0x01,0x206,0x207,0x300,0x301,0x302]:
+                            format_value = struct.pack('<I',dico_envoi[key])
+                        else :
+                            format_value = struct.pack('<f',dico_envoi[key])
+                        msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
+                        bus.send(msg)
+                        dico_envoi[key]=0
+                        time.sleep(0.0005)
+            
+
+            # MAJ de l'affichage et des Variables de Bouncing
+            compteur_affichage += 1
+            if compteur_affichage >= FREQUENCE_AFFICHAGE:
+                update_display(background)
+                compteur_affichage = 0
+            fig.canvas.flush_events()
+            U_last = [Batteries[0][2],Batteries[1][2],Batteries[2][2]]
+            x_robot_voulu_last = x_robot_voulu
+            y_robot_voulu_last = y_robot_voulu
+            x_ennemi_old = x_ennemi
+            y_ennemi_old = y_ennemi
+            Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
+            Liste_GM_libres_precedente = Liste_GM_libres.copy()
+            Liste_noisettes_libres_precedente = Liste_noisettes_libres.copy()
+            Liste_actions_precedente = Liste_actions.copy()
+            print("")
+            time.sleep(0.000005)
+        if V_rpi <= lim_Bat_RPI:
+            print("Batterie RPI trop faible")
+        time.sleep(2) 
+        stop_event.set()
+
+    except KeyboardInterrupt:
+        print("Arrêt demandé par l'utilisateur.")
+        stop_event.set()  # signal aux threads de s'arrêter
+        # Attente que chaque thread termine proprement
+        if Reel :
+            if Lidar_on:
+                tache_lidar.join()
+                tache_calcul.join()
+            tache_LectureCAN.join()
+            os.system("sudo ifconfig can0 down")
+        
+        if Strategie:
+            tache_astar.join()
+        
+    except Exception as e:
+        print(e)
+    finally:
+        print("Programme terminé proprement.")
+        if Reel :
+            if Lidar_on:
+                tache_lidar.join()
+                tache_calcul.join()
+            tache_LectureCAN.join()
+            etat = 2
+            data_etat = struct.pack('<I',etat)
+            bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
+        
+        if Strategie:
+            tache_astar.join()
+        plt.close(fig)
+
+########################################################################
