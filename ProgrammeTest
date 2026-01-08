@@ -1,6 +1,6 @@
 couleur = "J"
 
-Reel = True
+Reel = False
 if couleur == "J":
     x_robot_depart = 2725 
     y_robot_depart = 1670
@@ -1044,6 +1044,21 @@ if __name__ == '__main__':
                     bus.send(msg)
                     dico_envoi[key]=0
                     time.sleep(0.0005)
+
+        
+        else:
+            for key, value in dico_envoi.items() :
+                if value != 0:
+                    if key in [0x01,0x206,0x207,0x300,0x301,0x302]:
+                        format_value = struct.pack('<I',dico_envoi[key])
+                    else :
+                        format_value = struct.pack('<f',dico_envoi[key])
+                    print(f"Id : {key}  Valeur : {dico_envoi[key]}")
+                    msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
+                    bus.send(msg)
+                    dico_envoi[key]=0
+                    time.sleep(0.0005)
+            print("")
     temps_demarage = time.time()
     try:
         if Reel: 
