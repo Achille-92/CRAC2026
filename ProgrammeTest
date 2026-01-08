@@ -38,7 +38,7 @@ from gestion_zones_dynamiques import verifier_et_changer_cible_si_necessaire, mi
 ########################################################################
 
 # Config CAN 
-Liste_ID_recoit = [0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10C,0x10D] # ID sur lesquels la RPI va recevoir des données
+Liste_ID_recoit = [0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10C,0x10D,0x10E] # ID sur lesquels la RPI va recevoir des données
 Liste_ID_envoi = [0x01,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x300,0x301,0x302,0x303]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
@@ -80,12 +80,12 @@ if not Strategie:
         ['Consigne',2100-R_ROBOT-2*MARGE_GM,800],
         #["Rotation",180],
         ['Consigne', 900+R_ROBOT+2*MARGE_GM,800],
-        ['Consigne', 1500,200],
+        ['Consigne', 1500,250],
         #["Rotation",0],
-        ['Consigne', 2200-R_ROBOT-2*MARGE_GM,200],
-        ['Consigne', 1500,200],
+        ['Consigne', 2200-R_ROBOT-2*MARGE_GM,250],
+        ['Consigne', 1500,250],
         #["Rotation",180],
-        ['Consigne', 800+R_ROBOT+2*MARGE_GM,200],
+        ['Consigne', 800+R_ROBOT+2*MARGE_GM,250],
         #["Rotation",0]
     ]
 else :
@@ -360,8 +360,8 @@ old_ordre_mouvement = 0
 SEUIL_MOUVEMENT_ENNEMI = 10
 DEBUG = False
 if Reel:
-    TOL_POS_X = 30
-    TOL_POS_Y = 30
+    TOL_POS_X = 50
+    TOL_POS_Y = 50
     TOL_POS_A = 1
 else :
     TOL_POS_X = 16 
@@ -497,7 +497,7 @@ def LectureCAN(stop_event):
     Si l'ID du message n'est pas dans la Liste_ID, saute
     Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
     """
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, dico_envoi, bus, V_rpi, I_rpi
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, dico_envoi, bus, V_rpi, I_rpi, ordre_receive
     while not stop_event.is_set():
         msg = bus.recv(0.01)  # attend 10 ms max
         if msg is None:
@@ -550,6 +550,10 @@ def LectureCAN(stop_event):
 
         elif msg.arbitration_id == 0x10D:
             I_rpi = struct.unpack('<H', bytes(msg.data[:2]))[0]/1000
+
+
+        elif msg.arbitration_id == 0x10E:
+            ordre_receive = struct.unpack('f', bytes(msg.data))[0]
 
 def calcul_ennemi(stop_event):
     """
@@ -1535,12 +1539,13 @@ if __name__ == '__main__':
             else:
                 info_alim_rpi.set_color('red')
             # Si robot est à la position de consigne  
-            if(abs(x_robot_actuel-x_robot_voulu)<TOL_POS_X and abs(y_robot_actuel-y_robot_voulu)<TOL_POS_Y and action_voulu in ["Consigne","Avancer"]):
-                print("Bonne position")
-                ordre_receive = 11
-            if(abs(angle_robot_actuel-angle_robot_voulu)<TOL_POS_A) and action_voulu in ["Rotation"]:
-                print("Bon Angle")
-                ordre_receive = 12  
+            if not Reel :
+                if(abs(x_robot_actuel-x_robot_voulu)<TOL_POS_X and abs(y_robot_actuel-y_robot_voulu)<TOL_POS_Y and action_voulu in ["Consigne","Avancer"]):
+                    print("Bonne position")
+                    ordre_receive = 11
+                if(abs(angle_robot_actuel-angle_robot_voulu)<TOL_POS_A) and action_voulu in ["Rotation"]:
+                    print("Bon Angle")
+                    ordre_receive = 12  
 
             if not Reel:
                 if Simul_mvt_ennemi:
@@ -1555,7 +1560,7 @@ if __name__ == '__main__':
                 
                 # Retirer l'action de la liste 
                 Liste_actions.pop(0) 
-                
+                ordre_receive = 0
                 if Strategie:
                     if not any(a[0] == "Avancer" for a in Liste_actions if isinstance(a, list) and len(a) >= 2):
                         trajectoire_calculee = False  # Permettre un nouveau calcul
@@ -1600,8 +1605,6 @@ if __name__ == '__main__':
                         
                         if len(Liste_actions) == 0:
                             print("⚠️  AUCUNE ACTION DISPONIBLE - Mission terminée ou zones bloquées")
-                
-                ordre_receive = 0
                 
                 
                 """if Strategie:
@@ -1648,7 +1651,7 @@ if __name__ == '__main__':
                     if value != 0:
                         if key in [0x01,0x206,0x207,0x300,0x301,0x302]:
                             format_value = struct.pack('<I',dico_envoi[key])
-                        elif not(0x208 <= key <= 0x2FF) :
+                        else:
                             format_value = struct.pack('<f',dico_envoi[key])
                         msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
                         bus.send(msg)
