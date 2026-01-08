@@ -792,7 +792,8 @@ def calculer_pourcentage_batteries(Batteries, U_last):
         Batteries: Liste mise à jour avec les nouveaux pourcentages
     """
     for i in range(len(Batteries)):
-        if Batteries[i][2] != U_last[i]:
+        #if Batteries[i][2] != U_last[i] and Batteries[i][0] != 0 and Batteries[i][1] != 0:
+        if Batteries[i][0] != 0 and Batteries[i][1] != 0:
             print(f"MAJ Batterie N°{i+1}")
             Batteries[i][3] = 100 * (Batteries[i][2] - Batteries[i][0]) / (Batteries[i][1] - Batteries[i][0])
             Batteries[i][3] = round(Batteries[i][3], 2)
