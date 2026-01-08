@@ -1,6 +1,6 @@
 couleur = "J"
 
-Reel = False
+Reel = True
 if couleur == "J":
     x_robot_depart = 2725 
     y_robot_depart = 1670
@@ -1552,7 +1552,7 @@ if __name__ == '__main__':
                     if(abs(x_ennemi-x_ennemi_voulu)<TOL_POS_X and abs(y_ennemi-y_ennemi_voulu)<TOL_POS_Y):
                         if(len(Liste_actions_ennemi)!=1):
                             Liste_actions_ennemi.pop(0)
-                    
+            print(ordre_receive)
             if (action_voulu in ["Consigne","Avancer"] and ordre_receive == 11) or \
                (action_voulu in ["Rotation"] and ordre_receive == 12) or \
                (action_voulu == "Attraper" and ordre_receive == 21) or \
