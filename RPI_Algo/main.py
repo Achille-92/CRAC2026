@@ -1,18 +1,18 @@
 couleur = "J"
 
-Reel = True
+Reel = False
 if couleur == "J":
     x_robot_depart = 2725 
     y_robot_depart = 1670
     angle_robot_depart = -90
 else:
     x_robot_depart = 275 
-    y_robot_depart = 1650
+    y_robot_depart = 1670
     angle_robot_depart = -90
 
 Strategie = False
 Simul_mvt = True
-Simul_mvt_ennemi = True
+Simul_mvt_ennemi = False
 Lidar_on = False
 ################## Librairies ##########################################
 import matplotlib
@@ -68,7 +68,7 @@ R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 if not Strategie:
     Liste_actions = [
         ["Consigne",2550,1400],
-        ["Consigne",2500,1000],
+        ["Consigne",2550,1000],
         ["Consigne",2650,900],
         ["Consigne",2825,900],
         #["Rotation",90],
@@ -78,7 +78,7 @@ if not Strategie:
         ['Consigne', 1500, 800],
         #["Rotation",0],
         ['Consigne',2100-R_ROBOT-2*MARGE_GM,800],
-        ["Rotation",180],
+        #["Rotation",180],
         ['Consigne', 900+R_ROBOT+2*MARGE_GM,800],
         ['Consigne', 1500,200],
         #["Rotation",0],
@@ -1358,7 +1358,7 @@ if __name__ == '__main__':
             print("Liste_actions : ", Liste_actions)
             if len(Liste_trajectoire) != 0:
                 print("Liste_trajectoire : ",Liste_trajectoire)
-            print(Batteries)
+            
             # ========== MISE À JOUR AUTOMATIQUE DE Liste_trajectoire ==========
             # Trouver la première rotation (s'il y en a une)
             index_rotation = None
@@ -1412,8 +1412,8 @@ if __name__ == '__main__':
                                 angle_robot_actuel += 10
                         if(action_voulu in ["Consigne","Avancer"]):
                             angle_robot_consigne = math.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel)
-                            x_robot_actuel += round(5*np.cos(angle_robot_consigne),0)
-                            y_robot_actuel += round(5*np.sin(angle_robot_consigne),0)
+                            x_robot_actuel += round(10*np.cos(angle_robot_consigne),0)
+                            y_robot_actuel += round(10*np.sin(angle_robot_consigne),0)
 
             # Envoi des Ordres de Consigne à la Carte Moteur
             if angle_robot_voulu != -181 and action_voulu in ["Rotation"]:
@@ -1468,14 +1468,13 @@ if __name__ == '__main__':
                 robot_angle_voulu_line.set_data([-20, -20], [-40, -40])
             ################################################
             
-
+            
             # === GESTION BATTERIES avec les fonctions ===
             # SIMULATION Perte Batterie
-
             if step > 1:
                 Batteries = calculer_pourcentage_batteries(Batteries, U_last)
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries, Ordre_Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
-
+            
             ### Envoi des Ordres à la Carte Alim
             if Mode_Test_Bat:
                 if Batteries[0][3]>5.0:
