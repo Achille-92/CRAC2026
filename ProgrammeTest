@@ -973,92 +973,7 @@ if __name__ == '__main__':
 
     while(lancement_strategie==False):
         plt.pause(0.1)
-    var = 0
-    while(var != 10):
-        var +=1
-        index_rotation = None
-        for i, action in enumerate(Liste_actions):
-            if isinstance(action, list) and len(action) >= 2 and action[0] == "Rotation":
-                index_rotation = i
-                break
-
-        # Extraire TOUS les points "Avancer" ou "Consigne" AVANT la rotation
-        if index_rotation is not None:
-            points_avancer = [
-                [int(action[1]), int(action[2])] 
-                for i, action in enumerate(Liste_actions)
-                if i < index_rotation
-                and isinstance(action, list) 
-                and len(action) >= 3 
-                and action[0] in ["Avancer", "Consigne"]
-            ]
-        else:
-            # Pas de rotation : prendre tous les points
-            points_avancer = [
-                [int(action[1]), int(action[2])] 
-                for action in Liste_actions 
-                if isinstance(action, list) 
-                and len(action) >= 3 
-                and action[0] in ["Avancer", "Consigne"]
-            ]
-
-        # Remplir Liste_trajectoire
-        if len(points_avancer) >= 2:
-            Liste_trajectoire.clear()
-            Liste_trajectoire.append(len(points_avancer))
-            Liste_trajectoire.extend(points_avancer)
-        elif len(points_avancer) == 1 and len(Liste_actions) > 0:
-            premiere_action = Liste_actions[0]
-            if isinstance(premiere_action, list) and len(premiere_action) >= 3 and premiere_action[0] in ["Consigne", "Avancer"]:
-                Liste_trajectoire.clear()
-                Liste_trajectoire.append(1)
-                Liste_trajectoire.extend(points_avancer)
-
-        
-        if len(Liste_trajectoire) != 0:
-            dico_envoi[0x207] = Liste_trajectoire[0]
-            for couple in range(1,len(Liste_trajectoire)):
-                dico_envoi[0x208+2*(couple-1)]=Liste_trajectoire[couple][0]
-                dico_envoi[0x209+2*(couple-1)]=Liste_trajectoire[couple][1]
-
-        # On supprime, dans le dico, les anciens points de la trajectoire
-        for key in list(dico_envoi.keys()):
-            if 0x207 <= key <= 0x2FF:
-                del dico_envoi[key]
-        # On remplit le dictionnaire d'envoi du CAN avec les points de la trajectoire
-        if len(Liste_trajectoire) != 0:
-            dico_envoi[0x207] = Liste_trajectoire[0]
-            for couple in range(1,len(Liste_trajectoire)):
-                dico_envoi[0x208+2*(couple-1)]=Liste_trajectoire[couple][0]
-                dico_envoi[0x209+2*(couple-1)]=Liste_trajectoire[couple][1]
-
-        
-        if Reel :
-            for key, value in dico_envoi.items() :
-                if value != 0:
-                    if key in [0x01,0x206,0x207,0x300,0x301,0x302]:
-                        format_value = struct.pack('<I',dico_envoi[key])
-                    else :
-                        format_value = struct.pack('<f',dico_envoi[key])
-                    msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
-                    bus.send(msg)
-                    dico_envoi[key]=0
-                    time.sleep(0.0005)
-
-        
-        else:
-            for key, value in dico_envoi.items() :
-                if value != 0:
-                    if key in [0x01,0x206,0x207,0x300,0x301,0x302]:
-                        format_value = struct.pack('<I',dico_envoi[key])
-                    else :
-                        format_value = struct.pack('<f',dico_envoi[key])
-                    print(f"Id : {key}  Valeur : {dico_envoi[key]}")
-                    msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
-                    bus.send(msg)
-                    dico_envoi[key]=0
-                    time.sleep(0.0005)
-            print("")
+    
     temps_demarage = time.time()
     try:
         if Reel: 
@@ -1428,14 +1343,14 @@ if __name__ == '__main__':
                 action_voulu = Liste_actions[0][0]
                 mouvement = False
             
-            """if (distance_robot_ennemi < R_securite):
+            if (distance_robot_ennemi < R_securite):
                 dico_envoi[0x206]=3
             elif action_voulu in ["Consigne","Avancer"]:
                 dico_envoi[0x206]=1
             elif action_voulu in ["Attraper","Relacher"]:
                 dico_envoi[0x206]=2
             else :
-                dico_envoi[0x206]=100"""
+                dico_envoi[0x206]=100
                
             print("Après verif :")
             print("Action en cours : "+action_voulu)
@@ -1447,7 +1362,7 @@ if __name__ == '__main__':
             
             # ========== MISE À JOUR AUTOMATIQUE DE Liste_trajectoire ==========
             # Trouver la première rotation (s'il y en a une)
-            """index_rotation = None
+            index_rotation = None
             for i, action in enumerate(Liste_actions):
                 if isinstance(action, list) and len(action) >= 2 and action[0] == "Rotation":
                     index_rotation = i
@@ -1483,7 +1398,7 @@ if __name__ == '__main__':
                 if isinstance(premiere_action, list) and len(premiere_action) >= 3 and premiere_action[0] in ["Consigne", "Avancer"]:
                     Liste_trajectoire.clear()
                     Liste_trajectoire.append(1)
-                    Liste_trajectoire.extend(points_avancer)"""
+                    Liste_trajectoire.extend(points_avancer)
                         
             # ====================================================================
 
@@ -1712,7 +1627,7 @@ if __name__ == '__main__':
                         if len(Liste_actions) == 0:
                             print("⚠️  AUCUNE ACTION DISPONIBLE - Mission terminée ou zones bloquées")"""
             
-            """# On supprime, dans le dico, les anciens points de la trajectoire
+            # On supprime, dans le dico, les anciens points de la trajectoire
             for key in list(dico_envoi.keys()):
                 if 0x207 <= key <= 0x2FF:
                     del dico_envoi[key]
@@ -1721,7 +1636,7 @@ if __name__ == '__main__':
                 dico_envoi[0x207] = Liste_trajectoire[0]
                 for couple in range(1,len(Liste_trajectoire)):
                     dico_envoi[0x208+2*(couple-1)]=Liste_trajectoire[couple][0]
-                    dico_envoi[0x209+2*(couple-1)]=Liste_trajectoire[couple][1]"""
+                    dico_envoi[0x209+2*(couple-1)]=Liste_trajectoire[couple][1]
             ##################################
 
             """for couple in dico_envoi.items():
