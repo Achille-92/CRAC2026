@@ -40,7 +40,7 @@ from gestion_zones_dynamiques import verifier_et_changer_cible_si_necessaire, mi
 
 # Config CAN 
 Liste_ID_recoit = [0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10C,0x10D,0x10E] # ID sur lesquels la RPI va recevoir des données
-Liste_ID_envoi = [0x01,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x300,0x301,0x302,0x303]
+Liste_ID_envoi = [0x01,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x208,0x300,0x301,0x302,0x303]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
     os.system('sudo ip link set can0 type can bitrate 500000')
@@ -351,8 +351,12 @@ temps_max = 3600
 action_en_cours = None
 action_precedente = None
 trajectoire_calculee = False
+
 ordre_receive = 0
+
 verif_mouv = 0
+ack_mouv = 0
+
 step = 0
 robot_a_objets = False
 changement_noisette_GM = False
@@ -1546,7 +1550,8 @@ if __name__ == '__main__':
                     if(abs(x_ennemi-x_ennemi_voulu)<TOL_POS_X and abs(y_ennemi-y_ennemi_voulu)<TOL_POS_Y):
                         if(len(Liste_actions_ennemi)!=1):
                             Liste_actions_ennemi.pop(0)
-                    
+            if verif_mouv == 11:
+                dico_envoi[0x207]=1  
             if (action_voulu in ["Consigne","Avancer"] and verif_mouv == 11) or \
                (action_voulu in ["Rotation"] and ordre_receive == 12) or \
                (action_voulu == "Attraper" and ordre_receive == 21) or \
@@ -1627,14 +1632,14 @@ if __name__ == '__main__':
             
             # On supprime, dans le dico, les anciens points de la trajectoire
             for key in list(dico_envoi.keys()):
-                if 0x207 <= key <= 0x2FF:
+                if 0x208 <= key <= 0x2FF:
                     del dico_envoi[key]
             # On remplit le dictionnaire d'envoi du CAN avec les points de la trajectoire
             if len(Liste_trajectoire) != 0:
-                dico_envoi[0x207] = Liste_trajectoire[0]
+                dico_envoi[0x208] = Liste_trajectoire[0]
                 for couple in range(1,len(Liste_trajectoire)):
-                    dico_envoi[0x208+2*(couple-1)]=Liste_trajectoire[couple][0]
-                    dico_envoi[0x209+2*(couple-1)]=Liste_trajectoire[couple][1]
+                    dico_envoi[0x209+2*(couple-1)]=Liste_trajectoire[couple][0]
+                    dico_envoi[0x20A+2*(couple-1)]=Liste_trajectoire[couple][1]
             ##################################
 
             """for couple in dico_envoi.items():
@@ -1644,7 +1649,7 @@ if __name__ == '__main__':
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
-                        if key in [0x01,0x206,0x207,0x300,0x301,0x302]:
+                        if key in [0x01,0x206,0x207,0x208,0x300,0x301,0x302]:
                             format_value = struct.pack('<I',dico_envoi[key])
                         else:
                             format_value = struct.pack('<f',dico_envoi[key])
