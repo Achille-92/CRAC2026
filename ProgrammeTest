@@ -1552,12 +1552,12 @@ if __name__ == '__main__':
                         if(len(Liste_actions_ennemi)!=1):
                             Liste_actions_ennemi.pop(0)
             
-            """if verif_mouv == 1:
-                dico_envoi[0x207]=1
+            if verif_mouv == 1:
+                dico_envoi[0x207]=2
             else :
-                dico_envoi[0x207]=0"""
+                dico_envoi[0x207]=1
 
-            dico_envoi[0x207]=2
+
 
             print("verif_mouv : ",verif_mouv) 
             print("dico_envoi[0x207] : ",dico_envoi[0x207])
@@ -1659,7 +1659,7 @@ if __name__ == '__main__':
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
-                        if key in [0x01,0x206,0x207,0x208,0x300,0x301,0x302,0x303]:
+                        if key in [0x01,0x206,0x208,0x300,0x301,0x302,0x303]:
                             format_value = struct.pack('<I',dico_envoi[key])
                         else:
                             format_value = struct.pack('<f',dico_envoi[key])
