@@ -1,6 +1,6 @@
 couleur = "J"
 
-Reel = False
+Reel = True
 if couleur == "J":
     x_robot_depart = 2725 
     y_robot_depart = 1670
@@ -1479,41 +1479,31 @@ if __name__ == '__main__':
             if step > 1:
                 Batteries = calculer_pourcentage_batteries(Batteries, U_last)
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries, Ordre_Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
-            
+            print(Batteries)
             ### Envoi des Ordres à la Carte Alim
             if not Bat_Compet: # Si mode Test 
-                if Batteries[0][3]>5.0 and Batteries[0][0]!=0: # Si Batterie à plus de 5%
+                if Batteries[0][3]>5.0: # Si Batterie à plus de 5%
                     dico_envoi[0x300]=1#   Interrupteur ON
                 else :                  # Sinon
                     dico_envoi[0x300]=0#   Interrupteur OFF
 
-                if Batteries[1][3]>5.0 and Batteries[0][0]!=0:
+                if Batteries[1][3]>5.0:
                     dico_envoi[0x301]=1
                 else :
                     dico_envoi[0x301]=0
-                if Batteries[2][3]>5.0 and Batteries[0][0]!=0:
+                if Batteries[2][3]>5.0:
                     dico_envoi[0x302]=1
                 else :
                     dico_envoi[0x302]=0
             else : 
-                if Batteries[0][0]!=0: # Si Batterie à plus de 5%
-                    dico_envoi[0x300]=1#   Interrupteur ON
-                else :                  # Sinon
-                    dico_envoi[0x300]=0#   Interrupteur OFF
+                dico_envoi[0x300]=1#   Interrupteur ON
+                dico_envoi[0x301]=1
+                dico_envoi[0x302]=1
 
-                if Batteries[0][0]!=0:
-                    dico_envoi[0x301]=1
-                else :
-                    dico_envoi[0x301]=0
-                if Batteries[0][0]!=0:
-                    dico_envoi[0x302]=1
-                else :
-                    dico_envoi[0x302]=0
-
-            if not Bat_Compet:
+            """if not Bat_Compet:
                 dico_envoi[0x303]=1
             else:
-                dico_envoi[0x303]=2
+                dico_envoi[0x303]=2"""
             #######################################
             
             # Affichage texte Coordonées
