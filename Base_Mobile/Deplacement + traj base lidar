@@ -7,7 +7,7 @@
 
 #define TX_GPIO_NUM 5
 #define RX_GPIO_NUM 4
-#define LIMITE_VIT 150
+#define LIMITE_VIT 165
 
 int signe(float a);
 int ensemble(float valeur, float delta);
@@ -35,12 +35,12 @@ float tour_droit = 0;
 float distance_droit = 0, old_dist_droit = 0, diff_dist_droit = 0;
 float distance_gauche = 0, old_dist_gauche = 0, diff_dist_gauche = 0;
 float dist = 0, teta = 0, delta_x = 0, delta_y = 0, teta_act = 0, diff_teta = 0, teta_act_deg = 0, teta_deg = 0, diff_deg = 0;
-float pos_act[2] = {100, 100}, pos_fin[2] = {275, 1650}, pos_traj[2] = {0, 0}, E = 0, dist_a_parcourir = 10, off_teta = 0, off_teta_act = 0;
+float pos_act[2] = {2725, 1670}, pos_fin[2] = {275, 1650}, pos_traj[2] = {0, 0}, E = 0, dist_a_parcourir = 10, off_teta = 0, off_teta_act = 0;
 int VIT_gauche = 0, VIT_droit = 0, i = 0, S_VIT_d = 0, S_VIT_g = 0, old_VIT_droit = 0, old_VIT_gauche = 0, old_VIT_Ag = 0, old_VIT_Ad = 0;
-float kpd = 3, kdd = 180.0, kpg = 3, kdg = 180.0, kpda = 4, kpga = 4, kdga = 25.0, kdda = 25.0, old_diff_dista = 0;
-float diff_dist_d = 0, diff_dist_g = 0, diff_dista = 0, old_diff_dist_d = 0, old_diff_dist_g = 0, VIT_Ad = 0, VIT_Ag = 0, teta_cons = PI;
+float kpd = 2.0, kdd = 180.0, kpg = 2.0, kdg = 180.0, kpda = 3.1, kpga = 3.1, kdga = 38.0, kdda = 38.0, old_diff_dista = 0;
+float diff_dist_d = 0, diff_dist_g = 0, diff_dista = 0, old_diff_dist_d = 0, old_diff_dist_g = 0, VIT_Ad = 0, VIT_Ag = 0, teta_cons = PI / 2.0;
 int cons = 0, dist_cons = 200, arriver = 0, suivi = 1;
-//const float tic_tour_droit = 4121.7, tic_tour_gauche = 4052, Rayon = 11;
+// const float tic_tour_droit = 4121.7, tic_tour_gauche = 4052, Rayon = 11;
 const float tic_tour_droit = 3164.0, tic_tour_gauche = 3167.7, Rayon = 11.2;
 int packetSize = 0, fin = 100, n = 0;
 float Vg = 0, Vd = 0, diff_Vg = 0, diff_Vd = 0, old_diff_Vg = 0, old_diff_Vd = 0, VIT = 0;
@@ -52,8 +52,9 @@ float teta_recu = -181, teta_cons_recu = -181;
 int etat_ESP_RPI = 0, etat_RPI = 0;
 static bool x_ok = false, y_ok = false, angle_ok = false;
 bool mouvement = false;
-int nbr_point = 0, mouv = 0;
+int nbr_point = 0, mouv = 0, RPI = 1;
 bool trajectoire_recue = false;
+float verif_mouv = 0, acuser = 0;
 
 // BluetoothSerial Bt;
 DualVNH5019MotorShield md;
@@ -87,18 +88,32 @@ void setup()
   xTaskCreate(Asserv, "Asserv", 32000, NULL, 15, &Asservissement);
   xTaskCreate(calcul_traj, "traj", 64000, NULL, 10, &trajectoire);
   xTaskCreate(CAN_, "traj", 16000, NULL, 15, &_CAN_);
-  CAN.setPins(RX_GPIO_NUM, TX_GPIO_NUM);
-
-  // start the CAN bus at 500 kbps
-  if (!CAN.begin(1000E3))
+  if (RPI == 1)
   {
-    Serial.println("Starting CAN failed!");
-    while (1)
-      ;
+    CAN.setPins(RX_GPIO_NUM, TX_GPIO_NUM);
+
+    // start the CAN bus at 500 kbps
+    if (!CAN.begin(1000E3))
+    {
+      Serial.println("Starting CAN failed!");
+      while (1)
+        ;
+    }
   }
-  liste_point[0] = {0, 250};
-  liste_point[1] = {0, 500};
-  liste_point[2] = {600, 500};
+  /*liste_point[0] = {2550, 1400};
+  liste_point[1] = {2550, 1000};
+  liste_point[2] = {2650, 900};
+  liste_point[3] = {2825, 900};
+  liste_point[4] = {2725, 1550};
+  liste_point[5] = {2329, 1176};
+  liste_point[6] = {1547, 1037};
+  liste_point[7] = {1500, 800};
+  liste_point[8] = {1910, 800};
+  liste_point[9] = {1090, 800};
+  liste_point[10] = {1500, 250};
+  liste_point[11] = {2010, 250};
+  liste_point[12] = {1500, 250};
+  liste_point[13] = {990, 250};*/
 }
 
 void loop()
@@ -110,185 +125,200 @@ void CAN_(void *)
 {
   while (1)
   {
-    // liste_point[12].x = 145;
-    //  Lecture CAN centralisée
-    int packetSize = CAN.parsePacket();
-    if (packetSize)
+    if (RPI == 1)
     {
-      uint32_t canId = CAN.packetId();
+      // liste_point[12].x = 145;
+      //  Lecture CAN centralisée
+      int packetSize = CAN.parsePacket();
+      if (packetSize)
+      {
+        uint32_t canId = CAN.packetId();
 
-      if (canId == 0x01 && (packetSize == 4 || packetSize == 1))
-      {
-        CAN.readBytes((uint8_t *)&etat_RPI, packetSize);
-        while (CAN.available())
-          CAN.read(); // vider le buffer
-      }
-
-      if (canId == 0x200 && packetSize == 4)
-      {
-        CAN.readBytes((uint8_t *)&pos_act[0], 4);
-        //  Serial.print("Reçu X : ");
-        //  Serial.println(pos_act[0]);
-        encoder.setCount(0);
-        encoder2.setCount(0);
-        distance_droit = 0;
-        distance_gauche = 0;
-      }
-
-      if (canId == 0x201 && packetSize == 4)
-      {
-        CAN.readBytes((uint8_t *)&pos_act[1], 4);
-        //  Serial.print("Reçu Y : ");
-        //  Serial.println(pos_act[1]);
-      }
-
-      if (canId == 0x202 && packetSize == 4)
-      {
-        CAN.readBytes((uint8_t *)&teta_recu, 4);
-        // Serial.print("Reçu Angle : ");
-        // Serial.println(teta_recu, 2);
-      }
-
-      if (canId == 0x203 && packetSize == 4)
-      {
-        CAN.readBytes((uint8_t *)&pos_fin[0], 4);
-        // Serial.print("Reçu X : ");
-        // Serial.println(pos_fin[0]);
-      }
-      if (canId == 0x204 && packetSize == 4)
-      {
-        CAN.readBytes((uint8_t *)&pos_fin[1], 4);
-        // Serial.print("Reçu Y : ");
-        // Serial.println(pos_fin[1]);
-      }
-      if (canId == 0x205 && packetSize == 4)
-      {
-        CAN.readBytes((uint8_t *)&teta_cons_recu, 4);
-        Serial.print("Reçu Angle_voulu : ");
-        Serial.println(teta_cons_recu, 2);
-        teta_cons = (teta_cons_recu * PI / 180.0) - 2 * PI;
-      }
-      if (canId == 0x206 && packetSize == 4)
-      {
-        CAN.readBytes((uint8_t *)&mouv, 4);
-      }
-      if (canId == 0x207 && (packetSize == 4 || packetSize == 1))
-      {
-        CAN.readBytes((uint8_t *)&nbr_point, packetSize);
-        // Serial.print("Reçu nbr_point : ");
-        // Serial.println(nbr_point, 2);
-        trajectoire_recue = false; // Réinitialiser le flag
-      }
-
-      // Réception des coordonnées X des points (IDs paires : 0x208, 0x20A, 0x20C, ...)
-      if (canId >= 0x208 && canId <= 0x2FE && canId % 2 == 0 && packetSize == 4)
-      {
-        int index = (canId - 0x208) / 2; // Calculer l'index du point
-        if (index < 50)
-        { // Sécurité pour ne pas dépasser la taille du tableau
-          CAN.readBytes((uint8_t *)&liste_point[index].x, 4);
-          // Serial.print("Reçu X[");
-          // Serial.print(index);
-          // Serial.print("] : ");
-          // Serial.println(liste_point[index].x);
+        if (canId == 0x01 && (packetSize == 4 || packetSize == 1))
+        {
+          CAN.readBytes((uint8_t *)&etat_RPI, packetSize);
+          while (CAN.available())
+            CAN.read(); // vider le buffer
         }
-      }
 
-      // Réception des coordonnées Y des points (IDs impaires : 0x209, 0x20B, 0x20D, ...)
-      if (canId >= 0x209 && canId <= 0x2FF && canId % 2 == 1 && packetSize == 4)
-      {
-        int index = (canId - 0x209) / 2; // Calculer l'index du point
-        if (index < 50)
-        { // Sécurité
-          CAN.readBytes((uint8_t *)&liste_point[index].y, 4);
-          // Serial.print("Reçu Y[");
-          //  Serial.print(index);
-          // Serial.print("] : ");
-          //  Serial.println(liste_point[index].y);
+        if (canId == 0x200 && packetSize == 4)
+        {
+          CAN.readBytes((uint8_t *)&pos_act[0], 4);
+          //  Serial.print("Reçu X : ");
+          //  Serial.println(pos_act[0]);
+          encoder.setCount(0);
+          encoder2.setCount(0);
+          distance_droit = 0;
+          distance_gauche = 0;
+          verif_mouv=0;
+        }
 
-          // Vérifier si on a reçu tous les points
-          if (index == nbr_point - 1)
-          {
-            trajectoire_recue = true;
-            // Serial.println("✅ Trajectoire complète reçue !");
+        if (canId == 0x201 && packetSize == 4)
+        {
+          CAN.readBytes((uint8_t *)&pos_act[1], 4);
+          //  Serial.print("Reçu Y : ");
+          //  Serial.println(pos_act[1]);
+        }
+
+        if (canId == 0x202 && packetSize == 4)
+        {
+          CAN.readBytes((uint8_t *)&teta_recu, 4);
+          // Serial.print("Reçu Angle : ");
+          // Serial.println(teta_recu, 2);
+        }
+
+        if (canId == 0x203 && packetSize == 4)
+        {
+          CAN.readBytes((uint8_t *)&pos_fin[0], 4);
+          // Serial.print("Reçu X : ");
+          // Serial.println(pos_fin[0]);
+        }
+
+        if (canId == 0x204 && packetSize == 4)
+        {
+          CAN.readBytes((uint8_t *)&pos_fin[1], 4);
+          // Serial.print("Reçu Y : ");
+          // Serial.println(pos_fin[1]);
+        }
+        if (canId == 0x205 && packetSize == 4)
+        {
+          CAN.readBytes((uint8_t *)&teta_cons_recu, 4);
+          Serial.print("Reçu Angle_voulu : ");
+          Serial.println(teta_cons_recu, 2);
+          teta_cons = (teta_cons_recu * PI / 180.0) - 2 * PI;
+        }
+        if (canId == 0x206 && packetSize == 4)
+        {
+          CAN.readBytes((uint8_t *)&mouv, 4);
+        }
+        if (canId == 0x207 && packetSize == 4)
+        {
+          CAN.readBytes((uint8_t *)&acuser, 4);
+        }
+        if (canId == 0x208 && (packetSize == 4 || packetSize == 1))
+        {
+          CAN.readBytes((uint8_t *)&nbr_point, packetSize);
+          // Serial.print("Reçu nbr_point : ");
+          // Serial.println(nbr_point, 2);
+          trajectoire_recue = false; // Réinitialiser le flag
+        }
+
+        // Réception des coordonnées X des points (IDs paires : 0x208, 0x20A, 0x20C, ...)
+        if (canId >= 0x20A && canId <= 0x2FE && canId % 2 == 0 && packetSize == 4)
+        {
+          int index = (canId - 0x20A) / 2; // Calculer l'index du point
+          if (index < 50)
+          { // Sécurité pour ne pas dépasser la taille du tableau
+            CAN.readBytes((uint8_t *)&liste_point[index].x, 4);
+            // Serial.print("Reçu X[");
+            // Serial.print(index);
+            // Serial.print("] : ");
+            // Serial.println(liste_point[index].x);
+          }
+        }
+
+        // Réception des coordonnées Y des points (IDs impaires : 0x209, 0x20B, 0x20D, ...)
+        if (canId >= 0x20B && canId <= 0x2FF && canId % 2 == 1 && packetSize == 4)
+        {
+          int index = (canId - 0x20B) / 2; // Calculer l'index du point
+          if (index < 50)
+          { // Sécurité
+            CAN.readBytes((uint8_t *)&liste_point[index].y, 4);
+            // Serial.print("Reçu Y[");
+            //  Serial.print(index);
+            // Serial.print("] : ");
+            //  Serial.println(liste_point[index].y);
+
+            // Vérifier si on a reçu tous les points
+            if (index == nbr_point - 1)
+            {
+              trajectoire_recue = true;
+              // Serial.println("✅ Trajectoire complète reçue !");
+            }
           }
         }
       }
-    }
 
-    switch (etat_ESP_RPI)
-    {
-    case 0:
-      mouvement = false;
-      if (pos_act[0] != -1)
-        x_ok = true;
-      if (pos_act[1] != -1)
-        y_ok = true;
-      if (teta_recu != -181)
-        angle_ok = true;
-
-      if (!x_ok || !y_ok || !angle_ok)
+      switch (etat_ESP_RPI)
       {
-        Serial.println("En attente des coordonnées initiales depuis la RPi...");
-      }
+      case 0:
+        mouvement = false;
+        if (pos_act[0] != -1)
+          x_ok = true;
+        if (pos_act[1] != -1)
+          y_ok = true;
+        if (teta_recu != -181)
+          angle_ok = true;
 
-      // Test en continu de la condition de passage à l'état 1
-      if (x_ok && y_ok && angle_ok)
-      {
-        if (etat_RPI == 1)
+        if (!x_ok || !y_ok || !angle_ok)
         {
-          // Serial.println("Coordonnées reçues, passage à l'état 1 !");
-          etat_ESP_RPI = 1;
-          encoder.setCount(0);
-          encoder2.setCount(0);
-          distance_droit = distance_gauche = 0;
+          Serial.println("En attente des coordonnées initiales depuis la RPi...");
         }
-        else
+
+        // Test en continu de la condition de passage à l'état 1
+        if (x_ok && y_ok && angle_ok)
         {
-          // Serial.println("Coordonnées OK mais RPi pas encore prête (etat_RPI != 1)");
+          if (etat_RPI == 1)
+          {
+            // Serial.println("Coordonnées reçues, passage à l'état 1 !");
+            etat_ESP_RPI = 1;
+            encoder.setCount(0);
+            encoder2.setCount(0);
+            distance_droit = distance_gauche = 0;
+          }
+          else
+          {
+            // Serial.println("Coordonnées OK mais RPi pas encore prête (etat_RPI != 1)");
+          }
         }
+        break;
+
+      case 1:
+        mouvement = true;
+        if (etat_RPI == 0 || etat_RPI == 2)
+        {
+          etat_ESP_RPI = 0;
+          x_ok = false, y_ok = false, angle_ok = false;
+          pos_act[0] = -1;
+          pos_act[1] = -1;
+          teta_recu = -181;
+          // Serial.println("Retour à l'état 0 (RPi arrêtée)");
+        }
+
+        // Serial.printf("X=%.1f Y=%.1f Angle=%.1f X_voulu=%.1f Y_voulu=%1.f Angle_voulu=%.1f Nbr_point=%d\n",pos_act[0],pos_act[1],teta_act_deg,pos_fin[0],pos_fin[1],teta_cons_recu,nbr_point);
+        for (int j = 0; j < nbr_point; j++)
+        {
+          // Serial.printf("X_%d = %.f   X_Y%d = %.f\n",j, liste_point[j].x,j,liste_point[j].y);
+        }
+        float x = pos_act[0];
+        float y = pos_act[1];
+        float teta = teta_act_deg;
+        static unsigned long lastSend = 0;
+        if (millis() - lastSend > 1)
+        { // toutes les 100 ms
+          lastSend = millis();
+
+          CAN.beginPacket(0x10E);
+          CAN.write((uint8_t *)&verif_mouv, sizeof(float)); // 4 octets
+          CAN.endPacket();
+
+          CAN.beginPacket(0x100);
+          CAN.write((uint8_t *)&x, sizeof(float)); // 4 octets
+          CAN.endPacket();
+
+          CAN.beginPacket(0x101);
+          CAN.write((uint8_t *)&y, sizeof(float)); // 4 octets
+          CAN.endPacket();
+
+          CAN.beginPacket(0x102);
+          CAN.write((uint8_t *)&teta, sizeof(float)); // 4 octets
+          CAN.endPacket();
+
+          
+        }
+
+        break;
       }
-      break;
-
-    case 1:
-      mouvement = true;
-      if (etat_RPI == 0 || etat_RPI == 2)
-      {
-        etat_ESP_RPI = 0;
-        x_ok = false, y_ok = false, angle_ok = false;
-        pos_act[0] = -1;
-        pos_act[1] = -1;
-        teta_recu = -181;
-        // Serial.println("Retour à l'état 0 (RPi arrêtée)");
-      }
-
-      // Serial.printf("X=%.1f Y=%.1f Angle=%.1f X_voulu=%.1f Y_voulu=%1.f Angle_voulu=%.1f Nbr_point=%d\n",pos_act[0],pos_act[1],teta_act_deg,pos_fin[0],pos_fin[1],teta_cons_recu,nbr_point);
-      for (int j = 0; j < nbr_point; j++)
-      {
-        // Serial.printf("X_%d = %.f   X_Y%d = %.f\n",j, liste_point[j].x,j,liste_point[j].y);
-      }
-      float x = pos_act[0];
-      float y = pos_act[1];
-      float teta = teta_act_deg;
-      static unsigned long lastSend = 0;
-      if (millis() - lastSend > 100)
-      { // toutes les 100 ms
-        lastSend = millis();
-
-        CAN.beginPacket(0x100);
-        CAN.write((uint8_t *)&x, sizeof(float)); // 4 octets
-        CAN.endPacket();
-
-        CAN.beginPacket(0x101);
-        CAN.write((uint8_t *)&y, sizeof(float)); // 4 octets
-        CAN.endPacket();
-
-        CAN.beginPacket(0x102);
-        CAN.write((uint8_t *)&teta, sizeof(float)); // 4 octets
-        CAN.endPacket();
-      }
-
-      break;
     }
     vTaskDelay(pdMS_TO_TICKS(1));
   }
@@ -299,6 +329,8 @@ void Asserv(void *)
   int finish = 1;
   while (1)
   {
+    if (acuser == 1)
+     verif_mouv = 0;
     tic_droit = encoder2.getCount();
     tic_gauche = encoder.getCount();
     aquisition();
@@ -317,9 +349,25 @@ void Asserv(void *)
     ////////////////////////////////////////angle modulo 2PI
 
     if ((!(comparer(teta_act, teta_cons, ((3 * PI) / 180.0)))) && (comparer(pos_act[0], pos_fin[0], 30) && comparer(pos_act[1], pos_fin[1], 30)) && (S_VIT_d == 0) && (S_VIT_g == 0))
-    //  cons = 2;
-    if (mouv == 1)
-      cons = 0;
+      //  cons = 2;
+      if (mouv == 1)
+        cons = 0;
+    if (cons == 0 || cons == 1)
+    {
+      diff_teta = teta - teta_act;
+      while (diff_teta > PI)
+        diff_teta -= 2.0 * PI;
+      while (diff_teta <= -PI)
+        diff_teta += 2.0 * PI;
+      if (diff_teta > (PI / 2.0) || diff_teta < (-PI / 2.0))
+      {
+        // cons = 1;
+      }
+      else
+      {
+        // cons = 2;
+      }
+    }
     // if (mouv==2)sur_place=1,cons=0;
     // else sur_place=0,cons=0;
     switch (cons)
@@ -331,7 +379,7 @@ void Asserv(void *)
 
       diff_dist_d = dist - diff_dist_droit;
       diff_dist_g = dist - diff_dist_gauche;
-      if ((sur_place == 1) || ensemble((diff_teta), (PI / 10.0)))
+      if ((sur_place == 1) || ensemble((diff_teta), (PI / 8.0)))
       {
 
         if ((sur_place == 1) || (comparer(pos_act[0], pos_fin[0], 30) && comparer(pos_act[1], pos_fin[1], 30)))
@@ -343,8 +391,8 @@ void Asserv(void *)
         }
         else
         {
-          VIT_droit = pow(cos(diff_teta), 5) * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
-          VIT_gauche = pow(cos(diff_teta), 5) * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
+          VIT_droit = pow(cos(diff_teta), 9) * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
+          VIT_gauche = pow(cos(diff_teta), 9) * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
           VIT_Ad = -1 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
           VIT_Ag = kpga * (diff_dista) + kdga * (diff_dista - old_diff_dista);
         }
@@ -353,8 +401,8 @@ void Asserv(void *)
       {
         VIT_Ad = -2 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
         VIT_Ag = 2 * kpga * (diff_dista) + 2 * kdga * (diff_dista - old_diff_dista);
-        VIT_droit = 0;
-        VIT_gauche = 0;
+        VIT_droit *= 0.95;
+        VIT_gauche *= 0.95;
       }
 
       break;
@@ -365,7 +413,7 @@ void Asserv(void *)
 
       diff_dist_d = dist - diff_dist_droit;
       diff_dist_g = dist - diff_dist_gauche;
-      if (ensemble((diff_teta), (PI / 3.0)))
+      if (ensemble((diff_teta), (PI / 8.0)))
       {
 
         if (comparer(pos_act[0], pos_fin[0], 50) && comparer(pos_act[1], pos_fin[1], 50))
@@ -377,8 +425,8 @@ void Asserv(void *)
         }
         else
         {
-          VIT_droit = pow(cos(diff_teta1 + PI), 5) * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
-          VIT_gauche = pow(cos(diff_teta1 + PI), 5) * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
+          VIT_droit = pow(cos(diff_teta + PI), 5) * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
+          VIT_gauche = pow(cos(diff_teta + PI), 5) * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
           VIT_Ad = -1 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
           VIT_Ag = kpga * (diff_dista) + kdga * (diff_dista - old_diff_dista);
         }
@@ -387,8 +435,8 @@ void Asserv(void *)
       {
         VIT_Ad = -2 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
         VIT_Ag = 2 * kpga * (diff_dista) + 2 * kdga * (diff_dista - old_diff_dista);
-        VIT_droit = 0;
-        VIT_gauche = 0;
+        VIT_droit *= 0.95;
+        VIT_gauche *= 0.95;
       }
 
       break;
@@ -416,11 +464,10 @@ void Asserv(void *)
       cons = 0;
       break;
     }
-    //Serial.printf("mouv=%d Vit_d=%d Vit_g=%d X=%.1f Y=%.1f X=%.1f Y=%.1f\n", mouv, S_VIT_d, S_VIT_g, pos_act[0], pos_act[1], pos_fin[0], pos_fin[1]);
-    saturation(); 
+    // Serial.printf("mouv=%d Vit_d=%d Vit_g=%d X=%.1f Y=%.1f X=%.1f Y=%.1f\n", mouv, S_VIT_d, S_VIT_g, pos_act[0], pos_act[1], pos_fin[0], pos_fin[1]);
+    saturation();
     S_VIT_g = VIT_gauche + VIT_Ag;
     S_VIT_d = VIT_droit + VIT_Ad;
-   
 
     if (S_VIT_d < 40 && S_VIT_d > -40)
       S_VIT_d = 0;
@@ -436,23 +483,33 @@ void Asserv(void *)
       VIT_Ad = 0, VIT_Ag = 0, VIT_droit = 0, VIT_gauche = 0;
 
     // if (mouv == 3)S_VIT_d=0,S_VIT_g=0;
-    if (S_VIT_d == 0 && S_VIT_g == 0)
+    if (etat_RPI == 1)
     {
-      md.setBrakes(400, 400);
+      if (S_VIT_d == 0 && S_VIT_g == 0)
+      {
+        md.setBrakes(400, 400);
+      }
+      else
+      {
+        md.setM2Speed((S_VIT_d) / 2.0);
+        md.setM1Speed((S_VIT_g) / 2.0);
+      }
     }
     else
     {
-      md.setM2Speed((S_VIT_d) / 2.0);
-      md.setM1Speed((S_VIT_g) / 2.0);
+      md.setM2Speed(0);
+      md.setM1Speed(0);
     }
     // if (VIT_Ad == 0 && VIT_Ag == 0 && VIT_droit == 0 && VIT_gauche == 0)
     // md.setBrakes(400, 400);
-
+    // Serial.printf("teta_act%.1f diff_teta%.1f\n",teta_act_deg,diff_teta*180/PI);
     // Serial.printf("X=%.1f Y=%.1f X=%.1f Y=%.1f teta_act=%.1f teta_cons=%.1f teta_cons_reçu%.1f \n", pos_act[0], pos_act[1], pos_fin[0], pos_fin[1], (teta_act * 180.0 / PI), (teta_cons * 180.0 / PI), (teta_cons_recu * 180.0 / PI));
-    for(int i = 0;i<=nbr_point;i++){
-    Serial.printf("X%d=%.1f Y%d=%.1f",i, liste_point[i].x,i, liste_point[i].y);
-    }
-    //Serial.printf("PWM_G:%d PWM_D:%d X:%.1f Y%.1f diff_teta%.1f,cos:%.1f \n", S_VIT_g, S_VIT_d, pos_act[0], pos_act[1], diff_deg, cos(diff_teta));
+    /*for (int i = 0; i <= nbr_point; i++)
+    {
+      Serial.printf("X%d=%.1f Y%d=%.1f", i, liste_point[i].x, i, liste_point[i].y);
+    }*/
+   Serial.printf("verif%f recep%.0f X%.1f Y%.1f pointX%.1f Y%.1f point%d\n",verif_mouv,acuser,pos_act[0],pos_act[1],liste_point[0].x,liste_point[0].y,nbr_point);
+    // Serial.printf("PWM_G:%d PWM_D:%d X:%.1f Y%.1f diff_teta%.1f,cos:%.1f \n", S_VIT_g, S_VIT_d, pos_act[0], pos_act[1], diff_deg, cos(diff_teta));
     vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
@@ -463,13 +520,13 @@ void calcul_traj(void *)
   {
     aquisition();
 
-
-    if ((comparer(pos_act[0], liste_point[0].x, 10) && comparer(pos_act[1], liste_point[0].y, 10)) || ((((liste_point[0].x == 0) || (liste_point[0].y == 0))) && (((liste_point[1].x != 0) || (liste_point[1].y != 0)))))
+    if (etat_RPI==1&&(comparer(pos_act[0], liste_point[0].x, 50) && comparer(pos_act[1], liste_point[0].y, 50)) || ((((liste_point[0].x == 0) || (liste_point[0].y == 0))) && (((liste_point[1].x != 0) || (liste_point[1].y != 0)))))
     {
       for (int i = 0; i <= 98; i++)
       {
         liste_point[i].x = liste_point[i + 1].x;
         liste_point[i].y = liste_point[i + 1].y;
+        verif_mouv = 1;
       }
       liste_point[80].x = 0;
       liste_point[80].y = 0;
@@ -487,9 +544,9 @@ void calcul_traj(void *)
       pos_fin[0] = pos_temp[0];
       pos_fin[1] = pos_temp[1];
       cons = 0;
-      sur_place=1;
+      sur_place = 1;
     }
-    else if ((comparer(pos_act[0], liste_point[0].x, 80) && comparer(pos_act[1], liste_point[0].y, 80)) && (((liste_point[1].x != 0) && (liste_point[1].y != 0))))
+    else if ((comparer(pos_act[0], liste_point[0].x, 50) && comparer(pos_act[1], liste_point[0].y, 50)) && (((liste_point[1].x != 0) && (liste_point[1].y != 0))))
     {
       pos_fin[0] = liste_point[1].x;
       pos_fin[1] = liste_point[1].y;
@@ -647,9 +704,12 @@ void aquisition(void)
   teta = atan2(delta_y, delta_x) + off_teta;
   teta1 = atan2((liste_point[1].y - pos_act[1]), (liste_point[1].x - pos_act[0])) + off_teta;
   // teta_traj = atan2(traj[suivi].y - pos_act[1], traj[suivi].x - pos_act[0]);
-  teta_act = (teta_recu * PI / 180.0) + ((distance_droit - distance_gauche) / (20 * Rayon)) + off_teta_act;
+  if (RPI == 1)
+    teta_act = (teta_recu * PI / 180.0) + ((distance_droit - distance_gauche) / (20 * Rayon)) + off_teta_act;
+  else
+    teta_act = ((distance_droit - distance_gauche) / (20 * Rayon));
 
-  while (teta_act > PI)
+  /*while (teta_act > PI)
     teta_act -= 2.0 * PI;
   while (teta_act <= -PI)
     teta_act += 2.0 * PI;
@@ -660,7 +720,7 @@ void aquisition(void)
   while (teta1 > PI)
     teta1 -= 2.0 * PI;
   while (teta1 <= -PI)
-    teta1 += 2.0 * PI;
+    teta1 += 2.0 * PI;*/
 
   teta_act_deg = (teta_act * 180.0) / PI;
   teta_deg = (teta * 180.0) / PI;
@@ -693,14 +753,14 @@ void saturation(void)
   if (ensemble(diff_teta, (3 * PI / 180.0)))
     VIT_Ad += signe(VIT_Ad) * 40, VIT_Ag += signe(VIT_Ag) * 40;
 
-  if (VIT_droit >  LIMITE_VIT)
-    VIT_droit =  LIMITE_VIT;
-  if (VIT_gauche >  LIMITE_VIT)
-    VIT_gauche =  LIMITE_VIT;
-  if (VIT_droit < - LIMITE_VIT)
-    VIT_droit = - LIMITE_VIT;
-  if (VIT_gauche < - LIMITE_VIT)
-    VIT_gauche = - LIMITE_VIT;
+  if (VIT_droit > LIMITE_VIT)
+    VIT_droit = LIMITE_VIT;
+  if (VIT_gauche > LIMITE_VIT)
+    VIT_gauche = LIMITE_VIT;
+  if (VIT_droit < -LIMITE_VIT)
+    VIT_droit = -LIMITE_VIT;
+  if (VIT_gauche < -LIMITE_VIT)
+    VIT_gauche = -LIMITE_VIT;
 
   if (VIT_Ad > LIMITE_VIT)
     VIT_Ad = LIMITE_VIT;
