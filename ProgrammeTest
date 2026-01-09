@@ -1,6 +1,6 @@
 couleur = "J"
 
-Reel = False
+Reel = True
 
 Strategie = False
 Astars = False
@@ -73,17 +73,17 @@ if not Strategie:
         ['Consigne', 1500, 800],
         #["Rotation",0],
         ['Consigne',2100-R_ROBOT-MARGE_GM,800],
-        ["Reculer",2100-R_ROBOT-10*MARGE_GM,800],
+        #["Reculer",2100-R_ROBOT-10*MARGE_GM,800],
         #["Rotation",180],
         ['Consigne', 900+R_ROBOT+MARGE_GM,800],
-        ["Reculer",900+R_ROBOT+10*MARGE_GM,800],
+        #["Reculer",900+R_ROBOT+10*MARGE_GM,800],
         ['Consigne', 1500,200],
         #["Rotation",0],
         ['Consigne', 2200-R_ROBOT-MARGE_GM,200],
-        ["Reculer",2200-R_ROBOT-10*MARGE_GM,200],
+        #["Reculer",2200-R_ROBOT-10*MARGE_GM,200],
         #["Rotation",180],
         ['Consigne', 800+R_ROBOT+MARGE_GM,200],
-        ["Reculer",800+R_ROBOT+10*MARGE_GM,200],
+        #["Reculer",800+R_ROBOT+10*MARGE_GM,200],
         #["Rotation",0]
     ]
 else :
