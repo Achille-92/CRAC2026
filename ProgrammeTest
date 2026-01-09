@@ -14,7 +14,7 @@ Strategie = False
 Simul_mvt = True
 Simul_mvt_ennemi = False
 Lidar_on = False
-Bat_Compet = True
+Bat_Compet = False
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -355,6 +355,7 @@ trajectoire_calculee = False
 ordre_receive = 0
 
 verif_mouv = 0
+old_verif_mouv = verif_mouv
 ack_mouv = 0
 
 step = 0
@@ -1484,7 +1485,7 @@ if __name__ == '__main__':
             if step > 1:
                 Batteries = calculer_pourcentage_batteries(Batteries, U_last)
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries, Ordre_Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
-            print(Batteries)
+            
             ### Envoi des Ordres à la Carte Alim
             if not Bat_Compet: # Si mode Test 
                 if Batteries[0][3]>5.0: # Si Batterie à plus de 5%
@@ -1501,14 +1502,14 @@ if __name__ == '__main__':
                 else :
                     dico_envoi[0x302]=0
             else : 
-                dico_envoi[0x300]=1#   Interrupteur ON
+                dico_envoi[0x300]=1 #   Interrupteur ON
                 dico_envoi[0x301]=1
                 dico_envoi[0x302]=1
 
-            """if not Bat_Compet:
+            if Bat_Compet:
                 dico_envoi[0x303]=1
             else:
-                dico_envoi[0x303]=2"""
+                dico_envoi[0x303]=2
             #######################################
             
             # Affichage texte Coordonées
@@ -1550,9 +1551,18 @@ if __name__ == '__main__':
                     if(abs(x_ennemi-x_ennemi_voulu)<TOL_POS_X and abs(y_ennemi-y_ennemi_voulu)<TOL_POS_Y):
                         if(len(Liste_actions_ennemi)!=1):
                             Liste_actions_ennemi.pop(0)
-            if verif_mouv == 11:
-                dico_envoi[0x207]=1  
-            if (action_voulu in ["Consigne","Avancer"] and verif_mouv == 11) or \
+            
+            """if verif_mouv == 1:
+                dico_envoi[0x207]=1
+            else :
+                dico_envoi[0x207]=0"""
+
+            dico_envoi[0x207]=2
+
+            print("verif_mouv : ",verif_mouv) 
+            print("dico_envoi[0x207] : ",dico_envoi[0x207])
+            
+            if (action_voulu in ["Consigne","Avancer"] and verif_mouv == 1) or \
                (action_voulu in ["Rotation"] and ordre_receive == 12) or \
                (action_voulu == "Attraper" and ordre_receive == 21) or \
                (action_voulu == "Relacher" and ordre_receive == 22):
@@ -1638,8 +1648,8 @@ if __name__ == '__main__':
             if len(Liste_trajectoire) != 0:
                 dico_envoi[0x208] = Liste_trajectoire[0]
                 for couple in range(1,len(Liste_trajectoire)):
-                    dico_envoi[0x209+2*(couple-1)]=Liste_trajectoire[couple][0]
-                    dico_envoi[0x20A+2*(couple-1)]=Liste_trajectoire[couple][1]
+                    dico_envoi[0x20A+2*(couple-1)]=Liste_trajectoire[couple][0]
+                    dico_envoi[0x20B+2*(couple-1)]=Liste_trajectoire[couple][1]
             ##################################
 
             """for couple in dico_envoi.items():
@@ -1649,7 +1659,7 @@ if __name__ == '__main__':
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
-                        if key in [0x01,0x206,0x207,0x208,0x300,0x301,0x302]:
+                        if key in [0x01,0x206,0x207,0x208,0x300,0x301,0x302,0x303]:
                             format_value = struct.pack('<I',dico_envoi[key])
                         else:
                             format_value = struct.pack('<f',dico_envoi[key])
@@ -1671,6 +1681,7 @@ if __name__ == '__main__':
             x_ennemi_old = x_ennemi
             y_ennemi_old = y_ennemi
             Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
+            old_verif_mouv = verif_mouv
             Liste_GM_libres_precedente = Liste_GM_libres.copy()
             Liste_noisettes_libres_precedente = Liste_noisettes_libres.copy()
             Liste_actions_precedente = Liste_actions.copy()
