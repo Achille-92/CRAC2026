@@ -1,16 +1,9 @@
 couleur = "J"
 
 Reel = False
-if couleur == "J":
-    x_robot_depart = 2725 
-    y_robot_depart = 1670
-    angle_robot_depart = -90
-else:
-    x_robot_depart = 275 
-    y_robot_depart = 1670
-    angle_robot_depart = -90
 
 Strategie = False
+Astars = False
 Simul_mvt = True
 Simul_mvt_ennemi = False
 Lidar_on = False
@@ -40,7 +33,7 @@ from gestion_zones_dynamiques import verifier_et_changer_cible_si_necessaire, mi
 
 # Config CAN 
 Liste_ID_recoit = [0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10C,0x10D,0x10E] # ID sur lesquels la RPI va recevoir des données
-Liste_ID_envoi = [0x01,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x208,0x300,0x301,0x302,0x303]
+Liste_ID_envoi = [0x01,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
     os.system('sudo ip link set can0 type can bitrate 500000')
@@ -221,6 +214,15 @@ DISTANCE_MAX_TERRAIN = 3605  # Diagonale du terrain ≈ 3605mm
 #############################################
 
 # Coordonnées et angle de notre robot (coordonnées initiales en haut)
+
+if couleur == "J":
+    x_robot_depart = 2725 
+    y_robot_depart = 1670
+    angle_robot_depart = -90
+else:
+    x_robot_depart = 275 
+    y_robot_depart = 1670
+    angle_robot_depart = -90
 x_robot_actuel = x_robot_depart
 y_robot_actuel = y_robot_depart
 angle_robot_actuel = angle_robot_depart
@@ -359,8 +361,7 @@ trajectoire_calculee = False
 ordre_receive = 0
 
 verif_mouv = 0
-old_verif_mouv = verif_mouv
-ack_mouv = 0
+verif_angle = 0
 
 step = 0
 robot_a_objets = False
@@ -507,7 +508,7 @@ def LectureCAN(stop_event):
     Si l'ID du message n'est pas dans la Liste_ID, saute
     Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
     """
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, dico_envoi, bus, V_rpi, I_rpi, verif_mouv
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, dico_envoi, bus, V_rpi, I_rpi, verif_mouv, verif_angle
     while not stop_event.is_set():
         msg = bus.recv(0.01)  # attend 10 ms max
         if msg is None:
@@ -564,6 +565,8 @@ def LectureCAN(stop_event):
 
         elif msg.arbitration_id == 0x10E:
             verif_mouv = struct.unpack('f', bytes(msg.data))[0]
+        elif msg.arbitration_id == 0x10F:
+            verif_angle = struct.unpack('f', bytes(msg.data))[0]
 
 def calcul_ennemi(stop_event):
     """
@@ -634,7 +637,7 @@ def on_click(event):
         # ⭐ CLIC GAUCHE : Ajouter une consigne PRIORITAIRE ⭐
         if event.button == 1:  # Bouton gauche
 
-            if not Strategie:
+            if not Astars:
                 Liste_actions.insert(-1,["Consigne", round(int(x_clic), 0), round(int(y_clic), 0)])
             else :
                 # Vider la liste (modifie la liste globale, pas une copie locale)
@@ -1197,9 +1200,9 @@ if __name__ == '__main__':
             mouvement_ennemi = math.sqrt((x_ennemi - x_ennemi_old)**2 + (y_ennemi - y_ennemi_old)**2)
             
             # Détection besoin de recalculer la trajectoire car point suivant dans zone ennemi
-            if Strategie:
+            if Astars:
                 for action in Liste_actions:
-                    if action[0] in ["Consigne","Avancer"]:
+                    if action[0] in ["Consigne","Avancer","Reculer"]:
                         distance_point_ennemi = math.sqrt((action[1] - x_ennemi)**2 + (action[2] - y_ennemi)**2)
                         # ⭐ UTILISER LE MÊME RAYON QUE LA GRILLE
                         rayon_detection = (R_securite + MARGE_TRAJECTOIRE)  # Marge de sécurité supplémentaire
@@ -1216,17 +1219,17 @@ if __name__ == '__main__':
                 )"""
             print("demande_recalcul_traj : ",demande_recalcul_traj)
             # === CALCUL DE LA TRAJECTOIRE A* ===
-            if Strategie: 
+            if Astars: 
                 if action_voulu in ["Rotation","Attraper","Relacher"] and old_ordre_mouvement == 3:
                     pass  # rien, on attend la fin de la rotation
                 else:
                     # === CALCUL DE LA TRAJECTOIRE A* ===
-                    if action_voulu in ["Consigne"]  or changement_noisette_GM or demande_recalcul_traj:
+                    if action_voulu in ["Consigne","Reculer"]  or changement_noisette_GM or demande_recalcul_traj:
                         demande_recalcul_traj = False
                         if changement_noisette_GM == True :
                             changement_noisette_GM = False
                         Liste_actions_temps = Liste_actions
-                        Liste_actions = [action for action in Liste_actions if action[0] in ["Consigne","Rotation","Attraper","Relacher"]]
+                        Liste_actions = [action for action in Liste_actions if action[0] in ["Consigne","Rotation","Reculer","Attraper","Relacher"]]
                         # Convertir les positions en cases
                         start_case = (int(x_robot_actuel // CASE_MM), int(y_robot_actuel // CASE_MM))
                         goal_case = (int(x_robot_voulu // CASE_MM), int(y_robot_voulu // CASE_MM))
@@ -1418,6 +1421,11 @@ if __name__ == '__main__':
                         
             # ====================================================================
 
+            # Envoi des Ordres de Consigne de Rotation à la Carte Moteur
+            if angle_robot_voulu != -181 and action_voulu in ["Rotation"]:
+                dico_envoi[0x205] = angle_robot_voulu + 360
+            ################################################
+
             ##### Simulation Mouvement Robot 
             if not Reel: 
                 if Simul_mvt :
@@ -1432,10 +1440,7 @@ if __name__ == '__main__':
                             x_robot_actuel += round(10*np.cos(angle_robot_consigne),0)
                             y_robot_actuel += round(10*np.sin(angle_robot_consigne),0)
 
-            # Envoi des Ordres de Consigne à la Carte Moteur
-            if angle_robot_voulu != -181 and action_voulu in ["Rotation"]:
-                dico_envoi[0x205] = angle_robot_voulu + 360
-            ################################################
+            
 
             ############## MISE À JOUR AFFICHAGE ################
             # Mettre à jour robot, ennemi et consigne sur affichage
@@ -1451,7 +1456,7 @@ if __name__ == '__main__':
             )
             
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
-            if Strategie:
+            if Astars:
                 if (action_voulu in ["Consigne","Avancer","Reculer"]):
                     consigne_plot.set_offsets([[x_robot_voulu, y_robot_voulu]])
                 else :
@@ -1543,6 +1548,7 @@ if __name__ == '__main__':
                 info_alim_rpi.set_color('black')
             else:
                 info_alim_rpi.set_color('red')
+
             # Si robot est à la position de consigne  
             if not Reel :
                 if(abs(x_robot_actuel-x_robot_voulu)<TOL_POS_X and abs(y_robot_actuel-y_robot_voulu)<TOL_POS_Y and action_voulu in ["Consigne","Avancer","Reculer"]):
@@ -1550,7 +1556,7 @@ if __name__ == '__main__':
                     verif_mouv = 1
                 if(abs(angle_robot_actuel-angle_robot_voulu)<TOL_POS_A) and action_voulu in ["Rotation"]:
                     print("Bon Angle")
-                    ordre_receive = 12  
+                    verif_angle = 1 
 
             if not Reel:
                 if Simul_mvt_ennemi:
@@ -1562,9 +1568,18 @@ if __name__ == '__main__':
                 dico_envoi[0x207]=2
             else :
                 dico_envoi[0x207]=1
+
+            
+            if verif_angle == 1:
+                dico_envoi[0x208]=2
+                angle_robot_voulu = -181
+            else :
+                dico_envoi[0x208]=1
+
+
             
             if (action_voulu in ["Consigne","Avancer","Reculer"] and verif_mouv == 1) or \
-               (action_voulu in ["Rotation"] and ordre_receive == 12) or \
+               (action_voulu in ["Rotation"] and verif_angle == 1) or \
                (action_voulu == "Attraper" and ordre_receive == 21) or \
                (action_voulu == "Relacher" and ordre_receive == 22):
                 
@@ -1572,7 +1587,8 @@ if __name__ == '__main__':
                 Liste_actions.pop(0) 
                 ordre_receive = 0
                 verif_mouv = 0
-                if Strategie:
+                verif_angle = 0
+                if Astars:
                     if not any(a[0] == "Avancer" for a in Liste_actions if isinstance(a, list) and len(a) >= 2):
                         trajectoire_calculee = False  # Permettre un nouveau calcul
                     # ⭐ SI c'est une action ATTRAPER ou RELACHER ⭐
@@ -1643,11 +1659,11 @@ if __name__ == '__main__':
             
             # On supprime, dans le dico, les anciens points de la trajectoire
             for key in list(dico_envoi.keys()):
-                if 0x208 <= key <= 0x2FF:
+                if 0x209 <= key <= 0x2FF:
                     del dico_envoi[key]
             # On remplit le dictionnaire d'envoi du CAN avec les points de la trajectoire
             if len(Liste_trajectoire) != 0:
-                dico_envoi[0x208] = Liste_trajectoire[0]
+                dico_envoi[0x209] = Liste_trajectoire[0]
                 for couple in range(1,len(Liste_trajectoire)):
                     dico_envoi[0x20A+2*(couple-1)]=Liste_trajectoire[couple][0]
                     dico_envoi[0x20B+2*(couple-1)]=Liste_trajectoire[couple][1]
@@ -1660,7 +1676,7 @@ if __name__ == '__main__':
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
-                        if key in [0x01,0x206,0x208,0x300,0x301,0x302,0x303]:
+                        if key in [0x01,0x206,0x209,0x300,0x301,0x302,0x303]:
                             format_value = struct.pack('<I',dico_envoi[key])
                         else:
                             format_value = struct.pack('<f',dico_envoi[key])
@@ -1682,7 +1698,6 @@ if __name__ == '__main__':
             x_ennemi_old = x_ennemi
             y_ennemi_old = y_ennemi
             Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
-            old_verif_mouv = verif_mouv
             Liste_GM_libres_precedente = Liste_GM_libres.copy()
             Liste_noisettes_libres_precedente = Liste_noisettes_libres.copy()
             Liste_actions_precedente = Liste_actions.copy()
@@ -1704,7 +1719,7 @@ if __name__ == '__main__':
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
         
-        if Strategie:
+        if Astars:
             tache_astar.join()
         
     except Exception as e:
@@ -1720,7 +1735,7 @@ if __name__ == '__main__':
             data_etat = struct.pack('<I',etat)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
         
-        if Strategie:
+        if Astars:
             tache_astar.join()
         plt.close(fig)
 
