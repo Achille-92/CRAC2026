@@ -1,6 +1,6 @@
 couleur = "J"
 
-Reel = True
+Reel = False
 if couleur == "J":
     x_robot_depart = 2725 
     y_robot_depart = 1670
@@ -60,7 +60,7 @@ R_ROBOT = 160
 R_ENNEMI = 150
 MARGE_ENNEMI = 100
 MARGE_NOISETTE = 20
-MARGE_GM = 20
+MARGE_GM = 10
 MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 ############################
@@ -74,19 +74,23 @@ if not Strategie:
         ["Consigne",2825,900],
         #["Rotation",90],
         ["Consigne",2725,1550],
-        ['Consigne', 2329, 1176],
+        ["Reculer",2725,1500],
+        ['Consigne', 2263, 1263],
         ['Consigne', 1547, 1037],
         ['Consigne', 1500, 800],
         #["Rotation",0],
-        ['Consigne',2100-R_ROBOT-2*MARGE_GM,800],
+        ['Consigne',2100-R_ROBOT-MARGE_GM,800],
+        ["Reculer",2100-R_ROBOT-10*MARGE_GM,800],
         #["Rotation",180],
-        ['Consigne', 900+R_ROBOT+2*MARGE_GM,800],
-        ['Consigne', 1500,250],
+        ['Consigne', 900+R_ROBOT+MARGE_GM,800],
+        ["Reculer",900+R_ROBOT+10*MARGE_GM,800],
+        ['Consigne', 1500,200],
         #["Rotation",0],
-        ['Consigne', 2200-R_ROBOT-2*MARGE_GM,250],
-        ['Consigne', 1500,250],
+        ['Consigne', 2200-R_ROBOT-MARGE_GM,200],
+        ["Reculer",2200-R_ROBOT-10*MARGE_GM,200],
         #["Rotation",180],
-        ['Consigne', 800+R_ROBOT+2*MARGE_GM,250],
+        ['Consigne', 800+R_ROBOT+MARGE_GM,200],
+        ["Reculer",800+R_ROBOT+10*MARGE_GM,200],
         #["Rotation",0]
     ]
 else :
@@ -1357,8 +1361,10 @@ if __name__ == '__main__':
                 dico_envoi[0x206]=3
             elif action_voulu in ["Consigne","Avancer"]:
                 dico_envoi[0x206]=1
-            elif action_voulu in ["Attraper","Relacher"]:
+            elif action_voulu in ["Reculer"]:
                 dico_envoi[0x206]=2
+            elif action_voulu in ["Attraper","Relacher"]:
+                dico_envoi[0x206]=3
             else :
                 dico_envoi[0x206]=100
                
@@ -1369,7 +1375,7 @@ if __name__ == '__main__':
             print("Liste_actions : ", Liste_actions)
             if len(Liste_trajectoire) != 0:
                 print("Liste_trajectoire : ",Liste_trajectoire)
-            
+            print("dico_envoi[0x206] : ",dico_envoi[0x206])
             # ========== MISE À JOUR AUTOMATIQUE DE Liste_trajectoire ==========
             # Trouver la première rotation (s'il y en a une)
             index_rotation = None
@@ -1386,7 +1392,7 @@ if __name__ == '__main__':
                     if i < index_rotation
                     and isinstance(action, list) 
                     and len(action) >= 3 
-                    and action[0] in ["Avancer", "Consigne"]
+                    and action[0] in ["Avancer", "Consigne","Reculer"]
                 ]
             else:
                 # Pas de rotation : prendre tous les points
@@ -1395,7 +1401,7 @@ if __name__ == '__main__':
                     for action in Liste_actions 
                     if isinstance(action, list) 
                     and len(action) >= 3 
-                    and action[0] in ["Avancer", "Consigne"]
+                    and action[0] in ["Avancer", "Consigne","Reculer"]
                 ]
 
             # Remplir Liste_trajectoire
@@ -1405,7 +1411,7 @@ if __name__ == '__main__':
                 Liste_trajectoire.extend(points_avancer)
             elif len(points_avancer) == 1 and len(Liste_actions) > 0:
                 premiere_action = Liste_actions[0]
-                if isinstance(premiere_action, list) and len(premiere_action) >= 3 and premiere_action[0] in ["Consigne", "Avancer"]:
+                if isinstance(premiere_action, list) and len(premiere_action) >= 3 and premiere_action[0] in ["Consigne", "Avancer","Reculer"]:
                     Liste_trajectoire.clear()
                     Liste_trajectoire.append(1)
                     Liste_trajectoire.extend(points_avancer)
@@ -1421,7 +1427,7 @@ if __name__ == '__main__':
                                 angle_robot_actuel -= 10
                             elif(angle_robot_actuel < angle_robot_voulu):
                                 angle_robot_actuel += 10
-                        if(action_voulu in ["Consigne","Avancer"]):
+                        if(action_voulu in ["Consigne","Avancer","Reculer"]):
                             angle_robot_consigne = math.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel)
                             x_robot_actuel += round(10*np.cos(angle_robot_consigne),0)
                             y_robot_actuel += round(10*np.sin(angle_robot_consigne),0)
@@ -1446,7 +1452,7 @@ if __name__ == '__main__':
             
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
             if Strategie:
-                if (action_voulu in ["Consigne","Avancer"]):
+                if (action_voulu in ["Consigne","Avancer","Reculer"]):
                     consigne_plot.set_offsets([[x_robot_voulu, y_robot_voulu]])
                 else :
                     consigne_plot.set_offsets([[-20, -20]])
@@ -1455,7 +1461,7 @@ if __name__ == '__main__':
                 points_consigne = [
                     (action[1], action[2])
                     for action in Liste_actions
-                    if isinstance(action, list) and len(action) >= 3 and action[0] in ["Consigne", "Avancer"]
+                    if isinstance(action, list) and len(action) >= 3 and action[0] in ["Consigne", "Avancer","Reculer"]
                 ]
 
                 if points_consigne:
@@ -1539,7 +1545,7 @@ if __name__ == '__main__':
                 info_alim_rpi.set_color('red')
             # Si robot est à la position de consigne  
             if not Reel :
-                if(abs(x_robot_actuel-x_robot_voulu)<TOL_POS_X and abs(y_robot_actuel-y_robot_voulu)<TOL_POS_Y and action_voulu in ["Consigne","Avancer"]):
+                if(abs(x_robot_actuel-x_robot_voulu)<TOL_POS_X and abs(y_robot_actuel-y_robot_voulu)<TOL_POS_Y and action_voulu in ["Consigne","Avancer","Reculer"]):
                     print("Bonne position")
                     verif_mouv = 1
                 if(abs(angle_robot_actuel-angle_robot_voulu)<TOL_POS_A) and action_voulu in ["Rotation"]:
@@ -1556,13 +1562,8 @@ if __name__ == '__main__':
                 dico_envoi[0x207]=2
             else :
                 dico_envoi[0x207]=1
-
-
-
-            print("verif_mouv : ",verif_mouv) 
-            print("dico_envoi[0x207] : ",dico_envoi[0x207])
             
-            if (action_voulu in ["Consigne","Avancer"] and verif_mouv == 1) or \
+            if (action_voulu in ["Consigne","Avancer","Reculer"] and verif_mouv == 1) or \
                (action_voulu in ["Rotation"] and ordre_receive == 12) or \
                (action_voulu == "Attraper" and ordre_receive == 21) or \
                (action_voulu == "Relacher" and ordre_receive == 22):
