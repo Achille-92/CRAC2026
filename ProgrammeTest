@@ -1,6 +1,6 @@
 couleur = "J"
 
-Reel = True
+Reel = False
 if couleur == "J":
     x_robot_depart = 2725 
     y_robot_depart = 1670
@@ -14,6 +14,7 @@ Strategie = False
 Simul_mvt = True
 Simul_mvt_ennemi = False
 Lidar_on = False
+Bat_Compet = True
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -301,7 +302,6 @@ Ordre_Batteries = [1,1,1]
 lim_Bat_RPI = 11.0
 V_rpi = 12.0
 I_rpi = 0
-Mode_Test_Bat = True
 ############################
 
 # Variables pour l'affichage des rectangles de batteries et des textes
@@ -1481,36 +1481,39 @@ if __name__ == '__main__':
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries, Ordre_Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             
             ### Envoi des Ordres à la Carte Alim
-            if Mode_Test_Bat:
-                if Batteries[0][3]>5.0:
-                    Ordre_Batteries[0]=1
-                else :
-                    Ordre_Batteries[0]=0
-                if Batteries[1][3]>5.0:
-                    Ordre_Batteries[1]=1
-                else :
-                    Ordre_Batteries[1]=0
-                if Batteries[2][3]>5.0:
-                    Ordre_Batteries[2]=1
-                else :
-                    Ordre_Batteries[2]=0
+            if not Bat_Compet: # Si mode Test 
+                if Batteries[0][3]>5.0 and Batteries[0][0]!=0: # Si Batterie à plus de 5%
+                    dico_envoi[0x300]=1#   Interrupteur ON
+                else :                  # Sinon
+                    dico_envoi[0x300]=0#   Interrupteur OFF
 
-            if(Ordre_Batteries[0]==1):
-                dico_envoi[0x300]=1
-            else :
-                dico_envoi[0x300]=0
-            if(Ordre_Batteries[1]==1):
-                dico_envoi[0x301]=1
-            else :
-                dico_envoi[0x301]=0
-            if(Ordre_Batteries[2]==1):
-                dico_envoi[0x302]=1
-            else :
-                dico_envoi[0x302]=0
-            if Mode_Test_Bat:
+                if Batteries[1][3]>5.0 and Batteries[0][0]!=0:
+                    dico_envoi[0x301]=1
+                else :
+                    dico_envoi[0x301]=0
+                if Batteries[2][3]>5.0 and Batteries[0][0]!=0:
+                    dico_envoi[0x302]=1
+                else :
+                    dico_envoi[0x302]=0
+            else : 
+                if Batteries[0][0]!=0: # Si Batterie à plus de 5%
+                    dico_envoi[0x300]=1#   Interrupteur ON
+                else :                  # Sinon
+                    dico_envoi[0x300]=0#   Interrupteur OFF
+
+                if Batteries[0][0]!=0:
+                    dico_envoi[0x301]=1
+                else :
+                    dico_envoi[0x301]=0
+                if Batteries[0][0]!=0:
+                    dico_envoi[0x302]=1
+                else :
+                    dico_envoi[0x302]=0
+
+            if not Bat_Compet:
                 dico_envoi[0x303]=1
             else:
-                dico_envoi[0x303]=0
+                dico_envoi[0x303]=2
             #######################################
             
             # Affichage texte Coordonées
@@ -1552,7 +1555,7 @@ if __name__ == '__main__':
                     if(abs(x_ennemi-x_ennemi_voulu)<TOL_POS_X and abs(y_ennemi-y_ennemi_voulu)<TOL_POS_Y):
                         if(len(Liste_actions_ennemi)!=1):
                             Liste_actions_ennemi.pop(0)
-            print(ordre_receive)
+                    
             if (action_voulu in ["Consigne","Avancer"] and ordre_receive == 11) or \
                (action_voulu in ["Rotation"] and ordre_receive == 12) or \
                (action_voulu == "Attraper" and ordre_receive == 21) or \
