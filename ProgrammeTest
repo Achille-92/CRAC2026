@@ -67,7 +67,7 @@ if not Strategie:
         ["Consigne",2825,900],
         #["Rotation",90],
         ["Consigne",2725,1550],
-        ["Reculer",2725,1500],
+        ["Reculer",2725,1450],
         ['Consigne', 2263, 1263],
         ['Consigne', 1547, 1037],
         ['Consigne', 1500, 800],
@@ -85,6 +85,7 @@ if not Strategie:
         ['Consigne', 800+R_ROBOT+MARGE_GM,200],
         #["Reculer",800+R_ROBOT+10*MARGE_GM,200],
         #["Rotation",0]
+        ['Consigne', 2725,1670],
     ]
 else :
     Liste_actions = [
