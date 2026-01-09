@@ -288,32 +288,33 @@ def afficher_batteries(ax, Batteries, Ordre_Batteries, battery_patches, battery_
     battery_index = None
     x_depart = x_depart_base
     for num_batt in range(len(Batteries)):
-        battery_index = num_batt
-        x_depart = x_depart_base + num_batt * (5 * (largeur_rect + espacement) + espacement_salves)
-        # Si une batterie est active, l'afficher
-        if battery_index is not None:
-            # Dessiner les 5 rectangles de niveau de charge
-            for j in range(5):
-                if Batteries[battery_index][3] >= seuils[j]:
-                    x = x_depart + j * (largeur_rect + espacement)
-                    rect = patches.Rectangle(
-                        (x, y_base), largeur_rect, hauteur_rect,
-                        linewidth=0, edgecolor='none', 
-                        facecolor=couleurs[j], alpha=0.9
-                    )
-                    ax.add_patch(rect)
-                    battery_patches.append(rect)
-            
-            # Ajouter le texte de pourcentage au centre
-            largeur_totale = 5 * largeur_rect + 4 * espacement
-            x_centre_salve = x_depart + largeur_totale / 2
-            txt = ax.text(
-                x_centre_salve, 
-                y_base + hauteur_rect + texte_offset_y,
-                f"{Batteries[battery_index][3]}%",
-                color='black', fontsize=8, ha='center', va='bottom'
-            )
-            battery_texts.append(txt)
+        if Batteries[num_batt][0]!=0:
+            battery_index = num_batt
+            x_depart = x_depart_base + num_batt * (5 * (largeur_rect + espacement) + espacement_salves)
+            # Si une batterie est active, l'afficher
+            if battery_index is not None:
+                # Dessiner les 5 rectangles de niveau de charge
+                for j in range(5):
+                    if Batteries[battery_index][3] >= seuils[j]:
+                        x = x_depart + j * (largeur_rect + espacement)
+                        rect = patches.Rectangle(
+                            (x, y_base), largeur_rect, hauteur_rect,
+                            linewidth=0, edgecolor='none', 
+                            facecolor=couleurs[j], alpha=0.9
+                        )
+                        ax.add_patch(rect)
+                        battery_patches.append(rect)
+                
+                # Ajouter le texte de pourcentage au centre
+                largeur_totale = 5 * largeur_rect + 4 * espacement
+                x_centre_salve = x_depart + largeur_totale / 2
+                txt = ax.text(
+                    x_centre_salve, 
+                    y_base + hauteur_rect + texte_offset_y,
+                    f"{Batteries[battery_index][3]}%",
+                    color='black', fontsize=8, ha='center', va='bottom'
+                )
+                battery_texts.append(txt)
     
     return battery_patches, battery_texts
 
