@@ -56,7 +56,7 @@ for ID in Liste_ID_envoi:
 #################################################
 
 # Perimètre de sécurité
-R_ROBOT = 150
+R_ROBOT = 160
 R_ENNEMI = 150
 MARGE_ENNEMI = 100
 MARGE_NOISETTE = 20
@@ -352,6 +352,7 @@ action_en_cours = None
 action_precedente = None
 trajectoire_calculee = False
 ordre_receive = 0
+verif_mouv = 0
 step = 0
 robot_a_objets = False
 changement_noisette_GM = False
@@ -497,7 +498,7 @@ def LectureCAN(stop_event):
     Si l'ID du message n'est pas dans la Liste_ID, saute
     Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
     """
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, dico_envoi, bus, V_rpi, I_rpi, ordre_receive
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, dico_envoi, bus, V_rpi, I_rpi, verif_mouv
     while not stop_event.is_set():
         msg = bus.recv(0.01)  # attend 10 ms max
         if msg is None:
@@ -553,7 +554,7 @@ def LectureCAN(stop_event):
 
 
         elif msg.arbitration_id == 0x10E:
-            ordre_receive = struct.unpack('f', bytes(msg.data))[0]
+            verif_mouv = struct.unpack('f', bytes(msg.data))[0]
 
 def calcul_ennemi(stop_event):
     """
@@ -1535,7 +1536,7 @@ if __name__ == '__main__':
             if not Reel :
                 if(abs(x_robot_actuel-x_robot_voulu)<TOL_POS_X and abs(y_robot_actuel-y_robot_voulu)<TOL_POS_Y and action_voulu in ["Consigne","Avancer"]):
                     print("Bonne position")
-                    ordre_receive = 11
+                    verif_mouv = 1
                 if(abs(angle_robot_actuel-angle_robot_voulu)<TOL_POS_A) and action_voulu in ["Rotation"]:
                     print("Bon Angle")
                     ordre_receive = 12  
@@ -1546,7 +1547,7 @@ if __name__ == '__main__':
                         if(len(Liste_actions_ennemi)!=1):
                             Liste_actions_ennemi.pop(0)
                     
-            if (action_voulu in ["Consigne","Avancer"] and ordre_receive == 11) or \
+            if (action_voulu in ["Consigne","Avancer"] and verif_mouv == 11) or \
                (action_voulu in ["Rotation"] and ordre_receive == 12) or \
                (action_voulu == "Attraper" and ordre_receive == 21) or \
                (action_voulu == "Relacher" and ordre_receive == 22):
@@ -1554,6 +1555,7 @@ if __name__ == '__main__':
                 # Retirer l'action de la liste 
                 Liste_actions.pop(0) 
                 ordre_receive = 0
+                verif_mouv = 0
                 if Strategie:
                     if not any(a[0] == "Avancer" for a in Liste_actions if isinstance(a, list) and len(a) >= 2):
                         trajectoire_calculee = False  # Permettre un nouveau calcul
