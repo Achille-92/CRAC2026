@@ -4,7 +4,7 @@ Reel = False
 
 Strategie = False
 Astars = True
-Simul_mvt = False
+Simul_mvt = True
 Simul_mvt_ennemi = True
 Lidar_on = False
 Bat_Compet = False
@@ -26,7 +26,7 @@ from functools import partial
 from matplotlib.widgets import Button
 from scipy.ndimage import binary_dilation
 from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes
-from calcul_mouv import euclidienne,astar_safe,simplify_path_safe,smooth_path_safe,creer_grille_avec_ennemi,initialiser_grille
+from calcul_mouv import euclidienne, calculer_trajectoire_complete
 from fonction import Obstacles,calculer_pourcentage_batteries
 from gestion_zones_dynamiques import verifier_et_changer_cible_si_necessaire, mise_a_jour_decision, confirmer_action_terminee,actualiser_zones_jeu
 ########################################################################
@@ -194,11 +194,6 @@ lidar = None
 pile_calcul = queue.Queue(maxsize=500)
 ####################################
 
-# Queues pour calcul A* en thread
-queue_astar_demande = queue.Queue()
-queue_astar_resultat = queue.Queue()
-##########################################
-
 # Piste
 X_PISTE = 3000
 Y_PISTE = 2000
@@ -365,7 +360,7 @@ robot_a_objets = False
 changement_noisette_GM = False
 demande_recalcul_traj = False
 old_ordre_mouvement = 0
-SEUIL_MOUVEMENT_ENNEMI = 10
+
 DEBUG = False
 if Reel:
     TOL_POS_X = 50
@@ -385,7 +380,11 @@ W_SECURITE = 0.2     # Importance de l'évitement du robot ennemi
 W_PRIORITE = 0.1     # Importance du type de tâche (récolte vs dépôt)
 W_EFFICACITE = 0.05   # Importance de la cohérence (robot a objets → déposer)
 
-SAFETY_WEIGHT = 2  # Poids de sécurité pour A*
+SAFETY_WEIGHT = 2.0  # Poids de sécurité pour A*
+MIN_CLEARANCE = 1.0
+SMOOTHNESS = 1.0
+DISTANCE_AJUSTABLE = 5  # Distance seuil pour pénalité sécurité (en cases)
+SEUIL_MOUVEMENT_ENNEMI = 10
 # Expansion des obstacles
 from scipy.ndimage import binary_dilation
 structure = np.zeros((2*rayon_total_case+1, 2*rayon_total_case+1))
@@ -400,48 +399,6 @@ distance_map = distance_transform_edt(~grid_expanded)
 
 ################## Fonction Threads ##########################################
 
-def tache_calcul_astar(stop_event):
-    """
-    Thread dédié au calcul A*.
-    Attend des demandes dans queue_astar_demande et renvoie les résultats dans queue_astar_resultat.
-    Format demande : (start_case, goal_case, grid_avec_ennemi, index_dans_liste_actions)
-    Format résultat : (index_dans_liste_actions, path_simplified ou None)
-    """
-    
-    while not stop_event.is_set():
-        try:
-            # Attendre une demande (timeout pour vérifier stop_event)
-            demande = queue_astar_demande.get(timeout=0.1)
-            
-            start_case, goal_case, grid_avec_ennemi, index = demande
-            if DEBUG :
-                print(f"🔷 Calcul A* : {start_case} → {goal_case}")
-            
-            # Calcul A*
-            debut = time.time()
-            path = astar_safe(start_case, goal_case, SAFETY_WEIGHT, grid_dynamique=grid_avec_ennemi)
-            
-            if path and len(path) > 1:
-                path_simplified = simplify_path_safe(path, min_clearance=1.5, grid_dynamique=grid_avec_ennemi)
-                print("path_simplified : ", path_simplified)
-                if DEBUG :
-                    print(f"✅ A* terminé en {time.time()-debut:.3f}s : {len(path)} → {len(path_simplified)} points")
-            else:
-                path_simplified = None
-                if DEBUG :
-                    print(f"⚠️  A* : aucun chemin trouvé")
-            
-            # Envoyer le résultat
-            queue_astar_resultat.put((index, path_simplified))
-            
-        except queue.Empty:
-            continue
-        except Exception as e:
-            if DEBUG :
-                print(f"❌ Erreur thread A*: {e}")
-            import traceback
-            traceback.print_exc()
-    
 
 def calcul_points(stop_event):
     """
@@ -903,7 +860,6 @@ if __name__ == '__main__':
                                            alpha=0.7, linewidth=2)
     # ========================================================
     
-    initialiser_grille(grid_expanded, distance_map, width, height, CASE_MM)
 
     grid, grid_expanded, obstacle_array, expanded_array, \
     obs_manager, obs_manager_noisettes, \
@@ -1002,9 +958,6 @@ if __name__ == '__main__':
                 tache_calcul.start()
             tache_LectureCAN.start()
         
-        # 🚀 Démarrage thread A*
-        tache_astar = threading.Thread(target=tache_calcul_astar, args=(stop_event,), daemon=True)
-        tache_astar.start()
     
         dico_envoi[0x200]=x_robot_depart
         dico_envoi[0x201]=y_robot_depart
@@ -1014,10 +967,6 @@ if __name__ == '__main__':
             bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
             bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
         
-        # Initialisation des variables de trajectoire
-        path_plot = None
-        path_simplified_plot = None
-        path_smooth_plot = None
         """if Strategie:
             action_en_cours = mise_a_jour_decision(
                 Liste_actions,
@@ -1045,7 +994,12 @@ if __name__ == '__main__':
 
             step +=1
             print("step :",step)
-            
+            if Astars:
+                grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, 
+                            obs_manager, obs_manager_noisettes,
+                            Liste_noisette_xya,  # ⭐ NOUVEAU PARAMÈTRE
+                            obstacle_scatter, expanded_scatter, distance_map, 
+                            ax, width, height, CASE_MM)
             # Simu déplacement robot ennemi
             if not Reel:
                 if Simul_mvt_ennemi:
@@ -1113,7 +1067,7 @@ if __name__ == '__main__':
             print("Liste_Noisette_ordre_couleur : ",Liste_Noisette_ordre_couleur)
             # ================================================================================================= #
 
-            if step >= 10:
+            """if step >= 10:
                 Liste_noisette_xya = []
                 
             changement_noisettes_detecte = detecter_changements_noisettes(
@@ -1137,7 +1091,7 @@ if __name__ == '__main__':
                 
                 # Forcer le recalcul de trajectoire
                 demande_recalcul_traj = True
-                changement_noisette_GM = True  # Pour compatibilité
+                changement_noisette_GM = True  # Pour compatibilité"""
             
             # Lire l'action courante
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
@@ -1196,9 +1150,12 @@ if __name__ == '__main__':
             distance_robot_ennemi = math.sqrt((x_ennemi - x_robot_actuel)**2 + (y_ennemi - y_robot_actuel)**2)
             angle_ennemi = np.degrees(math.atan2(y_ennemi-y_ennemi_old,x_ennemi-x_ennemi_old))
             mouvement_ennemi = math.sqrt((x_ennemi - x_ennemi_old)**2 + (y_ennemi - y_ennemi_old)**2)
-            
+            print("mouvement_ennemi : ",mouvement_ennemi)
             # Détection besoin de recalculer la trajectoire car point suivant dans zone ennemi
+
             if Astars:
+                """if mouvement_ennemi >= SEUIL_MOUVEMENT_ENNEMI:
+                    demande_recalcul_traj = True"""
                 for action in Liste_actions:
                     if action[0] in ["Consigne","Avancer","Reculer"]:
                         distance_point_ennemi = math.sqrt((action[1] - x_ennemi)**2 + (action[2] - y_ennemi)**2)
@@ -1215,141 +1172,44 @@ if __name__ == '__main__':
                     R_securite, MARGE_TRAJECTOIRE,
                     CASE_MM
                 )"""
-            print("demande_recalcul_traj : ",demande_recalcul_traj)
+            
             # === CALCUL DE LA TRAJECTOIRE A* ===
             if Astars: 
-                if action_voulu in ["Rotation","Attraper","Relacher"] and old_ordre_mouvement == 3:
+                if action_voulu in ["Rotation","Attraper","Relacher"]:
                     pass  # rien, on attend la fin de la rotation
                 else:
                     # === CALCUL DE LA TRAJECTOIRE A* ===
-                    if action_voulu in ["Consigne","Reculer"]  or changement_noisette_GM or demande_recalcul_traj:
+                    if action_voulu in ["Consigne","Reculer"] or demande_recalcul_traj == True:
+                        print("\n🚀 Déclenchement du calcul A*")
                         demande_recalcul_traj = False
-                        if changement_noisette_GM == True :
-                            changement_noisette_GM = False
-                        Liste_actions_temps = Liste_actions
-                        Liste_actions = [action for action in Liste_actions if action[0] in ["Consigne","Rotation","Reculer","Attraper","Relacher"]]
-                        # Convertir les positions en cases
-                        start_case = (int(x_robot_actuel // CASE_MM), int(y_robot_actuel // CASE_MM))
-                        goal_case = (int(x_robot_voulu // CASE_MM), int(y_robot_voulu // CASE_MM))
-
-
-                        # Créer la grille dynamique
-                        grid_avec_ennemi = creer_grille_avec_ennemi(
-                            grid_expanded, x_ennemi, y_ennemi,
-                            R_ROBOT, R_ENNEMI, MARGE_ENNEMI, CASE_MM,MARGE_TRAJECTOIRE
+                        # Calcul de la trajectoire avec la nouvelle fonction
+                        points_bruts = calculer_trajectoire_complete(
+                            x_robot_actuel, y_robot_actuel,
+                            x_robot_voulu, y_robot_voulu,
+                            obs_manager, obs_manager_noisettes,
+                            x_ennemi, y_ennemi, R_securite,
+                            CASE_MM, X_PISTE, Y_PISTE,
+                            SAFETY_WEIGHT,
+                            MIN_CLEARANCE,
+                            SMOOTHNESS,
+                            DISTANCE_AJUSTABLE,
+                            affichage_ax=ax
                         )
-
-                        # Envoyer la demande au thread A*
-                        index_demande = len(Liste_actions)  # Utiliser un index unique pour identifier la demande
-                        queue_astar_demande.put((start_case, goal_case, grid_avec_ennemi, index_demande))
-                        # Attendre le résultat (avec timeout pour éviter le blocage)
-                        try:
-                            index_resultat, path_simplified = queue_astar_resultat.get(timeout=2.0)
-                            if index_resultat == index_demande:  # Vérifier que le résultat correspond à la demande
-                                if path_simplified:
-
-                                    # Lisser le chemin
-                                    x_smooth, y_smooth = smooth_path_safe(path_simplified,SAFETY_WEIGHT, grid_dynamique=grid_avec_ennemi)
-
-                                    # Calculer la longueur
-                                    path_length = sum(euclidienne(path_simplified[i], path_simplified[i+1]) for i in range(len(path_simplified)-1))
-                                    path_length_mm = path_length * CASE_MM
-                                    
-                                    # Afficher le chemin brut (optionnel)
-                                    px, py = zip(*path_simplified)
-                                    path_plot, = ax.plot(px, py, 'b-', linewidth=1, alpha=0.3, label='A* brut')
-                                    
-                                    # Afficher le chemin simplifié
-                                    px_mm = [x * CASE_MM for x in px]
-                                    py_mm = [y * CASE_MM for y in py]
-                                    
-                                    # Effacer anciens plots
-                                    if path_plot is not None:
-                                        path_plot.remove()
-                                        path_plot = None
-                                    if path_simplified_plot is not None:
-                                        path_simplified_plot.remove()
-                                        path_simplified_plot = None
-                                    if path_smooth_plot is not None:
-                                        path_smooth_plot.remove()
-                                        path_smooth_plot = None
-
-                                    # ⭐ OPTIMISATION DE TRAJECTOIRE - DÉBUT
-                                    points_bruts = [[int(px_mm[i]), int(py_mm[i])] for i in range(len(px_mm))]
-
-                                    for i in range(len(points_bruts)-1, 0, -1):
-                                        x_cible, y_cible = points_bruts[i]
-                                        if abs(x_cible - x_robot_voulu) > 10 or abs(y_cible - y_robot_voulu) > 10:
-                                            Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
-                                    # ⭐ OPTIMISATION DE TRAJECTOIRE - FIN
-                                    
-                                    x_optimises = [int(pt[0]) for pt in points_bruts]
-                                    y_optimises = [int(pt[1]) for pt in points_bruts]
-
-                                    # 3️⃣ Dessiner UNE SEULE ligne avec tous les points
-                                    path_simplified_plot, = ax.plot(
-                                        x_optimises, y_optimises, 
-                                        'g-',           # Ligne verte continue
-                                        linewidth=2, 
-                                        label='Chemin A*', 
-                                        marker='o',     # Marqueurs ronds
-                                        markersize=4, 
-                                        zorder=10
-                                    )
-                                    # Afficher le chemin lissé
-                                    if x_smooth is not None and y_smooth is not None:
-                                        x_smooth_mm = [x * CASE_MM for x in x_smooth]
-                                        y_smooth_mm = [y * CASE_MM for y in y_smooth]
-                                    
-                                    """path_simplified_plot, = ax.plot(
-                                        x_smooth_mm, y_smooth_mm, 
-                                        'y-',           # Ligne verte continue
-                                        linewidth=2, 
-                                        label='Chemin A*', 
-                                        marker='o',     # Marqueurs ronds
-                                        markersize=4, 
-                                        zorder=10
-                                    )"""
-                                else:
-                                    print("❌ Aucun chemin trouvé par A*")
-                                    if distance_robot_ennemi < R_securite:
-                                        print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
-                                        Liste_actions = Liste_actions_temps
-                                    else:
-                                        print("CHEMIN INACCESSIBLE, RECALCUL DE TRAJECTOIRE")
-                                        """print(action_en_cours['numero_zone'])
-                                        print(action_en_cours['type'])"""
-                                        """if Strategie:
-                                            if action_en_cours['type'] in ["Attraper"]:
-                                                Liste_noisettes_libres_temp = [nbr for nbr in Liste_noisettes_libres if nbr != action_en_cours['numero_zone']]
-                                                Liste_noisettes_GM_temp = Liste_GM_libres.copy()
-                                            if action_en_cours['type'] in ["Relacher"]:
-                                                Liste_noisettes_libres_temp = Liste_noisettes_libres.copy()
-                                                Liste_noisettes_GM_temp = [nbr for nbr in Liste_GM_libres if nbr != action_en_cours['numero_zone']]"""
-                                        
-                                        """if not(temps_restant <= temps_retour):
-                                            action_en_cours = verifier_et_changer_cible_si_necessaire(
-                                                action_en_cours,
-                                                Liste_actions,
-                                                Liste_noisettes_libres_temp,
-                                                Liste_noisettes_GM_temp,
-                                                x_robot_actuel, y_robot_actuel,
-                                                x_ennemi, y_ennemi,
-                                                robot_a_objets,
-                                                Liste_zones_recup_noisettes_xy,
-                                                Liste_zones_recup_noisettes_angle,
-                                                Liste_zones_gm_xy,
-                                                Liste_zones_gm_angle,
-                                                R_securite,
-                                                action_voulu,
-                                                DISTANCE_MAX_TERRAIN,W_DISTANCE,W_SECURITE,W_PRIORITE,W_EFFICACITE
-                                            )"""
-                                        Liste_noisettes_libres_temp = []
-                                        Liste_noisettes_GM_temp = []
+                        
+                        if points_bruts is not None:
+                            print(f"✅ Trajectoire calculée : {len(points_bruts)} points")
+                            
+                            # ⭐ AJOUT DES POINTS DANS Liste_actions
+                            for i in range(len(points_bruts)-1, 0, -1):
+                                x_cible, y_cible = points_bruts[i]
+                                if abs(x_cible - x_robot_voulu) > 10 or abs(y_cible - y_robot_voulu) > 10:
+                                    Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
+                        else:
+                            print("❌ Aucun chemin trouvé par A*")
+                            if distance_robot_ennemi < R_securite:
+                                print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
                             else:
-                                print("⚠️ Résultat obsolète (demande annulée ou recalculée)")
-                        except queue.Empty:
-                            print("⚠️ Timeout : Aucun résultat reçu du thread A*")
+                                print("CHEMIN INACCESSIBLE")
 
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3: # Si la consigne est une coordonnée
                 action_voulu = Liste_actions[0][0]
@@ -1721,9 +1581,7 @@ if __name__ == '__main__':
                 tache_calcul.join()
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
-        
-        if Astars:
-            tache_astar.join()
+            
         
     except Exception as e:
         print(e)
@@ -1738,8 +1596,7 @@ if __name__ == '__main__':
             data_etat = struct.pack('<I',etat)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
         
-        if Astars:
-            tache_astar.join()
+            
         plt.close(fig)
 
 ########################################################################
