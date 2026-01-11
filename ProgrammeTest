@@ -1,11 +1,11 @@
 couleur = "J"
 
-Reel = True
+Reel = False
 
 Strategie = False
-Astars = False
-Simul_mvt = True
-Simul_mvt_ennemi = False
+Astars = True
+Simul_mvt = False
+Simul_mvt_ennemi = True
 Lidar_on = False
 Bat_Compet = False
 ################## Librairies ##########################################
@@ -26,7 +26,7 @@ from functools import partial
 from matplotlib.widgets import Button
 from scipy.ndimage import binary_dilation
 from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes
-from calcul_mouv import euclidienne,astar_safe,simplify_path_safe,smooth_path_safe,creer_grille_avec_ennemi,initialiser_grille,optimiser_trajectoire
+from calcul_mouv import euclidienne,astar_safe,simplify_path_safe,smooth_path_safe,creer_grille_avec_ennemi,initialiser_grille
 from fonction import Obstacles,calculer_pourcentage_batteries
 from gestion_zones_dynamiques import verifier_et_changer_cible_si_necessaire, mise_a_jour_decision, confirmer_action_terminee,actualiser_zones_jeu
 ########################################################################
@@ -59,7 +59,7 @@ R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 ############################
 
 # Listes pour la Stratégie
-if not Strategie:
+if not Astars:
     Liste_actions = [
         ["Consigne",2550,1400],
         ["Consigne",2550,1000],
@@ -90,7 +90,8 @@ if not Strategie:
 else :
     Liste_actions = [
         ["Consigne",2825,500+R_ROBOT+2*MARGE_NOISETTE],
-        ["Rotation",-90]
+        ["Reculer",2825,500+R_ROBOT+10*MARGE_NOISETTE],
+        #["Rotation",-90]
     ]
 
 Liste_trajectoire = []
@@ -98,14 +99,6 @@ Liste_noisettes_libres_temp = [4]
 
 Liste_actions_ennemi = []
 
-Liste_GM_libres = [1,2,3,4,5,6,7,8,9,10]
-Liste_GM_occuper = []
-Liste_noisettes_libres = [1,2,3,4,5,6,7,8]
-Liste_noisettes_prises = []
-
-Liste_GM_libres_precedente = Liste_GM_libres.copy()
-Liste_noisettes_libres_precedente = Liste_noisettes_libres.copy()
-Liste_actions_precedente = Liste_actions.copy()
 
 Liste_noisette_xya = [
     [175,1275,0,"J"],[175,1175,0,"J"],[175,1125,0,"B"],[175,1225,0,"B"],
@@ -245,6 +238,9 @@ else:
 x_ennemi_old = x_ennemi
 y_ennemi_old = y_ennemi
 ########
+
+x_ennemi = 1500
+y_ennemi = 800
 
 # Variable pour les Grilles du A*
 CASE_MM = 10
@@ -389,7 +385,7 @@ W_SECURITE = 0.2     # Importance de l'évitement du robot ennemi
 W_PRIORITE = 0.1     # Importance du type de tâche (récolte vs dépôt)
 W_EFFICACITE = 0.05   # Importance de la cohérence (robot a objets → déposer)
 
-SAFETY_WEIGHT = 2.0  # Poids de sécurité pour A*
+SAFETY_WEIGHT = 2  # Poids de sécurité pour A*
 # Expansion des obstacles
 from scipy.ndimage import binary_dilation
 structure = np.zeros((2*rayon_total_case+1, 2*rayon_total_case+1))
@@ -426,7 +422,8 @@ def tache_calcul_astar(stop_event):
             path = astar_safe(start_case, goal_case, SAFETY_WEIGHT, grid_dynamique=grid_avec_ennemi)
             
             if path and len(path) > 1:
-                path_simplified = simplify_path_safe(path, min_clearance=5, grid_dynamique=grid_avec_ennemi)
+                path_simplified = simplify_path_safe(path, min_clearance=1.5, grid_dynamique=grid_avec_ennemi)
+                print("path_simplified : ", path_simplified)
                 if DEBUG :
                     print(f"✅ A* terminé en {time.time()-debut:.3f}s : {len(path)} → {len(path_simplified)} points")
             else:
@@ -941,7 +938,7 @@ if __name__ == '__main__':
         zone_button = Button(ax_zone_button, f'Zone {i}\n✗ INACTIF', color='lightgreen', hovercolor='green')
         
         # Connecter le callback avec le numéro de zone
-        zone_button.on_clicked(partial(toggle_zone, zone_num=i))
+        #zone_button.on_clicked(partial(toggle_zone, zone_num=i))
         
         # Stocker le bouton dans la liste
         boutons_zones.append(zone_button)
@@ -1047,7 +1044,7 @@ if __name__ == '__main__':
             temps_restant = temps_max - temps_ecoules
 
             step +=1
-
+            print("step :",step)
             
             # Simu déplacement robot ennemi
             if not Reel:
@@ -1116,15 +1113,15 @@ if __name__ == '__main__':
             print("Liste_Noisette_ordre_couleur : ",Liste_Noisette_ordre_couleur)
             # ================================================================================================= #
 
-            """if temps_restant <90:
-                Liste_noisette_xya = []"""
-            
-            """changement_noisettes_detecte = detecter_changements_noisettes(
+            if step >= 10:
+                Liste_noisette_xya = []
+                
+            changement_noisettes_detecte = detecter_changements_noisettes(
                 Liste_noisette_xya, 
                 Liste_noisette_xya_precedente
-            )"""
+            )
 
-            """if changement_noisettes_detecte:
+            if changement_noisettes_detecte:
                 print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
                 
                 grid, grid_expanded, obstacle_array, expanded_array, \
@@ -1141,7 +1138,7 @@ if __name__ == '__main__':
                 # Forcer le recalcul de trajectoire
                 demande_recalcul_traj = True
                 changement_noisette_GM = True  # Pour compatibilité
-            """
+            
             # Lire l'action courante
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
                 action_voulu = Liste_actions[0][0]
@@ -1257,15 +1254,15 @@ if __name__ == '__main__':
                                     # Calculer la longueur
                                     path_length = sum(euclidienne(path_simplified[i], path_simplified[i+1]) for i in range(len(path_simplified)-1))
                                     path_length_mm = path_length * CASE_MM
-
+                                    
                                     # Afficher le chemin brut (optionnel)
                                     px, py = zip(*path_simplified)
                                     path_plot, = ax.plot(px, py, 'b-', linewidth=1, alpha=0.3, label='A* brut')
-
+                                    
                                     # Afficher le chemin simplifié
                                     px_mm = [x * CASE_MM for x in px]
                                     py_mm = [y * CASE_MM for y in py]
-
+                                    
                                     # Effacer anciens plots
                                     if path_plot is not None:
                                         path_plot.remove()
@@ -1279,17 +1276,15 @@ if __name__ == '__main__':
 
                                     # ⭐ OPTIMISATION DE TRAJECTOIRE - DÉBUT
                                     points_bruts = [[int(px_mm[i]), int(py_mm[i])] for i in range(len(px_mm))]
-                                    points_optimises = optimiser_trajectoire(points_bruts, methode='douglas-peucker', epsilon=20)
-                                    print(f"📊 Optimisation : {len(points_bruts)} → {len(points_optimises)} points")
 
-                                    for i in range(len(points_optimises)-1, 0, -1):
-                                        x_cible, y_cible = points_optimises[i]
+                                    for i in range(len(points_bruts)-1, 0, -1):
+                                        x_cible, y_cible = points_bruts[i]
                                         if abs(x_cible - x_robot_voulu) > 10 or abs(y_cible - y_robot_voulu) > 10:
                                             Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
                                     # ⭐ OPTIMISATION DE TRAJECTOIRE - FIN
                                     
-                                    x_optimises = [int(pt[0]) for pt in points_optimises]
-                                    y_optimises = [int(pt[1]) for pt in points_optimises]
+                                    x_optimises = [int(pt[0]) for pt in points_bruts]
+                                    y_optimises = [int(pt[1]) for pt in points_bruts]
 
                                     # 3️⃣ Dessiner UNE SEULE ligne avec tous les points
                                     path_simplified_plot, = ax.plot(
@@ -1306,6 +1301,15 @@ if __name__ == '__main__':
                                         x_smooth_mm = [x * CASE_MM for x in x_smooth]
                                         y_smooth_mm = [y * CASE_MM for y in y_smooth]
                                     
+                                    """path_simplified_plot, = ax.plot(
+                                        x_smooth_mm, y_smooth_mm, 
+                                        'y-',           # Ligne verte continue
+                                        linewidth=2, 
+                                        label='Chemin A*', 
+                                        marker='o',     # Marqueurs ronds
+                                        markersize=4, 
+                                        zorder=10
+                                    )"""
                                 else:
                                     print("❌ Aucun chemin trouvé par A*")
                                     if distance_robot_ennemi < R_securite:
@@ -1608,7 +1612,7 @@ if __name__ == '__main__':
                         Liste_actions.clear()
 
                         # ⭐ ACTUALISER LES ZONES **AVANT** LA NOUVELLE DÉCISION ⭐
-                        grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, Liste_GM_libres, Liste_GM_occuper, Liste_noisettes_libres, Liste_noisettes_prises, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
+                        grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes, obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
 
                         
                         # ⭐ FORCER une nouvelle décision immédiatement ⭐
@@ -1699,8 +1703,6 @@ if __name__ == '__main__':
             x_ennemi_old = x_ennemi
             y_ennemi_old = y_ennemi
             Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
-            Liste_GM_libres_precedente = Liste_GM_libres.copy()
-            Liste_noisettes_libres_precedente = Liste_noisettes_libres.copy()
             Liste_actions_precedente = Liste_actions.copy()
             print("")
             time.sleep(0.000005)
