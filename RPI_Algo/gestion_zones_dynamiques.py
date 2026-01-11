@@ -1,5 +1,5 @@
 from affichage import afficher_obstacles
-from calcul_mouv import initialiser_grille, verifier_cible_disponible
+from calcul_mouv import verifier_cible_disponible
 from fonction import distance_euclidienne
 """
 gestion_zones_dynamiques.py
