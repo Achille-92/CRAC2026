@@ -1,345 +1,806 @@
 """
-calcul_mouv.py
-Adaptation du programme A* isolé au programme principal
-SEULE différence : génération des obstacles via obs_manager
+fonction.py - Module de gestion des obstacles et batteries
+Version avec classe Obstacles pour gestion dynamique
 """
 
-import heapq
-import math
 import numpy as np
-from scipy.interpolate import splprep, splev
-from scipy.ndimage import binary_dilation, distance_transform_edt
+from scipy.ndimage import binary_dilation
+from dataclasses import dataclass
+from typing import List, Tuple, Optional, Set
+import math
 
+# ============================================================================
+# CLASSE OBSTACLE - Représente un obstacle individuel
+# ============================================================================
 
-# === CONSTANTES ===
-DIRECTIONS = [
-    ((1, 0), 1.0), ((-1, 0), 1.0), ((0, 1), 1.0), ((0, -1), 1.0),
-    ((1, 1), 1.414), ((-1, -1), 1.414), ((1, -1), 1.414), ((-1, 1), 1.414)
-]
-
-
-# === FONCTIONS UTILITAIRES ===
-
-def euclidienne(a, b):
-    """Calcule la distance euclidienne entre deux points"""
-    dx, dy = a[0] - b[0], a[1] - b[1]
-    return math.sqrt(dx*dx + dy*dy)
-
-
-def voisins_rapide(x, y, grid_expanded, width, height):
-    """Retourne les voisins accessibles d'une case"""
-    result = []
-    for (dx, dy), cost in DIRECTIONS:
-        nx, ny = x + dx, y + dy
-        if 0 <= nx < width and 0 <= ny < height and not grid_expanded[nx, ny]:
-            result.append(((nx, ny), cost))
-    return result
-
-
-# === A* AVEC PONDÉRATION PAR DISTANCE AUX OBSTACLES ===
-
-def astar_safe(start, goal, grid_expanded, distance_map, width, height, safety_weight, DISTANCE_AJUSTABLE):
-    """A* qui favorise les chemins éloignés des obstacles"""
-    open_set = [(0, start)]
-    came_from = {}
-    g_score = {start: 0}
-    closed_set = set()
+@dataclass
+class Obstacle:
+    """
+    Représente un obstacle unique sur le terrain.
     
-    while open_set:
-        _, current = heapq.heappop(open_set)
+    Attributes:
+        nom: Identifiant unique de l'obstacle
+        forme: Type d'obstacle ('carre', 'rectangle', 'cercle', 'polygone')
+        params: Paramètres spécifiques selon la forme
+        actif: Si True, l'obstacle est pris en compte
+        priorite: Ordre de traitement (0 = priorité max)
+    """
+    nom: str
+    forme: str
+    params: dict
+    actif: bool = True
+    priorite: int = 0
+    
+    def __str__(self):
+        etat = "✅ ACTIF" if self.actif else "⚪ INACTIF"
+        return f"{etat} | {self.nom:15s} | {self.forme:10s}"
+
+
+# ============================================================================
+# CLASSE OBSTACLES - Gestionnaire principal
+# ============================================================================
+
+class Obstacles:
+    """
+    Gestionnaire dynamique des obstacles du terrain.
+    
+    Permet d'ajouter, retirer, activer/désactiver des obstacles
+    et de générer les grilles pour l'algorithme A*.
+    
+    Exemple d'utilisation:
+        >>> obs_manager = Obstacles(3000, 2000, 150, 50, 10)
+        >>> obs_manager.ajouter_carre("zone1", (1500, 800), 200)
+        >>> obs_manager.ajouter_rectangle("grenier", (600, 1550), (2400, 2000))
+        >>> grid = obs_manager.generer_grille()
+        >>> obs_manager.desactiver("zone1")
+    """
+    
+    def __init__(self, terrain_w_mm: int, terrain_h_mm: int, 
+                 rayon_robot_mm: int, marge_obstacles_mm: int, case_mm: int = 10):
+        """
+        Initialise le gestionnaire d'obstacles.
         
-        if current in closed_set:
-            continue
-        closed_set.add(current)
+        Args:
+            terrain_w_mm: Largeur du terrain en mm
+            terrain_h_mm: Hauteur du terrain en mm
+            rayon_robot_mm: Rayon du robot en mm
+            marge_obstacles_mm: Marge de sécurité autour des obstacles en mm
+            case_mm: Taille d'une case en mm (défaut: 10)
+        """
+        # Paramètres du terrain
+        self.terrain_w_mm = terrain_w_mm
+        self.terrain_h_mm = terrain_h_mm
+        self.case_mm = case_mm
+        self.width = terrain_w_mm // case_mm
+        self.height = terrain_h_mm // case_mm
         
-        if current == goal:
-            # Reconstruire le chemin
-            path = []
-            while current in came_from:
-                path.append(current)
-                current = came_from[current]
-            path.append(start)
-            path.reverse()
-            return path
+        # Paramètres de sécurité
+        self.rayon_robot_mm = rayon_robot_mm
+        self.marge_obstacles_mm = marge_obstacles_mm
+        self.rayon_total_case = (rayon_robot_mm + marge_obstacles_mm) // case_mm
         
-        current_g = g_score[current]
-        x, y = int(current[0]), int(current[1])
+        # Dictionnaire des obstacles (nom -> Obstacle)
+        self._obstacles: dict[str, Obstacle] = {}
         
-        for (neighbor, cost) in voisins_rapide(x, y, grid_expanded, width, height):
-            if neighbor in closed_set:
+        # Cache pour éviter recalculs inutiles
+        self._cache_grid = None
+        self._cache_valide = False
+        
+        print(f"🏗️  Gestionnaire obstacles initialisé : {self.width}×{self.height} cases")
+    
+    
+    # ========================================================================
+    # AJOUT D'OBSTACLES
+    # ========================================================================
+    
+    def ajouter_carre(self, nom: str, centre_mm: Tuple[int, int], 
+                      cote_mm: int, actif: bool = True, priorite: int = 0) -> None:
+        """
+        Ajoute un obstacle carré.
+        
+        Args:
+            nom: Identifiant unique
+            centre_mm: (x, y) centre du carré en mm
+            cote_mm: Côté du carré en mm
+            actif: Si True, obstacle actif dès création
+            priorite: Ordre de traitement
+            
+        Example:
+            >>> obs.ajouter_carre("zone1", (1250, 1450), 200)
+        """
+        obstacle = Obstacle(
+            nom=nom,
+            forme="carre",
+            params={"centre": centre_mm, "cote": cote_mm},
+            actif=actif,
+            priorite=priorite
+        )
+        self._obstacles[nom] = obstacle
+        self._invalider_cache()
+        print(f"➕ Carré ajouté : {nom} @ {centre_mm} ({cote_mm}mm)")
+    
+    
+    def ajouter_rectangle(self, nom: str, coin_bas_gauche_mm: Tuple[int, int],
+                         coin_haut_droit_mm: Tuple[int, int], 
+                         actif: bool = True, priorite: int = 0) -> None:
+        """
+        Ajoute un obstacle rectangulaire.
+        
+        Args:
+            nom: Identifiant unique
+            coin_bas_gauche_mm: (x_min, y_min) en mm
+            coin_haut_droit_mm: (x_max, y_max) en mm
+            actif: Si True, obstacle actif dès création
+            priorite: Ordre de traitement
+            
+        Example:
+            >>> obs.ajouter_rectangle("grenier", (600, 1550), (2400, 2000))
+        """
+        obstacle = Obstacle(
+            nom=nom,
+            forme="rectangle",
+            params={"coin_bg": coin_bas_gauche_mm, "coin_hd": coin_haut_droit_mm},
+            actif=actif,
+            priorite=priorite
+        )
+        self._obstacles[nom] = obstacle
+        self._invalider_cache()
+        #print(f"➕ Rectangle ajouté : {nom} @ {coin_bas_gauche_mm} - {coin_haut_droit_mm}")
+    
+    
+    
+    def ajouter_rectangle_oriente(self, nom: str, centre_mm: Tuple[int, int],
+                                  longueur_mm: int, largeur_mm: int, angle_deg: float,
+                                  actif: bool = True, priorite: int = 0) -> None:
+        """
+        Ajoute un obstacle rectangulaire orienté.
+        
+        Args:
+            nom: Identifiant unique
+            centre_mm: (x, y) centre du rectangle en mm
+            longueur_mm: Longueur du rectangle (dans la direction de l'angle) en mm
+            largeur_mm: Largeur du rectangle (perpendiculaire à l'angle) en mm
+            angle_deg: Angle de rotation en degrés (0° = horizontal, 90° = vertical)
+            actif: Si True, obstacle actif dès création
+            priorite: Ordre de traitement
+            
+        Example:
+            >>> obs.ajouter_rectangle_oriente("noisette1", (175, 1200), 150, 50, 0)
+            >>> obs.ajouter_rectangle_oriente("noisette2", (1500, 800), 150, 50, 90)
+        """
+        obstacle = Obstacle(
+            nom=nom,
+            forme="rectangle_oriente",
+            params={
+                "centre": centre_mm,
+                "longueur": longueur_mm,
+                "largeur": largeur_mm,
+                "angle": angle_deg
+            },
+            actif=actif,
+            priorite=priorite
+        )
+        self._obstacles[nom] = obstacle
+        self._invalider_cache()
+        #print(f"➕ Rectangle orienté ajouté : {nom} @ {centre_mm} ({longueur_mm}×{largeur_mm}mm, {angle_deg}°)")
+
+    def ajouter_cercle(self, nom: str, centre_mm: Tuple[int, int],
+                      rayon_mm: int, actif: bool = True, priorite: int = 0) -> None:
+        """
+        Ajoute un obstacle circulaire.
+        
+        Args:
+            nom: Identifiant unique
+            centre_mm: (x, y) centre du cercle en mm
+            rayon_mm: Rayon du cercle en mm
+            actif: Si True, obstacle actif dès création
+            priorite: Ordre de traitement
+            
+        Example:
+            >>> obs.ajouter_cercle("zone_danger", (1500, 1000), 300)
+        """
+        obstacle = Obstacle(
+            nom=nom,
+            forme="cercle",
+            params={"centre": centre_mm, "rayon": rayon_mm},
+            actif=actif,
+            priorite=priorite
+        )
+        self._obstacles[nom] = obstacle
+        self._invalider_cache()
+        #print(f"➕ Cercle ajouté : {nom} @ {centre_mm} (r={rayon_mm}mm)")
+    
+    
+    def ajouter_polygone(self, nom: str, sommets_mm: List[Tuple[int, int]],
+                        actif: bool = True, priorite: int = 0) -> None:
+        """
+        Ajoute un obstacle polygonal.
+        
+        Args:
+            nom: Identifiant unique
+            sommets_mm: Liste de (x, y) des sommets en mm
+            actif: Si True, obstacle actif dès création
+            priorite: Ordre de traitement
+            
+        Example:
+            >>> obs.ajouter_polygone("zone_tri", [(100,100), (200,100), (150,200)])
+        """
+        obstacle = Obstacle(
+            nom=nom,
+            forme="polygone",
+            params={"sommets": sommets_mm},
+            actif=actif,
+            priorite=priorite
+        )
+        self._obstacles[nom] = obstacle
+        self._invalider_cache()
+        #print(f"➕ Polygone ajouté : {nom} ({len(sommets_mm)} sommets)")
+    
+    
+    # ========================================================================
+    # ACTIVATION / DÉSACTIVATION
+    # ========================================================================
+    
+    def activer(self, nom: str) -> bool:
+        """
+        Active un obstacle.
+        
+        Args:
+            nom: Nom de l'obstacle
+            
+        Returns:
+            True si succès, False si obstacle inexistant
+        """
+        if nom not in self._obstacles:
+            print(f"❌ Obstacle '{nom}' introuvable")
+            return False
+        
+        self._obstacles[nom].actif = True
+        self._invalider_cache()
+        print(f"✅ Obstacle '{nom}' activé")
+        return True
+    
+    
+    def desactiver(self, nom: str) -> bool:
+        """
+        Désactive un obstacle (ne sera plus pris en compte).
+        
+        Args:
+            nom: Nom de l'obstacle
+            
+        Returns:
+            True si succès, False si obstacle inexistant
+        """
+        if nom not in self._obstacles:
+            print(f"❌ Obstacle '{nom}' introuvable")
+            return False
+        
+        self._obstacles[nom].actif = False
+        self._invalider_cache()
+        print(f"🔴 Obstacle '{nom}' désactivé")
+        return True
+    
+    
+    def basculer(self, nom: str) -> bool:
+        """
+        Inverse l'état actif/inactif d'un obstacle.
+        
+        Args:
+            nom: Nom de l'obstacle
+            
+        Returns:
+            True si succès, False si obstacle inexistant
+        """
+        if nom not in self._obstacles:
+            print(f"❌ Obstacle '{nom}' introuvable")
+            return False
+        
+        self._obstacles[nom].actif = not self._obstacles[nom].actif
+        etat = "activé" if self._obstacles[nom].actif else "désactivé"
+        self._invalider_cache()
+        print(f"🔄 Obstacle '{nom}' {etat}")
+        return True
+    
+    
+    # ========================================================================
+    # SUPPRESSION
+    # ========================================================================
+    
+    def retirer(self, nom: str) -> bool:
+        """
+        Retire définitivement un obstacle.
+        
+        Args:
+            nom: Nom de l'obstacle
+            
+        Returns:
+            True si succès, False si obstacle inexistant
+        """
+        if nom not in self._obstacles:
+            print(f"❌ Obstacle '{nom}' introuvable")
+            return False
+        
+        del self._obstacles[nom]
+        self._invalider_cache()
+        #print(f"🗑️  Obstacle '{nom}' retiré")
+        return True
+    
+    
+    def retirer_tous(self) -> None:
+        """Retire tous les obstacles."""
+        count = len(self._obstacles)
+        self._obstacles.clear()
+        self._invalider_cache()
+        #print(f"🗑️  {count} obstacles retirés")
+    
+    
+    # ========================================================================
+    # CONSULTATION
+    # ========================================================================
+    
+    def lister(self, filtre_actif: Optional[bool] = None) -> None:
+        """
+        Affiche la liste des obstacles.
+        
+        Args:
+            filtre_actif: Si True, seulement actifs. Si False, seulement inactifs.
+                         Si None, tous les obstacles.
+        """
+        print("\n📋 LISTE DES OBSTACLES")
+        print("=" * 70)
+        
+        obstacles_tries = sorted(self._obstacles.values(), 
+                                key=lambda o: (o.priorite, o.nom))
+        
+        count = 0
+        for obs in obstacles_tries:
+            if filtre_actif is None or obs.actif == filtre_actif:
+                print(f"  {obs}")
+                count += 1
+        
+        if count == 0:
+            print("  (aucun obstacle)")
+        
+        print("=" * 70)
+        print(f"Total : {len(self._obstacles)} obstacles ({count} affichés)\n")
+    
+    
+    def existe(self, nom: str) -> bool:
+        """Vérifie si un obstacle existe."""
+        return nom in self._obstacles
+    
+    
+    def est_actif(self, nom: str) -> Optional[bool]:
+        """
+        Vérifie si un obstacle est actif.
+        
+        Returns:
+            True si actif, False si inactif, None si inexistant
+        """
+        if nom not in self._obstacles:
+            return None
+        return self._obstacles[nom].actif
+    
+    
+    def compter(self, actifs_seulement: bool = False) -> int:
+        """
+        Compte les obstacles.
+        
+        Args:
+            actifs_seulement: Si True, compte seulement les actifs
+            
+        Returns:
+            Nombre d'obstacles
+        """
+        if actifs_seulement:
+            return sum(1 for obs in self._obstacles.values() if obs.actif)
+        return len(self._obstacles)
+    
+    
+    # ========================================================================
+    # GÉNÉRATION DE GRILLE
+    # ========================================================================
+    
+    def generer_grille(self, utiliser_cache: bool = True) -> Tuple[np.ndarray, np.ndarray, 
+                                                                      np.ndarray, np.ndarray]:
+        """
+        Génère les grilles d'obstacles pour l'algorithme A*.
+        
+        Args:
+            utiliser_cache: Si True et cache valide, retourne le cache
+            
+        Returns:
+            tuple: (grid, grid_expanded, obstacle_array, expanded_array)
+                - grid: Grille booléenne des obstacles
+                - grid_expanded: Grille avec marges de sécurité
+                - obstacle_array: Array numpy des positions d'obstacles
+                - expanded_array: Array numpy des zones de sécurité
+        """
+        # Utiliser cache si valide
+        if utiliser_cache and self._cache_valide and self._cache_grid is not None:
+            return self._cache_grid
+        
+        # Créer ensemble de cases occupées
+        obstacles_cases: Set[Tuple[int, int]] = set()
+        
+        # Trier par priorité
+        obstacles_tries = sorted(
+            [obs for obs in self._obstacles.values() if obs.actif],
+            key=lambda o: o.priorite
+        )
+        
+        # Générer cases pour chaque obstacle
+        for obs in obstacles_tries:
+            if obs.forme == "carre":
+                cases = self._generer_carre(obs.params)
+            elif obs.forme == "rectangle":
+                cases = self._generer_rectangle(obs.params)
+            elif obs.forme == "cercle":
+                cases = self._generer_cercle(obs.params)
+            elif obs.forme == "rectangle_oriente":
+                cases = self._generer_rectangle_oriente(obs.params)
+            elif obs.forme == "polygone":
+                cases = self._generer_polygone(obs.params)
+            else:
+                print(f"⚠️  Forme inconnue : {obs.forme}")
                 continue
             
-            nx, ny = int(neighbor[0]), int(neighbor[1])
-            
-            # Pénalité inversement proportionnelle à la distance aux obstacles
-            dist_to_obstacle = distance_map[nx, ny]
-            if dist_to_obstacle < DISTANCE_AJUSTABLE:
-                safety_penalty = safety_weight * (DISTANCE_AJUSTABLE - dist_to_obstacle)
-            else:
-                safety_penalty = 0
-            
-            tentative_g = current_g + cost + safety_penalty
-            
-            if tentative_g < g_score.get(neighbor, math.inf):
-                came_from[neighbor] = current
-                g_score[neighbor] = tentative_g
-                f_score = tentative_g + euclidienne(neighbor, goal)
-                heapq.heappush(open_set, (f_score, neighbor))
-    
-    return None
-
-
-# === SIMPLIFICATION SÉCURISÉE DU CHEMIN ===
-
-def simplify_path_safe(path, grid_expanded, distance_map, width, height, min_clearance):
-    """Simplifie le chemin en gardant une distance minimale aux obstacles"""
-    if len(path) <= 2:
-        return path
-    
-    simplified = [path[0]]
-    i = 0
-    
-    while i < len(path) - 1:
-        j = len(path) - 1
-        found = False
+            obstacles_cases.update(cases)
         
-        while j > i + 1:
-            if is_line_clear_safe(path[i], path[j], grid_expanded, distance_map, width, height, min_clearance):
-                simplified.append(path[j])
-                i = j
-                found = True
-                break
-            j -= 1
+        # Conversion en grille
+        grid = np.zeros((self.width, self.height), dtype=bool)
+        for (x, y) in obstacles_cases:
+            grid[x, y] = True
         
-        if not found:
-            i += 1
-            if i < len(path):
-                simplified.append(path[i])
+        # Expansion avec marge de sécurité
+        structure = np.zeros((2*self.rayon_total_case+1, 2*self.rayon_total_case+1))
+        y_grid, x_grid = np.ogrid[-self.rayon_total_case:self.rayon_total_case+1, 
+                                   -self.rayon_total_case:self.rayon_total_case+1]
+        mask = x_grid*x_grid + y_grid*y_grid <= self.rayon_total_case*self.rayon_total_case
+        structure[mask] = 1
+        grid_expanded = binary_dilation(grid, structure=structure)
+        
+        # Conversion en arrays pour affichage
+        obstacle_array = np.argwhere(grid)
+        expanded_array = np.argwhere(grid_expanded & ~grid)
+        
+        # Mise en cache
+        self._cache_grid = (grid, grid_expanded, obstacle_array, expanded_array)
+        self._cache_valide = True
+        
+        print(f"🗺️  Grille générée : {len(obstacles_cases)} cases obstacles, "
+              f"{len(expanded_array)} cases sécurité")
+        
+        return grid, grid_expanded, obstacle_array, expanded_array
     
-    return simplified
+    
+    # ========================================================================
+    # GÉNÉRATEURS DE FORMES (méthodes privées)
+    # ========================================================================
+    
+    def _generer_carre(self, params: dict) -> Set[Tuple[int, int]]:
+        """Génère les cases d'un carré."""
+        cx_mm, cy_mm = params["centre"]
+        cote_mm = params["cote"]
+        
+        cx = cx_mm // self.case_mm
+        cy = cy_mm // self.case_mm
+        demi_cote = (cote_mm // self.case_mm) // 2
+        
+        cases = set()
+        for x in range(cx - demi_cote, cx + demi_cote):
+            for y in range(cy - demi_cote, cy + demi_cote):
+                if 0 <= x < self.width and 0 <= y < self.height:
+                    cases.add((x, y))
+        
+        return cases
+    
+    
+    def _generer_rectangle(self, params: dict) -> Set[Tuple[int, int]]:
+        """Génère les cases d'un rectangle."""
+        x_min_mm, y_min_mm = params["coin_bg"]
+        x_max_mm, y_max_mm = params["coin_hd"]
+        
+        x_min = x_min_mm // self.case_mm
+        x_max = x_max_mm // self.case_mm
+        y_min = y_min_mm // self.case_mm
+        y_max = y_max_mm // self.case_mm
+        
+        cases = set()
+        for x in range(x_min, x_max):
+            for y in range(y_min, y_max):
+                if 0 <= x < self.width and 0 <= y < self.height:
+                    cases.add((x, y))
+        
+        return cases
+    
+    
+    
+    def _generer_rectangle_oriente(self, params: dict) -> Set[Tuple[int, int]]:
+        """
+        Génère les cases d'un rectangle orienté.
+        Utilise une transformation matricielle pour calculer les points du rectangle tourné.
+        """
+        cx_mm, cy_mm = params["centre"]
+        longueur_mm = params["longueur"]
+        largeur_mm = params["largeur"]
+        angle_deg = params["angle"]
+        
+        # Conversion en cases
+        cx = cx_mm / self.case_mm
+        cy = cy_mm / self.case_mm
+        demi_longueur = longueur_mm / (2 * self.case_mm)
+        demi_largeur = largeur_mm / (2 * self.case_mm)
+        
+        # Angle en radians
+        angle_rad = math.radians(angle_deg)
+        cos_a = math.cos(angle_rad)
+        sin_a = math.sin(angle_rad)
+        
+        # Calculer les 4 coins du rectangle avant rotation
+        # Coin 1: (-demi_longueur, -demi_largeur)
+        # Coin 2: (+demi_longueur, -demi_largeur)
+        # Coin 3: (+demi_longueur, +demi_largeur)
+        # Coin 4: (-demi_longueur, +demi_largeur)
+        
+        coins_local = [
+            (-demi_longueur, -demi_largeur),
+            (+demi_longueur, -demi_largeur),
+            (+demi_longueur, +demi_largeur),
+            (-demi_longueur, +demi_largeur)
+        ]
+        
+        # Appliquer la rotation et translation à chaque coin
+        coins_global = []
+        for (lx, ly) in coins_local:
+            # Rotation
+            rx = lx * cos_a - ly * sin_a
+            ry = lx * sin_a + ly * cos_a
+            # Translation
+            gx = rx + cx
+            gy = ry + cy
+            coins_global.append((gx, gy))
+        
+        # Trouver la bounding box
+        min_x = min(p[0] for p in coins_global)
+        max_x = max(p[0] for p in coins_global)
+        min_y = min(p[1] for p in coins_global)
+        max_y = max(p[1] for p in coins_global)
+        
+        # Parcourir tous les points dans la bounding box
+        cases = set()
+        for x in range(int(min_x) - 1, int(max_x) + 2):
+            for y in range(int(min_y) - 1, int(max_y) + 2):
+                # Vérifier si le point est dans le rectangle
+                # Transformer le point dans le repère local du rectangle
+                dx = x - cx
+                dy = y - cy
+                # Rotation inverse
+                local_x = dx * cos_a + dy * sin_a
+                local_y = -dx * sin_a + dy * cos_a
+                
+                # Vérifier si dans le rectangle
+                if abs(local_x) <= demi_longueur and abs(local_y) <= demi_largeur:
+                    # Vérifier les limites du terrain
+                    if 0 <= x < self.width and 0 <= y < self.height:
+                        cases.add((int(x), int(y)))
+        
+        return cases
+
+    def _generer_cercle(self, params: dict) -> Set[Tuple[int, int]]:
+        """Génère les cases d'un cercle."""
+        cx_mm, cy_mm = params["centre"]
+        rayon_mm = params["rayon"]
+        
+        cx = cx_mm // self.case_mm
+        cy = cy_mm // self.case_mm
+        rayon = rayon_mm // self.case_mm
+        
+        cases = set()
+        for dx in range(-rayon, rayon + 1):
+            for dy in range(-rayon, rayon + 1):
+                if dx*dx + dy*dy <= rayon*rayon:
+                    x = cx + dx
+                    y = cy + dy
+                    if 0 <= x < self.width and 0 <= y < self.height:
+                        cases.add((x, y))
+        
+        return cases
+    
+    
+    def _generer_polygone(self, params: dict) -> Set[Tuple[int, int]]:
+        """
+        Génère les cases d'un polygone.
+        Utilise l'algorithme de scan-line.
+        """
+        sommets_mm = params["sommets"]
+        if len(sommets_mm) < 3:
+            return set()
+        
+        # Convertir en cases
+        sommets = [(x // self.case_mm, y // self.case_mm) for x, y in sommets_mm]
+        
+        # Trouver bounding box
+        x_min = min(x for x, y in sommets)
+        x_max = max(x for x, y in sommets)
+        y_min = min(y for x, y in sommets)
+        y_max = max(y for x, y in sommets)
+        
+        cases = set()
+        
+        # Point-in-polygon test pour chaque case
+        for x in range(max(0, x_min), min(self.width, x_max + 1)):
+            for y in range(max(0, y_min), min(self.height, y_max + 1)):
+                if self._point_dans_polygone((x, y), sommets):
+                    cases.add((x, y))
+        
+        return cases
+    
+    
+    def _point_dans_polygone(self, point: Tuple[int, int], 
+                            sommets: List[Tuple[int, int]]) -> bool:
+        """
+        Test si un point est dans un polygone (ray casting algorithm).
+        """
+        x, y = point
+        n = len(sommets)
+        inside = False
+        
+        p1x, p1y = sommets[0]
+        for i in range(1, n + 1):
+            p2x, p2y = sommets[i % n]
+            if y > min(p1y, p2y):
+                if y <= max(p1y, p2y):
+                    if x <= max(p1x, p2x):
+                        if p1y != p2y:
+                            xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                        if p1x == p2x or x <= xinters:
+                            inside = not inside
+            p1x, p1y = p2x, p2y
+        
+        return inside
+    
+    
+    def _invalider_cache(self) -> None:
+        """Invalide le cache de grille."""
+        self._cache_valide = False
+
+# ============================================================================
+# FONCTIONS POUR LA ZONE DE SÉCURITÉ DYNAMIQUE DE L'ENNEMI
+# ============================================================================
 
 
-def is_line_clear_safe(p1, p2, grid_expanded, distance_map, width, height, min_clearance):
-    """Vérifie si la ligne est libre ET à distance minimale des obstacles"""
-    x0, y0 = p1
-    x1, y1 = p2
+def creer_zone_securite_ennemi(x_ennemi, y_ennemi, r_robot, r_ennemi, 
+                                marge_securite, case_mm,
+                                terrain_w_mm, terrain_h_mm):
+    """
+    Crée une zone de sécurité circulaire autour de la position de l'ennemi.
+    Cette zone est considérée comme un obstacle temporaire.
     
-    # Algorithme de Bresenham
-    points = []
-    dx = abs(x1 - x0)
-    dy = abs(y1 - y0)
-    x, y = x0, y0
-    x_inc = 1 if x1 > x0 else -1
-    y_inc = 1 if y1 > y0 else -1
+    Args:
+        x_ennemi: Position x de l'ennemi en mm
+        y_ennemi: Position y de l'ennemi en mm
+        r_robot: Rayon du robot en mm
+        r_ennemi: Rayon de l'ennemi en mm
+        marge_securite: Marge de sécurité supplémentaire en mm (défaut: 50mm)
+        case_mm: Taille d'une case en mm
+        terrain_w_mm: Largeur du terrain en mm
+        terrain_h_mm: Hauteur du terrain en mm
     
-    if dx > dy:
-        error = dx / 2
-        while x != x1:
-            points.append((x, y))
-            error -= dy
-            if error < 0:
-                y += y_inc
-                error += dx
-            x += x_inc
+    Returns:
+        tuple: (zone_ennemi_array, R_securite)
+            - zone_ennemi_array: Array numpy des coordonnées (x,y) en mm de la zone
+            - R_securite: Rayon total de la zone de sécurité en mm
+    """
+    # Calcul du rayon de sécurité total
+    R_securite = r_robot + r_ennemi + marge_securite
+    
+    # Conversion en cases
+    width, height = terrain_w_mm // case_mm, terrain_h_mm // case_mm
+    x_ennemi_case = int(x_ennemi // case_mm)
+    y_ennemi_case = int(y_ennemi // case_mm)
+    rayon_case = int(R_securite // case_mm)
+    
+    # Création de la zone circulaire
+    zone_points = []
+    
+    for dx in range(-rayon_case, rayon_case + 1):
+        for dy in range(-rayon_case, rayon_case + 1):
+            # Vérifier si le point est dans le cercle
+            if dx*dx + dy*dy <= rayon_case*rayon_case:
+                x_case = x_ennemi_case + dx
+                y_case = y_ennemi_case + dy
+                
+                # Vérifier que le point est dans les limites du terrain
+                if 0 <= x_case < width and 0 <= y_case < height:
+                    # Convertir en mm
+                    x_mm = x_case * case_mm
+                    y_mm = y_case * case_mm
+                    zone_points.append([x_mm, y_mm])
+    
+    zone_ennemi_array = np.array(zone_points) if zone_points else np.array([]).reshape(0, 2)
+    
+    return zone_ennemi_array, R_securite
+
+
+# ============================================================================
+# FONCTIONS POUR LES BATTERIES
+# ============================================================================
+
+def calculer_pourcentage_batteries(Batteries):
+    """
+    Calcule le pourcentage de charge de chaque batterie.
+    
+    Args:
+        Batteries: Liste de 3 batteries [[Vmin, Vmax, Vactuel, %], ...]
+    
+    Returns:
+        Batteries: Liste mise à jour avec les nouveaux pourcentages
+    """
+    for i in range(len(Batteries)):
+        if Batteries[i][0] != 0 and Batteries[i][1] != 0:
+            print(f"MAJ Batterie N°{i+1}")
+            Batteries[i][3] = 100 * (Batteries[i][2] - Batteries[i][0]) / (Batteries[i][1] - Batteries[i][0])
+            Batteries[i][3] = round(Batteries[i][3], 2)
+    
+    return Batteries
+
+def associer_noisette_a_emplacement(noisette, positions_theoriques, seuil):
+    """
+    Associe une noisette à son emplacement théorique le plus proche.
+    
+    Args:
+        noisette: [x, y, angle, couleur]
+        positions_theoriques: Liste des 4 positions [[x1,y1], [x2,y2], ...]
+        seuil: Distance max pour valider l'association
+    
+    Returns:
+        index (0-3) ou None si trop loin
+    """
+    x_noisette, y_noisette = noisette[0], noisette[1]
+    
+    distances = []
+    for idx, (x_theo, y_theo) in enumerate(positions_theoriques):
+        distance = math.sqrt((x_noisette - x_theo)**2 + (y_noisette - y_theo)**2)
+        distances.append((idx, distance))
+    
+    # Trouver l'emplacement le plus proche
+    idx_min, dist_min = min(distances, key=lambda x: x[1])
+    
+    if dist_min <= seuil:
+        return idx_min
     else:
-        error = dy / 2
-        while y != y1:
-            points.append((x, y))
-            error -= dx
-            if error < 0:
-                x += x_inc
-                error += dy
-            y += y_inc
-    points.append((x1, y1))
+        return None  # Noisette trop éloignée (erreur de détection ?)
     
-    # Vérifier que tous les points sont libres ET à distance minimale
-    for x, y in points:
-        if x < 0 or x >= width or y < 0 or y >= height:
-            return False
-        if grid_expanded[x, y]:
-            return False
-        if distance_map[x, y] < min_clearance:
-            return False
     
-    return True
-
-
-# === LISSAGE SÉCURISÉ ===
-
-def smooth_path_safe(path, grid_expanded, distance_map, width, height, smoothness):
-    """Lisse le chemin en vérifiant la sécurité"""
-    if not path or len(path) < 4:
-        return None, None
     
-    x, y = zip(*path)
-    
-    # Essayer différents niveaux de lissage
-    for s in [smoothness, smoothness*2, smoothness*4]:
-        try:
-            tck, u = splprep([x, y], s=s, k=min(3, len(path)-1))
-            u_fine = np.linspace(0, 1, len(path) * 4)
-            x_smooth, y_smooth = splev(u_fine, tck)
-            
-            # Vérifier que la spline est sûre
-            safe = True
-            for i in range(len(x_smooth)):
-                xi, yi = int(round(x_smooth[i])), int(round(y_smooth[i]))
-                if xi < 0 or xi >= width or yi < 0 or yi >= height:
-                    safe = False
-                    break
-                if grid_expanded[xi, yi] or distance_map[xi, yi] < 2:
-                    safe = False
-                    break
-            
-            if safe:
-                return x_smooth, y_smooth
-        except:
-            continue
-    
-    # Si aucun lissage ne fonctionne, retourner le chemin simplifié
-    return x, y
-
-
-# === FONCTION PRINCIPALE ===
-
-def calculer_trajectoire_complete(x_robot_actuel, y_robot_actuel, 
-                                   x_robot_voulu, y_robot_voulu,
-                                   obs_manager, obs_manager_noisettes,
-                                   x_ennemi, y_ennemi, R_securite,
-                                   CASE_MM, terrain_w_mm, terrain_h_mm,
-                                   safety_weight, MIN_CLEARANCE, SMOOTHNESS, DISTANCE_AJUSTABLE,
-                                   affichage_ax=None):
+def detecter_changements_noisettes(liste_actuelle, liste_precedente):
     """
-    Calcule une trajectoire complète de A à B.
-    Basé sur le programme A* isolé qui fonctionne.
-    Inclut le robot ennemi comme zone interdite.
+    Détecte si Liste_noisette_xya a changé (ajout, suppression ou modification).
+    
+    Args:
+        liste_actuelle: Liste_noisette_xya actuelle
+        liste_precedente: Liste_noisette_xya de l'itération précédente
+    
+    Returns:
+        bool: True si changement détecté
     """
+    # Vérification rapide : même longueur ?
+    if len(liste_actuelle) != len(liste_precedente):
+        return True
     
-    print("\n" + "="*70)
-    print("🚀 CALCUL DE TRAJECTOIRE A*")
-    print("="*70)
-    
-    # 1. DIMENSIONS
-    width = terrain_w_mm // CASE_MM
-    height = terrain_h_mm // CASE_MM
-    
-    # 2. GÉNÉRER LES GRILLES (via obs_manager au lieu de les créer manuellement)
-    grid_zones, grid_zones_expanded, _, _ = obs_manager.generer_grille()
-    grid_noisettes, grid_noisettes_expanded, _, _ = obs_manager_noisettes.generer_grille()
-    
-    # 2b. CRÉER LA GRILLE POUR LE ROBOT ENNEMI
-    from fonction import Obstacles
-    # Créer un cercle de rayon R_securite (déjà la zone de sécurité complète)
-    # On met MARGE=0 car on ne veut pas d'expansion supplémentaire
-    obs_manager_ennemi = Obstacles(terrain_w_mm, terrain_h_mm, 0, 0, CASE_MM)
-    obs_manager_ennemi.ajouter_cercle("ennemi", (int(x_ennemi), int(y_ennemi)), int(R_securite), actif=True)
-    grid_ennemi, _, _, _ = obs_manager_ennemi.generer_grille()
-    # Utiliser grid_ennemi pour les deux (grid et grid_expanded) car pas d'expansion supplémentaire
-    grid_ennemi_expanded = grid_ennemi
-    
-    # Combiner les grilles (zones + noisettes + ennemi)
-    grid = np.logical_or(np.logical_or(grid_zones, grid_noisettes), grid_ennemi).astype(bool)
-    grid_expanded = np.logical_or(np.logical_or(grid_zones_expanded, grid_noisettes_expanded), grid_ennemi_expanded).astype(bool)
-    
-    print(f"✅ Grilles générées : {width}×{height} cases")
-    
-    # 3. CALCULER distance_map DEPUIS grid_expanded (comme dans le programme isolé)
-    distance_map = distance_transform_edt(~grid_expanded)
-    
-    print(f"✅ distance_map calculée (max: {distance_map.max():.1f} cases)")
-    
-    # 4. CONVERTIR POSITIONS EN CASES
-    start = (int(x_robot_actuel // CASE_MM), int(y_robot_actuel // CASE_MM))
-    goal = (int(x_robot_voulu // CASE_MM), int(y_robot_voulu // CASE_MM))
-    
-    print(f"📍 Départ : {start} ({x_robot_actuel}, {y_robot_actuel} mm)")
-    print(f"🎯 Arrivée : {goal} ({x_robot_voulu}, {y_robot_voulu} mm)")
-    
-    # 5. CALCULER LE CHEMIN AVEC A*
-    import time
-    t0 = time.time()
-    
-    path = astar_safe(start, goal, grid_expanded, distance_map, 
-                     width, height, safety_weight, DISTANCE_AJUSTABLE)
-    
-    if not path:
-        print("❌ AUCUN CHEMIN TROUVÉ")
-        return None
-    
-    t1 = time.time()
-    print(f"✅ A* terminé en {(t1-t0)*1000:.1f} ms : {len(path)} points")
-    
-    # 6. SIMPLIFIER LE CHEMIN
-    path_simplified = simplify_path_safe(path, grid_expanded, distance_map, 
-                                        width, height, MIN_CLEARANCE)
-    
-    print(f"📉 Chemin simplifié : {len(path)} → {len(path_simplified)} points")
-    
-    # 7. LISSER LE CHEMIN
-    x_smooth, y_smooth = smooth_path_safe(path_simplified, grid_expanded, 
-                                         distance_map, width, height, SMOOTHNESS)
-    
-    # 8. CONVERTIR EN MM
-    """if x_smooth is not None and y_smooth is not None:
-        x_smooth_mm = [int(x * CASE_MM) for x in x_smooth]
-        y_smooth_mm = [int(y * CASE_MM) for y in y_smooth]
-        points_bruts = [[x_smooth_mm[i], y_smooth_mm[i]] for i in range(len(x_smooth_mm))]
-    else:"""
-    px_mm = [int(x * CASE_MM) for x, y in path_simplified]
-    py_mm = [int(y * CASE_MM) for x, y in path_simplified]
-    points_bruts = [[px_mm[i], py_mm[i]] for i in range(len(px_mm))]
-    
-    # 9. CALCULER LONGUEUR
-    longueur_mm = 0
-    for i in range(len(points_bruts)-1):
-        dx = points_bruts[i+1][0] - points_bruts[i][0]
-        dy = points_bruts[i+1][1] - points_bruts[i][1]
-        longueur_mm += math.sqrt(dx*dx + dy*dy)
-    
-    print(f"📏 Longueur trajectoire : {longueur_mm:.0f} mm")
-    print(f"✅ Trajectoire calculée : {len(points_bruts)} points")
-    print("="*70 + "\n")
-    
-    # 10. AFFICHER (OPTIONNEL)
-    if affichage_ax is not None:
-        # Supprimer anciennes trajectoires
-        for line in affichage_ax.lines[:]:
-            if line.get_label() in ['Chemin A*', 'A* brut']:
-                line.remove()
+    # Vérification détaillée : mêmes éléments ?
+    for i, noisette_actuelle in enumerate(liste_actuelle):
+        if i >= len(liste_precedente):
+            return True
         
-        # Tracer nouvelle trajectoire
-        x_plot = [p[0] for p in points_bruts]
-        y_plot = [p[1] for p in points_bruts]
-        affichage_ax.plot(x_plot, y_plot, 'g-', linewidth=2, label='Chemin A*', 
-                         marker='o', markersize=4, zorder=10)
-    
-    return points_bruts
-
-
-# === FONCTION UTILITAIRE ===
-
-def verifier_cible_disponible(action_en_cours, 
-                               Liste_noisettes_libres, 
-                               Liste_GM_libres):
-    """Vérifie si la cible actuelle est toujours disponible"""
-    if action_en_cours is None:
-        return False
-    
-    type_action = action_en_cours.get('type')
-    numero_zone = action_en_cours.get('numero_zone')
-    
-    if type_action == "Attraper":
-        if numero_zone in Liste_noisettes_libres:
+        noisette_precedente = liste_precedente[i]
+        
+        # Comparer les 4 premiers éléments [x, y, angle, couleur]
+        if (noisette_actuelle[0] != noisette_precedente[0] or
+            noisette_actuelle[1] != noisette_precedente[1] or
+            noisette_actuelle[2] != noisette_precedente[2] or
+            noisette_actuelle[3] != noisette_precedente[3]):
             return True
-        else:
-            print(f"⚠️  CIBLE PERDUE : Noisette {numero_zone} n'est plus disponible !")
-            return False
-    
-    elif type_action == "Relacher":
-        if numero_zone in Liste_GM_libres:
-            return True
-        else:
-            print(f"⚠️  CIBLE PERDUE : GM {numero_zone} n'est plus disponible !")
-            return False
     
     return False
