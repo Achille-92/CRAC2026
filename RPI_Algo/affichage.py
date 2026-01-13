@@ -246,7 +246,7 @@ def init_affichage(x_robot_depart,y_robot_depart,R_ROBOT):
             A_voulu_text, robot_angle_line, robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch)
 
 
-def afficher_batteries(ax, Batteries, Ordre_Batteries, battery_patches, battery_texts,
+def afficher_batteries(ax, Batteries, battery_patches, battery_texts,
                       couleurs=['red', 'orange', 'yellow', 'lime', 'green'],
                       seuils=[1, 20, 50, 75, 90],
                       largeur_rect=50, hauteur_rect=150, 
@@ -255,11 +255,10 @@ def afficher_batteries(ax, Batteries, Ordre_Batteries, battery_patches, battery_
                       x_depart_base=200):
     """
     Affiche l'etat de la batterie active sous forme de barres colorees.
-    
+     
     Args:
         ax: Axes matplotlib ou afficher
         Batteries: Liste des etats des batteries
-        Ordre_Batteries: [1,0,0] ou [0,1,0] ou [0,0,1] (batterie active)
         battery_patches: Liste des rectangles (sera videe puis remplie)
         battery_texts: Liste des textes (sera videe puis remplie)
         couleurs: Liste des couleurs pour chaque niveau de charge
