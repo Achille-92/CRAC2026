@@ -1,13 +1,13 @@
 couleur = "J"
 
-Reel = True
+Reel = False
 
 Strategie = False
 Astars = False
-Simul_mvt = False
+Simul_mvt = True
 Simul_mvt_ennemi = False
 Lidar_on = False
-Bat_Compet = True
+Bat_Compet = False
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -235,8 +235,8 @@ x_robot_actuel = x_robot_depart
 y_robot_actuel = y_robot_depart
 angle_robot_actuel = angle_robot_depart
 
-x_robot_voulu = -1
-y_robot_voulu = -1
+x_robot_voulu = 2550
+y_robot_voulu = 1400
 angle_robot_voulu = -181
 ############
 
@@ -741,13 +741,13 @@ if __name__ == '__main__':
 
             step +=1
             print("step :",step)
-            if Astars:
+            """if Astars:
                 grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, 
                             obs_manager, obs_manager_noisettes,
                             Liste_noisette_xya,  # ⭐ NOUVEAU PARAMÈTRE
                             obstacle_scatter, expanded_scatter, distance_map, 
-                            ax, width, height, CASE_MM)
-            # Simu déplacement robot ennemi
+                            ax, width, height, CASE_MM)"""
+            """# Simu déplacement robot ennemi
             if not Reel:
                 if Simul_mvt_ennemi:
                     if len(Liste_actions_ennemi)>n_init-1:
@@ -761,9 +761,9 @@ if __name__ == '__main__':
                     x_ennemi += round(15*np.cos(math.radians(angle_ennemi_consigne)),0)
                     y_ennemi += round(15*np.sin(math.radians(angle_ennemi_consigne)),0)
             ###
-
+            """
             # ======================== Tri Noisettes ============================================= #
-            for Noisette in Liste_noisette_xya:
+            """for Noisette in Liste_noisette_xya:
                 index_zone_Noisette = 0
                 for emplacement_zone_noisette in Liste_emplacement_zones_Noisette_xy:
                     coin_hg = emplacement_zone_noisette[0]
@@ -811,7 +811,7 @@ if __name__ == '__main__':
                         Liste_temp.append(idx_absolu)  # ⭐ INDEX ABSOLU (0-3)
                 Liste_Noisette_ordre_couleur[idx_zone]=Liste_temp
 
-            print("Liste_Noisette_ordre_couleur : ",Liste_Noisette_ordre_couleur)
+            print("Liste_Noisette_ordre_couleur : ",Liste_Noisette_ordre_couleur)"""
             # ================================================================================================= #
                 
             
@@ -822,7 +822,7 @@ if __name__ == '__main__':
                 y_robot_voulu = Liste_actions[0][2]
                 angle_robot_voulu = -181
                 
-            elif  type(Liste_actions[0]) == list and len(Liste_actions[0])==4 :
+                """elif  type(Liste_actions[0]) == list and len(Liste_actions[0])==4 :
                 # ============== ACTION BOUGER NOISETTES ============== #
                 action_voulu = "Bouger"
                 num_zoneNoisette_a_bouger = Liste_actions[0][1]
@@ -891,20 +891,7 @@ if __name__ == '__main__':
                     print("   ✅ Action BOUGER terminée")
                     verif_Noisette_a_bouge_simul = 1
                 else:
-                    print(f"   ⚠️ Aucune noisette dans la zone {num_zoneNoisette_a_bouger}")
-                """num_zoneNoisette_a_bouger = Liste_actions[0][1]
-                Noisette_a_bouger = []
-                Noisette_a_bouger = Liste_Noisette_zone_Noisette.pop(num_zoneNoisette_a_bouger)
-                Liste_Noisette_zone_Noisette.insert(num_zoneNoisette_a_bouger,[])
-                for Noisette_qui_doit_bouger in Noisette_a_bouger:
-                    for Noisette_presente in Liste_noisette_xya:
-                        if Noisette_qui_doit_bouger[0]==Noisette_presente[0] and Noisette_qui_doit_bouger[1]==Noisette_presente[1]:
-                            print("Changer coordonnées Noisettes dans Liste_noisette_xya")
-                            Noisette_qui_doit_bouger[1] +=400
-                
-                patches_noisettes = dessiner_noisettes(ax, Liste_noisette_xya, 
-                                                    longueur=150, largeur=50,
-                                                    alpha=0.7, linewidth=2)"""
+                    print(f"   ⚠️ Aucune noisette dans la zone {num_zoneNoisette_a_bouger}")"""
 
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
                 action_voulu = Liste_actions[0][0]
@@ -916,7 +903,7 @@ if __name__ == '__main__':
                 
             #####################################
 
-            changement_noisettes_detecte = detecter_changements_noisettes(
+            """changement_noisettes_detecte = detecter_changements_noisettes(
                 Liste_noisette_xya, 
                 Liste_noisette_xya_precedente
             )
@@ -936,7 +923,7 @@ if __name__ == '__main__':
                 )
                 
                 # Forcer le recalcul de trajectoire
-                demande_recalcul_traj = True
+                demande_recalcul_traj = True"""
 
             if temps_restant <= temps_retour:
                 Liste_actions.clear() 
@@ -966,7 +953,7 @@ if __name__ == '__main__':
             mouvement_ennemi = math.sqrt((x_ennemi - x_ennemi_old)**2 + (y_ennemi - y_ennemi_old)**2)
             # Détection besoin de recalculer la trajectoire car point suivant dans zone ennemi
 
-            if Astars:
+            """if Astars:
                 if verifier_segments_trajectoire_ennemi(Liste_actions,x_ennemi, y_ennemi,R_securite, MARGE_TRAJECTOIRE,x_robot_actuel, y_robot_actuel):
                     demande_recalcul_traj = True
                     print("Ennemi coupe trajectoire")
@@ -980,10 +967,10 @@ if __name__ == '__main__':
                                 print("Point de Traj dans Périmètre ennemi")
                                 demande_recalcul_traj = True
                                 break
-            print("demande_recalcul_traj : ",demande_recalcul_traj)
+            print("demande_recalcul_traj : ",demande_recalcul_traj)"""
             
             # === CALCUL DE LA TRAJECTOIRE A* ===
-            if Astars: 
+            """if Astars: 
                 if action_voulu in ["Rotation","Attraper","Relacher"]:
                     pass  # rien, on attend la fin de la rotation
                 else:
@@ -1021,7 +1008,7 @@ if __name__ == '__main__':
                             if distance_robot_ennemi < R_securite:
                                 print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
                             else:
-                                print("CHEMIN INACCESSIBLE")
+                                print("CHEMIN INACCESSIBLE")"""
 
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3:
                 action_voulu = Liste_actions[0][0]
@@ -1052,14 +1039,13 @@ if __name__ == '__main__':
             else :
                 dico_envoi[0x206]=100
                
-            print("Après verif :")
             print("Action en cours : "+action_voulu)
             print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
             print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
             print("Liste_actions : ", Liste_actions)
-            if len(Liste_trajectoire) != 0:
-                print("Liste_trajectoire : ",Liste_trajectoire)
-            print("dico_envoi[0x206] : ",dico_envoi[0x206])
+            print("Liste_trajectoire : ",Liste_trajectoire)
+            print("Ordre Mouvement : ",dico_envoi[0x206])
+
             # ========== MISE À JOUR AUTOMATIQUE DE Liste_trajectoire ==========
             # Trouver la première rotation (s'il y en a une)
             index_rotation = None
@@ -1103,8 +1089,7 @@ if __name__ == '__main__':
             # ====================================================================
 
             # Envoi des Ordres de Consigne de Rotation à la Carte Moteur
-            if angle_robot_voulu != -181 and action_voulu in ["Rotation"]: 
-                dico_envoi[0x205] = angle_robot_voulu + 360
+            dico_envoi[0x205] = angle_robot_voulu+360
             ################################################
 
             ##### Simulation Mouvement Robot 
@@ -1173,12 +1158,10 @@ if __name__ == '__main__':
             
             
             # === GESTION BATTERIES avec les fonctions ===
-            # SIMULATION Perte Batterie
             if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
 
             if not Bat_Compet: 
-                print("Mode Test")
                 if Batteries_alert[0]==0:
                     dico_envoi[0x300]=1
                 else :
@@ -1195,6 +1178,7 @@ if __name__ == '__main__':
                 dico_envoi[0x300]=1
                 dico_envoi[0x301]=1
                 dico_envoi[0x302]=1
+
             if Bat_Compet:
                 dico_envoi[0x303]=1
             else:
@@ -1236,14 +1220,14 @@ if __name__ == '__main__':
                     print("Bon Angle")
                     verif_angle = 1 
 
-            if not Reel:
+            """if not Reel:
                 if Simul_mvt_ennemi:
                     if(abs(x_ennemi-x_ennemi_voulu)<TOL_POS_X and abs(y_ennemi-y_ennemi_voulu)<TOL_POS_Y):
                         if(len(Liste_actions_ennemi)!=1):
-                            Liste_actions_ennemi.pop(0)
+                            Liste_actions_ennemi.pop(0)"""
             
-            #if action_voulu in ["Consigne","Avancer","Reculer"]:
-                #dico_envoi[0x208]=1
+            """if action_voulu in ["Consigne","Avancer","Reculer"]:
+                dico_envoi[0x208]=1"""
             if verif_mouv == 1:
                 dico_envoi[0x207]=2
             else :
@@ -1272,7 +1256,9 @@ if __name__ == '__main__':
                 verif_mouv = 0
                 verif_angle = 0
                 verif_Noisette_a_bouge_simul = 0
-                if Astars:
+                angle_robot_voulu = -181
+
+                """if Astars:
                     # ⭐ SI c'est une action ATTRAPER ou RELACHER ⭐
                     if action_voulu in ["Attraper", "Relacher"]:
                         # Confirmer l'action
@@ -1286,7 +1272,7 @@ if __name__ == '__main__':
 
                         
                         if len(Liste_actions) == 0:
-                            print("⚠️  AUCUNE ACTION DISPONIBLE - Mission terminée ou zones bloquées")
+                            print("⚠️  AUCUNE ACTION DISPONIBLE - Mission terminée ou zones bloquées")"""
                              
             
             # On supprime, dans le dico, les anciens points de la trajectoire
@@ -1307,7 +1293,7 @@ if __name__ == '__main__':
             old_ordre_mouvement = dico_envoi[0x206]
             if Reel :
                 for key, value in dico_envoi.items() :
-                    if key not in [0x200,0x201,0x202]:
+                    if value != 0:
                         if key in [0x01,0x206,0x209,0x300,0x301,0x302,0x303]:
                             format_value = struct.pack('<I',dico_envoi[key])
                         else:
