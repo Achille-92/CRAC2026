@@ -1,9 +1,9 @@
 couleur = "J"
 
-Reel = False
+Reel = True
 
 Strategie = False
-Astars = True
+Astars = False
 Simul_mvt = True
 Simul_mvt_ennemi = False
 Lidar_on = False
@@ -55,6 +55,7 @@ R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 # Listes pour la Stratégie
 if not Astars:
     Liste_actions = [
+        ["Rotation",90],
         ["Consigne",2550,1400],
         ["Consigne",2550,1000],
         ["Consigne",2650,900],
@@ -235,8 +236,8 @@ x_robot_actuel = x_robot_depart
 y_robot_actuel = y_robot_depart
 angle_robot_actuel = angle_robot_depart
 
-x_robot_voulu = -1
-y_robot_voulu = -1
+x_robot_voulu = 2550
+y_robot_voulu = 1400
 angle_robot_voulu = -181
 ############
 
@@ -1065,7 +1066,7 @@ if __name__ == '__main__':
             
             if (distance_robot_ennemi < R_securite-MARGE_TRAJECTOIRE) or Astars_a_fail:
                 dico_envoi[0x206]=3
-            elif action_voulu in ["Consigne","Avancer"]:
+            elif action_voulu in ["Consigne","Avancer","Rotation"]:
                 dico_envoi[0x206]=1
             elif action_voulu in ["Reculer"]:
                 dico_envoi[0x206]=2
@@ -1125,8 +1126,7 @@ if __name__ == '__main__':
             # ====================================================================
 
             # Envoi des Ordres de Consigne de Rotation à la Carte Moteur
-            if angle_robot_voulu != -181 and action_voulu in ["Rotation"]:
-                dico_envoi[0x205] = angle_robot_voulu
+            dico_envoi[0x205] = angle_robot_voulu
             ################################################
 
             ##### Simulation Mouvement Robot 
@@ -1272,14 +1272,21 @@ if __name__ == '__main__':
                     dico_envoi[0x207]=2
                 else :
                     dico_envoi[0x207]=1
+            else :
+                dico_envoi[0x207]=1
 
             if action_voulu in ["Rotation"]:
                 if verif_angle == 1:
                     dico_envoi[0x208]=2
-                    angle_robot_voulu = -181
                 else :
                     dico_envoi[0x208]=1
+            else :
+                    dico_envoi[0x208]=1
 
+            print("verif_mouv :",verif_mouv)
+            print("dico_envoi[0x207] :",dico_envoi[0x207])
+            print("verif_angle :",verif_angle)
+            print("dico_envoi[0x208] :",dico_envoi[0x208])
             
             if (action_voulu in ["Consigne","Avancer","Reculer"] and verif_mouv == 1) or \
                (action_voulu in ["Rotation"] and verif_angle == 1) or \
