@@ -59,27 +59,27 @@ if not Astars:
         ["Consigne",2550,1000],
         ["Consigne",2650,900],
         ["Consigne",2825,900],
-        ["Rotation",-90],
+        #["Rotation",-90],
         ["Consigne",2725,1550],
-        ["Reculer",2725,1450],
-        ['Consigne', 2263, 1263],
-        ['Consigne', 1547, 1037],
-        ['Consigne', 1500, 800],
+        #["Reculer",2725,1450],
+        ["Consigne", 2263, 1263],
+        ["Consigne", 1547, 1037],
+        ["Consigne", 1500, 800],
         #["Rotation",0],
-        ['Consigne',2100-R_ROBOT-MARGE_GM,800],
+        ["Consigne",2100-R_ROBOT-MARGE_GM,800],
         #["Reculer",2100-R_ROBOT-10*MARGE_GM,800],
         #["Rotation",180],
-        ['Consigne', 900+R_ROBOT+MARGE_GM,800],
+        ["Consigne", 900+R_ROBOT+MARGE_GM,800],
         #["Reculer",900+R_ROBOT+10*MARGE_GM,800],
-        ['Consigne', 1500,200],
+        ["Consigne", 1500,200],
         #["Rotation",0],
-        ['Consigne', 2200-R_ROBOT-MARGE_GM,200],
+        ["Consigne", 2200-R_ROBOT-MARGE_GM,200],
         #["Reculer",2200-R_ROBOT-10*MARGE_GM,200],
         #["Rotation",180],
-        ['Consigne', 800+R_ROBOT+MARGE_GM,200],
+        ["Consigne", 800+R_ROBOT+MARGE_GM,200],
         #["Reculer",800+R_ROBOT+10*MARGE_GM,200],
         #["Rotation",0]
-        ['Consigne', 2725,1670],
+        ["Consigne", 2725,1670],
     ]
 else :
     Liste_actions = [
@@ -1242,21 +1242,22 @@ if __name__ == '__main__':
                             Liste_actions_ennemi.pop(0)
             
             if action_voulu in ["Consigne","Avancer","Reculer"]:
+                dico_envoi[0x208]=1
                 if verif_mouv == 1:
                     dico_envoi[0x207]=2
                 else :
                     dico_envoi[0x207]=1
-            else :
-                dico_envoi[0x207]=1
 
             if action_voulu in ["Rotation"]:
                 if verif_angle == 1:
                     dico_envoi[0x208]=2
                 else :
                     dico_envoi[0x208]=1
-            else :
-                    dico_envoi[0x208]=1
 
+            print("verif_mouv : ",verif_mouv)
+            print("ack mouv : ",dico_envoi[0x207])
+            print("verif_angle : ",verif_angle)
+            print("ack angle : ",dico_envoi[0x208])
 
             if (action_voulu in ["Consigne","Avancer","Reculer"] and verif_mouv == 1) or \
                (action_voulu in ["Rotation"] and verif_angle == 1) or \
@@ -1313,7 +1314,7 @@ if __name__ == '__main__':
                         msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
                         bus.send(msg)
                         dico_envoi[key]=0
-                        time.sleep(0.001)
+                        time.sleep(0.0005)
             
 
             # MAJ de l'affichage et des Variables de Bouncing
