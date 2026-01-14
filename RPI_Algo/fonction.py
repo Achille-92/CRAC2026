@@ -727,24 +727,6 @@ def creer_zone_securite_ennemi(x_ennemi, y_ennemi, r_robot, r_ennemi,
 # FONCTIONS POUR LES BATTERIES
 # ============================================================================
 
-def calculer_pourcentage_batteries(Batteries):
-    """
-    Calcule le pourcentage de charge de chaque batterie.
-    
-    Args:
-        Batteries: Liste de 3 batteries [[Vmin, Vmax, Vactuel, %], ...]
-    
-    Returns:
-        Batteries: Liste mise à jour avec les nouveaux pourcentages
-    """
-    for i in range(len(Batteries)):
-        if Batteries[i][0] != 0 and Batteries[i][1] != 0:
-            print(f"MAJ Batterie N°{i+1}")
-            Batteries[i][3] = 100 * (Batteries[i][2] - Batteries[i][0]) / (Batteries[i][1] - Batteries[i][0])
-            Batteries[i][3] = round(Batteries[i][3], 2)
-    
-    return Batteries
-
 def associer_noisette_a_emplacement(noisette, positions_theoriques, seuil):
     """
     Associe une noisette à son emplacement théorique le plus proche.
