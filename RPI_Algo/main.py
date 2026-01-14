@@ -1,13 +1,13 @@
 couleur = "J"
 
-Reel = True
+Reel = False
 
 Strategie = False
 Astars = False
 Simul_mvt = True
 Simul_mvt_ennemi = False
 Lidar_on = False
-Bat_Compet = False
+Bat_Compet = True
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -22,7 +22,7 @@ from matplotlib.widgets import Button
 from scipy.ndimage import binary_dilation
 from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes
 from calcul_mouv import  calculer_trajectoire_complete,actualiser_zones_jeu,verifier_segments_trajectoire_ennemi
-from fonction import Obstacles,calculer_pourcentage_batteries,associer_noisette_a_emplacement,detecter_changements_noisettes
+from fonction import Obstacles,associer_noisette_a_emplacement,detecter_changements_noisettes
 ########################################################################
 
 # Config CAN 
@@ -55,7 +55,6 @@ R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 # Listes pour la Stratégie
 if not Astars:
     Liste_actions = [
-        ["Rotation",90],
         ["Consigne",2550,1400],
         ["Consigne",2550,1000],
         ["Consigne",2650,900],
@@ -309,7 +308,8 @@ expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes]) if 
 # ======================================================= #
 
 # Variables fonctionnelles des Batteries
-Batteries = [[10,15,15,100],[10,15,15,100],[10,15,15,100]] # V décharge, V charge, V actuel, % de charge
+Batteries = [255,100,0] # V décharge, V charge, V actuel, % de charge
+Batteries_alert = [0,0,0]
 lim_Bat_RPI = 11.0
 V_rpi = 12.0
 I_rpi = 0
@@ -474,7 +474,7 @@ def LectureCAN(stop_event):
     Si l'ID du message n'est pas dans la Liste_ID, saute
     Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
     """
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, dico_envoi, bus, V_rpi, I_rpi, verif_mouv, verif_angle
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, dico_envoi, bus, V_rpi, I_rpi, verif_mouv, verif_angle,Batteries_alert
     while not stop_event.is_set():
         msg = bus.recv(0.01)  # attend 10 ms max
         if msg is None:
@@ -494,40 +494,20 @@ def LectureCAN(stop_event):
             angle_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
 
         # Batteries
-        elif msg.arbitration_id == 0x103:
-            Batteries[0][0] = struct.unpack('<H', bytes(msg.data[:2]))[0]
-
-        elif msg.arbitration_id == 0x104:
-            Batteries[0][1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
-
-        elif msg.arbitration_id == 0x105:
-            Batteries[0][2] = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
-
-        elif msg.arbitration_id == 0x106:
-            Batteries[1][0] = struct.unpack('<H', bytes(msg.data[:2]))[0]
-
-        elif msg.arbitration_id == 0x107:
-            Batteries[1][1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
-
-        elif msg.arbitration_id == 0x108:
-            Batteries[1][2] = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
-
-        elif msg.arbitration_id == 0x109:
-            Batteries[2][0] = struct.unpack('<H', bytes(msg.data[:2]))[0]
-
-        elif msg.arbitration_id == 0x10A:
-            Batteries[2][1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
-
-        elif msg.arbitration_id == 0x10B:
-            Batteries[2][2] = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
-
         
-            """elif msg.arbitration_id == 0x103:
-            Batteries[0][3] = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
+        elif msg.arbitration_id == 0x103:
+            Batteries[0] = struct.unpack('<H', bytes(msg.data[:2]))[0]
         elif msg.arbitration_id == 0x104:
-            Batteries[1][3] = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
+            Batteries[1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
         elif msg.arbitration_id == 0x105:
-            Batteries[2][3] = struct.unpack('<H', bytes(msg.data[:2]))[0]/100"""
+            Batteries[2] = struct.unpack('<H', bytes(msg.data[:2]))[0]
+        
+        elif msg.arbitration_id == 0x106:
+            Batteries_alert[0] = struct.unpack('<H', bytes(msg.data[:2]))[0]
+        elif msg.arbitration_id == 0x107:
+            Batteries_alert[1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
+        elif msg.arbitration_id == 0x108:
+            Batteries_alert[2] = struct.unpack('<H', bytes(msg.data[:2]))[0]
 
         elif msg.arbitration_id == 0x10C:
             V_rpi = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
@@ -1195,31 +1175,29 @@ if __name__ == '__main__':
             
             
             # === GESTION BATTERIES avec les fonctions ===
+            Batteries[1]-=1
             # SIMULATION Perte Batterie
             if step > 1:
-                #Batteries = calculer_pourcentage_batteries(Batteries)
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
-            
-            ### Envoi des Ordres à la Carte Alim
-            if not Bat_Compet: # Si mode Test 
-                if Batteries[0][3]>5.0: # Si Batterie à plus de 5%
-                    dico_envoi[0x300]=1#   Interrupteur ON
-                else :                  # Sinon
-                    dico_envoi[0x300]=0#   Interrupteur OFF
 
-                if Batteries[1][3]>5.0:
+            if not Bat_Compet: 
+                print("Mode Test")
+                if Batteries_alert[0]==0:
+                    dico_envoi[0x300]=1
+                else :
+                    dico_envoi[0x300]=0
+                if Batteries_alert[1]==0:
                     dico_envoi[0x301]=1
                 else :
                     dico_envoi[0x301]=0
-                if Batteries[2][3]>5.0:
+                if Batteries_alert[2]==0:
                     dico_envoi[0x302]=1
                 else :
                     dico_envoi[0x302]=0
-            else : 
-                dico_envoi[0x300]=1 #   Interrupteur ON
+            else :
+                dico_envoi[0x300]=1
                 dico_envoi[0x301]=1
                 dico_envoi[0x302]=1
-
             if Bat_Compet:
                 dico_envoi[0x303]=1
             else:
@@ -1283,11 +1261,7 @@ if __name__ == '__main__':
             else :
                     dico_envoi[0x208]=1
 
-            print("verif_mouv :",verif_mouv)
-            print("dico_envoi[0x207] :",dico_envoi[0x207])
-            print("verif_angle :",verif_angle)
-            print("dico_envoi[0x208] :",dico_envoi[0x208])
-            
+
             if (action_voulu in ["Consigne","Avancer","Reculer"] and verif_mouv == 1) or \
                (action_voulu in ["Rotation"] and verif_angle == 1) or \
                (action_voulu in ["Bouger"] and verif_Noisette_a_bouge_simul == 1) or \
@@ -1335,15 +1309,14 @@ if __name__ == '__main__':
             old_ordre_mouvement = dico_envoi[0x206]
             if Reel :
                 for key, value in dico_envoi.items() :
-                    if value != 0:
-                        if key in [0x01,0x206,0x209,0x300,0x301,0x302,0x303]:
-                            format_value = struct.pack('<I',dico_envoi[key])
-                        else:
-                            format_value = struct.pack('<f',dico_envoi[key])
-                        msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
-                        bus.send(msg)
-                        dico_envoi[key]=0
-                        time.sleep(0.0005)
+                    if key in [0x01,0x206,0x209,0x300,0x301,0x302,0x303]:
+                        format_value = struct.pack('<I',dico_envoi[key])
+                    else:
+                        format_value = struct.pack('<f',dico_envoi[key])
+                    msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
+                    bus.send(msg)
+                    dico_envoi[key]=0
+                    time.sleep(0.0005)
             
 
             # MAJ de l'affichage et des Variables de Bouncing
