@@ -235,8 +235,8 @@ x_robot_actuel = x_robot_depart
 y_robot_actuel = y_robot_depart
 angle_robot_actuel = angle_robot_depart
 
-x_robot_voulu = 2550
-y_robot_voulu = 1400
+x_robot_voulu = -1
+y_robot_voulu = -1
 angle_robot_voulu = -181
 ############
 
@@ -1103,7 +1103,8 @@ if __name__ == '__main__':
             # ====================================================================
 
             # Envoi des Ordres de Consigne de Rotation à la Carte Moteur
-            dico_envoi[0x205] = angle_robot_voulu
+            if angle_robot_voulu != -181 and action_voulu in ["Rotation"]: 
+                dico_envoi[0x205] = angle_robot_voulu + 360
             ################################################
 
             ##### Simulation Mouvement Robot 
@@ -1241,18 +1242,18 @@ if __name__ == '__main__':
                         if(len(Liste_actions_ennemi)!=1):
                             Liste_actions_ennemi.pop(0)
             
-            if action_voulu in ["Consigne","Avancer","Reculer"]:
-                dico_envoi[0x208]=1
-                if verif_mouv == 1:
-                    dico_envoi[0x207]=2
-                else :
-                    dico_envoi[0x207]=1
+            #if action_voulu in ["Consigne","Avancer","Reculer"]:
+                #dico_envoi[0x208]=1
+            if verif_mouv == 1:
+                dico_envoi[0x207]=2
+            else :
+                dico_envoi[0x207]=1
 
-            if action_voulu in ["Rotation"]:
+            """if action_voulu in ["Rotation"]:
                 if verif_angle == 1:
                     dico_envoi[0x208]=2
                 else :
-                    dico_envoi[0x208]=1
+                    dico_envoi[0x208]=1"""
 
             print("verif_mouv : ",verif_mouv)
             print("ack mouv : ",dico_envoi[0x207])
