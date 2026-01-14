@@ -287,14 +287,14 @@ def afficher_batteries(ax, Batteries, battery_patches, battery_texts,
     battery_index = None
     x_depart = x_depart_base
     for num_batt in range(len(Batteries)):
-        if Batteries[num_batt][0]!=0:
+        if Batteries[num_batt]!=0 and Batteries[num_batt]!=255:
             battery_index = num_batt
             x_depart = x_depart_base + num_batt * (5 * (largeur_rect + espacement) + espacement_salves)
             # Si une batterie est active, l'afficher
             if battery_index is not None:
                 # Dessiner les 5 rectangles de niveau de charge
                 for j in range(5):
-                    if Batteries[battery_index][3] >= seuils[j]:
+                    if Batteries[battery_index] >= seuils[j]:
                         x = x_depart + j * (largeur_rect + espacement)
                         rect = patches.Rectangle(
                             (x, y_base), largeur_rect, hauteur_rect,
@@ -307,12 +307,20 @@ def afficher_batteries(ax, Batteries, battery_patches, battery_texts,
                 # Ajouter le texte de pourcentage au centre
                 largeur_totale = 5 * largeur_rect + 4 * espacement
                 x_centre_salve = x_depart + largeur_totale / 2
-                txt = ax.text(
-                    x_centre_salve, 
-                    y_base + hauteur_rect + texte_offset_y,
-                    f"{Batteries[battery_index][3]}%",
-                    color='black', fontsize=8, ha='center', va='bottom'
-                )
+                if Batteries[battery_index] !=0 and Batteries[battery_index] !=255:
+                    txt = ax.text(
+                        x_centre_salve, 
+                        y_base + hauteur_rect + texte_offset_y,
+                        f"{Batteries[battery_index]}%",
+                        color='black', fontsize=8, ha='center', va='bottom'
+                    )
+                else :
+                    txt = ax.text(
+                        x_centre_salve, 
+                        y_base + hauteur_rect + texte_offset_y,
+                        f"",
+                        color='black', fontsize=8, ha='center', va='bottom'
+                    )
                 battery_texts.append(txt)
     
     return battery_patches, battery_texts
