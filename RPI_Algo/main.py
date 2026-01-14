@@ -26,7 +26,7 @@ from fonction import Obstacles,calculer_pourcentage_batteries,associer_noisette_
 ########################################################################
 
 # Config CAN 
-Liste_ID_recoit = [0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10C,0x10D,0x10E] # ID sur lesquels la RPI va recevoir des données
+Liste_ID_recoit = [0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F] # ID sur lesquels la RPI va recevoir des données
 Liste_ID_envoi = [0x01,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
@@ -1126,7 +1126,7 @@ if __name__ == '__main__':
 
             # Envoi des Ordres de Consigne de Rotation à la Carte Moteur
             if angle_robot_voulu != -181 and action_voulu in ["Rotation"]:
-                dico_envoi[0x205] = angle_robot_voulu + 360
+                dico_envoi[0x205] = angle_robot_voulu
             ################################################
 
             ##### Simulation Mouvement Robot 
@@ -1267,17 +1267,18 @@ if __name__ == '__main__':
                         if(len(Liste_actions_ennemi)!=1):
                             Liste_actions_ennemi.pop(0)
             
-            if verif_mouv == 1:
-                dico_envoi[0x207]=2
-            else :
-                dico_envoi[0x207]=1
+            if action_voulu in ["Consigne","Avancer","Reculer"]:
+                if verif_mouv == 1:
+                    dico_envoi[0x207]=2
+                else :
+                    dico_envoi[0x207]=1
 
-            
-            if verif_angle == 1:
-                dico_envoi[0x208]=2
-                angle_robot_voulu = -181
-            else :
-                dico_envoi[0x208]=1
+            if action_voulu in ["Rotation"]:
+                if verif_angle == 1:
+                    dico_envoi[0x208]=2
+                    angle_robot_voulu = -181
+                else :
+                    dico_envoi[0x208]=1
 
             
             if (action_voulu in ["Consigne","Avancer","Reculer"] and verif_mouv == 1) or \
