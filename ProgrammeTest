@@ -59,7 +59,7 @@ if not Astars:
         ["Consigne",2550,1000],
         ["Consigne",2650,900],
         ["Consigne",2825,900],
-        #["Rotation",-90],
+        ["Rotation",-90],
         ["Consigne",2725,1550],
         #["Reculer",2725,1450],
         ["Consigne", 2263, 1263],
@@ -1030,12 +1030,14 @@ if __name__ == '__main__':
             
             if (distance_robot_ennemi < R_securite-MARGE_TRAJECTOIRE) or Astars_a_fail:
                 dico_envoi[0x206]=3
-            elif action_voulu in ["Consigne","Avancer","Rotation"]:
+            elif action_voulu in ["Consigne","Avancer"]:
                 dico_envoi[0x206]=1
             elif action_voulu in ["Reculer"]:
                 dico_envoi[0x206]=2
             elif action_voulu in ["Attraper","Relacher"]:
                 dico_envoi[0x206]=3
+            elif action_voulu in ["Rotation"]:
+                dico_envoi[0x206]=4
             else :
                 dico_envoi[0x206]=100
                
@@ -1233,11 +1235,11 @@ if __name__ == '__main__':
             else :
                 dico_envoi[0x207]=1
 
-            """if action_voulu in ["Rotation"]:
-                if verif_angle == 1:
-                    dico_envoi[0x208]=2
-                else :
-                    dico_envoi[0x208]=1"""
+            #if action_voulu in ["Rotation"]:
+            if verif_angle == 1:
+                dico_envoi[0x208]=2
+            else :
+                dico_envoi[0x208]=1
 
             print("verif_mouv : ",verif_mouv)
             print("ack mouv : ",dico_envoi[0x207])
@@ -1287,8 +1289,8 @@ if __name__ == '__main__':
                     dico_envoi[0x20B+2*(couple-1)]=Liste_trajectoire[couple][1]
             ##################################
 
-            """for couple in dico_envoi.items():
-                print(hex(couple[0])," : ",couple[1])"""
+            for couple in dico_envoi.items():
+                print(hex(couple[0])," : ",couple[1])
             
             old_ordre_mouvement = dico_envoi[0x206]
             if Reel :
