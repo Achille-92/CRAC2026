@@ -54,7 +54,7 @@ static bool x_ok = false, y_ok = false, angle_ok = false;
 bool mouvement = false;
 int nbr_point = 0, mouv = 0, RPI = 1;
 bool trajectoire_recue = false;
-float verif_mouv = 0, acuser = 0;
+float verif_mouv = 0, verif_angle = 0, acuser = 0, acuser_angle = 0;
 
 int end = 0, etape = 0;
 int delta = 0, finish = 0;
@@ -188,7 +188,7 @@ void CAN_(void *)
           CAN.readBytes((uint8_t *)&teta_cons_recu, 4);
           Serial.print("Reçu Angle_voulu : ");
           Serial.println(teta_cons_recu, 2);
-          teta_cons = (teta_cons_recu * PI / 180.0) - 2 * PI;
+          teta_cons = (teta_cons_recu * PI / 180.0);
         }
         if (canId == 0x206)
         {
@@ -197,6 +197,10 @@ void CAN_(void *)
         if (canId == 0x207)
         {
           CAN.readBytes((uint8_t *)&acuser, packetSize);
+        }
+        if (canId == 0x208)
+        {
+          CAN.readBytes((uint8_t *)&acuser_angle, packetSize);
         }
         if (canId == 0x209 && (packetSize == 4 || packetSize == 1))
         {
@@ -305,6 +309,10 @@ void CAN_(void *)
           CAN.write((uint8_t *)&verif_mouv, sizeof(float)); // 4 octets
           CAN.endPacket();
 
+          CAN.beginPacket(0x10F);
+          CAN.write((uint8_t *)&verif_angle, sizeof(float)); // 4 octets
+          CAN.endPacket();
+
           CAN.beginPacket(0x100);
           CAN.write((uint8_t *)&x, sizeof(float)); // 4 octets
           CAN.endPacket();
@@ -331,6 +339,8 @@ void Asserv(void *)
   {
     if (acuser == 2)
       verif_mouv = 0;
+    if (acuser_angle == 2)
+      verif_angle = 0;
 
     tic_droit = encoder2.getCount();
     tic_gauche = encoder.getCount();
@@ -350,6 +360,7 @@ void Asserv(void *)
 
     /*if ((millis() - temp) > 5000 && E == 1)
       callage = 1,type = 0;*/
+
     ////////////////////////////////////////angle modulo 2PI
     if (callage == 0)
     {
@@ -359,6 +370,10 @@ void Asserv(void *)
           cons = 0;
       if (mouv == 2)
         cons = 1;
+      if (teta_cons_recu != -181)
+        cons = 2;
+      else
+        verif_angle = 0;
     }
     /*if (cons == 0 || cons == 1)
     {
@@ -382,16 +397,17 @@ void Asserv(void *)
     switch (cons)
     {
     case 0:
+      Serial.printf("X:%.1f Y%.1f mouv%d cons%d nbrpoint%d teta_cons%.1f\n",liste_point[0].x,liste_point[1].y,mouv,cons,nbr_point,teta_cons_recu);
       diff_teta = teta - teta_act;
       diff_teta1 = teta1 - teta_act;
       diff_dista = diff_teta * 2 * PI * Rayon;
 
       diff_dist_d = dist - diff_dist_droit;
       diff_dist_g = dist - diff_dist_gauche;
-      if ((sur_place == 1) || ensemble((diff_teta), (PI / 9.0)))
+      if (1||ensemble((diff_teta), (PI / 9.0)))
       {
 
-        if ((sur_place == 1) || (comparer(pos_act[0], pos_fin[0], 30) && comparer(pos_act[1], pos_fin[1], 30)))
+        if ((comparer(pos_act[0], pos_fin[0], 30) && comparer(pos_act[1], pos_fin[1], 30)))
         {
           VIT_droit = cos(diff_teta) * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
           VIT_gauche = cos(diff_teta) * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
@@ -400,8 +416,8 @@ void Asserv(void *)
         }
         else
         {
-          VIT_droit = pow(cos(diff_teta), 9) * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
-          VIT_gauche = pow(cos(diff_teta), 9) * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
+          VIT_droit = pow(cos(diff_teta), 25) * (kpd * diff_dist_d + kdd * (diff_dist_d - old_diff_dist_d));
+          VIT_gauche = pow(cos(diff_teta), 25) * (kpg * diff_dist_g + kdg * (diff_dist_g - old_diff_dist_g));
           VIT_Ad = -1 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
           VIT_Ag = kpga * (diff_dista) + kdga * (diff_dista - old_diff_dista);
         }
@@ -450,9 +466,21 @@ void Asserv(void *)
 
       break;
     case 2:
+
       diff_teta = teta_cons - teta_act;
       diff_dista = diff_teta * 2 * PI * Rayon;
 
+      while (diff_teta > PI)
+        diff_teta -= 2.0 * PI;
+      while (diff_teta <= -PI)
+        diff_teta += 2.0 * PI;
+
+      if (fabs(diff_teta) < (PI / 180.0) && E == 0)
+        temp = millis(), E = 1;
+
+      if ((fabs(diff_teta) < (PI / 180.0)) && E == 1)
+        E = 0, verif_angle = 1;
+      Serial.printf("teta_con%.1f diff_teta%.1f E:%d verif%.0f acuser%.0f\n", teta_cons_recu, diff_teta, E, verif_angle, acuser_angle);
       VIT_Ad = -2 * (1 * kpda * (diff_dista) + kdda * (diff_dista - old_diff_dista));
       VIT_Ag = 2 * kpga * (diff_dista) + 2 * kdga * (diff_dista - old_diff_dista);
       VIT_droit = 0;
@@ -527,12 +555,13 @@ void Asserv(void *)
     // md.setBrakes(400, 400);
     // Serial.printf("teta_act%.1f diff_teta%.1f\n",teta_act_deg,diff_teta*180/PI);
     // Serial.printf("X=%.1f Y=%.1f X=%.1f Y=%.1f teta_act=%.1f teta_cons=%.1f teta_cons_reçu%.1f \n", pos_act[0], pos_act[1], pos_fin[0], pos_fin[1], (teta_act * 180.0 / PI), (teta_cons * 180.0 / PI), (teta_cons_recu * 180.0 / PI));
-    /*for (int i = 0; i <= nbr_point; i++)
+    for (int i = 0; i <= nbr_point; i++)
     {
       Serial.printf("X%d=%.1f Y%d=%.1f", i, liste_point[i].x, i, liste_point[i].y);
-    }*/
-    Serial.printf("verif%f recep%.0f X%.1f Y%.1f pointX%.1f Y%.1f point%d RPI%d mouv%d cons%d\n", verif_mouv, acuser, pos_act[0], pos_act[1], liste_point[0].x, liste_point[0].y, nbr_point, etat_RPI, mouv, cons);
-    // Serial.printf("PWM_G:%d PWM_D:%d X:%.1f Y%.1f diff_teta%.1f,cos:%.1f \n", S_VIT_g, S_VIT_d, pos_act[0], pos_act[1], diff_deg, cos(diff_teta));
+    }
+
+    // Serial.printf("verif%f recep%.0f X%.1f Y%.1f pointX%.1f Y%.1f point%d RPI%d mouv%d cons%d\n", verif_mouv, acuser, pos_act[0], pos_act[1], liste_point[0].x, liste_point[0].y, nbr_point, etat_RPI, mouv, cons);
+    //  Serial.printf("PWM_G:%d PWM_D:%d X:%.1f Y%.1f diff_teta%.1f,cos:%.1f \n", S_VIT_g, S_VIT_d, pos_act[0], pos_act[1], diff_deg, cos(diff_teta));
     vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
@@ -546,7 +575,7 @@ void calcul_traj(void *)
     {
       verif_mouv = 1;
     }
-    if (etat_RPI == 1 && (comparer(pos_act[0], liste_point[0].x, 40) && comparer(pos_act[1], liste_point[0].y, 40)))
+    if (etat_RPI == 1 && (comparer(pos_act[0], liste_point[0].x, 40) && comparer(pos_act[1], liste_point[0].y, 40)) && (liste_point[1].x != 0) && (liste_point[1].y != 0))
     {
       for (int i = 0; i <= 98; i++)
       {
@@ -613,11 +642,11 @@ void recalage_X(void)
   {
   case 0:
     cons = 2;
-    if (fabs(diff_teta) < (180.0 / PI))
+    if (fabs(diff_teta) < (PI / 180.0))
       temp = millis(), etape = 1;
     break;
   case 1:
-    if (fabs(diff_teta) < (180.0 / PI) && (millis() - temp) > 500)
+    if (fabs(diff_teta) < (PI / 180.0) && (millis() - temp) > 500)
       etape = 2, temp = millis();
     break;
   case 2:
@@ -646,11 +675,11 @@ void recalage_Y(void)
   {
   case 0:
     cons = 2;
-    if (fabs(diff_teta) < (180.0 / PI))
+    if (fabs(diff_teta) < (PI/180.0))
       temp = millis(), etape = 1;
     break;
   case 1:
-    if (fabs(diff_teta) < (180.0 / PI) && (millis() - temp) > 500)
+    if (fabs(diff_teta) < (PI/180.0) && (millis() - temp) > 500)
       etape = 2, temp = millis();
     break;
   case 2:
@@ -663,7 +692,7 @@ void recalage_Y(void)
       callage = 0;
     }
     break;
-  }
+  }*/
 }
 
 void aquisition(void)
@@ -701,9 +730,9 @@ void aquisition(void)
   if (RPI == 1)
     teta_act = (teta_recu * PI / 180.0) + ((distance_droit - distance_gauche) / (20 * Rayon)) + off_teta_act;
   else
-    teta_act = ((distance_droit - distance_gauche) / (20 * Rayon));
+    teta_act = ((distance_droit - distance_gauche) / (20 * Rayon)) -PI/2.0;
 
-  /*while (teta_act > PI)
+  while (teta_act > PI)
     teta_act -= 2.0 * PI;
   while (teta_act <= -PI)
     teta_act += 2.0 * PI;
@@ -714,7 +743,7 @@ void aquisition(void)
   while (teta1 > PI)
     teta1 -= 2.0 * PI;
   while (teta1 <= -PI)
-    teta1 += 2.0 * PI;*/
+    teta1 += 2.0 * PI;
 
   teta_act_deg = (teta_act * 180.0) / PI;
   teta_deg = (teta * 180.0) / PI;
