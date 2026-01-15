@@ -1,13 +1,13 @@
 couleur = "J"
 
-Reel = False
+Reel = True
 
 Strategie = False
 Astars = False
 Simul_mvt = True
 Simul_mvt_ennemi = False
 Lidar_on = False
-Bat_Compet = True
+Bat_Compet = False
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -55,31 +55,33 @@ R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 # Listes pour la Stratégie
 if not Astars:
     Liste_actions = [
+        ["Rotation",0],
         ["Consigne",2550,1400],
+        ["Reculer",2550,1600],
         ["Consigne",2550,1000],
         ["Consigne",2650,900],
         ["Consigne",2825,900],
-        #["Rotation",90],
+        #["Rotation",-90],
         ["Consigne",2725,1550],
-        ["Reculer",2725,1450],
-        ['Consigne', 2263, 1263],
-        ['Consigne', 1547, 1037],
-        ['Consigne', 1500, 800],
+        #["Reculer",2725,1450],
+        ["Consigne", 2263, 1263],
+        ["Consigne", 1547, 1037],
+        ["Consigne", 1500, 800],
         #["Rotation",0],
-        ['Consigne',2100-R_ROBOT-MARGE_GM,800],
+        ["Consigne",2100-R_ROBOT-MARGE_GM,800],
         #["Reculer",2100-R_ROBOT-10*MARGE_GM,800],
         #["Rotation",180],
-        ['Consigne', 900+R_ROBOT+MARGE_GM,800],
+        ["Consigne", 900+R_ROBOT+MARGE_GM,800],
         #["Reculer",900+R_ROBOT+10*MARGE_GM,800],
-        ['Consigne', 1500,200],
+        ["Consigne", 1500,200],
         #["Rotation",0],
-        ['Consigne', 2200-R_ROBOT-MARGE_GM,200],
+        ["Consigne", 2200-R_ROBOT-MARGE_GM,200],
         #["Reculer",2200-R_ROBOT-10*MARGE_GM,200],
         #["Rotation",180],
-        ['Consigne', 800+R_ROBOT+MARGE_GM,200],
+        ["Consigne", 800+R_ROBOT+MARGE_GM,200],
         #["Reculer",800+R_ROBOT+10*MARGE_GM,200],
         #["Rotation",0]
-        ['Consigne', 2725,1670],
+        ["Consigne", 2725,1670],
     ]
 else :
     Liste_actions = [
@@ -724,14 +726,13 @@ if __name__ == '__main__':
             tache_LectureCAN.start()
         
     
-        dico_envoi[0x200]=x_robot_depart
-        dico_envoi[0x201]=y_robot_depart
-        dico_envoi[0x202]=angle_robot_depart
         if Reel: 
+            dico_envoi[0x200]=x_robot_depart
+            dico_envoi[0x201]=y_robot_depart
+            dico_envoi[0x202]=angle_robot_depart
             bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
             bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
             bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
-        
         
         Liste_actions_ennemi = [[int(x_robot_actuel-10),int(y_robot_actuel-10)],[275,1650]]
         n_init = len(Liste_actions_ennemi)
@@ -764,7 +765,7 @@ if __name__ == '__main__':
                     x_ennemi += round(15*np.cos(math.radians(angle_ennemi_consigne)),0)
                     y_ennemi += round(15*np.sin(math.radians(angle_ennemi_consigne)),0)
             ###
-
+            
             # ======================== Tri Noisettes ============================================= #
             for Noisette in Liste_noisette_xya:
                 index_zone_Noisette = 0
@@ -895,19 +896,6 @@ if __name__ == '__main__':
                     verif_Noisette_a_bouge_simul = 1
                 else:
                     print(f"   ⚠️ Aucune noisette dans la zone {num_zoneNoisette_a_bouger}")
-                """num_zoneNoisette_a_bouger = Liste_actions[0][1]
-                Noisette_a_bouger = []
-                Noisette_a_bouger = Liste_Noisette_zone_Noisette.pop(num_zoneNoisette_a_bouger)
-                Liste_Noisette_zone_Noisette.insert(num_zoneNoisette_a_bouger,[])
-                for Noisette_qui_doit_bouger in Noisette_a_bouger:
-                    for Noisette_presente in Liste_noisette_xya:
-                        if Noisette_qui_doit_bouger[0]==Noisette_presente[0] and Noisette_qui_doit_bouger[1]==Noisette_presente[1]:
-                            print("Changer coordonnées Noisettes dans Liste_noisette_xya")
-                            Noisette_qui_doit_bouger[1] +=400
-                
-                patches_noisettes = dessiner_noisettes(ax, Liste_noisette_xya, 
-                                                    longueur=150, largeur=50,
-                                                    alpha=0.7, linewidth=2)"""
 
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
                 action_voulu = Liste_actions[0][0]
@@ -1046,23 +1034,22 @@ if __name__ == '__main__':
             
             if (distance_robot_ennemi < R_securite-MARGE_TRAJECTOIRE) or Astars_a_fail:
                 dico_envoi[0x206]=3
-            elif action_voulu in ["Consigne","Avancer","Rotation"]:
+            elif action_voulu in ["Consigne","Avancer"]:
                 dico_envoi[0x206]=1
             elif action_voulu in ["Reculer"]:
                 dico_envoi[0x206]=2
             elif action_voulu in ["Attraper","Relacher"]:
                 dico_envoi[0x206]=3
+            elif action_voulu in ["Rotation"]:
+                dico_envoi[0x206]=4
             else :
                 dico_envoi[0x206]=100
                
-            print("Après verif :")
             print("Action en cours : "+action_voulu)
             print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
             print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
             print("Liste_actions : ", Liste_actions)
-            if len(Liste_trajectoire) != 0:
-                print("Liste_trajectoire : ",Liste_trajectoire)
-            print("dico_envoi[0x206] : ",dico_envoi[0x206])
+
             # ========== MISE À JOUR AUTOMATIQUE DE Liste_trajectoire ==========
             # Trouver la première rotation (s'il y en a une)
             index_rotation = None
@@ -1090,7 +1077,7 @@ if __name__ == '__main__':
                     and len(action) >= 3 
                     and action[0] in ["Avancer", "Consigne","Reculer"]
                 ]
-
+            
             # Remplir Liste_trajectoire
             if len(points_avancer) >= 2:
                 Liste_trajectoire.clear()
@@ -1102,11 +1089,13 @@ if __name__ == '__main__':
                     Liste_trajectoire.clear()
                     Liste_trajectoire.append(1)
                     Liste_trajectoire.extend(points_avancer)
-                        
+            
+            print("Liste_trajectoire : ",Liste_trajectoire)
+            print("Ordre Mouvement : ",dico_envoi[0x206]) 
             # ====================================================================
 
             # Envoi des Ordres de Consigne de Rotation à la Carte Moteur
-            dico_envoi[0x205] = angle_robot_voulu
+            dico_envoi[0x205] = angle_robot_voulu+360
             ################################################
 
             ##### Simulation Mouvement Robot 
@@ -1124,7 +1113,6 @@ if __name__ == '__main__':
                             y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
 
             
-
             ############## MISE À JOUR AFFICHAGE ################
             # Mettre à jour robot, ennemi et consigne sur affichage
             robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
@@ -1175,13 +1163,10 @@ if __name__ == '__main__':
             
             
             # === GESTION BATTERIES avec les fonctions ===
-            Batteries[1]-=1
-            # SIMULATION Perte Batterie
             if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
 
             if not Bat_Compet: 
-                print("Mode Test")
                 if Batteries_alert[0]==0:
                     dico_envoi[0x300]=1
                 else :
@@ -1198,6 +1183,7 @@ if __name__ == '__main__':
                 dico_envoi[0x300]=1
                 dico_envoi[0x301]=1
                 dico_envoi[0x302]=1
+
             if Bat_Compet:
                 dico_envoi[0x303]=1
             else:
@@ -1245,22 +1231,20 @@ if __name__ == '__main__':
                         if(len(Liste_actions_ennemi)!=1):
                             Liste_actions_ennemi.pop(0)
             
-            if action_voulu in ["Consigne","Avancer","Reculer"]:
-                if verif_mouv == 1:
-                    dico_envoi[0x207]=2
-                else :
-                    dico_envoi[0x207]=1
+            if verif_mouv == 1:
+                dico_envoi[0x207]=2
             else :
                 dico_envoi[0x207]=1
 
-            if action_voulu in ["Rotation"]:
-                if verif_angle == 1:
-                    dico_envoi[0x208]=2
-                else :
-                    dico_envoi[0x208]=1
+            if verif_angle == 1:
+                dico_envoi[0x208]=2
             else :
-                    dico_envoi[0x208]=1
+                dico_envoi[0x208]=1
 
+            print("verif_mouv : ",verif_mouv)
+            print("ack mouv : ",dico_envoi[0x207])
+            print("verif_angle : ",verif_angle)
+            print("ack angle : ",dico_envoi[0x208])
 
             if (action_voulu in ["Consigne","Avancer","Reculer"] and verif_mouv == 1) or \
                (action_voulu in ["Rotation"] and verif_angle == 1) or \
@@ -1274,6 +1258,8 @@ if __name__ == '__main__':
                 verif_mouv = 0
                 verif_angle = 0
                 verif_Noisette_a_bouge_simul = 0
+                angle_robot_voulu = -181
+
                 if Astars:
                     # ⭐ SI c'est une action ATTRAPER ou RELACHER ⭐
                     if action_voulu in ["Attraper", "Relacher"]:
@@ -1304,19 +1290,20 @@ if __name__ == '__main__':
             ##################################
 
             """for couple in dico_envoi.items():
-                print(hex(couple[0])," : ",couple[1])"""
-            
+                print(hex(couple[0])," : ",couple[1])
+            """
             old_ordre_mouvement = dico_envoi[0x206]
             if Reel :
                 for key, value in dico_envoi.items() :
-                    if key in [0x01,0x206,0x209,0x300,0x301,0x302,0x303]:
-                        format_value = struct.pack('<I',dico_envoi[key])
-                    else:
-                        format_value = struct.pack('<f',dico_envoi[key])
-                    msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
-                    bus.send(msg)
-                    dico_envoi[key]=0
-                    time.sleep(0.0005)
+                    if value != 0:
+                        if key in [0x01,0x206,0x209,0x300,0x301,0x302,0x303]:
+                            format_value = struct.pack('<I',dico_envoi[key])
+                        else:
+                            format_value = struct.pack('<f',dico_envoi[key])
+                        msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
+                        bus.send(msg)
+                        dico_envoi[key]=0
+                        time.sleep(0.0005)
             
 
             # MAJ de l'affichage et des Variables de Bouncing
