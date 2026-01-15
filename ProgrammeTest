@@ -3,11 +3,11 @@ couleur = "J"
 Reel = False
 
 Strategie = False
-Astars = True
+Astars = False
 Simul_mvt = True
-Simul_mvt_ennemi = False
+Simul_mvt_ennemi = True
 Lidar_on = False
-Bat_Compet = False
+Bat_Compet = True
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -55,11 +55,13 @@ R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 # Listes pour la Stratégie
 if not Astars:
     Liste_actions = [
+        ["Rotation",0],
         ["Consigne",2550,1400],
+        ["Reculer",2550,1600],
         ["Consigne",2550,1000],
         ["Consigne",2650,900],
         ["Consigne",2825,900],
-        ["Rotation",-90],
+        #["Rotation",-90],
         ["Consigne",2725,1550],
         #["Reculer",2725,1450],
         ["Consigne", 2263, 1263],
@@ -247,6 +249,7 @@ if couleur == "J":
 else:
     x_ennemi = 2725 
     y_ennemi = 1650
+angle_ennemi = 0
 x_ennemi_old = x_ennemi
 y_ennemi_old = y_ennemi
 ########
@@ -309,7 +312,7 @@ expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes]) if 
 
 # Variables fonctionnelles des Batteries
 Batteries = [255,100,0] # V décharge, V charge, V actuel, % de charge
-Batteries_alert = [0,0,0]
+Batteries_alert = [1,1,1]
 lim_Bat_RPI = 11.0
 V_rpi = 12.0
 I_rpi = 0
@@ -431,7 +434,7 @@ def calcul_points(stop_event):
     print("HEALTH:", lidar.get_health())
     lidar.start_motor()   
     time.sleep(5)                                             # Démarrage du moteur du Lidar
-    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel
+    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi
     x_point = 0
     y_point = 0
 
@@ -454,6 +457,11 @@ def calcul_points(stop_event):
 
                 if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
                     pile_calcul.put((x_point, y_point))
+
+            if pile_calcul:
+                xs, ys = zip(*pile_calcul)
+                x_ennemi = np.mean(xs)
+                y_ennemi = np.mean(ys)
 
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
         print("Erreur dans le thread Lidar:", e)
@@ -660,7 +668,7 @@ if __name__ == '__main__':
 
     stop_event = threading.Event()
 
-    buffer_points = deque(maxlen=50)
+    #buffer_points = deque(maxlen=50)
 
     fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
     cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
@@ -715,20 +723,22 @@ if __name__ == '__main__':
         if Reel: 
             if Lidar_on:
                 tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
-                tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
+                #tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
             tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
             
             if Lidar_on:
                 tache_lidar.start()
-                tache_calcul.start()
+                #tache_calcul.start()
             tache_LectureCAN.start()
         
     
         if Reel: 
-            bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',x_robot_depart), is_extended_id=False))
-            bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',y_robot_depart), is_extended_id=False))
-            bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',angle_robot_depart), is_extended_id=False))
-        
+            dico_envoi[0x200]=x_robot_depart
+            dico_envoi[0x201]=y_robot_depart
+            dico_envoi[0x202]=angle_robot_depart
+            bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
         
         Liste_actions_ennemi = [[int(x_robot_actuel-10),int(y_robot_actuel-10)],[275,1650]]
         n_init = len(Liste_actions_ennemi)
@@ -741,12 +751,12 @@ if __name__ == '__main__':
 
             step +=1
             print("step :",step)
-            """if Astars:
+            if Astars:
                 grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, 
                             obs_manager, obs_manager_noisettes,
                             Liste_noisette_xya,  # ⭐ NOUVEAU PARAMÈTRE
                             obstacle_scatter, expanded_scatter, distance_map, 
-                            ax, width, height, CASE_MM)"""
+                            ax, width, height, CASE_MM)
             # Simu déplacement robot ennemi
             if not Reel:
                 if Simul_mvt_ennemi:
@@ -761,7 +771,7 @@ if __name__ == '__main__':
                     x_ennemi += round(15*np.cos(math.radians(angle_ennemi_consigne)),0)
                     y_ennemi += round(15*np.sin(math.radians(angle_ennemi_consigne)),0)
             ###
-            
+
             # ======================== Tri Noisettes ============================================= #
             for Noisette in Liste_noisette_xya:
                 index_zone_Noisette = 0
@@ -902,28 +912,28 @@ if __name__ == '__main__':
                 action_voulu = Liste_actions[0][0]
                 
             #####################################
-            if Astars:
-                changement_noisettes_detecte = detecter_changements_noisettes(
-                    Liste_noisette_xya, 
-                    Liste_noisette_xya_precedente
-                )
 
-                if changement_noisettes_detecte:
-                    print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
-                    
-                    grid, grid_expanded, obstacle_array, expanded_array, \
-                    obs_manager, obs_manager_noisettes, \
-                    obstacle_scatter, expanded_scatter, distance_map, \
-                    ax, width, height, CASE_MM = actualiser_zones_jeu(
-                        grid, grid_expanded, obstacle_array, expanded_array,
-                        obs_manager, obs_manager_noisettes,
-                        Liste_noisette_xya,  # ⭐ NOUVEAU
-                        obstacle_scatter, expanded_scatter, distance_map,
-                        ax, width, height, CASE_MM
-                    )
-                    
-                    # Forcer le recalcul de trajectoire
-                    demande_recalcul_traj = True
+            changement_noisettes_detecte = detecter_changements_noisettes(
+                Liste_noisette_xya, 
+                Liste_noisette_xya_precedente
+            )
+
+            if changement_noisettes_detecte:
+                print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
+                
+                grid, grid_expanded, obstacle_array, expanded_array, \
+                obs_manager, obs_manager_noisettes, \
+                obstacle_scatter, expanded_scatter, distance_map, \
+                ax, width, height, CASE_MM = actualiser_zones_jeu(
+                    grid, grid_expanded, obstacle_array, expanded_array,
+                    obs_manager, obs_manager_noisettes,
+                    Liste_noisette_xya,  # ⭐ NOUVEAU
+                    obstacle_scatter, expanded_scatter, distance_map,
+                    ax, width, height, CASE_MM
+                )
+                
+                # Forcer le recalcul de trajectoire
+                demande_recalcul_traj = True
 
             if temps_restant <= temps_retour:
                 Liste_actions.clear() 
@@ -949,10 +959,11 @@ if __name__ == '__main__':
 
             
             distance_robot_ennemi = math.sqrt((x_ennemi - x_robot_actuel)**2 + (y_ennemi - y_robot_actuel)**2)
-            angle_ennemi = np.degrees(math.atan2(y_ennemi-y_ennemi_old,x_ennemi-x_ennemi_old))
             mouvement_ennemi = math.sqrt((x_ennemi - x_ennemi_old)**2 + (y_ennemi - y_ennemi_old)**2)
+            if mouvement_ennemi >= SEUIL_MOUVEMENT_ENNEMI:
+                angle_ennemi = np.degrees(math.atan2(y_ennemi-y_ennemi_old,x_ennemi-x_ennemi_old))
+                
             # Détection besoin de recalculer la trajectoire car point suivant dans zone ennemi
-
             if Astars:
                 if verifier_segments_trajectoire_ennemi(Liste_actions,x_ennemi, y_ennemi,R_securite, MARGE_TRAJECTOIRE,x_robot_actuel, y_robot_actuel):
                     demande_recalcul_traj = True
@@ -1045,8 +1056,6 @@ if __name__ == '__main__':
             print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
             print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
             print("Liste_actions : ", Liste_actions)
-            print("Liste_trajectoire : ",Liste_trajectoire)
-            print("Ordre Mouvement : ",dico_envoi[0x206])
 
             # ========== MISE À JOUR AUTOMATIQUE DE Liste_trajectoire ==========
             # Trouver la première rotation (s'il y en a une)
@@ -1075,7 +1084,7 @@ if __name__ == '__main__':
                     and len(action) >= 3 
                     and action[0] in ["Avancer", "Consigne","Reculer"]
                 ]
-
+            
             # Remplir Liste_trajectoire
             if len(points_avancer) >= 2:
                 Liste_trajectoire.clear()
@@ -1087,7 +1096,9 @@ if __name__ == '__main__':
                     Liste_trajectoire.clear()
                     Liste_trajectoire.append(1)
                     Liste_trajectoire.extend(points_avancer)
-                        
+            
+            print("Liste_trajectoire : ",Liste_trajectoire)
+            print("Ordre Mouvement : ",dico_envoi[0x206]) 
             # ====================================================================
 
             # Envoi des Ordres de Consigne de Rotation à la Carte Moteur
@@ -1109,7 +1120,6 @@ if __name__ == '__main__':
                             y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
 
             
-
             ############## MISE À JOUR AFFICHAGE ################
             # Mettre à jour robot, ennemi et consigne sur affichage
             robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
@@ -1160,8 +1170,9 @@ if __name__ == '__main__':
             
             
             # === GESTION BATTERIES avec les fonctions ===
+            print("Batteries_alert : ",Batteries_alert)
             if step > 1:
-                battery_patches, battery_texts = afficher_batteries(ax, Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
+                battery_patches, battery_texts = afficher_batteries(ax,Batteries_alert,Bat_Compet, Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
 
             if not Bat_Compet: 
                 if Batteries_alert[0]==0:
@@ -1228,14 +1239,11 @@ if __name__ == '__main__':
                         if(len(Liste_actions_ennemi)!=1):
                             Liste_actions_ennemi.pop(0)
             
-            """if action_voulu in ["Consigne","Avancer","Reculer"]:
-                dico_envoi[0x208]=1"""
             if verif_mouv == 1:
                 dico_envoi[0x207]=2
             else :
                 dico_envoi[0x207]=1
 
-            #if action_voulu in ["Rotation"]:
             if verif_angle == 1:
                 dico_envoi[0x208]=2
             else :
@@ -1289,9 +1297,9 @@ if __name__ == '__main__':
                     dico_envoi[0x20B+2*(couple-1)]=Liste_trajectoire[couple][1]
             ##################################
 
-            for couple in dico_envoi.items():
+            """for couple in dico_envoi.items():
                 print(hex(couple[0])," : ",couple[1])
-            
+            """
             old_ordre_mouvement = dico_envoi[0x206]
             if Reel :
                 for key, value in dico_envoi.items() :
@@ -1332,7 +1340,7 @@ if __name__ == '__main__':
         if Reel :
             if Lidar_on:
                 tache_lidar.join()
-                tache_calcul.join()
+                #tache_calcul.join()
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
             
@@ -1344,7 +1352,7 @@ if __name__ == '__main__':
         if Reel :
             if Lidar_on:
                 tache_lidar.join()
-                tache_calcul.join()
+                #tache_calcul.join()
             tache_LectureCAN.join()
             etat = 2
             data_etat = struct.pack('<I',etat)
