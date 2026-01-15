@@ -246,7 +246,7 @@ def init_affichage(x_robot_depart,y_robot_depart,R_ROBOT):
             A_voulu_text, robot_angle_line, robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch)
 
 
-def afficher_batteries(ax, Batteries, battery_patches, battery_texts,
+def afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries, battery_patches, battery_texts,
                       couleurs=['red', 'orange', 'yellow', 'lime', 'green'],
                       seuils=[1, 20, 50, 75, 90],
                       largeur_rect=50, hauteur_rect=150, 
@@ -308,12 +308,20 @@ def afficher_batteries(ax, Batteries, battery_patches, battery_texts,
                 largeur_totale = 5 * largeur_rect + 4 * espacement
                 x_centre_salve = x_depart + largeur_totale / 2
                 if Batteries[battery_index] !=0 and Batteries[battery_index] !=255:
-                    txt = ax.text(
-                        x_centre_salve, 
-                        y_base + hauteur_rect + texte_offset_y,
-                        f"{Batteries[battery_index]}%",
-                        color='black', fontsize=8, ha='center', va='bottom'
-                    )
+                    if Batteries_alert[battery_index]==0:
+                        txt = ax.text(
+                            x_centre_salve, 
+                            y_base + hauteur_rect + texte_offset_y,
+                            f"{Batteries[battery_index]}%",
+                            color='black', fontsize=8, ha='center', va='bottom'
+                        )
+                    else :
+                        txt = ax.text(
+                            x_centre_salve, 
+                            y_base + hauteur_rect + texte_offset_y,
+                            f"{Batteries[battery_index]}%",
+                            color='red', fontsize=8, ha='center', va='bottom'
+                        )
                 else :
                     txt = ax.text(
                         x_centre_salve, 
