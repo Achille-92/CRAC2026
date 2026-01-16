@@ -275,12 +275,22 @@ def afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries, battery_patches
         tuple: (battery_patches, battery_texts) mis a jour
     """
     # Nettoyer les anciens patches et textes
-    for rect in battery_patches:
-        rect.remove()
-    battery_patches.clear()
+    for patch in battery_patches:
+        if hasattr(patch, 'remove'):  # Vérifier que c'est bien un objet matplotlib
+            try:
+                patch.remove()
+            except:
+                pass
     
-    for txt in battery_texts:
-        txt.remove()
+    for text in battery_texts:
+        if hasattr(text, 'remove'):  # Vérifier que c'est bien un objet matplotlib
+            try:
+                text.remove()
+            except:
+                pass
+    
+    # Réinitialiser les listes
+    battery_patches.clear()
     battery_texts.clear()
     
     # Determiner quelle batterie afficher et sa position x
