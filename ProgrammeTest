@@ -1,4 +1,4 @@
-couleur = "J"
+couleur = "B"
 
 Reel = True
 
@@ -6,7 +6,7 @@ Strategie = False
 Astars = False
 Simul_mvt = True
 Simul_mvt_ennemi = False
-Lidar_on = False
+Lidar_on = True
 Bat_Compet = False
 ################## Librairies ##########################################
 import matplotlib
@@ -57,29 +57,29 @@ if not Astars:
     Liste_actions = [
         ["Rotation",0],
         ["Consigne",2550,1400],
-        ["Reculer",2550,1600],
+        #["Reculer",2550,1500],
         ["Consigne",2550,1000],
         ["Consigne",2650,900],
         ["Consigne",2825,900],
         #["Rotation",-90],
         ["Consigne",2725,1550],
-        #["Reculer",2725,1450],
-        ["Consigne", 2263, 1263],
+        ["Reculer",2725,1450],
+        ["Consigne", 2263, 1363],
         ["Consigne", 1547, 1037],
         ["Consigne", 1500, 800],
         #["Rotation",0],
         ["Consigne",2100-R_ROBOT-MARGE_GM,800],
-        #["Reculer",2100-R_ROBOT-10*MARGE_GM,800],
+        ["Reculer",2100-R_ROBOT-10*MARGE_GM,800],
         #["Rotation",180],
         ["Consigne", 900+R_ROBOT+MARGE_GM,800],
-        #["Reculer",900+R_ROBOT+10*MARGE_GM,800],
-        ["Consigne", 1500,200],
+        ["Reculer",900+R_ROBOT+10*MARGE_GM,800],
+        ["Consigne", 1500,180],
         #["Rotation",0],
         ["Consigne", 2200-R_ROBOT-MARGE_GM,200],
-        #["Reculer",2200-R_ROBOT-10*MARGE_GM,200],
+        ["Reculer",2200-R_ROBOT-10*MARGE_GM,200],
         #["Rotation",180],
         ["Consigne", 800+R_ROBOT+MARGE_GM,200],
-        #["Reculer",800+R_ROBOT+10*MARGE_GM,200],
+        ["Reculer",800+R_ROBOT+10*MARGE_GM,200],
         #["Rotation",0]
         ["Consigne", 2725,1670],
     ]
@@ -225,7 +225,7 @@ MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 #############################################
 
 # Coordonnées et angle de notre robot (coordonnées initiales en haut)
-if couleur == "J":
+if couleur == "B":
     x_robot_depart = 2725 
     y_robot_depart = 1670
     angle_robot_depart = -90
@@ -243,7 +243,7 @@ angle_robot_voulu = -181
 ############
 
 # Coordonnées Ennemi
-if couleur == "J":
+if couleur == "B":
     x_ennemi = 275
     y_ennemi = 1650
 else:
@@ -433,7 +433,7 @@ def calcul_points(stop_event):
     print("HEALTH:", lidar.get_health())
     lidar.start_motor()   
     time.sleep(5)                                             # Démarrage du moteur du Lidar
-    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel
+    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel,x_ennemi,y_ennemi
     x_point = 0
     y_point = 0
 
@@ -456,6 +456,10 @@ def calcul_points(stop_event):
 
                 if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
                     pile_calcul.put((x_point, y_point))
+            """if pile_calcul:
+                xs, ys = zip(*pile_calcul)
+                x_ennemi = np.mean(xs)
+                y_ennemi = np.mean(ys)"""
 
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
         print("Erreur dans le thread Lidar:", e)
