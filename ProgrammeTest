@@ -1,6 +1,6 @@
 couleur = "B"
 
-Reel = True
+Reel = False
 
 Strategie = False
 Astars = False
@@ -436,7 +436,7 @@ def calcul_points(stop_event):
     global  x_robot_actuel, y_robot_actuel, angle_robot_actuel,x_ennemi,y_ennemi
     x_point = 0
     y_point = 0
-
+    buffer_points = deque(maxlen=50)
     try:
         # On lit les scans tant que le stop_event n’est pas activé
         for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096):
@@ -455,11 +455,11 @@ def calcul_points(stop_event):
                 y_point = max(0, min(Y_PISTE, int(y_point)))
 
                 if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
-                    pile_calcul.put((x_point, y_point))
-            """if pile_calcul:
-                xs, ys = zip(*pile_calcul)
+                    buffer_points.append((x_point, y_point))
+            if buffer_points:
+                xs, ys = zip(*buffer_points)
                 x_ennemi = np.mean(xs)
-                y_ennemi = np.mean(ys)"""
+                y_ennemi = np.mean(ys)
 
     except Exception as e:                                                      # En cas d'exception on affiche l'erreur
         print("Erreur dans le thread Lidar:", e)
@@ -666,8 +666,6 @@ if __name__ == '__main__':
 
     stop_event = threading.Event()
 
-    buffer_points = deque(maxlen=50)
-
     fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
     cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
     bouton_stop.on_clicked(partial(arret_programme, stop_event=stop_event))
@@ -712,6 +710,9 @@ if __name__ == '__main__':
     ax_relacher_button = plt.axes([action_button_x_start + action_button_spacing, action_button_y, action_button_width, action_button_height])
     bouton_relacher = Button(ax_relacher_button, "🤖 RELACHER", color="lightyellow", hovercolor="orange")
     bouton_relacher.on_clicked(bouton_relacher_callback)
+    if Reel :
+        tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
+        tache_LectureCAN.start()
 
     while(lancement_strategie==False):
         plt.pause(0.1)
@@ -721,13 +722,11 @@ if __name__ == '__main__':
         if Reel: 
             if Lidar_on:
                 tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
-                tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
-            tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
+                #tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
             
             if Lidar_on:
                 tache_lidar.start()
-                tache_calcul.start()
-            tache_LectureCAN.start()
+                #tache_calcul.start()
         
     
         if Reel: 
@@ -1336,7 +1335,7 @@ if __name__ == '__main__':
         if Reel :
             if Lidar_on:
                 tache_lidar.join()
-                tache_calcul.join()
+                #tache_calcul.join()
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
             
@@ -1348,7 +1347,7 @@ if __name__ == '__main__':
         if Reel :
             if Lidar_on:
                 tache_lidar.join()
-                tache_calcul.join()
+                #tache_calcul.join()
             tache_LectureCAN.join()
             etat = 2
             data_etat = struct.pack('<I',etat)
