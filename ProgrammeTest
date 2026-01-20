@@ -419,59 +419,55 @@ distance_map = distance_transform_edt(~grid_expanded)
 
 
 def calcul_points(stop_event):
-    """
-    Argument : flag "stop_event"
-    Modification : variables globales "pile_points"
-
-    Utilisation :
-    Création de l'objet "lidar"
-    Calcul de l'angle total et des coordonnées des points
-    Saturation des valeurs pour les limites de l'aire de jeu, puis pour oublier les bords
-    """
-
-    lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)                       # connexion au Lidar
-
+    lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)
+    
     lidar.stop_motor()
-    time.sleep(1)
-
-    print("INFO:", lidar.get_info())                                    # Affichage d'informations propres au Lidar
+    time.sleep(0.5)
+    print("INFO:", lidar.get_info())
     print("HEALTH:", lidar.get_health())
     lidar.start_motor()   
-    time.sleep(1)                                             # Démarrage du moteur du Lidar
-    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel,x_ennemi,y_ennemi
+    time.sleep(0.5)
+    
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi
+    
     x_point = 0
     y_point = 0
     buffer_points = deque(maxlen=20)
+    
     try:
-        # On lit les scans tant que le stop_event n’est pas activé
         for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096):
-            if stop_event.is_set():   # si on demande l’arrêt → on sort
+            if stop_event.is_set():
                 break
-
-            for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
-                phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
-                angle_total = phi - math.radians(angle_robot_actuel) - math.radians(11)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
-
-                x_point = x_robot_actuel + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
-                y_point = y_robot_actuel - distance * math.sin(angle_total)
-
-                # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
+            
+            # ⭐ CAPTURER LA POSITION DU ROBOT AU DÉBUT DU SCAN
+            x_robot_scan = x_robot_actuel
+            y_robot_scan = y_robot_actuel
+            angle_robot_scan = angle_robot_actuel
+            
+            for (quality, angle_point, distance) in scan:
+                phi = math.radians(angle_point)
+                
+                # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
+                angle_total = phi - math.radians(angle_robot_scan) - math.radians(11)
+                
+                x_point = x_robot_scan + distance * math.cos(angle_total)
+                y_point = y_robot_scan - distance * math.sin(angle_total)
+                
                 x_point = max(0, min(X_PISTE, int(x_point)))
                 y_point = max(0, min(Y_PISTE, int(y_point)))
-
-                if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                
+                if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
+                   MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y:
                     buffer_points.append((x_point, y_point))
-                    print("x_point : ",x_point)
-                    print("y_point : ",y_point)
+            
             if buffer_points:
                 xs, ys = zip(*buffer_points)
                 x_ennemi = np.mean(xs)
                 y_ennemi = np.mean(ys)
-
-    except Exception as e:                                                      # En cas d'exception on affiche l'erreur
+    
+    except Exception as e:
         print("Erreur dans le thread Lidar:", e)
-    finally:                                                                    # Et on arrête le Lidar
-        # Nettoyage du Lidar
+    finally:
         print("Arrêt du Lidar...")
         lidar.stop()
         lidar.stop_motor()
