@@ -461,6 +461,8 @@ def calcul_points(stop_event):
 
                 if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
                     buffer_points.append((x_point, y_point))
+                    print("x_point : ",x_point)
+                    print("y_point : ",y_point)
             if buffer_points:
                 xs, ys = zip(*buffer_points)
                 x_ennemi = np.mean(xs)
@@ -532,32 +534,7 @@ def LectureCAN(stop_event):
         elif msg.arbitration_id == 0x10F:
             verif_angle = struct.unpack('f', bytes(msg.data))[0]
 
-def calcul_ennemi(stop_event):
-    """
-    Arguments : flag stop_event
-    Modification : buffer_points, x_ennemi, y_ennemi
 
-    Utilisation :
-    Récupére le haut de la pile_calcul, puis le remet dans buffer_points
-    Moyenne les coordonées des points de la pile, donne x_ennemi et y_ennemi
-    """
-    global x_ennemi, y_ennemi
-
-    buffer_points = deque(maxlen=50)
-
-    while not stop_event.is_set():
-        try:
-            # Récupère un point du Lidar
-            p = pile_calcul.get(timeout=0.1)
-            buffer_points.append(p)
-        except queue.Empty:
-            pass
-
-        # Calcul barycentre, angle et vitesse
-        if buffer_points:
-            xs, ys = zip(*buffer_points)
-            x_ennemi = np.mean(xs)
-            y_ennemi = np.mean(ys)
 ##############################################################################
 
 ################## Fonction ##################################################
@@ -659,10 +636,6 @@ def update_display(background):
     fig.canvas.flush_events()
 
 
-
-
-
-
 ########################################################################
 
 ############################### Programme principal ####################
@@ -724,16 +697,10 @@ if __name__ == '__main__':
     
     temps_demarage = time.time()
     try:
-        if Reel: 
-            if Lidar_on:
-                tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
-                #tache_calcul = threading.Thread(target=calcul_ennemi, args=(stop_event,), daemon=False)
-            
-            if Lidar_on:
-                tache_lidar.start()
-                #tache_calcul.start()
+        if Reel and Lidar_on: 
+            tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
+            tache_lidar.start()
         
-    
         if Reel: 
             dico_envoi[0x200]=x_robot_depart
             dico_envoi[0x201]=y_robot_depart
@@ -1340,7 +1307,6 @@ if __name__ == '__main__':
         if Reel :
             if Lidar_on:
                 tache_lidar.join()
-                #tache_calcul.join()
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
             
@@ -1352,7 +1318,6 @@ if __name__ == '__main__':
         if Reel :
             if Lidar_on:
                 tache_lidar.join()
-                #tache_calcul.join()
             tache_LectureCAN.join()
             etat = 2
             data_etat = struct.pack('<I',etat)
