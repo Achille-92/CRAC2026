@@ -422,11 +422,11 @@ def calcul_points(stop_event):
     lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)
     
     lidar.stop_motor()
-    time.sleep(0.5)
+    time.sleep(1)
     print("INFO:", lidar.get_info())
     print("HEALTH:", lidar.get_health())
     lidar.start_motor()   
-    time.sleep(0.5)
+    time.sleep(1)
     
     global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi
     
@@ -434,20 +434,23 @@ def calcul_points(stop_event):
     y_point = 0
     buffer_points = deque(maxlen=20)
     
+    # ⭐ HISTORIQUE DES POSITIONS DE L'ENNEMI
+    historique_x_ennemi = deque(maxlen=10)
+    historique_y_ennemi = deque(maxlen=10)
+    SEUIL_MOUVEMENT_MAX = 200  # mm/scan max
+    
     try:
         for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096):
             if stop_event.is_set():
                 break
             
-            # ⭐ CAPTURER LA POSITION DU ROBOT AU DÉBUT DU SCAN
+            # Figer la position du robot
             x_robot_scan = x_robot_actuel
             y_robot_scan = y_robot_actuel
             angle_robot_scan = angle_robot_actuel
             
             for (quality, angle_point, distance) in scan:
                 phi = math.radians(angle_point)
-                
-                # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
                 angle_total = phi - math.radians(angle_robot_scan) - math.radians(11)
                 
                 x_point = x_robot_scan + distance * math.cos(angle_total)
@@ -462,8 +465,34 @@ def calcul_points(stop_event):
             
             if buffer_points:
                 xs, ys = zip(*buffer_points)
-                x_ennemi = np.mean(xs)
-                y_ennemi = np.mean(ys)
+                x_ennemi_brut = np.mean(xs)
+                y_ennemi_brut = np.mean(ys)
+                
+                # ⭐ FILTRAGE : Vérifier que le mouvement n'est pas aberrant
+                if historique_x_ennemi and historique_y_ennemi:
+                    x_ennemi_precedent = historique_x_ennemi[-1]
+                    y_ennemi_precedent = historique_y_ennemi[-1]
+                    
+                    mouvement = math.sqrt(
+                        (x_ennemi_brut - x_ennemi_precedent)**2 + 
+                        (y_ennemi_brut - y_ennemi_precedent)**2
+                    )
+                    
+                    if mouvement < SEUIL_MOUVEMENT_MAX:
+                        historique_x_ennemi.append(x_ennemi_brut)
+                        historique_y_ennemi.append(y_ennemi_brut)
+                    else:
+                        # Mouvement aberrant → ignorer
+                        print(f"⚠️ Mouvement aberrant détecté : {mouvement:.0f}mm")
+                else:
+                    # Premier point
+                    historique_x_ennemi.append(x_ennemi_brut)
+                    historique_y_ennemi.append(y_ennemi_brut)
+                
+                # ⭐ MOYENNE GLISSANTE sur l'historique
+                if historique_x_ennemi:
+                    x_ennemi = np.mean(historique_x_ennemi)
+                    y_ennemi = np.mean(historique_y_ennemi)
     
     except Exception as e:
         print("Erreur dans le thread Lidar:", e)
