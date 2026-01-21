@@ -4,7 +4,7 @@ Reel = False
 
 Strategie = False
 Astars = False
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Lidar_on = True
 Bat_Compet = False
@@ -65,9 +65,9 @@ if not Astars:
 
         ["Avancer",2550,1400],
         ["Avancer",2550,1000],
-        ["Avancer",2818,890],
-        ["Rotation",90],
+        ["Avancer",2800,890],
         ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
+        ["Rotation",90],
         ["Attraper",0,12],
         ["Consigne",2725,1550],
         ["Reculer",2725,1450],
@@ -75,30 +75,30 @@ if not Astars:
         ["Avancer",1920,1170],
         ["Avancer",1490,1000],
         ["Avancer",1500,800],
-        ["Rotation",0],
         ["Consigne",1750-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
+        ["Rotation",0],
         ["Attraper",0,12],
         ["Consigne",2100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
         ["Reculer",2100-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
         
         ["Avancer",1500,800],
-        ["Rotation",180],
         ["Consigne",1250+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
+        ["Rotation",180],
         ["Attraper",0,12],
         ["Consigne",900+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
         ["Reculer",900+100+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
         
         ["Avancer",1500,450],
         ["Avancer",1500,200],
-        ["Rotation",0],
         ["Consigne",1800-MARGE_NOISETTE-LONGUEUR_ROBOT/2,200],
+        ["Rotation",0],
         ["Attraper",0,12],
         ["Consigne",2200-MARGE_NOISETTE-LONGUEUR_ROBOT/2,200],
         ["Reculer",2200-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,200],
 
         ["Avancer",1500,200],
-        ["Rotation",180],
         ["Consigne",1200+MARGE_NOISETTE+LONGUEUR_ROBOT/2,200],
+        ["Rotation",180],
         ["Attraper",0,12],
         ["Consigne",800+MARGE_NOISETTE+LONGUEUR_ROBOT/2,200],
         ["Reculer",800+100+MARGE_NOISETTE+LONGUEUR_ROBOT/2,200],
@@ -168,7 +168,7 @@ else :
         ["Consigne",2725,1670-R_ROBOT-4*MARGE_NOISETTE],
 
     ]
-
+    
 Liste_trajectoire = []
 
 Liste_actions_ennemi = []
@@ -941,7 +941,7 @@ if __name__ == '__main__':
 
             if temps_restant <= temps_retour:
                 Liste_actions.clear() 
-                Liste_actions = [["Consigne",int(x_robot_depart),int(y_robot_depart)]]
+                Liste_actions = [["Consigne",int(x_robot_depart),int(y_robot_depart)],["Rotation",-90]]
                 action_voulu = Liste_actions[0][0]
                 x_robot_voulu = Liste_actions[0][1] 
                 y_robot_voulu = Liste_actions[0][2]
@@ -1057,11 +1057,11 @@ if __name__ == '__main__':
             # Trouver la première rotation (s'il y en a une)
             index_rotation = None
             for i, action in enumerate(Liste_actions):
-                if isinstance(action, list) and len(action) >= 2 and action[0] == "Rotation":
+                if isinstance(action, list) and action[0] in ["Rotation","Attraper","Retourner","Relacher"]:
                     index_rotation = i
                     break
 
-            # Extraire TOUS les points "Avancer" ou "Consigne" AVANT la rotation
+            # Extraire TOUS les points "Avancer" ou "Consigne"
             if index_rotation is not None:
                 points_avancer = [
                     [int(action[1]), int(action[2])] 
@@ -1072,7 +1072,7 @@ if __name__ == '__main__':
                     and action[0] in ["Avancer", "Consigne","Reculer"]
                 ]
             else:
-                # Pas de rotation : prendre tous les points
+                # Prendre tous les points
                 points_avancer = [
                     [int(action[1]), int(action[2])] 
                     for action in Liste_actions 
