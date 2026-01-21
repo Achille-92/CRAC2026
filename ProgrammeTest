@@ -7,7 +7,7 @@ Astars = False
 Simul_mvt = True
 Simul_mvt_ennemi = False
 Lidar_on = True
-Bat_Compet = False
+Bat_Compet = True
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -61,12 +61,16 @@ if not Astars:
         #["Attraper",0,12], # Action : Attraper, Pince N°0, Les 2 Noisettes
         #["Retourner",0,12], # Action : Retourner, Pince N°0, Les 2 Noisettes
         #["Relacher",0,12], # Action : Relacher, Pince N°0, Les 2 Noisettes
+        #["Rotation",90],
+        #["Rotation",-90],
         #["Rotation",0],
-
+        #["Rotation",180],
         ["Avancer",2550,1400],
         ["Avancer",2550,1000],
         ["Avancer",2800,890],
-        ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
+        #["Recalage X"],
+        #["Reculer",2800,890],
+        ["Consigne",2825,1100-2*MARGE_NOISETTE-LONGUEUR_ROBOT/2],
         ["Rotation",90],
         ["Attraper",0,12],
         ["Consigne",2725,1550],
@@ -75,33 +79,33 @@ if not Astars:
         ["Avancer",1920,1170],
         ["Avancer",1490,1000],
         ["Avancer",1500,800],
-        ["Consigne",1750-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
+        ["Consigne",1750-2*MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
         ["Rotation",0],
         ["Attraper",0,12],
-        ["Consigne",2100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
+        ["Consigne",2100-2*MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
         ["Reculer",2100-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
         
         ["Avancer",1500,800],
-        ["Consigne",1250+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
+        ["Consigne",1250+2*MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
         ["Rotation",180],
         ["Attraper",0,12],
-        ["Consigne",900+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
+        ["Consigne",900+2*MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
         ["Reculer",900+100+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
         
         ["Avancer",1500,450],
         ["Avancer",1500,200],
-        ["Consigne",1800-MARGE_NOISETTE-LONGUEUR_ROBOT/2,200],
+        ["Consigne",1800-2*MARGE_NOISETTE-LONGUEUR_ROBOT/2,200],
         ["Rotation",0],
         ["Attraper",0,12],
-        ["Consigne",2200-MARGE_NOISETTE-LONGUEUR_ROBOT/2,200],
+        ["Consigne",2200-2*MARGE_NOISETTE-LONGUEUR_ROBOT/2,200],
         ["Reculer",2200-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,200],
 
         ["Avancer",1500,200],
-        ["Consigne",1200+MARGE_NOISETTE+LONGUEUR_ROBOT/2,200],
+        ["Consigne",1200+2*MARGE_NOISETTE+LONGUEUR_ROBOT/2,200],
         ["Rotation",180],
         ["Attraper",0,12],
-        ["Consigne",800+MARGE_NOISETTE+LONGUEUR_ROBOT/2,200],
-        ["Reculer",800+100+MARGE_NOISETTE+LONGUEUR_ROBOT/2,200],
+        ["Consigne",800+2*MARGE_NOISETTE+LONGUEUR_ROBOT/2,200],
+        ["Reculer",800+100+2*MARGE_NOISETTE+LONGUEUR_ROBOT/2,200],
 
         ["Avancer",1500,1000],
         ["Avancer",2550,1400],
@@ -419,6 +423,7 @@ action_en_cours = None
 action_precedente = None
 
 verif_mouv = 0
+old_verif_mouv = verif_mouv
 verif_angle = 0
 verif_recalage = 0
 verif_action = 0
@@ -481,7 +486,7 @@ def calcul_points(stop_event):
     
     x_point = 0
     y_point = 0
-    buffer_points = deque(maxlen=20)
+    buffer_points = deque(maxlen=5)
     
     try:
         for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096):
@@ -819,7 +824,7 @@ if __name__ == '__main__':
 
             print("Liste_Noisette_ordre_couleur : ",Liste_Noisette_ordre_couleur)
             # ================================================================================================= #
-                
+            
             
             # ============ Prise de décision ========== #
             # ========================================= #
@@ -938,7 +943,7 @@ if __name__ == '__main__':
                 
                 # Forcer le recalcul de trajectoire
                 demande_recalcul_traj = True
-
+                
             if temps_restant <= temps_retour:
                 Liste_actions.clear() 
                 Liste_actions = [["Consigne",int(x_robot_depart),int(y_robot_depart)],["Rotation",-90]]
@@ -1007,7 +1012,7 @@ if __name__ == '__main__':
                             print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
                         else:
                             print("CHEMIN INACCESSIBLE")
-
+            
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer"]:
                 action_voulu = Liste_actions[0][0]
                 x_robot_voulu = Liste_actions[0][1] 
@@ -1030,7 +1035,7 @@ if __name__ == '__main__':
             
             if (distance_robot_ennemi < R_securite-MARGE_TRAJECTOIRE) or Astars_a_fail:
                 ordre_mouvement = 3
-            elif action_voulu in ["Consigne","Avancer"]:
+            elif action_voulu in ["Avancer"]:
                 ordre_mouvement=1
             elif action_voulu in ["Reculer"]:
                 ordre_mouvement=2
@@ -1038,12 +1043,12 @@ if __name__ == '__main__':
                 ordre_mouvement=3
             elif action_voulu in ["Rotation"]:
                 ordre_mouvement=4
-                """elif action_voulu in ["Consigne"]:
+            elif action_voulu in ["Consigne"]:
                 ordre_mouvement=5
             elif action_voulu in ["Recalage X"]:
                 ordre_mouvement=6
             elif action_voulu in ["Recalage Y"]:
-                ordre_mouvement=7"""
+                ordre_mouvement=7
             else :
                 ordre_mouvement=100
                
@@ -1110,7 +1115,7 @@ if __name__ == '__main__':
                     dico_envoi[0x500+pince_a_utilise]=3
                 dico_envoi[0x502+pince_a_utilise]=noisette_a_manipulee
             ################################################
-
+            
             ##### Simulation Mouvement Robot 
             if not Reel: 
                 if Simul_mvt :
@@ -1124,7 +1129,7 @@ if __name__ == '__main__':
                             angle_robot_consigne = math.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel)
                             x_robot_actuel += round(15*np.cos(angle_robot_consigne),0)
                             y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
-
+                
             
             ############## MISE À JOUR AFFICHAGE ################
             # Mettre à jour robot, ennemi et consigne sur affichage
@@ -1178,7 +1183,7 @@ if __name__ == '__main__':
             # === GESTION BATTERIES avec les fonctions ===
             if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
-
+            
             if not Bat_Compet: 
                 if Batteries_alert[0]==0:
                     Batteries_interrupteur[0]=1
@@ -1263,12 +1268,12 @@ if __name__ == '__main__':
                 dico_envoi[0x203]=2
             else :
                 dico_envoi[0x203]=1
-
+            
             if verif_action == 1:
                 dico_envoi[0x504+pince_a_utilise]=2
             else :
                 dico_envoi[0x504+pince_a_utilise]=1
-
+            
             print("verif_mouv : ",verif_mouv)
             print("ack mouv : ",dico_envoi[0x207])
             print("verif_angle : ",verif_angle)
@@ -1312,6 +1317,7 @@ if __name__ == '__main__':
 
             """for couple in dico_envoi.items():
                 print(hex(couple[0])," : ",couple[1])"""
+            print(Batteries_interrupteur)
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
@@ -1335,6 +1341,7 @@ if __name__ == '__main__':
             y_robot_voulu_last = y_robot_voulu
             x_ennemi_old = x_ennemi
             y_ennemi_old = y_ennemi
+            old_verif_mouv = verif_mouv
             Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
             Liste_actions_precedente = Liste_actions.copy()
             print("")
