@@ -213,7 +213,9 @@ def init_affichage(x_robot_depart,y_robot_depart,R_ROBOT):
 
     # Textes d'info
     chronometre_text = ax.text(2900, 2500, "", color='black', fontsize=8, ha='left', va='top')
+    
     info_alim_rpi = ax.text(2200, 2500, "", color='black', fontsize=8, ha='left', va='top')
+
     robot_info_text = ax.text(1500, 2200, "", color='black', fontsize=8, ha='left', va='top')
     x_voulu_text = ax.text(1500, 2100, "", color='black', fontsize=8, ha='left', va='top')
     y_voulu_text = ax.text(2000, 2100, "", color='black', fontsize=8, ha='left', va='top')
