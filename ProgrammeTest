@@ -1,10 +1,10 @@
 couleur = "B"
 
-Reel = False
+Reel = True
 
 Strategie = False
 Astars = False
-Simul_mvt = False
+Simul_mvt = True
 Simul_mvt_ennemi = False
 Lidar_on = True
 Bat_Compet = False
@@ -138,7 +138,7 @@ else :
         ["Consigne",2825,1100-R_ROBOT-2*MARGE_NOISETTE],
         ["Rotation",90],
         ["Bouger",2,2725,1670],
-        ["Consigne",2725,1670-R_ROBOT-2*MARGE_NOISETTE],
+        ["Consigne",2725,1670-R_ROBOT-4*MARGE_NOISETTE],
         ["Reculer",2725,1670-R_ROBOT-4*MARGE_NOISETTE],
 
         ["Consigne",1750-R_ROBOT-2*MARGE_NOISETTE,800],
@@ -960,54 +960,53 @@ if __name__ == '__main__':
                     for action in Liste_actions:
                         if action[0] in ["Consigne","Avancer","Reculer"]:
                             distance_point_ennemi = math.sqrt((action[1] - x_ennemi)**2 + (action[2] - y_ennemi)**2)
-                            # ⭐ UTILISER LE MÊME RAYON QUE LA GRILLE
+                            # ⭐ UTILISER LE MÊME RAYON
+                            #  QUE LA GRILLE
                             rayon_detection = (R_securite + MARGE_TRAJECTOIRE)  # Marge de sécurité supplémentaire
                             if distance_point_ennemi <= rayon_detection:
                                 print("Point de Traj dans Périmètre ennemi")
                                 demande_recalcul_traj = True
                                 break
             print("demande_recalcul_traj : ",demande_recalcul_traj)
-            
+
+
             # === CALCUL DE LA TRAJECTOIRE A* ===
             if Astars: 
-                if action_voulu in ["Rotation","Attraper","Relacher"]:
-                    pass  # rien, on attend la fin de la rotation
-                else:
-                    # === CALCUL DE LA TRAJECTOIRE A* ===
-                    if action_voulu in ["Consigne","Reculer"] or demande_recalcul_traj == True:
-                        grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
-                        print("\n🚀 Déclenchement du calcul A*")
-                        demande_recalcul_traj = False
-                        # Calcul de la trajectoire avec la nouvelle fonction
-                        points_bruts = calculer_trajectoire_complete(
-                            x_robot_actuel, y_robot_actuel,
-                            x_robot_voulu, y_robot_voulu,
-                            obs_manager, obs_manager_noisettes,
-                            x_ennemi, y_ennemi, R_securite,
-                            CASE_MM, X_PISTE, Y_PISTE,
-                            SAFETY_WEIGHT,
-                            MIN_CLEARANCE,
-                            SMOOTHNESS,
-                            DISTANCE_AJUSTABLE,
-                            affichage_ax=ax
-                        )
-                        
-                        if points_bruts is not None:
-                            print(f"✅ Trajectoire calculée : {len(points_bruts)} points")
-                            Liste_actions = [action for action in Liste_actions if not (isinstance(action, list) and len(action) >= 2 and action[0] == "Avancer")]
-                            # ⭐ AJOUT DES POINTS DANS Liste_actions
-                            for i in range(len(points_bruts)-1, 0, -1):
-                                x_cible, y_cible = points_bruts[i]
-                                if abs(x_cible - x_robot_voulu) > 10 or abs(y_cible - y_robot_voulu) > 10:
-                                    Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
-                            Astars_a_fail = False
+                # === CALCUL DE LA TRAJECTOIRE A* ===
+                if action_voulu in ["Consigne","Reculer"] or demande_recalcul_traj == True:
+                    grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
+                    print("\n🚀 Déclenchement du calcul A*")
+                    demande_recalcul_traj = False
+                    # Calcul de la trajectoire avec la nouvelle fonction
+                    points_bruts = calculer_trajectoire_complete(
+                        x_robot_actuel, y_robot_actuel,
+                        x_robot_voulu, y_robot_voulu,
+                        obs_manager, obs_manager_noisettes,
+                        x_ennemi, y_ennemi, R_securite,
+                        CASE_MM, X_PISTE, Y_PISTE,
+                        SAFETY_WEIGHT,
+                        MIN_CLEARANCE,
+                        SMOOTHNESS,
+                        DISTANCE_AJUSTABLE,
+                        affichage_ax=ax
+                    )
+                    if points_bruts is not None:
+                        print(f"✅ Trajectoire calculée : {len(points_bruts)} points")
+                        Liste_actions = [action for action in Liste_actions if not (isinstance(action, list) 
+                                            and len(action) >= 2 and action[0] == "Avancer")]
+                        # ⭐ AJOUT DES POINTS DANS Liste_actions
+                        for i in range(len(points_bruts)-1, 0, -1):
+                            x_cible, y_cible = points_bruts[i]
+                            if abs(x_cible - x_robot_voulu) > 10 or abs(y_cible - y_robot_voulu) > 10:
+                                Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
+                        Astars_a_fail = False
+                    else:
+                        print("❌ Aucun chemin trouvé par A*")
+                        Astars_a_fail = True
+                        if distance_robot_ennemi < R_securite:
+                            print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
                         else:
-                            print("❌ Aucun chemin trouvé par A*")
-                            Astars_a_fail = True
-                            if distance_robot_ennemi < R_securite:
-                                print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
-                            else:
-                                print("CHEMIN INACCESSIBLE")
+                            print("CHEMIN INACCESSIBLE")
 
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer"]:
                 action_voulu = Liste_actions[0][0]
@@ -1031,7 +1030,7 @@ if __name__ == '__main__':
             
             if (distance_robot_ennemi < R_securite-MARGE_TRAJECTOIRE) or Astars_a_fail:
                 ordre_mouvement = 3
-            elif action_voulu in ["Avancer"]:
+            elif action_voulu in ["Consigne","Avancer"]:
                 ordre_mouvement=1
             elif action_voulu in ["Reculer"]:
                 ordre_mouvement=2
@@ -1039,12 +1038,12 @@ if __name__ == '__main__':
                 ordre_mouvement=3
             elif action_voulu in ["Rotation"]:
                 ordre_mouvement=4
-            elif action_voulu in ["Consigne"]:
+                """elif action_voulu in ["Consigne"]:
                 ordre_mouvement=5
             elif action_voulu in ["Recalage X"]:
                 ordre_mouvement=6
             elif action_voulu in ["Recalage Y"]:
-                ordre_mouvement=7
+                ordre_mouvement=7"""
             else :
                 ordre_mouvement=100
                
