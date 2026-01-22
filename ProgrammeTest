@@ -6,7 +6,7 @@ Strategie = False
 Astars = False
 Simul_mvt = True
 Simul_mvt_ennemi = False
-Lidar_on = True
+Lidar_on = False
 Bat_Compet = True
 ################## Librairies ##########################################
 import matplotlib
@@ -172,7 +172,7 @@ else :
         ["Consigne",2725,1670-R_ROBOT-4*MARGE_NOISETTE],
 
     ]
-    
+
 Liste_trajectoire = []
 
 Liste_actions_ennemi = []
