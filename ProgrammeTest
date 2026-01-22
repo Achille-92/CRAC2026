@@ -1256,13 +1256,25 @@ if __name__ == '__main__':
             
             if verif_mouv == 1:
                 dico_envoi[0x207]=2
+                format_value = struct.pack('<I',dico_envoi[0x207])
+                msg = can.Message(arbitration_id=0x207, data=format_value, is_extended_id=False)
+                bus.send(msg)
             else :
                 dico_envoi[0x207]=1
+                format_value = struct.pack('<I',dico_envoi[0x207])
+                msg = can.Message(arbitration_id=0x207, data=format_value, is_extended_id=False)
+                bus.send(msg)
 
             if verif_angle == 1:
                 dico_envoi[0x208]=2
+                format_value = struct.pack('<I',dico_envoi[0x208])
+                msg = can.Message(arbitration_id=0x208, data=format_value, is_extended_id=False)
+                bus.send(msg)
             else :
                 dico_envoi[0x208]=1
+                format_value = struct.pack('<I',dico_envoi[0x208])
+                msg = can.Message(arbitration_id=0x208, data=format_value, is_extended_id=False)
+                bus.send(msg)
 
             if verif_recalage == 1:
                 dico_envoi[0x203]=2
@@ -1291,7 +1303,6 @@ if __name__ == '__main__':
                 
                 # Retirer l'action de la liste 
                 Liste_actions.pop(0) 
-                verif_mouv = 0
                 verif_angle = 0
                 verif_recalage = 0
                 verif_Noisette_a_bouge_simul = 0
