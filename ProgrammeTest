@@ -1308,6 +1308,7 @@ if __name__ == '__main__':
                 verif_Noisette_a_bouge_simul = 0
                 angle_robot_voulu = -181
                 verif_action = 0
+                #time.sleep(0.1)
             
 
             # On supprime, dans le dico, les anciens points de la trajectoire
@@ -1339,7 +1340,7 @@ if __name__ == '__main__':
                         msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
                         bus.send(msg)
                         dico_envoi[key]=0
-                        time.sleep(0.0005)
+                        time.sleep(0.0006)
             
 
             # MAJ de l'affichage et des Variables de Bouncing
