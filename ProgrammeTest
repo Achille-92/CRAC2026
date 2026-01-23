@@ -752,14 +752,14 @@ if __name__ == '__main__':
 
             step +=1
             print("step :",step)
-            if Astars:
+            """if Astars:
                 grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, 
                             obs_manager, obs_manager_noisettes,
                             Liste_noisette_xya,  # ⭐ NOUVEAU PARAMÈTRE
                             obstacle_scatter, expanded_scatter, distance_map, 
-                            ax, width, height, CASE_MM)
+                            ax, width, height, CASE_MM)"""
             # Simu déplacement robot ennemi
-            if not Reel:
+            """if not Reel:
                 if Simul_mvt_ennemi:
                     if len(Liste_actions_ennemi)>n_init-1:
                         Liste_actions_ennemi[0] = [int(x_robot_actuel-10),int(y_robot_actuel-10)]
@@ -771,10 +771,10 @@ if __name__ == '__main__':
 
                     x_ennemi += round(15*np.cos(math.radians(angle_ennemi_consigne)),0)
                     y_ennemi += round(15*np.sin(math.radians(angle_ennemi_consigne)),0)
-            ###
+            ###"""
             
             # ======================== Tri Noisettes ============================================= #
-            for Noisette in Liste_noisette_xya:
+            """for Noisette in Liste_noisette_xya:
                 index_zone_Noisette = 0
                 for emplacement_zone_noisette in Liste_emplacement_zones_Noisette_xy:
                     coin_hg = emplacement_zone_noisette[0]
@@ -822,7 +822,7 @@ if __name__ == '__main__':
                         Liste_temp.append(idx_absolu)  # ⭐ INDEX ABSOLU (0-3)
                 Liste_Noisette_ordre_couleur[idx_zone]=Liste_temp
 
-            print("Liste_Noisette_ordre_couleur : ",Liste_Noisette_ordre_couleur)
+            print("Liste_Noisette_ordre_couleur : ",Liste_Noisette_ordre_couleur)"""
             # ================================================================================================= #
             
             
@@ -922,7 +922,7 @@ if __name__ == '__main__':
                 print("Appeler Pince N°",pince_a_utilise," pour ",action_voulu," les Noisettes ",noisette_a_manipulee)
             #####################################
 
-            changement_noisettes_detecte = detecter_changements_noisettes(
+            """changement_noisettes_detecte = detecter_changements_noisettes(
                 Liste_noisette_xya, 
                 Liste_noisette_xya_precedente
             )
@@ -942,7 +942,7 @@ if __name__ == '__main__':
                 )
                 
                 # Forcer le recalcul de trajectoire
-                demande_recalcul_traj = True
+                demande_recalcul_traj = True"""
                 
             if temps_restant <= temps_retour:
                 Liste_actions.clear() 
@@ -957,7 +957,7 @@ if __name__ == '__main__':
             mouvement_ennemi = math.sqrt((x_ennemi - x_ennemi_old)**2 + (y_ennemi - y_ennemi_old)**2)
             # Détection besoin de recalculer la trajectoire car point suivant dans zone ennemi
 
-            if Astars:
+            """if Astars:
                 if verifier_segments_trajectoire_ennemi(Liste_actions,x_ennemi, y_ennemi,R_securite, MARGE_TRAJECTOIRE,x_robot_actuel, y_robot_actuel):
                     demande_recalcul_traj = True
                     print("Ennemi coupe trajectoire")
@@ -972,11 +972,11 @@ if __name__ == '__main__':
                                 print("Point de Traj dans Périmètre ennemi")
                                 demande_recalcul_traj = True
                                 break
-            print("demande_recalcul_traj : ",demande_recalcul_traj)
+            print("demande_recalcul_traj : ",demande_recalcul_traj)"""
 
 
             # === CALCUL DE LA TRAJECTOIRE A* ===
-            if Astars: 
+            """if Astars: 
                 # === CALCUL DE LA TRAJECTOIRE A* ===
                 if action_voulu in ["Consigne","Reculer"] or demande_recalcul_traj == True:
                     grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
@@ -1011,7 +1011,7 @@ if __name__ == '__main__':
                         if distance_robot_ennemi < R_securite:
                             print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
                         else:
-                            print("CHEMIN INACCESSIBLE")
+                            print("CHEMIN INACCESSIBLE")"""
             
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer"]:
                 action_voulu = Liste_actions[0][0]
@@ -1106,18 +1106,18 @@ if __name__ == '__main__':
             ################################################
 
             # Envoi des Ordres de Manipulation des Noisettes à la Carte Actionneur
-            if action_voulu in ["Attraper","Retourner","Relacher"]:
+            """if action_voulu in ["Attraper","Retourner","Relacher"]:
                 if action_voulu in ["Attraper"]:
                     dico_envoi[0x500+pince_a_utilise]=1
                 elif action_voulu in ["Retourner"]:
                     dico_envoi[0x500+pince_a_utilise]=2
                 elif action_voulu in ["Relacher"]:
                     dico_envoi[0x500+pince_a_utilise]=3
-                dico_envoi[0x502+pince_a_utilise]=noisette_a_manipulee
+                dico_envoi[0x502+pince_a_utilise]=noisette_a_manipulee"""
             ################################################
             
             ##### Simulation Mouvement Robot 
-            if not Reel: 
+            """if not Reel: 
                 if Simul_mvt :
                     if ordre_mouvement!=3:
                         if(action_voulu in ["Rotation"]):
@@ -1128,7 +1128,7 @@ if __name__ == '__main__':
                         if(action_voulu in ["Consigne","Avancer","Reculer"]):
                             angle_robot_consigne = math.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel)
                             x_robot_actuel += round(15*np.cos(angle_robot_consigne),0)
-                            y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
+                            y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)"""
                 
             
             ############## MISE À JOUR AFFICHAGE ################
@@ -1181,7 +1181,7 @@ if __name__ == '__main__':
             
             
             # === GESTION BATTERIES avec les fonctions ===
-            if step > 1:
+            """if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             
             if not Bat_Compet: 
@@ -1208,7 +1208,7 @@ if __name__ == '__main__':
                 dico_envoi[0x303]=2
             dico_envoi[0x300]=Batteries_interrupteur[0]
             dico_envoi[0x301]=Batteries_interrupteur[1]
-            dico_envoi[0x302]=Batteries_interrupteur[2]
+            dico_envoi[0x302]=Batteries_interrupteur[2]"""
             #######################################
             
             # Affichage texte Coordonées
@@ -1240,7 +1240,7 @@ if __name__ == '__main__':
                 info_alim_rpi.set_color('red')
 
             # Si robot est à la position de consigne  
-            if not Reel :
+            """if not Reel :
                 if(abs(x_robot_actuel-x_robot_voulu)<TOL_POS_X and abs(y_robot_actuel-y_robot_voulu)<TOL_POS_Y and action_voulu in ["Consigne","Avancer","Reculer"]):
                     print("Bonne position")
                     verif_mouv = 1
@@ -1252,7 +1252,7 @@ if __name__ == '__main__':
                 if Simul_mvt_ennemi:
                     if(abs(x_ennemi-x_ennemi_voulu)<TOL_POS_X and abs(y_ennemi-y_ennemi_voulu)<TOL_POS_Y):
                         if(len(Liste_actions_ennemi)!=1):
-                            Liste_actions_ennemi.pop(0)
+                            Liste_actions_ennemi.pop(0)"""
             
             if verif_mouv == 1:
                 dico_envoi[0x207]=2
@@ -1329,7 +1329,7 @@ if __name__ == '__main__':
 
             """for couple in dico_envoi.items():
                 print(hex(couple[0])," : ",couple[1])"""
-            print(Batteries_interrupteur)
+            
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
@@ -1358,6 +1358,7 @@ if __name__ == '__main__':
             Liste_actions_precedente = Liste_actions.copy()
             print("")
             time.sleep(0.000005)
+            
         if V_rpi <= lim_Bat_RPI:
             print("Batterie RPI trop faible")
         time.sleep(2) 
