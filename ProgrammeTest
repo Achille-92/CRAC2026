@@ -268,7 +268,6 @@ Liste_zones_gm_angle = [(0,90),
 PORT_NAME = '/dev/ttyUSB0'
 BAUDRATE = 256000
 lidar = None
-pile_calcul = queue.Queue(maxsize=500)
 ####################################
 
 # Piste
@@ -842,7 +841,7 @@ if __name__ == '__main__':
 
             elif  type(Liste_actions[0]) == list and len(Liste_actions[0])==4 :
                 # ============== ACTION BOUGER NOISETTES ============== #
-                action_voulu = "Bouger"
+                action_voulu = Liste_actions[0][0]
                 num_zoneNoisette_a_bouger = Liste_actions[0][1]
                 x_cible = Liste_actions[0][2]  # Coordonnée X de la noisette cible
                 y_cible = Liste_actions[0][3]  # Coordonnée Y de la noisette cible
@@ -947,9 +946,6 @@ if __name__ == '__main__':
             if temps_restant <= temps_retour:
                 Liste_actions.clear() 
                 Liste_actions = [["Consigne",int(x_robot_depart),int(y_robot_depart)],["Rotation",-90]]
-                action_voulu = Liste_actions[0][0]
-                x_robot_voulu = Liste_actions[0][1] 
-                y_robot_voulu = Liste_actions[0][2]
             
     
             distance_robot_ennemi = math.sqrt((x_ennemi - x_robot_actuel)**2 + (y_ennemi - y_robot_actuel)**2)
@@ -1061,7 +1057,7 @@ if __name__ == '__main__':
             # Trouver la première rotation (s'il y en a une)
             index_rotation = None
             for i, action in enumerate(Liste_actions):
-                if isinstance(action, list) and action[0] in ["Rotation","Attraper","Retourner","Relacher"]:
+                if isinstance(action, list) and action[0] in ["Rotation"]:
                     index_rotation = i
                     break
 
@@ -1358,7 +1354,7 @@ if __name__ == '__main__':
             Liste_actions_precedente = Liste_actions.copy()
             print("")
             time.sleep(0.000005)
-            
+
         if V_rpi <= lim_Bat_RPI:
             print("Batterie RPI trop faible")
         time.sleep(2) 
