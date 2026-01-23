@@ -427,6 +427,7 @@ verif_angle = 0
 verif_recalage = 0
 verif_action = 0
 verif_Noisette_a_bouge_simul = 0
+action_est_supprime = False 
 
 pince_a_utilise = -1
 noisette_a_manipulee = 0
@@ -1290,21 +1291,24 @@ if __name__ == '__main__':
             print("ack recalage : ",dico_envoi[0x203])
             print("verif_action : ",verif_action)
             print("ack action : ",dico_envoi[0x504+pince_a_utilise])
-
-            if (action_voulu in ["Consigne","Avancer","Reculer"] and verif_mouv == 1) or \
-               (action_voulu in ["Rotation"] and verif_angle == 1) or \
-               (action_voulu in ["Recalage X","Recalage Y"] and verif_recalage == 1) or \
-               (action_voulu in ["Bouger"] and verif_Noisette_a_bouge_simul == 1) or \
-               (action_voulu in ["Attraper","Retourner","Relacher"] and verif_action == 1):
-                
-                # Retirer l'action de la liste 
-                Liste_actions.pop(0) 
-                verif_angle = 0
-                verif_recalage = 0
-                verif_Noisette_a_bouge_simul = 0
-                angle_robot_voulu = -181
-                verif_action = 0
-                #time.sleep(0.1)
+            if not action_est_supprime:
+                if (action_voulu in ["Consigne","Avancer","Reculer"] and verif_mouv == 1) or \
+                (action_voulu in ["Rotation"] and verif_angle == 1) or \
+                (action_voulu in ["Recalage X","Recalage Y"] and verif_recalage == 1) or \
+                (action_voulu in ["Bouger"] and verif_Noisette_a_bouge_simul == 1) or \
+                (action_voulu in ["Attraper","Retourner","Relacher"] and verif_action == 1):
+                    
+                    # Retirer l'action de la liste 
+                    Liste_actions.pop(0) 
+                    verif_angle = 0
+                    verif_recalage = 0
+                    verif_Noisette_a_bouge_simul = 0
+                    angle_robot_voulu = -181
+                    verif_action = 0
+                    action_est_supprime = True
+                    #time.sleep(0.1)
+            else :
+                action_est_supprime = False
             
 
             # On supprime, dans le dico, les anciens points de la trajectoire
