@@ -45,7 +45,7 @@ for ID in Liste_ID_envoi:
 # Perimètre de sécurité
 R_ROBOT = 160
 LARGEUR_ROBOT = 250
-LONGUEUR_ROBOT = 140
+LONGUEUR_ROBOT = 220
 R_ENNEMI = 150
 MARGE_ENNEMI = 100
 MARGE_NOISETTE = 20
@@ -57,20 +57,12 @@ R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 # Listes pour la Stratégie
 if not Astars:
     Liste_actions = [
-        #["Recalage Y"],
-        #["Attraper",0,12], # Action : Attraper, Pince N°0, Les 2 Noisettes
-        #["Retourner",0,12], # Action : Retourner, Pince N°0, Les 2 Noisettes
-        #["Relacher",0,12], # Action : Relacher, Pince N°0, Les 2 Noisettes
-        #["Rotation",90],
-        #["Rotation",-90],
-        #["Rotation",0],
-        #["Rotation",180],
         ["Avancer",2550,1400],
         ["Avancer",2550,1000],
         ["Avancer",2800,890],
         #["Recalage X"],
         #["Reculer",2800,890],
-        ["Consigne",2825,1100-2*MARGE_NOISETTE-LONGUEUR_ROBOT/2],
+        ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
         ["Rotation",90],
         ["Attraper",0,12],
         ["Consigne",2725,1550],
@@ -79,63 +71,38 @@ if not Astars:
         ["Avancer",1920,1170],
         ["Avancer",1490,1000],
         ["Avancer",1500,800],
-        ["Consigne",1750-2*MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
+        ["Consigne",1750-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
         ["Rotation",0],
         ["Attraper",0,12],
-        ["Consigne",2100-2*MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
+        ["Consigne",2100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
         ["Reculer",2100-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
         
         ["Avancer",1500,800],
-        ["Consigne",1250+2*MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
+        ["Consigne",1250+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
         ["Rotation",180],
-        ["Attraper",0,12],
-        ["Consigne",900+2*MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
+        #["Attraper",0,12],
+        ["Consigne",900+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
         ["Reculer",900+100+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
         
         ["Avancer",1500,450],
-        ["Avancer",1500,200],
-        ["Consigne",1800-2*MARGE_NOISETTE-LONGUEUR_ROBOT/2,200],
+        ["Avancer",1500,210],
+        ["Consigne",1800-MARGE_NOISETTE-LONGUEUR_ROBOT/2,210],
         ["Rotation",0],
-        ["Attraper",0,12],
-        ["Consigne",2200-2*MARGE_NOISETTE-LONGUEUR_ROBOT/2,200],
-        ["Reculer",2200-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,200],
+        #["Attraper",0,12],
+        ["Consigne",2200-MARGE_NOISETTE-LONGUEUR_ROBOT/2,210],
+        ["Reculer",2200-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,210],
 
-        ["Avancer",1500,200],
-        ["Consigne",1200+2*MARGE_NOISETTE+LONGUEUR_ROBOT/2,200],
+        ["Avancer",1500,210],
+        ["Consigne",1200+MARGE_NOISETTE+LONGUEUR_ROBOT/2,210],
         ["Rotation",180],
-        ["Attraper",0,12],
-        ["Consigne",800+2*MARGE_NOISETTE+LONGUEUR_ROBOT/2,200],
-        ["Reculer",800+100+2*MARGE_NOISETTE+LONGUEUR_ROBOT/2,200],
+        #["Attraper",0,12],
+        ["Consigne",800+MARGE_NOISETTE+LONGUEUR_ROBOT/2,210],
+        ["Reculer",800+100+MARGE_NOISETTE+LONGUEUR_ROBOT/2,210],
 
         ["Avancer",1500,1000],
         ["Avancer",2550,1400],
         ["Consigne",2725,1670],
         ["Rotation",-90]
-
-        #["Consigne",2550,1000],
-        #["Consigne",2650,900],
-        #["Consigne",2825,900],
-        #["Rotation",90],
-        #["Consigne",2725,1550],
-        #["Reculer",2725,1450],
-        #["Consigne", 2263, 1363],
-        #["Consigne", 1547, 1037],
-        #["Consigne", 1500, 800],
-        #["Rotation",0],
-        #["Consigne",2100-R_ROBOT-MARGE_GM,800],
-        #["Reculer",2100-R_ROBOT-10*MARGE_GM,800],
-        #["Rotation",180],
-        #["Consigne", 900+R_ROBOT+MARGE_GM,800],
-        #["Reculer",900+R_ROBOT+10*MARGE_GM,800],
-        #["Consigne", 1500,180],
-        #["Rotation",0],
-        #["Consigne", 2200-R_ROBOT-MARGE_GM,200],
-        #["Reculer",2200-R_ROBOT-10*MARGE_GM,200],
-        #["Rotation",180],
-        #["Consigne", 800+R_ROBOT+MARGE_GM,200],
-        #["Reculer",800+R_ROBOT+10*MARGE_GM,200],
-        #["Rotation",0]
-        #["Consigne", 2725,1670],
     ]
 else :
     Liste_actions = [
@@ -757,9 +724,10 @@ if __name__ == '__main__':
                             obs_manager, obs_manager_noisettes,
                             Liste_noisette_xya,  # ⭐ NOUVEAU PARAMÈTRE
                             obstacle_scatter, expanded_scatter, distance_map, 
-                            ax, width, height, CASE_MM)"""
+                            ax, width, height, CASE_MM)
+            
             # Simu déplacement robot ennemi
-            """if not Reel:
+            if not Reel:
                 if Simul_mvt_ennemi:
                     if len(Liste_actions_ennemi)>n_init-1:
                         Liste_actions_ennemi[0] = [int(x_robot_actuel-10),int(y_robot_actuel-10)]
@@ -771,8 +739,8 @@ if __name__ == '__main__':
 
                     x_ennemi += round(15*np.cos(math.radians(angle_ennemi_consigne)),0)
                     y_ennemi += round(15*np.sin(math.radians(angle_ennemi_consigne)),0)
-            ###"""
-            
+            ###
+            """
             # ======================== Tri Noisettes ============================================= #
             """for Noisette in Liste_noisette_xya:
                 index_zone_Noisette = 0
@@ -822,8 +790,8 @@ if __name__ == '__main__':
                         Liste_temp.append(idx_absolu)  # ⭐ INDEX ABSOLU (0-3)
                 Liste_Noisette_ordre_couleur[idx_zone]=Liste_temp
 
-            print("Liste_Noisette_ordre_couleur : ",Liste_Noisette_ordre_couleur)"""
-            # ================================================================================================= #
+            print("Liste_Noisette_ordre_couleur : ",Liste_Noisette_ordre_couleur)
+            """# ================================================================================================= #
             
             
             # ============ Prise de décision ========== #
@@ -942,8 +910,8 @@ if __name__ == '__main__':
                 )
                 
                 # Forcer le recalcul de trajectoire
-                demande_recalcul_traj = True"""
-                
+                demande_recalcul_traj = True
+             """   
             if temps_restant <= temps_retour:
                 Liste_actions.clear() 
                 Liste_actions = [["Consigne",int(x_robot_depart),int(y_robot_depart)],["Rotation",-90]]
@@ -969,8 +937,8 @@ if __name__ == '__main__':
                                 print("Point de Traj dans Périmètre ennemi")
                                 demande_recalcul_traj = True
                                 break
-            print("demande_recalcul_traj : ",demande_recalcul_traj)"""
-
+            print("demande_recalcul_traj : ",demande_recalcul_traj)
+            """
 
             # === CALCUL DE LA TRAJECTOIRE A* ===
             """if Astars: 
@@ -1008,8 +976,8 @@ if __name__ == '__main__':
                         if distance_robot_ennemi < R_securite:
                             print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
                         else:
-                            print("CHEMIN INACCESSIBLE")"""
-            
+                            print("CHEMIN INACCESSIBLE")
+            """
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer"]:
                 action_voulu = Liste_actions[0][0]
                 x_robot_voulu = Liste_actions[0][1] 
@@ -1110,8 +1078,8 @@ if __name__ == '__main__':
                     dico_envoi[0x500+pince_a_utilise]=2
                 elif action_voulu in ["Relacher"]:
                     dico_envoi[0x500+pince_a_utilise]=3
-                dico_envoi[0x502+pince_a_utilise]=noisette_a_manipulee"""
-            ################################################
+                dico_envoi[0x502+pince_a_utilise]=noisette_a_manipulee
+            """################################################
             
             ##### Simulation Mouvement Robot 
             """if not Reel: 
@@ -1125,9 +1093,9 @@ if __name__ == '__main__':
                         if(action_voulu in ["Consigne","Avancer","Reculer"]):
                             angle_robot_consigne = math.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel)
                             x_robot_actuel += round(15*np.cos(angle_robot_consigne),0)
-                            y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)"""
+                            y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
                 
-            
+            """
             ############## MISE À JOUR AFFICHAGE ################
             # Mettre à jour robot, ennemi et consigne sur affichage
             robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
@@ -1249,8 +1217,8 @@ if __name__ == '__main__':
                 if Simul_mvt_ennemi:
                     if(abs(x_ennemi-x_ennemi_voulu)<TOL_POS_X and abs(y_ennemi-y_ennemi_voulu)<TOL_POS_Y):
                         if(len(Liste_actions_ennemi)!=1):
-                            Liste_actions_ennemi.pop(0)"""
-            
+                            Liste_actions_ennemi.pop(0)
+            """
             if verif_mouv == 1:
                 dico_envoi[0x207]=2
                 format_value = struct.pack('<I',dico_envoi[0x207])
@@ -1275,14 +1243,20 @@ if __name__ == '__main__':
 
             if verif_recalage == 1:
                 dico_envoi[0x203]=2
+                format_value = struct.pack('<I',dico_envoi[0x203])
+                msg = can.Message(arbitration_id=0x203, data=format_value, is_extended_id=False)
+                bus.send(msg)
             else :
                 dico_envoi[0x203]=1
+                format_value = struct.pack('<I',dico_envoi[0x203])
+                msg = can.Message(arbitration_id=0x203, data=format_value, is_extended_id=False)
+                bus.send(msg)
             
-            if verif_action == 1:
+            """if verif_action == 1:
                 dico_envoi[0x504+pince_a_utilise]=2
             else :
                 dico_envoi[0x504+pince_a_utilise]=1
-            
+            """
             print("verif_mouv : ",verif_mouv)
             print("ack mouv : ",dico_envoi[0x207])
             print("verif_angle : ",verif_angle)
