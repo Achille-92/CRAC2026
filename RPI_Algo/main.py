@@ -9,6 +9,7 @@ Simul_mvt_ennemi = False
 Lidar_on = False
 Bat_Compet = True
 Debug_Mouv = False
+Mode_pince = True
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -57,73 +58,101 @@ R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 
 # Listes pour la Stratégie
 if not Astars:
-    Liste_actions = [
-        ["Avancer",2550,1400],
-        ["Avancer",2550,1000],
-        ["Avancer",2800,890],
+    if not Mode_pince:
+        Liste_actions = [
+            ["Avancer",2550,1400],
+            ["Avancer",2550,1000],
+            ["Avancer",2800,890],
 
-        #["Recalage X"],
-        #["Reculer",2800,890],
+            #["Recalage X"],
+            #["Reculer",2800,890],
 
-        ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
-        ["Rotation",90],
-        ["Attraper",0,12],
-        ["Rotation",-90],
-        ["Reculer",2825,1250-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
-        ["Attraper",1,12],
-        ["Retourner",1,12],
-        ["Consigne",2725,1700],
-        ["Relacher",1,12],
-        ["Consigne",2725,1600],
-        ["Rotation",90],
-        ["Relacher",0,12],
-        ["Reculer",2725,1450],
+            ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
+            ["Rotation",90],
+            ["Attraper",0,1234],
+            ["Consigne",2725,1550],
+            ["Relacher",1,1234],
+            ["Reculer",2725,1450],
 
-        ["Avancer",1920,1170],
-        ["Avancer",1490,1000],
-        ["Avancer",1500,800],
-        ["Consigne",1750-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
-        ["Rotation",0],
-        ["Attraper",0,12],
-        ["Rotation",180],
-        ["Reculer",1850-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
-        ["Attraper",1,12],
-        ["Retourner",0,2],
-        ["Retourner",1,2],
-        ["Reculer",2200-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
-        ["Relacher",1,12],
-        ["Consigne",2075-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
-        ["Rotation",0],
-        ["Relacher",0,12],
-        ["Reculer",2100-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
-        
-        ["Avancer",1500,800],
-        ["Consigne",1250+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
-        ["Rotation",180],
-        #["Attraper",0,12],
-        ["Consigne",900+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
-        ["Reculer",900+100+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
-        
-        ["Avancer",1500,450],
-        ["Avancer",1500,210],
-        ["Consigne",1800-MARGE_NOISETTE-LONGUEUR_ROBOT/2,210],
-        ["Rotation",0],
-        #["Attraper",0,12],
-        ["Consigne",2200-MARGE_NOISETTE-LONGUEUR_ROBOT/2,210],
-        ["Reculer",2200-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,210],
+            ["Avancer",1920,1170],
+            ["Avancer",1490,1000],
+            ["Avancer",1500,800],
+            ["Consigne",1750-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
+            ["Rotation",0],
+            ["Attraper",0,1234],
+            ["Consigne",2100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
+            ["Relacher",0,1234],
+            ["Reculer",2100-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
+            
+            ["Avancer",1500,800],
+            ["Consigne",1250+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
+            ["Rotation",180],
+            ["Attraper",0,1234],
+            ["Consigne",900+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
+            ["Relacher",0,1234],
+            ["Reculer",900+100+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
+            
+            ["Avancer",1500,450],
+            ["Avancer",1500,210],
+            ["Consigne",1800-MARGE_NOISETTE-LONGUEUR_ROBOT/2,210],
+            ["Rotation",0],
+            ["Attraper",0,1234],
+            ["Consigne",2200-MARGE_NOISETTE-LONGUEUR_ROBOT/2,210],
+            ["Relacher",0,1234],
+            ["Reculer",2200-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,210],
 
-        ["Avancer",1500,210],
-        ["Consigne",1200+MARGE_NOISETTE+LONGUEUR_ROBOT/2,210],
-        ["Rotation",180],
-        #["Attraper",0,12],
-        ["Consigne",800+MARGE_NOISETTE+LONGUEUR_ROBOT/2,210],
-        ["Reculer",800+100+MARGE_NOISETTE+LONGUEUR_ROBOT/2,210],
+            ["Avancer",1500,210],
+            ["Consigne",1200+MARGE_NOISETTE+LONGUEUR_ROBOT/2,210],
+            ["Rotation",180],
+            ["Attraper",0,1234],
+            ["Consigne",800+MARGE_NOISETTE+LONGUEUR_ROBOT/2,210],
+            ["Relacher",0,1234],
+            ["Reculer",800+100+MARGE_NOISETTE+LONGUEUR_ROBOT/2,210],
 
-        ["Avancer",1500,1000],
-        ["Avancer",2550,1400],
-        ["Consigne",2725,1670],
-        ["Rotation",-90]
-    ]
+            ["Avancer",1500,1000],
+            ["Avancer",2550,1400],
+            ["Consigne",2725,1670],
+            ["Rotation",-90]
+        ]
+    else :
+        Liste_actions = [
+            ["Avancer",2550,1400],
+            ["Avancer",2550,1000],
+            ["Avancer",2800,890],
+
+            ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
+            ["Rotation",90],
+            ["Attraper",0,12],
+            ["Rotation",-90],
+            ["Reculer",2825,1250-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
+            ["Attraper",1,12],
+            ["Retourner",1,12],
+            ["Reculer",2725,1750],
+            ["Relacher",1,12],
+            ["Consigne",2725,1600],
+            ["Rotation",90],
+            ["Relacher",0,12],
+            ["Reculer",2725,1450],
+
+            ["Avancer",1920,1170],
+            ["Avancer",1490,1000],
+            ["Avancer",1500,800],
+            ["Consigne",1750-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
+            ["Rotation",0],
+            ["Attraper",0,12],
+            ["Rotation",180],
+            ["Reculer",1850-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
+            ["Attraper",1,12],
+            ["Retourner",0,2],
+            ["Retourner",1,2],
+            ["Reculer",2200-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
+            ["Relacher",1,12],
+            ["Consigne",2075-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
+            ["Rotation",0],
+            ["Relacher",0,12],
+            ["Reculer",2100-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],   
+
+        ]
 else :
     # Se positionner devant la Noisette en dehors de la zone interdite
     # Rotation pour s'axer avec la Noisette
@@ -141,33 +170,17 @@ else :
     # Activer Astar
     # Prendre Decision
     Liste_actions = [
-        ["Consigne",2825,1100-R_ROBOT-2*MARGE_NOISETTE],
+        ["Consigne",2825,1100-3.7*MARGE_NOISETTE-LONGUEUR_ROBOT/2],
+        ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
         ["Rotation",90],
-        ["Consigne",2725,1670-R_ROBOT-4*MARGE_NOISETTE],
-        ["Reculer",2725,1670-R_ROBOT-4*MARGE_NOISETTE],
+        ["Attraper",0,1234],
+        ["Consigne",2725,1550],
+        ["Relacher",1,1234],
+        ["Reculer",2725,1450],
 
-        ["Consigne",1750-R_ROBOT-2*MARGE_NOISETTE,800],
-        ["Rotation",0],
-        ["Consigne",2100-R_ROBOT-1.5*MARGE_NOISETTE,800],
-        ["Reculer",2100-R_ROBOT-4*MARGE_NOISETTE,800],
-
-        ["Consigne",1250+R_ROBOT+2*MARGE_NOISETTE,800],
-        ["Rotation",180],
-        ["Consigne",900+R_ROBOT+1.5*MARGE_NOISETTE,800],
-        ["Reculer",900+R_ROBOT+4*MARGE_NOISETTE,800],
-
-        ["Consigne",1800-R_ROBOT-2*MARGE_NOISETTE,200],
-        ["Rotation",0],
-        ["Consigne",2200-R_ROBOT-1.5*MARGE_NOISETTE,200],
-        ["Reculer",2200-R_ROBOT-4*MARGE_NOISETTE,200],
-
-        ["Consigne",1200+R_ROBOT+2*MARGE_NOISETTE,200],
-        ["Rotation",180],
-        ["Consigne",800+R_ROBOT+1.5*MARGE_NOISETTE,200],
-        ["Reculer",800+R_ROBOT+4*MARGE_NOISETTE,200],
-
-        ["Consigne",2725,1670-R_ROBOT-4*MARGE_NOISETTE],
-
+        
+        ["Consigne",2725,1670],
+        ["Rotation",-90]
 ]
 
 Liste_trajectoire = []
@@ -416,6 +429,7 @@ verif_recalage = 0
 verif_action = 0
 verif_Noisette_a_bouge_simul = 0
 action_est_supprime = False 
+mode_attraper = False
 
 pince_a_utilise = -1
 noisette_a_manipulee = 0
@@ -441,7 +455,7 @@ else :
 # ==================== PARAMÈTRES DE L'ALGORITHME ====================
 
 SAFETY_WEIGHT = 2.0  # Poids de sécurité pour A*
-MIN_CLEARANCE = 4.0
+MIN_CLEARANCE = 2.0
 SMOOTHNESS = 1.0
 DISTANCE_AJUSTABLE = 6  # Distance seuil pour pénalité sécurité (en cases)
 SEUIL_MOUVEMENT_ENNEMI = 10
@@ -750,6 +764,21 @@ def separer_groupe(groupe_indices, noisettes, adjacence):
     
     return paires
 
+def regrouper_par_quatre(groupe_indices, noisettes):
+    """Regroupe les noisettes en groupes de 4 maximum"""
+    groupes_de_quatre = []
+    
+    # Trier les indices par position pour un regroupement cohérent
+    indices_tries = sorted(groupe_indices, key=lambda i: (noisettes[i][0], noisettes[i][1]))
+    
+    # Créer des groupes de 4
+    for i in range(0, len(indices_tries), 4):
+        groupe = indices_tries[i:i+4]
+        groupes_de_quatre.append(groupe)
+    
+    return groupes_de_quatre
+
+
 ########################################################################
 
 ############################### Programme principal ####################
@@ -854,27 +883,26 @@ if __name__ == '__main__':
             ###
             
             # ======================== Tri Noisettes ============================================= #
-            # Traitement principal
-            groupes_initiaux, adjacence = trouver_groupes_initiaux(Liste_noisette_xya)
+            if Mode_pince :
+                groupes_initiaux, adjacence = trouver_groupes_initiaux(Liste_noisette_xya)
 
-            Noisettes_groupees = []
-            for groupe in groupes_initiaux:
-                paires = separer_groupe(groupe, Liste_noisette_xya, adjacence)
-                for paire in paires:
-                    noisettes_paire = [Liste_noisette_xya[i] for i in paire]
-                    Noisettes_groupees.append(noisettes_paire)
+                Noisettes_groupees = []
+                for groupe in groupes_initiaux:
+                    paires = separer_groupe(groupe, Liste_noisette_xya, adjacence)
+                    for paire in paires:
+                        noisettes_paire = [Liste_noisette_xya[i] for i in paire]
+                        Noisettes_groupees.append(noisettes_paire)
                     
-            """# Affichage des résultats
-            print(f"Nombre total de groupes: {len(Noisettes_groupees)}")
-            print(f"\nDétail des groupes:")
-            for i, groupe in enumerate(Noisettes_groupees):
-                if len(groupe) == 1:
-                    print(f"Groupe {i+1}: 1 noisette seule - {groupe[0]}")
-                else:
-                    dist = distance(groupe[0], groupe[1])
-                    print(f"Groupe {i+1}: Paire de noisettes - Distance: {dist:.1f}mm")
-                    for n in groupe:
-                        print(f"  {n}")"""
+            else :
+                groupes_initiaux, adjacence = trouver_groupes_initiaux(Liste_noisette_xya)
+
+                Noisettes_groupees = []
+                for groupe in groupes_initiaux:
+                    groupes_quatre = regrouper_par_quatre(groupe, Liste_noisette_xya)
+                    for groupe_quatre in groupes_quatre:
+                        noisettes_groupe = [Liste_noisette_xya[i] for i in groupe_quatre]
+                        Noisettes_groupees.append(noisettes_groupe)
+
             changement_noisettes_detecte = detecter_changements_noisettes(
                 Liste_noisette_xya, 
                 Liste_noisette_xya_precedente
@@ -923,7 +951,12 @@ if __name__ == '__main__':
                 print("Appeler Pince N°",pince_a_utilise," pour ",action_voulu," les Noisettes ",noisette_a_manipulee)
             #####################################
 
-              
+            if len(Liste_actions)>2:
+                if (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper"]) or Liste_actions[1][0] in ["Attraper"] or action_voulu in ["Attraper"]:
+                    mode_attraper = True
+                else : 
+                    mode_attraper = False
+            print("mode_attraper : ",mode_attraper)
             if temps_restant <= temps_retour:
                 Liste_actions.clear() 
                 Liste_actions = [["Consigne",int(x_robot_depart),int(y_robot_depart)],["Rotation",-90]]
@@ -958,7 +991,7 @@ if __name__ == '__main__':
             # === CALCUL DE LA TRAJECTOIRE A* ===
             if Astars: 
                 # === CALCUL DE LA TRAJECTOIRE A* ===
-                if action_voulu in ["Consigne","Reculer"] or demande_recalcul_traj == True:
+                if (action_voulu in ["Consigne","Reculer"] or demande_recalcul_traj == True) and not mode_attraper:
                     grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
                     if Debug_Mouv:
                         print("\n🚀 Déclenchement du calcul A*")
@@ -990,10 +1023,10 @@ if __name__ == '__main__':
                     else:
                         if Debug_Mouv:
                             print("❌ Aucun chemin trouvé par A*")
-                        Astars_a_fail = True
                         if distance_robot_ennemi < R_securite:
                             if Debug_Mouv:
                                 print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
+                                Astars_a_fail = True
                         else:
                             if Debug_Mouv:
                                 print("CHEMIN INACCESSIBLE")
@@ -1012,7 +1045,6 @@ if __name__ == '__main__':
                 action_voulu = Liste_actions[0][0]
                 pince_a_utilise = Liste_actions[0][1]
                 noisette_a_manipulee = Liste_actions[0][2]
-                print("Appeler Pince N°",pince_a_utilise," pour ",action_voulu," les Noisettes ",noisette_a_manipulee)
                 
             
             if (distance_robot_ennemi < R_securite-MARGE_TRAJECTOIRE) or Astars_a_fail:
@@ -1116,211 +1148,298 @@ if __name__ == '__main__':
                             angle_robot_consigne = math.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel)
                             x_robot_actuel += round(15*np.cos(angle_robot_consigne),0)
                             y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
+                            
                     else :
-                        if (action_voulu in ["Attraper"]):
-                            if(Noisettes_stockees_dans_robot[pince_a_utilise][0] in ["J","B"] and Noisettes_stockees_dans_robot[pince_a_utilise][1] in ["J","B"]):
-                                print(f"Pince {pince_a_utilise} totalement occupée")
-                                print("Action impossible")
-                            else :
-                                """if(Noisettes_stockees_dans_robot[pince_a_utilise][0] in ["J","B"] and (noisette_a_manipulee == 1 or noisette_a_manipulee == 12)):
-                                    print(f"Action impossible, pince {pince_a_utilise} 1 occupée")
+                        if Mode_pince:
+                            if (action_voulu in ["Attraper"]):
+                                if(Noisettes_stockees_dans_robot[pince_a_utilise][0] in ["J","B"] and Noisettes_stockees_dans_robot[pince_a_utilise][1] in ["J","B"]):
+                                    print(f"Pince {pince_a_utilise} totalement occupée")
+                                    print("Action impossible")
                                 else :
-                                    print("Action possible")
+                                    if(Noisettes_stockees_dans_robot[pince_a_utilise][0] in ["J","B"] and (noisette_a_manipulee == 1 or noisette_a_manipulee == 12)):
+                                        print(f"Action impossible, pince {pince_a_utilise} 1 occupée")
+                                    else :
+                                        print("Action possible")
 
-                                if((noisette_a_manipulee == 2 or noisette_a_manipulee == 12) and Noisettes_stockees_dans_robot[pince_a_utilise][1]in ["J","B"]):
-                                    print(f"Action impossible, pince {pince_a_utilise} 2 occupée")
+                                    if((noisette_a_manipulee == 2 or noisette_a_manipulee == 12) and Noisettes_stockees_dans_robot[pince_a_utilise][1]in ["J","B"]):
+                                        print(f"Action impossible, pince {pince_a_utilise} 2 occupée")
+                                    else :
+                                        print("Action possible")
+
+                                    if(Noisettes_stockees_dans_robot[pince_a_utilise][0]=='N' and Noisettes_stockees_dans_robot[pince_a_utilise][1]=='N'):
+                                        print("Action possible")
+                                        for coupleNoisette in Noisettes_groupees:
+                                            if len(coupleNoisette)==2:
+                                                distance_R_N1 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[0][0],coupleNoisette[0][1]))
+                                                distance_R_N2 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[1][0],coupleNoisette[1][1]))
+                                                if distance_R_N1<=75+LONGUEUR_ROBOT/2 or distance_R_N2<=75+LONGUEUR_ROBOT/2:
+                                                    print("Supprimer : ", coupleNoisette)
+                                                    if verif_action == 1:
+                                                        Noisettes_groupees.remove(coupleNoisette)
+                                                        Liste_noisette_xya.remove(coupleNoisette[0])
+                                                        Liste_noisette_xya.remove(coupleNoisette[1])
+                                                        if distance_R_N1<distance_R_N2:
+                                                            Noisettes_stockees_dans_robot[pince_a_utilise] = [coupleNoisette[0][3],coupleNoisette[1][3]]
+                                                        else :
+                                                            Noisettes_stockees_dans_robot[pince_a_utilise] = [coupleNoisette[1][3],coupleNoisette[0][3]]
+                                                        print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
+                                                        grid, grid_expanded, obstacle_array, expanded_array, \
+                                                        obs_manager, obs_manager_noisettes, \
+                                                        obstacle_scatter, expanded_scatter, distance_map, \
+                                                        ax, width, height, CASE_MM = actualiser_zones_jeu(
+                                                            grid, grid_expanded, obstacle_array, expanded_array,
+                                                            obs_manager, obs_manager_noisettes,
+                                                            Liste_noisette_xya,  # ⭐ NOUVEAU
+                                                            obstacle_scatter, expanded_scatter, distance_map,
+                                                            ax, width, height, CASE_MM
+                                                        )
+                                                        # ⭐ ÉTAPE 5 : Redessiner les noisettes
+                                                        for patch in patches_noisettes:
+                                                            patch.remove()
+                                                        patches_noisettes = dessiner_noisettes(
+                                                            ax, Liste_noisette_xya, 
+                                                            longueur=150, largeur=50,
+                                                            alpha=0.7, linewidth=2
+                                                        )
+                                            else:
+                                                distance_R_N = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[0][0],coupleNoisette[0][1]))
+                                                if distance_R_N<=50+LONGUEUR_ROBOT/2:
+                                                    print(coupleNoisette)
+                                                    if verif_action == 1:
+                                                        Noisettes_groupees.remove(coupleNoisette)
+                                                        Liste_noisette_xya.remove(coupleNoisette[0])
+                                                        Noisettes_stockees_dans_robot[pince_a_utilise][0] = coupleNoisette[0][3]
+                                                        print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
+                                                        grid, grid_expanded, obstacle_array, expanded_array, \
+                                                        obs_manager, obs_manager_noisettes, \
+                                                        obstacle_scatter, expanded_scatter, distance_map, \
+                                                        ax, width, height, CASE_MM = actualiser_zones_jeu(
+                                                            grid, grid_expanded, obstacle_array, expanded_array,
+                                                            obs_manager, obs_manager_noisettes,
+                                                            Liste_noisette_xya,  # ⭐ NOUVEAU
+                                                            obstacle_scatter, expanded_scatter, distance_map,
+                                                            ax, width, height, CASE_MM
+                                                        )
+                                                        # ⭐ ÉTAPE 5 : Redessiner les noisettes
+                                                        for patch in patches_noisettes:
+                                                            patch.remove()
+                                                        patches_noisettes = dessiner_noisettes(
+                                                            ax, Liste_noisette_xya, 
+                                                            longueur=150, largeur=50,
+                                                            alpha=0.7, linewidth=2
+                                                        )
+                            
+                            if (action_voulu in ["Retourner"]):
+                                if(Noisettes_stockees_dans_robot[pince_a_utilise][0] == "N" and Noisettes_stockees_dans_robot[pince_a_utilise][1] == "N" ):
+                                    print("Action impossible, pas de Noisette")
                                 else :
-                                    print("Action possible")"""
+                                    if noisette_a_manipulee == 1 and Noisettes_stockees_dans_robot[pince_a_utilise][0] != "N":
+                                        if verif_action == 1:
+                                            if Noisettes_stockees_dans_robot[pince_a_utilise][0] == "J":
+                                                Noisettes_stockees_dans_robot[pince_a_utilise][0] = "B"
+                                            else :
+                                                Noisettes_stockees_dans_robot[pince_a_utilise][0] = "J"
+                                    elif  noisette_a_manipulee == 1 and Noisettes_stockees_dans_robot[pince_a_utilise][0] == "N":
+                                        print(f"Pas de Noisette à retourner sur Pince N°{pince_a_utilise} 1")
 
-                                if(Noisettes_stockees_dans_robot[pince_a_utilise][0]=='N' and Noisettes_stockees_dans_robot[pince_a_utilise][1]=='N'):
-                                    print("Action possible")
+                                    if noisette_a_manipulee == 2 and Noisettes_stockees_dans_robot[pince_a_utilise][1] != "N":
+                                        if verif_action == 1:
+                                            if Noisettes_stockees_dans_robot[pince_a_utilise][1] == "J":
+                                                Noisettes_stockees_dans_robot[pince_a_utilise][1] = "B"
+                                            else :
+                                                Noisettes_stockees_dans_robot[pince_a_utilise][1] = "J"
+                                    elif  noisette_a_manipulee == 2 and Noisettes_stockees_dans_robot[pince_a_utilise][1] == "N":
+                                        print(f"Pas de Noisette à retourner sur Pince N°{pince_a_utilise} 2")
+
+                                    if noisette_a_manipulee == 12 and Noisettes_stockees_dans_robot[pince_a_utilise][0] != "N" and Noisettes_stockees_dans_robot[pince_a_utilise][1] != "N":
+                                        if verif_action == 1:
+                                            if Noisettes_stockees_dans_robot[pince_a_utilise][0] == "J":
+                                                Noisettes_stockees_dans_robot[pince_a_utilise][0] = "B"
+                                            else :
+                                                Noisettes_stockees_dans_robot[pince_a_utilise][0] = "J"
+                                            if Noisettes_stockees_dans_robot[pince_a_utilise][1] == "J":
+                                                Noisettes_stockees_dans_robot[pince_a_utilise][1] = "B"
+                                            else :
+                                                Noisettes_stockees_dans_robot[pince_a_utilise][1] = "J"
+                            
+                            if (action_voulu in ["Relacher"]):
+                                if noisette_a_manipulee == 1:
+                                    if Noisettes_stockees_dans_robot[pince_a_utilise][0]=="N":
+                                        print(f"Pas de Noisette à déposer de la pince N°{pince_a_utilise} 1")
+                                    else:
+                                        if pince_a_utilise == 0:
+                                            x_noisette = x_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                            y_noisette = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
+                                        else :
+                                            x_noisette = x_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
+                                            y_noisette = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
+                                        angle_noisette = 90+angle_robot_actuel
+                                        if verif_action:
+                                            Liste_noisette_xya.append([x_noisette,y_noisette,angle_noisette,Noisettes_stockees_dans_robot[pince_a_utilise][0]])
+                                            Noisettes_stockees_dans_robot[pince_a_utilise][0]="N"
+                                            print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
+                                            grid, grid_expanded, obstacle_array, expanded_array, \
+                                            obs_manager, obs_manager_noisettes, \
+                                            obstacle_scatter, expanded_scatter, distance_map, \
+                                            ax, width, height, CASE_MM = actualiser_zones_jeu(
+                                                grid, grid_expanded, obstacle_array, expanded_array,
+                                                obs_manager, obs_manager_noisettes,
+                                                Liste_noisette_xya,  # ⭐ NOUVEAU
+                                                obstacle_scatter, expanded_scatter, distance_map,
+                                                ax, width, height, CASE_MM
+                                            )
+                                            # ⭐ ÉTAPE 5 : Redessiner les noisettes
+                                            for patch in patches_noisettes:
+                                                patch.remove()
+                                            patches_noisettes = dessiner_noisettes(
+                                                ax, Liste_noisette_xya, 
+                                                longueur=150, largeur=50,
+                                                alpha=0.7, linewidth=2
+                                            )
+                                
+                                if noisette_a_manipulee == 2:
+                                    if Noisettes_stockees_dans_robot[pince_a_utilise][1]=="N":
+                                        print(f"Pas de Noisette à déposer de la pince N°{pince_a_utilise} 1")
+                                    else:
+                                        if pince_a_utilise == 0:
+                                            x_noisette = x_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                            y_noisette = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
+                                        else :
+                                            x_noisette = x_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
+                                            y_noisette = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
+                                        angle_noisette = 90+angle_robot_actuel
+                                        if verif_action:
+                                            Liste_noisette_xya.append([x_noisette,y_noisette,angle_noisette,Noisettes_stockees_dans_robot[pince_a_utilise][1]])
+                                            Noisettes_stockees_dans_robot[pince_a_utilise][1]="N"
+                                            print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
+                                            grid, grid_expanded, obstacle_array, expanded_array, \
+                                            obs_manager, obs_manager_noisettes, \
+                                            obstacle_scatter, expanded_scatter, distance_map, \
+                                            ax, width, height, CASE_MM = actualiser_zones_jeu(
+                                                grid, grid_expanded, obstacle_array, expanded_array,
+                                                obs_manager, obs_manager_noisettes,
+                                                Liste_noisette_xya,  # ⭐ NOUVEAU
+                                                obstacle_scatter, expanded_scatter, distance_map,
+                                                ax, width, height, CASE_MM
+                                            )
+                                            # ⭐ ÉTAPE 5 : Redessiner les noisettes
+                                            for patch in patches_noisettes:
+                                                patch.remove()
+                                            patches_noisettes = dessiner_noisettes(
+                                                ax, Liste_noisette_xya, 
+                                                longueur=150, largeur=50,
+                                                alpha=0.7, linewidth=2
+                                            )
+                                
+                                if noisette_a_manipulee == 12:
+                                    if Noisettes_stockees_dans_robot[pince_a_utilise][0]=="N" or Noisettes_stockees_dans_robot[pince_a_utilise][1]=="N":
+                                        print(f"Pas de Noisette à déposer de la pince N°{pince_a_utilise}")
+                                    else:
+                                        if pince_a_utilise == 0:
+                                            x_noisette_1 = x_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                            y_noisette_1 = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
+                                            x_noisette_2 = x_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                            y_noisette_2 = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
+                                        else :
+                                            x_noisette_1 = x_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
+                                            y_noisette_1 = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
+                                            x_noisette_2 = x_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
+                                            y_noisette_2 = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
+
+                                        angle_noisette_1 = 90+angle_robot_actuel
+                                        angle_noisette_2 = 90+angle_robot_actuel
+                                        
+                                        if verif_action:
+                                            Liste_noisette_xya.append([x_noisette_1,y_noisette_1,angle_noisette_1,Noisettes_stockees_dans_robot[pince_a_utilise][0]])
+                                            Liste_noisette_xya.append([x_noisette_2,y_noisette_2,angle_noisette_2,Noisettes_stockees_dans_robot[pince_a_utilise][1]])
+                                            Noisettes_stockees_dans_robot[pince_a_utilise][0]="N"
+                                            Noisettes_stockees_dans_robot[pince_a_utilise][1]="N"
+                                            print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
+                                            grid, grid_expanded, obstacle_array, expanded_array, \
+                                            obs_manager, obs_manager_noisettes, \
+                                            obstacle_scatter, expanded_scatter, distance_map, \
+                                            ax, width, height, CASE_MM = actualiser_zones_jeu(
+                                                grid, grid_expanded, obstacle_array, expanded_array,
+                                                obs_manager, obs_manager_noisettes,
+                                                Liste_noisette_xya,  # ⭐ NOUVEAU
+                                                obstacle_scatter, expanded_scatter, distance_map,
+                                                ax, width, height, CASE_MM
+                                            )
+                                            # ⭐ ÉTAPE 5 : Redessiner les noisettes
+                                            for patch in patches_noisettes:
+                                                patch.remove()
+                                            patches_noisettes = dessiner_noisettes(
+                                                ax, Liste_noisette_xya, 
+                                                longueur=150, largeur=50,
+                                                alpha=0.7, linewidth=2
+                                            )
+                        else :
+                            if (action_voulu in ["Attraper"]):
+                                if Noisettes_stockees_dans_robot != [["N","N"],["N","N"]]:
+                                    print("Noisette dans Robot")
+                                else :
                                     for coupleNoisette in Noisettes_groupees:
-                                        if len(coupleNoisette)==2:
-                                            distance_R_N1 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[0][0],coupleNoisette[0][1]))
-                                            distance_R_N2 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[1][0],coupleNoisette[1][1]))
-                                            if distance_R_N1<=75+LONGUEUR_ROBOT/2 or distance_R_N2<=75+LONGUEUR_ROBOT/2:
-                                                print("Supprimer : ", coupleNoisette)
-                                                if verif_action == 1:
-                                                    Noisettes_groupees.remove(coupleNoisette)
-                                                    Liste_noisette_xya.remove(coupleNoisette[0])
-                                                    Liste_noisette_xya.remove(coupleNoisette[1])
-                                                    if distance_R_N1<distance_R_N2:
-                                                        Noisettes_stockees_dans_robot[pince_a_utilise] = [coupleNoisette[0][3],coupleNoisette[1][3]]
-                                                    else :
-                                                        Noisettes_stockees_dans_robot[pince_a_utilise] = [coupleNoisette[1][3],coupleNoisette[0][3]]
-                                                    print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
-                                                    grid, grid_expanded, obstacle_array, expanded_array, \
-                                                    obs_manager, obs_manager_noisettes, \
-                                                    obstacle_scatter, expanded_scatter, distance_map, \
-                                                    ax, width, height, CASE_MM = actualiser_zones_jeu(
-                                                        grid, grid_expanded, obstacle_array, expanded_array,
-                                                        obs_manager, obs_manager_noisettes,
-                                                        Liste_noisette_xya,  # ⭐ NOUVEAU
-                                                        obstacle_scatter, expanded_scatter, distance_map,
-                                                        ax, width, height, CASE_MM
-                                                    )
-                                                    # ⭐ ÉTAPE 5 : Redessiner les noisettes
-                                                    for patch in patches_noisettes:
-                                                        patch.remove()
-                                                    patches_noisettes = dessiner_noisettes(
-                                                        ax, Liste_noisette_xya, 
-                                                        longueur=150, largeur=50,
-                                                        alpha=0.7, linewidth=2
-                                                    )
-                                        else:
-                                            distance_R_N = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[0][0],coupleNoisette[0][1]))
-                                            if distance_R_N<=50+LONGUEUR_ROBOT/2:
-                                                print(coupleNoisette)
-                                                if verif_action == 1:
-                                                    Noisettes_groupees.remove(coupleNoisette)
-                                                    Liste_noisette_xya.remove(coupleNoisette[0])
-                                                    Noisettes_stockees_dans_robot[pince_a_utilise][0] = coupleNoisette[0][3]
-                                                    print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
-                                                    grid, grid_expanded, obstacle_array, expanded_array, \
-                                                    obs_manager, obs_manager_noisettes, \
-                                                    obstacle_scatter, expanded_scatter, distance_map, \
-                                                    ax, width, height, CASE_MM = actualiser_zones_jeu(
-                                                        grid, grid_expanded, obstacle_array, expanded_array,
-                                                        obs_manager, obs_manager_noisettes,
-                                                        Liste_noisette_xya,  # ⭐ NOUVEAU
-                                                        obstacle_scatter, expanded_scatter, distance_map,
-                                                        ax, width, height, CASE_MM
-                                                    )
-                                                    # ⭐ ÉTAPE 5 : Redessiner les noisettes
-                                                    for patch in patches_noisettes:
-                                                        patch.remove()
-                                                    patches_noisettes = dessiner_noisettes(
-                                                        ax, Liste_noisette_xya, 
-                                                        longueur=150, largeur=50,
-                                                        alpha=0.7, linewidth=2
-                                                    )
-                         
-                        if (action_voulu in ["Retourner"]):
-                            if(Noisettes_stockees_dans_robot[pince_a_utilise][0] == "N" and Noisettes_stockees_dans_robot[pince_a_utilise][1] == "N" ):
-                                print("Action impossible, pas de Noisette")
-                            else :
-                                if noisette_a_manipulee == 1 and Noisettes_stockees_dans_robot[pince_a_utilise][0] != "N":
-                                    if verif_action == 1:
-                                        if Noisettes_stockees_dans_robot[pince_a_utilise][0] == "J":
-                                            Noisettes_stockees_dans_robot[pince_a_utilise][0] = "B"
-                                        else :
-                                            Noisettes_stockees_dans_robot[pince_a_utilise][0] = "J"
-                                elif  noisette_a_manipulee == 1 and Noisettes_stockees_dans_robot[pince_a_utilise][0] == "N":
-                                    print(f"Pas de Noisette à retourner sur Pince N°{pince_a_utilise} 1")
+                                        distance_R_N1 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[0][0],coupleNoisette[0][1]))
+                                        distance_R_N2 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[1][0],coupleNoisette[1][1]))
+                                        distance_R_N3 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[2][0],coupleNoisette[2][1]))
+                                        distance_R_N4 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[3][0],coupleNoisette[3][1]))
+                                        if distance_R_N1<=75+LONGUEUR_ROBOT/2 or distance_R_N2<=75+LONGUEUR_ROBOT/2 or distance_R_N3<=75+LONGUEUR_ROBOT/2 or distance_R_N4<=75+LONGUEUR_ROBOT/2:
+                                            noisettes_triees = sorted(
+                                                coupleNoisette,
+                                                key=lambda n: distance((x_robot_actuel, y_robot_actuel), (n[0], n[1]))
+                                            )
+                                            if verif_action == 1:
+                                                Noisettes_groupees.remove(coupleNoisette)
+                                                Liste_noisette_xya.remove(coupleNoisette[0])
+                                                Liste_noisette_xya.remove(coupleNoisette[1])
+                                                Liste_noisette_xya.remove(coupleNoisette[2])
+                                                Liste_noisette_xya.remove(coupleNoisette[3])
+                                                Noisettes_stockees_dans_robot[0] = [noisettes_triees[0][3],noisettes_triees[1][3]]
+                                                Noisettes_stockees_dans_robot[1] = [noisettes_triees[2][3],noisettes_triees[3][3]]
 
-                                if noisette_a_manipulee == 2 and Noisettes_stockees_dans_robot[pince_a_utilise][1] != "N":
-                                    if verif_action == 1:
-                                        if Noisettes_stockees_dans_robot[pince_a_utilise][1] == "J":
-                                            Noisettes_stockees_dans_robot[pince_a_utilise][1] = "B"
-                                        else :
-                                            Noisettes_stockees_dans_robot[pince_a_utilise][1] = "J"
-                                elif  noisette_a_manipulee == 2 and Noisettes_stockees_dans_robot[pince_a_utilise][1] == "N":
-                                    print(f"Pas de Noisette à retourner sur Pince N°{pince_a_utilise} 2")
+                                                print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
+                                                grid, grid_expanded, obstacle_array, expanded_array, \
+                                                obs_manager, obs_manager_noisettes, \
+                                                obstacle_scatter, expanded_scatter, distance_map, \
+                                                ax, width, height, CASE_MM = actualiser_zones_jeu(
+                                                    grid, grid_expanded, obstacle_array, expanded_array,
+                                                    obs_manager, obs_manager_noisettes,
+                                                    Liste_noisette_xya,  # ⭐ NOUVEAU
+                                                    obstacle_scatter, expanded_scatter, distance_map,
+                                                    ax, width, height, CASE_MM
+                                                )
+                                                # ⭐ ÉTAPE 5 : Redessiner les noisettes
+                                                for patch in patches_noisettes:
+                                                    patch.remove()
+                                                patches_noisettes = dessiner_noisettes(
+                                                    ax, Liste_noisette_xya, 
+                                                    longueur=150, largeur=50,
+                                                    alpha=0.7, linewidth=2
+                                                )
+                            if (action_voulu in ["Relacher"]):
+                                if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
+                                    print("Pas de Noisette dans Robot")
+                                else :
+                                    x_noisette_1 = x_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                    y_noisette_1 = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
+                                    x_noisette_2 = x_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                    y_noisette_2 = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
 
-                                if noisette_a_manipulee == 12 and Noisettes_stockees_dans_robot[pince_a_utilise][0] != "N" and Noisettes_stockees_dans_robot[pince_a_utilise][1] != "N":
-                                    if verif_action == 1:
-                                        if Noisettes_stockees_dans_robot[pince_a_utilise][0] == "J":
-                                            Noisettes_stockees_dans_robot[pince_a_utilise][0] = "B"
-                                        else :
-                                            Noisettes_stockees_dans_robot[pince_a_utilise][0] = "J"
-                                        if Noisettes_stockees_dans_robot[pince_a_utilise][1] == "J":
-                                            Noisettes_stockees_dans_robot[pince_a_utilise][1] = "B"
-                                        else :
-                                            Noisettes_stockees_dans_robot[pince_a_utilise][1] = "J"
-                        
-                        if (action_voulu in ["Relacher"]):
-                            if noisette_a_manipulee == 1:
-                                if Noisettes_stockees_dans_robot[pince_a_utilise][0]=="N":
-                                    print(f"Pas de Noisette à déposer de la pince N°{pince_a_utilise} 1")
-                                else:
-                                    if pince_a_utilise == 0:
-                                        x_noisette = x_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                                        y_noisette = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
-                                    else :
-                                        x_noisette = x_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
-                                        y_noisette = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
-                                    angle_noisette = 90+angle_robot_actuel
-                                    if verif_action:
-                                        Liste_noisette_xya.append([x_noisette,y_noisette,angle_noisette,Noisettes_stockees_dans_robot[pince_a_utilise][0]])
-                                        Noisettes_stockees_dans_robot[pince_a_utilise][0]="N"
-                                        print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
-                                        grid, grid_expanded, obstacle_array, expanded_array, \
-                                        obs_manager, obs_manager_noisettes, \
-                                        obstacle_scatter, expanded_scatter, distance_map, \
-                                        ax, width, height, CASE_MM = actualiser_zones_jeu(
-                                            grid, grid_expanded, obstacle_array, expanded_array,
-                                            obs_manager, obs_manager_noisettes,
-                                            Liste_noisette_xya,  # ⭐ NOUVEAU
-                                            obstacle_scatter, expanded_scatter, distance_map,
-                                            ax, width, height, CASE_MM
-                                        )
-                                        # ⭐ ÉTAPE 5 : Redessiner les noisettes
-                                        for patch in patches_noisettes:
-                                            patch.remove()
-                                        patches_noisettes = dessiner_noisettes(
-                                            ax, Liste_noisette_xya, 
-                                            longueur=150, largeur=50,
-                                            alpha=0.7, linewidth=2
-                                        )
-                            
-                            if noisette_a_manipulee == 2:
-                                if Noisettes_stockees_dans_robot[pince_a_utilise][1]=="N":
-                                    print(f"Pas de Noisette à déposer de la pince N°{pince_a_utilise} 1")
-                                else:
-                                    if pince_a_utilise == 0:
-                                        x_noisette = x_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                                        y_noisette = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
-                                    else :
-                                        x_noisette = x_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
-                                        y_noisette = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
-                                    angle_noisette = 90+angle_robot_actuel
-                                    if verif_action:
-                                        Liste_noisette_xya.append([x_noisette,y_noisette,angle_noisette,Noisettes_stockees_dans_robot[pince_a_utilise][1]])
-                                        Noisettes_stockees_dans_robot[pince_a_utilise][1]="N"
-                                        print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
-                                        grid, grid_expanded, obstacle_array, expanded_array, \
-                                        obs_manager, obs_manager_noisettes, \
-                                        obstacle_scatter, expanded_scatter, distance_map, \
-                                        ax, width, height, CASE_MM = actualiser_zones_jeu(
-                                            grid, grid_expanded, obstacle_array, expanded_array,
-                                            obs_manager, obs_manager_noisettes,
-                                            Liste_noisette_xya,  # ⭐ NOUVEAU
-                                            obstacle_scatter, expanded_scatter, distance_map,
-                                            ax, width, height, CASE_MM
-                                        )
-                                        # ⭐ ÉTAPE 5 : Redessiner les noisettes
-                                        for patch in patches_noisettes:
-                                            patch.remove()
-                                        patches_noisettes = dessiner_noisettes(
-                                            ax, Liste_noisette_xya, 
-                                            longueur=150, largeur=50,
-                                            alpha=0.7, linewidth=2
-                                        )
-                            
-                            if noisette_a_manipulee == 12:
-                                if Noisettes_stockees_dans_robot[pince_a_utilise][0]=="N" or Noisettes_stockees_dans_robot[pince_a_utilise][1]=="N":
-                                    print(f"Pas de Noisette à déposer de la pince N°{pince_a_utilise}")
-                                else:
-                                    print(angle_robot_actuel)
-                                    if pince_a_utilise == 0:
-                                        x_noisette_1 = x_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                                        y_noisette_1 = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
-                                        x_noisette_2 = x_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                                        y_noisette_2 = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
-                                    else :
-                                        x_noisette_1 = x_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
-                                        y_noisette_1 = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
-                                        x_noisette_2 = x_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
-                                        y_noisette_2 = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
+                                    x_noisette_3 = x_robot_actuel + (100+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                    y_noisette_3 = y_robot_actuel + (100+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
+                                    x_noisette_4 = x_robot_actuel + (150+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                    y_noisette_4 = y_robot_actuel + (150+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
 
                                     angle_noisette_1 = 90+angle_robot_actuel
                                     angle_noisette_2 = 90+angle_robot_actuel
-                                    
+                                    angle_noisette_3 = 90+angle_robot_actuel
+                                    angle_noisette_4 = 90+angle_robot_actuel
                                     if verif_action:
-                                        Liste_noisette_xya.append([x_noisette_1,y_noisette_1,angle_noisette_1,Noisettes_stockees_dans_robot[pince_a_utilise][0]])
-                                        Liste_noisette_xya.append([x_noisette_2,y_noisette_2,angle_noisette_2,Noisettes_stockees_dans_robot[pince_a_utilise][1]])
-                                        Noisettes_stockees_dans_robot[pince_a_utilise][0]="N"
-                                        Noisettes_stockees_dans_robot[pince_a_utilise][1]="N"
+                                        Liste_noisette_xya.append([x_noisette_1,y_noisette_1,angle_noisette_1,Noisettes_stockees_dans_robot[0][0]])
+                                        Liste_noisette_xya.append([x_noisette_2,y_noisette_2,angle_noisette_2,Noisettes_stockees_dans_robot[0][1]])
+                                        Liste_noisette_xya.append([x_noisette_3,y_noisette_3,angle_noisette_3,Noisettes_stockees_dans_robot[1][0]])
+                                        Liste_noisette_xya.append([x_noisette_4,y_noisette_4,angle_noisette_4,Noisettes_stockees_dans_robot[1][1]])
+                                        Noisettes_stockees_dans_robot= [["N","N"],["N","N"]]
                                         print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
                                         grid, grid_expanded, obstacle_array, expanded_array, \
                                         obs_manager, obs_manager_noisettes, \
@@ -1340,7 +1459,8 @@ if __name__ == '__main__':
                                             longueur=150, largeur=50,
                                             alpha=0.7, linewidth=2
                                         )
-            
+
+
             ############## MISE À JOUR AFFICHAGE ################
             # Mettre à jour robot, ennemi et consigne sur affichage
             robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
