@@ -7,10 +7,10 @@ import json
 
 @dataclass
 class Config:
-    tags_largeur_mm: float = 910.0   # Largeur entre les tags
-    tags_longueur_mm: float = 450.0  # Longueur entre les tags
-    ajout_horizontal_mm: float = 303.0  # Marge à gauche et à droite
-    ajout_vertical_mm: float = 225.0    # Marge en haut et en bas
+    tags_largeur_mm: float = 1900.0   # Largeur entre les tags
+    tags_longueur_mm: float = 900.0  # Longueur entre les tags
+    ajout_horizontal_mm: float = 550.0  # Marge à gauche et à droite
+    ajout_vertical_mm: float = 550.0    # Marge en haut et en bas
     tag_taille_mm: float = 100.0           # Tags de référence (20 à 23)
     tag_taille_mm_Noisette: float = 40.0     # Tags mobiles (36, 47)
     hauteur_Noisette_mm: float = 30.0      # Hauteur du plan élevé
@@ -18,7 +18,7 @@ class Config:
     camera_largeur: int = 1280             # Résolution de la caméra
     camera_longueur: int = 720
     tag_reference: Tuple[int, ...] = (20, 21, 22, 23)
-    tag_calibration: int = 36
+    tag_calibration: int = 5
     tag_mobile: Tuple[int, ...] = (36, 47)
 
     @property
@@ -329,9 +329,9 @@ class CalibrationMode:
             return False
 
 class ArUcoTrackingSystem:
-    def __init__(self, config: Config, pos_gm: Tuple[Tuple[Tuple[float, float], Tuple[float, float]], ...], matrice_antidstorsion: Optional[str] = None):
+    def __init__(self, config: Config, matrice_antidstorsion: Optional[str] = None):
         self.config = config
-        self.pos_gm = pos_gm
+        #self.pos_gm = pos_gm
         self.detecteur = ArUcoDetector()
         self.homographie = CalculHomographie(config)
         self.calibration_mode = CalibrationMode(config)
@@ -359,17 +359,14 @@ class ArUcoTrackingSystem:
             return cv2.undistort(image, self.camera_matrix, self.dist_coeffs)
         return image
 
-    def is_point_in_zone_gm(self, point: np.ndarray, zone_gm: Tuple[Tuple[float, float], Tuple[float, float]]) -> bool:
-        """
-        Vérifie si un point est à l'intérieur d'une zone GM
-        """
+    """def is_point_in_zone_gm(self, point: np.ndarray, zone_gm: Tuple[Tuple[float, float], Tuple[float, float]]) -> bool:
         coin1, coin2 = zone_gm
         x_min = min(coin1[0], coin2[0])
         x_max = max(coin1[0], coin2[0])
         y_min = min(coin1[1], coin2[1])
         y_max = max(coin1[1], coin2[1])
         
-        return x_min <= point[0] <= x_max and y_min <= point[1] <= y_max
+        return x_min <= point[0] <= x_max and y_min <= point[1] <= y_max"""
 
     def process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, Dict]:
         results = {
@@ -379,8 +376,8 @@ class ArUcoTrackingSystem:
             'tag_mobile': [],
             'calibration_mode': self.mode_calibration_active,
             'calibration_complete': self.calibration_mode.is_complete(),
-            'liste_gm_libres': [],
-            'liste_gm_occupees': []
+            #'liste_gm_libres': [],
+            #'liste_gm_occupees': []
         }
 
         undistorted = self.undistort_image(frame)
@@ -444,6 +441,32 @@ class ArUcoTrackingSystem:
                     ], dtype=np.int32)
 
                     cv2.polylines(undistorted_copie, [extended_rectangle], True, (0, 255, 0), 3)
+
+            # Dessiner le rectangle reliant les tags 20, 21, 22, 23 (en bleu)
+            if len(tag_reference) >= 3:
+                cfg = self.config
+
+                # Positions des tags dans le plan de référence (coins extérieurs)
+                tag_22_mm = np.array([0, 0])  # Coin supérieur droit
+                tag_23_mm = np.array([cfg.tags_largeur_mm, 0])  # Coin supérieur gauche
+                tag_20_mm = np.array([0, cfg.tags_longueur_mm])  # Coin inférieur droit
+                tag_21_mm = np.array([cfg.tags_largeur_mm, cfg.tags_longueur_mm])  # Coin inférieur gauche
+
+                # Convertir en pixels
+                tag_22_pixel = self.homographie.point_ref_to_cam(tag_22_mm)
+                tag_23_pixel = self.homographie.point_ref_to_cam(tag_23_mm)
+                tag_20_pixel = self.homographie.point_ref_to_cam(tag_20_mm)
+                tag_21_pixel = self.homographie.point_ref_to_cam(tag_21_mm)
+
+                if tag_22_pixel is not None and tag_23_pixel is not None and tag_20_pixel is not None and tag_21_pixel is not None:
+                    tags_rectangle = np.array([
+                        tag_22_pixel.astype(int),
+                        tag_23_pixel.astype(int),
+                        tag_21_pixel.astype(int),
+                        tag_20_pixel.astype(int)
+                    ], dtype=np.int32)
+
+                    #cv2.polylines(undistorted_copie, [tags_rectangle], True, (255, 0, 0), 3)  # Bleu
 
         if self.mode_calibration_active:
             target = self.calibration_mode.get_current_target()
@@ -562,27 +585,27 @@ class ArUcoTrackingSystem:
                     })
             
             # Vérifier l'occupation des zones GM
-            compteur_par_zone = {i+1: 0 for i in range(len(self.pos_gm))}
+            #compteur_par_zone = {i+1: 0 for i in range(len(self.pos_gm))}
             
-            for centre in centres_tags_ref:
+            """ for centre in centres_tags_ref:
                 for idx, zone_gm in enumerate(self.pos_gm):
                     if self.is_point_in_zone_gm(centre, zone_gm):
-                        compteur_par_zone[idx + 1] += 1
+                        compteur_par_zone[idx + 1] += 1"""
             
             # Mettre à jour les listes GM libres et occupées
-            liste_gm_libres = []
-            liste_gm_occupees = []
+            """liste_gm_libres = []
+            liste_gm_occupees = []"""
             
-            for num_zone, count in compteur_par_zone.items():
+            """for num_zone, count in compteur_par_zone.items():
                 if count >= 1:
                     liste_gm_occupees.append(num_zone)
                 else:
-                    liste_gm_libres.append(num_zone)
+                    liste_gm_libres.append(num_zone)"""
             
-            results['liste_gm_libres'] = liste_gm_libres
-            results['liste_gm_occupees'] = liste_gm_occupees
+            """results['liste_gm_libres'] = liste_gm_libres
+            results['liste_gm_occupees'] = liste_gm_occupees"""
             
-            # Dessiner les zones GM avec la couleur appropriée
+            """# Dessiner les zones GM avec la couleur appropriée
             if self.plan_reference_calcule:
                 index_GM = 0
                 for zone_gm in self.pos_gm:
@@ -620,9 +643,9 @@ class ArUcoTrackingSystem:
                             color = (0, 255, 0)  # Vert si libre
                         else:
                             color = (0, 0, 255)  # Rouge si occupée
-                        cv2.polylines(undistorted_copie, [gm_corners_pixel], True, color, 3)
+                        cv2.polylines(undistorted_copie, [gm_corners_pixel], True, color, 3)"""
 
-            # Afficher les informations dans la console
+            """# Afficher les informations dans la console
             print("\n" + "-"*80)
             print("État des zones GM:")
             for num_zone, count in compteur_par_zone.items():
@@ -630,9 +653,9 @@ class ArUcoTrackingSystem:
                 print(f"  Zone GM n°{num_zone}: {count} tag(s) - {status}")
             print(f"\nListe GM libres   : {liste_gm_libres}")
             print(f"Liste GM occupées : {liste_gm_occupees}")
-            print("="*80)
+            print("="*80)"""
         
-        # Dessiner les zones GM même sans tags mobiles (toutes en vert au démarrage)
+        """# Dessiner les zones GM même sans tags mobiles (toutes en vert au démarrage)
         elif self.plan_reference_calcule and not tag_mobile_list:
             cfg = self.config
             # Toutes les zones sont libres s'il n'y a pas de tags mobiles
@@ -668,7 +691,7 @@ class ArUcoTrackingSystem:
                 if len(gm_corners_pixel) == 4:
                     gm_corners_pixel = np.array(gm_corners_pixel, dtype=np.int32)
                     color = (0, 255, 0)  # Vert car libre
-                    cv2.polylines(undistorted_copie, [gm_corners_pixel], True, color, 3)
+                    cv2.polylines(undistorted_copie, [gm_corners_pixel], True, color, 3)"""
 
         if not self.mode_calibration_active:
             cv2.putText(undistorted_copie, "Appuyer sur 'E' pour calibrer plan eleve", (10, undistorted_copie.shape[0] - 40),
@@ -698,15 +721,16 @@ class ArUcoTrackingSystem:
 
 if __name__ == "__main__":
     config = Config()
+    """
     cote_GM = 200
     Pos_GM = (
         ((0,0),(cote_GM,cote_GM)),
         ((config.largeur_totale_mm-cote_GM,0),(config.largeur_totale_mm,cote_GM))
-    )
+    )"""
     
     # Initialisation des listes GM
-    Liste_GM_libres = list(range(1, len(Pos_GM) + 1))
-    Liste_GM_occupees = []
+    """Liste_GM_libres = list(range(1, len(Pos_GM) + 1))
+    Liste_GM_occupees = []"""
     
     print("=" * 80)
     print("Système de Tracking ArUco avec Double Plan")
@@ -721,8 +745,8 @@ if __name__ == "__main__":
     print(f"\nTags de référence (plan h=0): {config.tag_reference}")
     print(f"Tag de calibration (plan h=+{config.hauteur_Noisette_mm:.0f}mm): {config.tag_calibration}")
     print(f"Tags mobiles (plan h=+{config.hauteur_Noisette_mm:.0f}mm): {config.tag_mobile}")
-    print(f"\nZones GM: {len(Pos_GM)} zone(s) de {cote_GM}x{cote_GM} mm")
-    print(f"Liste GM initiale: {Liste_GM_libres}")
+    """print(f"\nZones GM: {len(Pos_GM)} zone(s) de {cote_GM}x{cote_GM} mm")
+    print(f"Liste GM initiale: {Liste_GM_libres}")"""
     print(f"\nOrigine du repère: coin SUPÉRIEUR DROIT du plan de référence et du plan surélevé")
     print(f"  - X positif vers la GAUCHE")
     print(f"  - Y positif vers le BAS")
@@ -738,13 +762,13 @@ if __name__ == "__main__":
     print("  - Appuyer sur 'Q' pour quitter")
     print("=" * 80)
 
-    system = ArUcoTrackingSystem(config, Pos_GM, matrice_antidstorsion='calibration_data.npz')
+    system = ArUcoTrackingSystem(config, matrice_antidstorsion='calibration_data.npz')
 
     if system.calibration_mode.load_calibration():
         system.homographie.calcul_homographie_elevated(system.calibration_mode.calibration_points)
         system.plan_elevated_calcule = True
 
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
 
     if not cap.isOpened():
         print("Erreur: impossible d'ouvrir la caméra")
@@ -766,9 +790,9 @@ if __name__ == "__main__":
                 system.plan_reference_calcule = True
 
             # Mettre à jour les listes GM à partir des résultats
-            if 'liste_gm_libres' in results and 'liste_gm_occupees' in results:
+            """if 'liste_gm_libres' in results and 'liste_gm_occupees' in results:
                 Liste_GM_libres = results['liste_gm_libres']
-                Liste_GM_occupees = results['liste_gm_occupees']
+                Liste_GM_occupees = results['liste_gm_occupees']"""
 
             cv2.imshow("Systeme de Tracking ArUco", annotated)
 
