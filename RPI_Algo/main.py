@@ -8,7 +8,7 @@ Simul_mvt = True
 Simul_mvt_ennemi = False
 Lidar_on = False
 Bat_Compet = True
-Debug_Mouv = False
+Debug_Mouv = True
 Mode_pince = False
 ################## Librairies ##########################################
 import matplotlib
@@ -176,10 +176,11 @@ else :
         ["Attraper",0,1234],
         ["Avancer",2725,1600],
         ["Consigne",2725,1550],
-        ["Relacher",1,1234],
+        ["Relacher",0,1234],
         ["Reculer",2725,1450],
-
         
+        ["Consigne",1500,1300],
+
         ["Consigne",2725,1670],
         ["Rotation",-90]
 ]
@@ -473,9 +474,6 @@ grid_expanded = binary_dilation(grid, structure=structure)
 from scipy.ndimage import distance_transform_edt
 distance_map = distance_transform_edt(~grid_expanded)
 
-queue_calcul_astar = queue.Queue()      # Thread principal → Thread calcul A*
-queue_resultat_astar = queue.Queue()    # Thread calcul A* → Thread principal
-
 ################## Fonction Threads ##########################################
 
 def calcul_points(stop_event):
@@ -588,64 +586,6 @@ def LectureCAN(stop_event):
         elif msg.arbitration_id == 0x109:
             verif_action = struct.unpack('f', bytes(msg.data))[0]
 
-
-def thread_calcul_astar(stop_event,):
-    """
-    Thread worker pour calculer la trajectoire A*.
-    Met le résultat dans result_queue quand terminé.
-    """
-    global grid_expanded
-    while not stop_event.is_set():
-        try :
-            if not queue_calcul_astar.empty():
-                requete = queue_calcul_astar.get(timeout=0.1)
-
-                x_robot_actuel = requete["x_robot"]
-                y_robot_actuel = requete["y_robot"] 
-                x_robot_voulu = requete["x_voulu"] 
-                y_robot_voulu = requete["y_voulu"] 
-                obs_manager = requete["obs_manager"] 
-                obs_manager_noisettes = requete["obs_manager_noisettes"] 
-                x_ennemi = requete["x_ennemi"] 
-                y_ennemi = requete["y_ennemi"] 
-                R_securite = requete["R_securite"] 
-                CASE_MM = requete["CASE_MM"] 
-                X_PISTE = requete["X_PISTE"] 
-                Y_PISTE = requete["Y_PISTE"] 
-                SAFETY_WEIGHT = requete["SAFETY_WEIGHT"] 
-                MIN_CLEARANCE = requete["MIN_CLEARANCE"] 
-                SMOOTHNESS = requete["SMOOTHNESS"] 
-                DISTANCE_AJUSTABLE = requete["DISTANCE_AJUSTABLE"] 
-                ax = requete["affichage_ax"] 
-
-                points_bruts = calculer_trajectoire_complete(
-                        x_robot_actuel, y_robot_actuel,
-                        x_robot_voulu, y_robot_voulu,
-                        obs_manager, obs_manager_noisettes,
-                        x_ennemi, y_ennemi, R_securite,
-                        CASE_MM, X_PISTE, Y_PISTE,
-                        SAFETY_WEIGHT,
-                        MIN_CLEARANCE,
-                        SMOOTHNESS,
-                        DISTANCE_AJUSTABLE,
-                        affichage_ax=ax
-                    )
-                
-                queue_resultat_astar.put({
-                    "success": True,
-                    "points_bruts": points_bruts
-                })
-                print("Faire Astar")
-            else :
-                time.sleep(0.01)
-        except Exception as e:
-            print(f"❌ Erreur thread A* : {e}")
-            queue_resultat_astar.put({
-                "success": False,
-                "reason": "error",
-                "error": str(e)
-            })
-            time.sleep(0.1)
     
 ##############################################################################
 
@@ -892,10 +832,6 @@ if __name__ == '__main__':
         tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
         tache_LectureCAN.start()
 
-    if Astars :
-        tache_astar = threading.Thread(target=thread_calcul_astar,args=(stop_event,),daemon=True)
-        tache_astar.start()
-
     while(lancement_strategie==False):
         plt.pause(0.1)
     
@@ -1016,7 +952,7 @@ if __name__ == '__main__':
             #####################################
 
             if len(Liste_actions)>2:
-                if (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper"]) or Liste_actions[1][0] in ["Attraper"] or action_voulu in ["Attraper"]:
+                if (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper"]) or Liste_actions[1][0] in ["Attraper"] or action_voulu in ["Attraper"] or (action_precedente in ["Relacher"] and action_voulu in ["Reculer"]):
                     mode_attraper = True
                 else : 
                     mode_attraper = False
@@ -1056,31 +992,13 @@ if __name__ == '__main__':
                 # === CALCUL DE LA TRAJECTOIRE A* ===
                 if (action_voulu in ["Consigne","Reculer"] or demande_recalcul_traj == True) and not mode_attraper:
                     grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
+
                     if Debug_Mouv:
                         print("\n🚀 Déclenchement du calcul A*")
                     demande_recalcul_traj = False
-
-                    queue_calcul_astar.put({
-                        "x_robot": x_robot_actuel,
-                        "y_robot": y_robot_actuel,
-                        "x_voulu": x_robot_voulu,
-                        "y_voulu": y_robot_voulu,
-                        "obs_manager": obs_manager,
-                        "obs_manager_noisettes": obs_manager_noisettes,
-                        "x_ennemi": x_ennemi,
-                        "y_ennemi": y_ennemi,
-                        "R_securite": R_securite,
-                        "CASE_MM": CASE_MM,
-                        "X_PISTE": X_PISTE,
-                        "Y_PISTE": Y_PISTE,
-                        "SAFETY_WEIGHT": SAFETY_WEIGHT,
-                        "MIN_CLEARANCE": MIN_CLEARANCE,
-                        "SMOOTHNESS": SMOOTHNESS,
-                        "DISTANCE_AJUSTABLE": DISTANCE_AJUSTABLE,
-                        "affichage_ax": ax
-                    })
-                    # Calcul de la trajectoire avec la nouvelle fonction
-                    """points_bruts = calculer_trajectoire_complete(
+                    t1 = time.time()
+                    
+                    points_bruts = calculer_trajectoire_complete(
                         x_robot_actuel, y_robot_actuel,
                         x_robot_voulu, y_robot_voulu,
                         obs_manager, obs_manager_noisettes,
@@ -1091,33 +1009,30 @@ if __name__ == '__main__':
                         SMOOTHNESS,
                         DISTANCE_AJUSTABLE,
                         affichage_ax=ax
-                    )"""
-                    if not queue_resultat_astar.empty():
-                        resultat = queue_resultat_astar.get()
-                        
-                        if resultat["success"]:
-                            points_bruts = resultat["points_bruts"]
-                        if points_bruts is not None:
+                    )
+                    
+                    if points_bruts is not None:
+                        if Debug_Mouv:
+                            print(f"✅ Trajectoire calculée : {len(points_bruts)} points")
+                        Liste_actions = [action for action in Liste_actions if not (isinstance(action, list) 
+                                            and len(action) >= 2 and action[0] == "Avancer")]
+                        # ⭐ AJOUT DES POINTS DANS Liste_actions
+                        for i in range(len(points_bruts)-1, 0, -1):
+                            x_cible, y_cible = points_bruts[i]
+                            if abs(x_cible - x_robot_voulu) > 10 or abs(y_cible - y_robot_voulu) > 10:
+                                Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
+                        Astars_a_fail = False
+                        print("Delai : ", time.time()- t1)
+                    else:
+                        if Debug_Mouv:
+                            print("❌ Aucun chemin trouvé par A*")
+                            Astars_a_fail = True
+                        if distance_robot_ennemi < R_securite:
                             if Debug_Mouv:
-                                print(f"✅ Trajectoire calculée : {len(points_bruts)} points")
-                            Liste_actions = [action for action in Liste_actions if not (isinstance(action, list) 
-                                                and len(action) >= 2 and action[0] == "Avancer")]
-                            # ⭐ AJOUT DES POINTS DANS Liste_actions
-                            for i in range(len(points_bruts)-1, 0, -1):
-                                x_cible, y_cible = points_bruts[i]
-                                if abs(x_cible - x_robot_voulu) > 10 or abs(y_cible - y_robot_voulu) > 10:
-                                    Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
-                            Astars_a_fail = False
+                                print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
                         else:
                             if Debug_Mouv:
-                                print("❌ Aucun chemin trouvé par A*")
-                            if distance_robot_ennemi < R_securite:
-                                if Debug_Mouv:
-                                    print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
-                                    Astars_a_fail = True
-                            else:
-                                if Debug_Mouv:
-                                    print("CHEMIN INACCESSIBLE")
+                                print("CHEMIN INACCESSIBLE")
             
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer"]:
                 action_voulu = Liste_actions[0][0]
@@ -1727,6 +1642,7 @@ if __name__ == '__main__':
                 print("ack recalage : ",dico_envoi[0x203])
             print("verif_action : ",verif_action)
             print("ack action : ",dico_envoi[0x504+pince_a_utilise])
+            print("action_precedente",action_precedente)
             if not action_est_supprime:
                 if (action_voulu in ["Consigne","Avancer","Reculer"] and verif_mouv == 1) or \
                 (action_voulu in ["Rotation"] and verif_angle == 1) or \
@@ -1742,7 +1658,7 @@ if __name__ == '__main__':
                     angle_robot_voulu = -181
                     verif_action = 0
                     action_est_supprime = True
-                    #time.sleep(0.1)
+                    action_precedente = action_voulu
             else :
                 action_est_supprime = False
             
@@ -1808,7 +1724,6 @@ if __name__ == '__main__':
             if Lidar_on:
                 tache_lidar.join()
             tache_LectureCAN.join()
-            tache_astar.join()
             os.system("sudo ifconfig can0 down")
             
         
@@ -1817,7 +1732,6 @@ if __name__ == '__main__':
     finally:
         print("Programme terminé proprement.")
     
-        tache_astar.join()
         if Reel :
             if Lidar_on:
                 tache_lidar.join()
