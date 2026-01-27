@@ -3,13 +3,13 @@ couleur = "B"
 Reel = False
 
 Strategie = False
-Astars = False
+Astars = True
 Simul_mvt = True
 Simul_mvt_ennemi = False
 Lidar_on = False
 Bat_Compet = True
 Debug_Mouv = False
-Mode_pince = True
+Mode_pince = False
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -174,6 +174,7 @@ else :
         ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
         ["Rotation",90],
         ["Attraper",0,1234],
+        ["Avancer",2725,1600],
         ["Consigne",2725,1550],
         ["Relacher",1,1234],
         ["Reculer",2725,1450],
@@ -455,7 +456,7 @@ else :
 # ==================== PARAMÈTRES DE L'ALGORITHME ====================
 
 SAFETY_WEIGHT = 2.0  # Poids de sécurité pour A*
-MIN_CLEARANCE = 2.0
+MIN_CLEARANCE = 1.0
 SMOOTHNESS = 1.0
 DISTANCE_AJUSTABLE = 6  # Distance seuil pour pénalité sécurité (en cases)
 SEUIL_MOUVEMENT_ENNEMI = 10
@@ -472,8 +473,10 @@ grid_expanded = binary_dilation(grid, structure=structure)
 from scipy.ndimage import distance_transform_edt
 distance_map = distance_transform_edt(~grid_expanded)
 
-################## Fonction Threads ##########################################
+queue_calcul_astar = queue.Queue()      # Thread principal → Thread calcul A*
+queue_resultat_astar = queue.Queue()    # Thread calcul A* → Thread principal
 
+################## Fonction Threads ##########################################
 
 def calcul_points(stop_event):
     lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)
@@ -586,6 +589,64 @@ def LectureCAN(stop_event):
             verif_action = struct.unpack('f', bytes(msg.data))[0]
 
 
+def thread_calcul_astar(stop_event,):
+    """
+    Thread worker pour calculer la trajectoire A*.
+    Met le résultat dans result_queue quand terminé.
+    """
+    global grid_expanded
+    while not stop_event.is_set():
+        try :
+            if not queue_calcul_astar.empty():
+                requete = queue_calcul_astar.get(timeout=0.1)
+
+                x_robot_actuel = requete["x_robot"]
+                y_robot_actuel = requete["y_robot"] 
+                x_robot_voulu = requete["x_voulu"] 
+                y_robot_voulu = requete["y_voulu"] 
+                obs_manager = requete["obs_manager"] 
+                obs_manager_noisettes = requete["obs_manager_noisettes"] 
+                x_ennemi = requete["x_ennemi"] 
+                y_ennemi = requete["y_ennemi"] 
+                R_securite = requete["R_securite"] 
+                CASE_MM = requete["CASE_MM"] 
+                X_PISTE = requete["X_PISTE"] 
+                Y_PISTE = requete["Y_PISTE"] 
+                SAFETY_WEIGHT = requete["SAFETY_WEIGHT"] 
+                MIN_CLEARANCE = requete["MIN_CLEARANCE"] 
+                SMOOTHNESS = requete["SMOOTHNESS"] 
+                DISTANCE_AJUSTABLE = requete["DISTANCE_AJUSTABLE"] 
+                ax = requete["affichage_ax"] 
+
+                points_bruts = calculer_trajectoire_complete(
+                        x_robot_actuel, y_robot_actuel,
+                        x_robot_voulu, y_robot_voulu,
+                        obs_manager, obs_manager_noisettes,
+                        x_ennemi, y_ennemi, R_securite,
+                        CASE_MM, X_PISTE, Y_PISTE,
+                        SAFETY_WEIGHT,
+                        MIN_CLEARANCE,
+                        SMOOTHNESS,
+                        DISTANCE_AJUSTABLE,
+                        affichage_ax=ax
+                    )
+                
+                queue_resultat_astar.put({
+                    "success": True,
+                    "points_bruts": points_bruts
+                })
+                print("Faire Astar")
+            else :
+                time.sleep(0.01)
+        except Exception as e:
+            print(f"❌ Erreur thread A* : {e}")
+            queue_resultat_astar.put({
+                "success": False,
+                "reason": "error",
+                "error": str(e)
+            })
+            time.sleep(0.1)
+    
 ##############################################################################
 
 ################## Fonction ##################################################
@@ -831,6 +892,10 @@ if __name__ == '__main__':
         tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
         tache_LectureCAN.start()
 
+    if Astars :
+        tache_astar = threading.Thread(target=thread_calcul_astar,args=(stop_event,),daemon=True)
+        tache_astar.start()
+
     while(lancement_strategie==False):
         plt.pause(0.1)
     
@@ -839,7 +904,6 @@ if __name__ == '__main__':
         if Reel and Lidar_on: 
             tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
             tache_lidar.start()
-        
         if Reel: 
             dico_envoi[0x200]=x_robot_depart
             dico_envoi[0x201]=y_robot_depart
@@ -986,7 +1050,6 @@ if __name__ == '__main__':
                                 break
             if Debug_Mouv:
                 print("demande_recalcul_traj : ",demande_recalcul_traj)
-            
 
             # === CALCUL DE LA TRAJECTOIRE A* ===
             if Astars: 
@@ -996,8 +1059,28 @@ if __name__ == '__main__':
                     if Debug_Mouv:
                         print("\n🚀 Déclenchement du calcul A*")
                     demande_recalcul_traj = False
+
+                    queue_calcul_astar.put({
+                        "x_robot": x_robot_actuel,
+                        "y_robot": y_robot_actuel,
+                        "x_voulu": x_robot_voulu,
+                        "y_voulu": y_robot_voulu,
+                        "obs_manager": obs_manager,
+                        "obs_manager_noisettes": obs_manager_noisettes,
+                        "x_ennemi": x_ennemi,
+                        "y_ennemi": y_ennemi,
+                        "R_securite": R_securite,
+                        "CASE_MM": CASE_MM,
+                        "X_PISTE": X_PISTE,
+                        "Y_PISTE": Y_PISTE,
+                        "SAFETY_WEIGHT": SAFETY_WEIGHT,
+                        "MIN_CLEARANCE": MIN_CLEARANCE,
+                        "SMOOTHNESS": SMOOTHNESS,
+                        "DISTANCE_AJUSTABLE": DISTANCE_AJUSTABLE,
+                        "affichage_ax": ax
+                    })
                     # Calcul de la trajectoire avec la nouvelle fonction
-                    points_bruts = calculer_trajectoire_complete(
+                    """points_bruts = calculer_trajectoire_complete(
                         x_robot_actuel, y_robot_actuel,
                         x_robot_voulu, y_robot_voulu,
                         obs_manager, obs_manager_noisettes,
@@ -1008,28 +1091,33 @@ if __name__ == '__main__':
                         SMOOTHNESS,
                         DISTANCE_AJUSTABLE,
                         affichage_ax=ax
-                    )
-                    if points_bruts is not None:
-                        if Debug_Mouv:
-                            print(f"✅ Trajectoire calculée : {len(points_bruts)} points")
-                        Liste_actions = [action for action in Liste_actions if not (isinstance(action, list) 
-                                            and len(action) >= 2 and action[0] == "Avancer")]
-                        # ⭐ AJOUT DES POINTS DANS Liste_actions
-                        for i in range(len(points_bruts)-1, 0, -1):
-                            x_cible, y_cible = points_bruts[i]
-                            if abs(x_cible - x_robot_voulu) > 10 or abs(y_cible - y_robot_voulu) > 10:
-                                Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
-                        Astars_a_fail = False
-                    else:
-                        if Debug_Mouv:
-                            print("❌ Aucun chemin trouvé par A*")
-                        if distance_robot_ennemi < R_securite:
+                    )"""
+                    if not queue_resultat_astar.empty():
+                        resultat = queue_resultat_astar.get()
+                        
+                        if resultat["success"]:
+                            points_bruts = resultat["points_bruts"]
+                        if points_bruts is not None:
                             if Debug_Mouv:
-                                print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
-                                Astars_a_fail = True
+                                print(f"✅ Trajectoire calculée : {len(points_bruts)} points")
+                            Liste_actions = [action for action in Liste_actions if not (isinstance(action, list) 
+                                                and len(action) >= 2 and action[0] == "Avancer")]
+                            # ⭐ AJOUT DES POINTS DANS Liste_actions
+                            for i in range(len(points_bruts)-1, 0, -1):
+                                x_cible, y_cible = points_bruts[i]
+                                if abs(x_cible - x_robot_voulu) > 10 or abs(y_cible - y_robot_voulu) > 10:
+                                    Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
+                            Astars_a_fail = False
                         else:
                             if Debug_Mouv:
-                                print("CHEMIN INACCESSIBLE")
+                                print("❌ Aucun chemin trouvé par A*")
+                            if distance_robot_ennemi < R_securite:
+                                if Debug_Mouv:
+                                    print("BESOIN DE S'ARRETER, ENNEMI TROP PROCHE")
+                                    Astars_a_fail = True
+                            else:
+                                if Debug_Mouv:
+                                    print("CHEMIN INACCESSIBLE")
             
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer"]:
                 action_voulu = Liste_actions[0][0]
@@ -1720,6 +1808,7 @@ if __name__ == '__main__':
             if Lidar_on:
                 tache_lidar.join()
             tache_LectureCAN.join()
+            tache_astar.join()
             os.system("sudo ifconfig can0 down")
             
         
@@ -1727,6 +1816,8 @@ if __name__ == '__main__':
         print(e)
     finally:
         print("Programme terminé proprement.")
+    
+        tache_astar.join()
         if Reel :
             if Lidar_on:
                 tache_lidar.join()
@@ -1735,7 +1826,6 @@ if __name__ == '__main__':
             data_etat = struct.pack('<I',etat)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat, is_extended_id=False))
         
-            
         plt.close(fig)
 
 ########################################################################
