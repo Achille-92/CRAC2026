@@ -1536,6 +1536,10 @@ if __name__ == '__main__':
                 Batteries_interrupteur[0]=2
                 Batteries_interrupteur[1]=2
                 Batteries_interrupteur[2]=2
+                
+            dico_envoi[0x300]=Batteries_interrupteur[0]
+            dico_envoi[0x301]=Batteries_interrupteur[1]
+            dico_envoi[0x302]=Batteries_interrupteur[2]
 
             if Bat_Compet:
                 dico_envoi[0x303]=1
@@ -1543,9 +1547,6 @@ if __name__ == '__main__':
                 dico_envoi[0x303]=2
 
             print(Batteries_interrupteur)
-            dico_envoi[0x300]=Batteries_interrupteur[0]
-            dico_envoi[0x301]=Batteries_interrupteur[1]
-            dico_envoi[0x302]=Batteries_interrupteur[2]
             #######################################
             
             # Affichage texte Coordonées
