@@ -1,14 +1,14 @@
 couleur = "B"
 
-Reel = False
+Reel = True
 
 Strategie = False
-Astars = True
+Astars = False
 Simul_mvt = True
 Simul_mvt_ennemi = False
 Lidar_on = False
-Bat_Compet = True
-Debug_Mouv = True
+Bat_Compet = False
+Debug_Mouv = False
 Mode_pince = False
 ################## Librairies ##########################################
 import matplotlib
@@ -366,7 +366,7 @@ expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes]) if 
 # ======================================================= #
 
 # Variables fonctionnelles des Batteries
-Batteries = [100,50,30] # V décharge, V charge, V actuel, % de charge
+Batteries = [100,100,100] # V décharge, V charge, V actuel, % de charge
 Batteries_interrupteur = [1,1,1]
 Batteries_alert = [0,0,0]
 lim_Bat_RPI = 11.0
@@ -583,8 +583,8 @@ def LectureCAN(stop_event):
             verif_angle = struct.unpack('f', bytes(msg.data))[0]
         elif msg.arbitration_id == 0x110:
             verif_recalage = struct.unpack('f', bytes(msg.data))[0]
-        elif msg.arbitration_id == 0x109:
-            verif_action = struct.unpack('f', bytes(msg.data))[0]
+        #elif msg.arbitration_id == 0x109:
+         #   verif_action = struct.unpack('f', bytes(msg.data))[0]
 
     
 ##############################################################################
@@ -1514,34 +1514,39 @@ if __name__ == '__main__':
             
             
             # === GESTION BATTERIES avec les fonctions ===
+            print(Batteries)
+            print(Batteries_alert)
             if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             
             if not Bat_Compet: 
                 if Batteries_alert[0]==0:
+                    Batteries_interrupteur[0]=2
+                else :
                     Batteries_interrupteur[0]=1
-                else :
-                    Batteries_interrupteur[0]=0
                 if Batteries_alert[1]==0:
+                    Batteries_interrupteur[1]=2
+                else :
                     Batteries_interrupteur[1]=1
-                else :
-                    Batteries_interrupteur[1]=0
                 if Batteries_alert[2]==0:
-                    Batteries_interrupteur[2]=1
+                    Batteries_interrupteur[2]=2
                 else :
-                    Batteries_interrupteur[2]=0
+                    Batteries_interrupteur[2]=1
             else :
-                Batteries_interrupteur[0]=1
-                Batteries_interrupteur[1]=1
-                Batteries_interrupteur[2]=1
+                Batteries_interrupteur[0]=2
+                Batteries_interrupteur[1]=2
+                Batteries_interrupteur[2]=2
+                
+            dico_envoi[0x300]=Batteries_interrupteur[0]
+            dico_envoi[0x301]=Batteries_interrupteur[1]
+            dico_envoi[0x302]=Batteries_interrupteur[2]
 
             if Bat_Compet:
                 dico_envoi[0x303]=1
             else:
                 dico_envoi[0x303]=2
-            dico_envoi[0x300]=Batteries_interrupteur[0]
-            dico_envoi[0x301]=Batteries_interrupteur[1]
-            dico_envoi[0x302]=Batteries_interrupteur[2]
+
+            print(Batteries_interrupteur)
             #######################################
             
             # Affichage texte Coordonées
