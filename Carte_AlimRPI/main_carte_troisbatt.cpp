@@ -19,8 +19,8 @@
 #define ADRESSE_CAPT2 0x42
 #define ADRESSE_CAPT3 0x41
 // Pas dans l'ordre a cause d'une erreur de sérigraphie sur la carte
-#define ON 1
-#define OFF 0
+#define ON 2
+#define OFF 1
 /*
 #define ALERTE_DECHARGE_BATT1 0x201
 #define ALERTE_DECHARGE_BATT2 0x202
@@ -91,14 +91,15 @@ void setup()
   Can1.begin();
   Can1.setBaudRate(500000); // 0.5MBaud/s
   Wire.begin();
+  
   // Filtres pour recevoir des message spécifiques
   // bank number, id, masque
   Can1.setFilter(0, INTERRUPTEUR_BATT1, 0x1FFFFFFF);
   Can1.setFilter(1, INTERRUPTEUR_BATT2, 0x1FFFFFFF);
   Can1.setFilter(2, INTERRUPTEUR_BATT3, 0x1FFFFFFF);
-  Can1.setFilter(3, STOP_ROBOT_FIN_MATCH, 0x1FFFFFFF);
   Can1.setFilter(4, MODE, 0x1FFFFFFF);
   
+  Can1.setFilter(3, STOP_ROBOT_FIN_MATCH, 0x1FFFFFFF);
 
   // Initialisation batterie main
   BatterieMain.begin();
@@ -193,13 +194,14 @@ void loop()
       mode_actuel = CAN_RX_msg.buf[0]; // 0 mode test, 1 mode match 
       if(mode_actuel) start_millis = millis();
       break;
-
+    
+/*
     case STOP_ROBOT_FIN_MATCH:
       etat_interrupteur1 = OFF;
       etat_interrupteur2 = OFF;
       etat_interrupteur3 = OFF;
       break;
-
+*/
     default:
       break;
     }
@@ -276,16 +278,16 @@ void loop()
   if(currentMillis - previousMillis >= interval)
   {
 
-    //envoi_int_CAN(Vbatt1CAN,BATT_1);
-    //envoi_int_CAN(Vbatt1_decharge, BATT_1_MIN);
-    //envoi_int_CAN(Vbatt1_charge, BATT_1_MAX); 
-    //envoi_int_CAN(Vbatt2CAN,BATT_2);
-    //envoi_int_CAN(Vbatt2_decharge, BATT_2_MIN);
-    //envoi_int_CAN(Vbatt2_charge, BATT_2_MAX);
-    //envoi_int_CAN(Vbatt3CAN,BATT_3);
-    //envoi_int_CAN(Vbatt3_decharge, BATT_3_MIN);
-    //envoi_int_CAN(Vbatt3_charge, BATT_3_MAX);
-    //envoi_char_CAN(mode_actuel, MODE);
+    envoi_int_CAN(Vbatt1CAN,BATT_1);
+    envoi_int_CAN(Vbatt1_decharge, BATT_1_MIN);
+    envoi_int_CAN(Vbatt1_charge, BATT_1_MAX); 
+    envoi_int_CAN(Vbatt2CAN,BATT_2);
+    envoi_int_CAN(Vbatt2_decharge, BATT_2_MIN);
+    envoi_int_CAN(Vbatt2_charge, BATT_2_MAX);
+    envoi_int_CAN(Vbatt3CAN,BATT_3);
+    envoi_int_CAN(Vbatt3_decharge, BATT_3_MIN);
+    envoi_int_CAN(Vbatt3_charge, BATT_3_MAX);
+    envoi_char_CAN(mode_actuel, MODE);
 
     Batt1 = Calcul_bat(Vbatt1, Vbatt1_charge, Vbatt1_decharge);
     Batt2 = Calcul_bat(Vbatt2, Vbatt2_charge, Vbatt2_decharge);
@@ -299,6 +301,8 @@ void loop()
     
 
     //envoi_char_CAN(mode_actuel, MODE);
+
+
 
     //gestion des décharge des batteries
     if(etat_interrupteur1 && Vbatt1 < 11.3)
@@ -324,7 +328,7 @@ void loop()
     if(etat_interrupteur3 && Vbatt3 < 11.3)
     {
       if(mode_actuel == 2)
-        envoi_int_CAN(1, ALERTE_DECHARGE_BATT3);
+      envoi_int_CAN(1, ALERTE_DECHARGE_BATT3);
     }
      if(etat_interrupteur3 && Vbatt3 < 11)
     {
@@ -333,7 +337,6 @@ void loop()
     }
 
    previousMillis = currentMillis; // Met à jour le temps de référence
-
 
   }
   
@@ -371,8 +374,8 @@ void loop()
   // Serial.printf(" | Vbatt1_decharge:");
   // Serial.print(Vbatt1_decharge);
   // Batterie 2
-  Serial.printf("mA | Vbatt2:");
-  Serial.print(Vbatt2);
+  Serial.printf(" | Vbatt2:");
+  Serial.print(Vbatt1);
   //Serial.printf("V | Ibatt2:");
   //Serial.print(Ibatt2);
   // Serial.printf(" | nbre_element_2:%1d", nbre_cellules_2);
@@ -389,14 +392,15 @@ void loop()
   // Serial.printf(" | nbre_element_3:%1d", nbre_cellules_3);
   // Serial.printf(" | Vbatt3_decharge:");
   // Serial.print(Vbatt3_decharge);
-  Serial.printf(" | mode =  ");
+  Serial.printf("V | mode =  ");
   Serial.print(mode_actuel);
   //Serial.printf(" | Batt2  =  ");
   //Serial.print(Batt2);
   //Serial.printf(" | Batt1 = %d%%", Batt1);
   //Serial.printf(" | Batt2 = %d%%", Batt2);
-  Serial.printf(" | Batt2 = %d%%", Batt2);
-  Serial.printf(" | int2   = %d%%", etat_interrupteur2);  
+  Serial.printf(" | Batt2 = %d%%", Batt1);
+  Serial.printf(" | int2   = %d", etat_interrupteur1); 
+  //Serial.printf(" | Alerte decharge = %d", ALERTE_DECHARGE_BATT3);
   printf("\n");
 }
 
@@ -431,8 +435,7 @@ char calcul_nombre_cellules(float tension)
   return nombre_elements;
 }
 
-
-
+/*
 void envoi_tension_courant(float tension, float courant, int id)
 {
   CAN_TX_msg.id = id;
@@ -448,7 +451,8 @@ void envoi_tension_courant(float tension, float courant, int id)
     CAN_TX_msg.buf[k + 4] = tableau_I[k]; // met les 32 bits du courant dans le message
   Can1.write(CAN_TX_msg);
 }
-
+*/
+/*
 void envoi_tension_min_max(float tension_actuelle, float tension_min, float tension_max, int id)
 {
   CAN_TX_msg.id = id;
@@ -472,7 +476,7 @@ void envoi_tension_min_max(float tension_actuelle, float tension_min, float tens
     // Envoie sur le bus
   Can1.write(CAN_TX_msg);
 }
-
+*/
 /*
 void envoi_int_CAN(int valeur, uint32_t id) 
 {
@@ -509,6 +513,7 @@ void envoi_char_CAN(char valeur, uint32_t id)
     Can1.write(CAN_TX_msg);  // Envoie le message
 }
 
+/*
 void envoi_floatvir_CAN(float valeur, uint32_t id) 
 {
     // Convertit le float en 4 octets
@@ -523,8 +528,9 @@ void envoi_floatvir_CAN(float valeur, uint32_t id)
     }
 
     Can1.write(CAN_TX_msg);  // Envoie le message
-}
+}*/
 
+/*
 // Fonction pour envoyer un float sur le bus CAN avec un ID donné
 void envoi_float_CAN(float valeur, uint32_t id) 
 {
@@ -540,7 +546,7 @@ void envoi_float_CAN(float valeur, uint32_t id)
     }
 
     Can1.write(CAN_TX_msg); // Envoie le message
-}
+}*/
 
 
 char Calcul_bat(float actuel, float charge, float decharge)
