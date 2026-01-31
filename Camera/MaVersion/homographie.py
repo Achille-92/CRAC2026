@@ -824,4 +824,4 @@ if __name__ == "__main__":
 
     finally:
         cap.release()
-        cv2.destroyAllWindows()
+        cv2.destroyAllWindows() 
