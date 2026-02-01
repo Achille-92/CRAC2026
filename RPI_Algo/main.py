@@ -8,7 +8,7 @@ Simul_mvt = True
 Simul_mvt_ennemi = False
 Lidar_on = False
 Bat_Compet = False
-Debug_Mouv = False
+Debug_Mouv = True
 Mode_pince = False
 ################## Librairies ##########################################
 import matplotlib
@@ -825,7 +825,7 @@ if __name__ == '__main__':
     
     # Bouton ATTRAPER
     ax_attraper_button = plt.axes([action_button_x_start, action_button_y, action_button_width, action_button_height])
-    bouton_attraper = Button(ax_attraper_button, "🤖 ATTRAPER", color="lightblue", hovercolor="blue")
+    bouton_attraper = Button(ax_attraper_button, "Action", color="lightblue", hovercolor="blue")
     bouton_attraper.on_clicked(bouton_attraper_callback)
     
     if Reel :
@@ -1017,10 +1017,23 @@ if __name__ == '__main__':
                         Liste_actions = [action for action in Liste_actions if not (isinstance(action, list) 
                                             and len(action) >= 2 and action[0] == "Avancer")]
                         # ⭐ AJOUT DES POINTS DANS Liste_actions
-                        for i in range(len(points_bruts)-1, 0, -1):
-                            x_cible, y_cible = points_bruts[i]
-                            if abs(x_cible - x_robot_voulu) > 10 or abs(y_cible - y_robot_voulu) > 10:
-                                Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
+                        print(points_bruts)
+
+                        if len(points_bruts) >2:
+                            for i in range(len(points_bruts)-1, 0, -1):
+                                x_cible, y_cible = points_bruts[i]
+                                if abs(x_cible - x_robot_voulu) > 20 or abs(y_cible - y_robot_voulu) > 20:
+                                    Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
+                        else :
+                            distance_robot_consigne = math.sqrt((x_robot_actuel - points_bruts[1][0])**2 + (y_robot_actuel - points_bruts[1][1])**2)
+                            angle_robot_consigne = math.atan2(y_robot_actuel - points_bruts[1][1],x_robot_actuel - points_bruts[1][0])
+                            print(np.degrees(angle_robot_consigne))
+                            if distance_robot_consigne > 120:
+                                print("Point trop loin")
+                                x_nouveau = points_bruts[1][0] + 100*math.cos(angle_robot_consigne)
+                                y_nouveau = points_bruts[1][1] + 100*math.sin(angle_robot_consigne)
+                                Liste_actions.insert(0, ["Avancer", x_nouveau, y_nouveau])
+
                         Astars_a_fail = False
                         print("Delai : ", time.time()- t1)
                     else:
@@ -1514,8 +1527,6 @@ if __name__ == '__main__':
             
             
             # === GESTION BATTERIES avec les fonctions ===
-            print(Batteries)
-            print(Batteries_alert)
             if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             
@@ -1545,8 +1556,6 @@ if __name__ == '__main__':
                 dico_envoi[0x303]=1
             else:
                 dico_envoi[0x303]=2
-
-            print(Batteries_interrupteur)
             #######################################
             
             # Affichage texte Coordonées
