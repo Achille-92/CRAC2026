@@ -1,9 +1,9 @@
 couleur = "B"
 
-Reel = True
+Reel = False
 
 Strategie = False
-Astars = False
+Astars = True
 Simul_mvt = True
 Simul_mvt_ennemi = False
 Lidar_on = False
