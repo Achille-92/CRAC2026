@@ -395,6 +395,12 @@ FREQUENCE_AFFICHAGE = 4
 fig = None 
 ax = None
 robot_plot = None
+PAMI1_plot = None
+PAMI2_plot = None
+PAMI3_plot = None
+PAMI4_plot = None
+PAMI5_plot = None
+PAMI6_plot = None
 scat = None
 #############
 
@@ -474,6 +480,11 @@ grid_expanded = binary_dilation(grid, structure=structure)
 from scipy.ndimage import distance_transform_edt
 distance_map = distance_transform_edt(~grid_expanded)
 
+PAMI_on = [1,0,0,0,0,0]
+PAMI_co_depart = [[2900,2900],[],[],[],[],[]]
+PAMI_co_consigne = [[1500,1000],[],[],[],[],[]]
+PAMI_trajectoire = [[],[],[],[],[],[]]
+PAMI_ordre_mouv = [0,0,0,0,0,0]
 ################## Fonction Threads ##########################################
 
 def calcul_points(stop_event):
@@ -663,6 +674,12 @@ def update_display(background):
     
     # Redessiner uniquement les éléments qui changent
     ax.draw_artist(robot_plot)
+    ax.draw_artist(PAMI1_plot)
+    ax.draw_artist(PAMI2_plot)
+    ax.draw_artist(PAMI3_plot)
+    ax.draw_artist(PAMI4_plot)
+    ax.draw_artist(PAMI5_plot)
+    ax.draw_artist(PAMI6_plot)
     ax.draw_artist(ennemi_plot)
     ax.draw_artist(scat)
     ax.draw_artist(robot_info_text)
@@ -788,7 +805,7 @@ if __name__ == '__main__':
 
     stop_event = threading.Event()
 
-    fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
+    fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,PAMI1_plot,PAMI2_plot,PAMI3_plot,PAMI4_plot,PAMI5_plot,PAMI6_plot = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
     cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
     bouton_stop.on_clicked(partial(arret_programme, stop_event=stop_event))
     bouton_start.on_clicked(demarrage_strategie)  # ⭐ Connexion du bouton START ⭐
@@ -1523,6 +1540,38 @@ if __name__ == '__main__':
                 robot_angle_voulu_line.set_data([x0, x1], [y0, y1])
             else :
                 robot_angle_voulu_line.set_data([-20, -20], [-40, -40])
+
+            for num_pami in range(len(PAMI_on)):
+                if PAMI_on[num_pami]==1:
+                    x_pami = PAMI_co_depart[num_pami][0]
+                    y_pami = PAMI_co_depart[num_pami][1]
+                    if num_pami == 0:
+                        print(f"PAMI {num_pami+1}: ({x_pami}, {y_pami})")
+                        PAMI1_plot.set_offsets([[x_pami, y_pami]])  # ⭐ Double crochets
+                    elif num_pami == 1:
+                        PAMI2_plot.set_offsets([[x_pami, y_pami]])
+                    elif num_pami == 2:
+                        PAMI3_plot.set_offsets([[x_pami, y_pami]])
+                    elif num_pami == 3:
+                        PAMI4_plot.set_offsets([[x_pami, y_pami]])
+                    elif num_pami == 4:
+                        PAMI5_plot.set_offsets([[x_pami, y_pami]])
+                    elif num_pami == 5:
+                        PAMI6_plot.set_offsets([[x_pami, y_pami]])
+                else:
+                    # Masquer le PAMI s'il est désactivé
+                    if num_pami == 0:
+                        PAMI1_plot.set_offsets([[-100, -100]])
+                    elif num_pami == 1:
+                        PAMI2_plot.set_offsets([[-100, -100]])
+                    elif num_pami == 2:
+                        PAMI3_plot.set_offsets([[-100, -100]])
+                    elif num_pami == 3:
+                        PAMI4_plot.set_offsets([[-100, -100]])
+                    elif num_pami == 4:
+                        PAMI5_plot.set_offsets([[-100, -100]])
+                    elif num_pami == 5:
+                        PAMI6_plot.set_offsets([[-100, -100]])
             ################################################
             
             
@@ -1715,6 +1764,7 @@ if __name__ == '__main__':
                 update_display(background)
                 compteur_affichage = 0
             fig.canvas.flush_events()
+            fig.canvas.draw_idle()
             x_robot_voulu_last = x_robot_voulu
             y_robot_voulu_last = y_robot_voulu
             x_ennemi_old = x_ennemi

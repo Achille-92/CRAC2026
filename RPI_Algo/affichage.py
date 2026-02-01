@@ -201,6 +201,14 @@ def init_affichage(x_robot_depart,y_robot_depart,R_ROBOT):
         alpha=0.8,
         zorder=3
     )
+    
+    PAMI1_plot = ax.scatter([-100], [-100], s=50, c='red', marker='o', label="PAMI1")
+    PAMI2_plot = ax.scatter([-100], [-100], s=50, c='orange', marker='o', label="PAMI2")
+    PAMI3_plot = ax.scatter([-100], [-100], s=50, c='yellow', marker='o', label="PAMI3")
+    PAMI4_plot = ax.scatter([-100], [-100], s=50, c='brown', marker='o', label="PAMI4")
+    PAMI5_plot = ax.scatter([-100], [-100], s=50, c='pink', marker='o', label="PAMI5")
+    PAMI6_plot = ax.scatter([-100], [-100], s=50, c='purple', marker='o', label="PAMI6")
+
     ax.add_patch(cercle_robot_patch)
     ennemi_plot = ax.scatter([], [], s=50, c='red', marker='o', label="Ennemi")
     consigne_plot = ax.scatter([], [], s=50, c='green', marker='x', label="Consigne")
@@ -245,7 +253,7 @@ def init_affichage(x_robot_depart,y_robot_depart,R_ROBOT):
     return (fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,
             ax_button_stop, bouton_stop, ax_button_start, bouton_start,
             point_voulu_plot, x_voulu_text, y_voulu_text, 
-            A_voulu_text, robot_angle_line, robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch)
+            A_voulu_text, robot_angle_line, robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,PAMI1_plot,PAMI2_plot,PAMI3_plot,PAMI4_plot,PAMI5_plot,PAMI6_plot)
 
 
 def afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries, battery_patches, battery_texts,
