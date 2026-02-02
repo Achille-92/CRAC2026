@@ -300,18 +300,6 @@ def calculer_trajectoire_complete(x_robot_actuel, y_robot_actuel,
     print(f"✅ Trajectoire calculée : {len(points_bruts)} points")
     print("="*70 + "\n")
     
-    # 10. AFFICHER (OPTIONNEL)
-    if affichage_ax is not None:
-        # Supprimer anciennes trajectoires
-        for line in affichage_ax.lines[:]:
-            if line.get_label() in ['Chemin A*', 'A* brut']:
-                line.remove()
-        
-        # Tracer nouvelle trajectoire
-        x_plot = [p[0] for p in points_bruts]
-        y_plot = [p[1] for p in points_bruts]
-        affichage_ax.plot(x_plot, y_plot, 'g-', linewidth=2, label='Chemin A*', 
-                         marker='o', markersize=4, zorder=10)
     
     return points_bruts
 

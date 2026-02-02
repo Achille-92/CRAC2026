@@ -294,6 +294,10 @@ if couleur == "B":
     x_robot_depart = 2725 
     y_robot_depart = 1670
     angle_robot_depart = -90
+
+    x_robot_retour = 2725
+    y_robot_retour = 1670
+    angle_robot_retour = -90
 else:
     x_robot_depart = 275 
     y_robot_depart = 1670
@@ -395,12 +399,6 @@ FREQUENCE_AFFICHAGE = 4
 fig = None 
 ax = None
 robot_plot = None
-PAMI1_plot = None
-PAMI2_plot = None
-PAMI3_plot = None
-PAMI4_plot = None
-PAMI5_plot = None
-PAMI6_plot = None
 scat = None
 #############
 
@@ -426,6 +424,7 @@ temps_ecoules = 0
 temps_restant = 100
 temps_retour = 15 # Temps restant pour revenir au départ en fin de match
 temps_max = 3600
+reset_fin = False
 
 action_en_cours = None
 action_precedente = None
@@ -480,11 +479,6 @@ grid_expanded = binary_dilation(grid, structure=structure)
 from scipy.ndimage import distance_transform_edt
 distance_map = distance_transform_edt(~grid_expanded)
 
-PAMI_on = [1,0,0,0,0,0]
-PAMI_co_depart = [[2900,2900],[],[],[],[],[]]
-PAMI_co_consigne = [[1500,1000],[],[],[],[],[]]
-PAMI_trajectoire = [[],[],[],[],[],[]]
-PAMI_ordre_mouv = [0,0,0,0,0,0]
 ################## Fonction Threads ##########################################
 
 def calcul_points(stop_event):
@@ -674,12 +668,6 @@ def update_display(background):
     
     # Redessiner uniquement les éléments qui changent
     ax.draw_artist(robot_plot)
-    ax.draw_artist(PAMI1_plot)
-    ax.draw_artist(PAMI2_plot)
-    ax.draw_artist(PAMI3_plot)
-    ax.draw_artist(PAMI4_plot)
-    ax.draw_artist(PAMI5_plot)
-    ax.draw_artist(PAMI6_plot)
     ax.draw_artist(ennemi_plot)
     ax.draw_artist(scat)
     ax.draw_artist(robot_info_text)
@@ -805,7 +793,8 @@ if __name__ == '__main__':
 
     stop_event = threading.Event()
 
-    fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,PAMI1_plot,PAMI2_plot,PAMI3_plot,PAMI4_plot,PAMI5_plot,PAMI6_plot = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
+    fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
+
     cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
     bouton_stop.on_clicked(partial(arret_programme, stop_event=stop_event))
     bouton_start.on_clicked(demarrage_strategie)  # ⭐ Connexion du bouton START ⭐
@@ -968,21 +957,26 @@ if __name__ == '__main__':
                 print("Appeler Pince N°",pince_a_utilise," pour ",action_voulu," les Noisettes ",noisette_a_manipulee)
             #####################################
 
+            # ====== Bouger si Robot dans Zone interdite pour Attraper et Relacher === #
             if len(Liste_actions)>2:
                 if (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper"]) or Liste_actions[1][0] in ["Attraper"] or action_voulu in ["Attraper"] or (action_precedente in ["Relacher"] and action_voulu in ["Reculer"]):
                     mode_attraper = True
                 else : 
                     mode_attraper = False
             print("mode_attraper : ",mode_attraper)
-            if temps_restant <= temps_retour:
+            # ======================================================================== #
+
+            # === Retour au Nid au bout d'un certains temps === #
+            if temps_restant <= temps_retour and not reset_fin:
                 Liste_actions.clear() 
-                Liste_actions = [["Consigne",int(x_robot_depart),int(y_robot_depart)],["Rotation",-90]]
-            
+                Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour)],["Rotation",angle_robot_retour]]
+                print(Liste_actions)
+                reset_fin = True
+            # ================================================= #
     
             distance_robot_ennemi = math.sqrt((x_ennemi - x_robot_actuel)**2 + (y_ennemi - y_robot_actuel)**2)
             angle_ennemi = np.degrees(math.atan2(y_ennemi-y_ennemi_old,x_ennemi-x_ennemi_old))
             mouvement_ennemi = math.sqrt((x_ennemi - x_ennemi_old)**2 + (y_ennemi - y_ennemi_old)**2)
-            # Détection besoin de recalculer la trajectoire car point suivant dans zone ennemi
 
             if Astars:
                 if verifier_segments_trajectoire_ennemi(Liste_actions,x_ennemi, y_ennemi,R_securite, MARGE_TRAJECTOIRE,x_robot_actuel, y_robot_actuel):
@@ -993,8 +987,6 @@ if __name__ == '__main__':
                     for action in Liste_actions:
                         if action[0] in ["Consigne","Avancer","Reculer"]:
                             distance_point_ennemi = math.sqrt((action[1] - x_ennemi)**2 + (action[2] - y_ennemi)**2)
-                            # ⭐ UTILISER LE MÊME RAYON
-                            #  QUE LA GRILLE
                             rayon_detection = (R_securite + MARGE_TRAJECTOIRE)  # Marge de sécurité supplémentaire
                             if distance_point_ennemi <= rayon_detection:
                                 if Debug_Mouv:
@@ -1027,6 +1019,18 @@ if __name__ == '__main__':
                         DISTANCE_AJUSTABLE,
                         affichage_ax=ax
                     )
+                    # 10. AFFICHER (OPTIONNEL)
+                    if ax is not None:
+                        # Supprimer anciennes trajectoires
+                        for line in ax.lines[:]:
+                            if line.get_label() in ['Chemin A*', 'A* brut']:
+                                line.remove()
+                        
+                        # Tracer nouvelle trajectoire
+                        x_plot = [p[0] for p in points_bruts]
+                        y_plot = [p[1] for p in points_bruts]
+                        ax.plot(x_plot, y_plot, 'g-', linewidth=2, label='Chemin A*', 
+                                        marker='o', markersize=4, zorder=10)
                     
                     if points_bruts is not None:
                         if Debug_Mouv:
@@ -1034,7 +1038,6 @@ if __name__ == '__main__':
                         Liste_actions = [action for action in Liste_actions if not (isinstance(action, list) 
                                             and len(action) >= 2 and action[0] == "Avancer")]
                         # ⭐ AJOUT DES POINTS DANS Liste_actions
-                        print(points_bruts)
 
                         if len(points_bruts) >2:
                             for i in range(len(points_bruts)-1, 0, -1):
@@ -1044,7 +1047,6 @@ if __name__ == '__main__':
                         else :
                             distance_robot_consigne = math.sqrt((x_robot_actuel - points_bruts[1][0])**2 + (y_robot_actuel - points_bruts[1][1])**2)
                             angle_robot_consigne = math.atan2(y_robot_actuel - points_bruts[1][1],x_robot_actuel - points_bruts[1][0])
-                            print(np.degrees(angle_robot_consigne))
                             if distance_robot_consigne > 120:
                                 print("Point trop loin")
                                 x_nouveau = points_bruts[1][0] + 100*math.cos(angle_robot_consigne)
@@ -1063,7 +1065,8 @@ if __name__ == '__main__':
                         else:
                             if Debug_Mouv:
                                 print("CHEMIN INACCESSIBLE")
-            
+
+
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer"]:
                 action_voulu = Liste_actions[0][0]
                 x_robot_voulu = Liste_actions[0][1] 
@@ -1166,8 +1169,7 @@ if __name__ == '__main__':
                 dico_envoi[0x502+pince_a_utilise]=noisette_a_manipulee
             ################################################
             
-            ##### Simulation Mouvement Robot 
-            
+            ##### Simulation Mouvement Robot
             if not Reel: 
                 print(Noisettes_stockees_dans_robot)
                 if Simul_mvt :
@@ -1493,7 +1495,6 @@ if __name__ == '__main__':
                                             alpha=0.7, linewidth=2
                                         )
 
-
             ############## MISE À JOUR AFFICHAGE ################
             # Mettre à jour robot, ennemi et consigne sur affichage
             robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
@@ -1541,37 +1542,6 @@ if __name__ == '__main__':
             else :
                 robot_angle_voulu_line.set_data([-20, -20], [-40, -40])
 
-            for num_pami in range(len(PAMI_on)):
-                if PAMI_on[num_pami]==1:
-                    x_pami = PAMI_co_depart[num_pami][0]
-                    y_pami = PAMI_co_depart[num_pami][1]
-                    if num_pami == 0:
-                        print(f"PAMI {num_pami+1}: ({x_pami}, {y_pami})")
-                        PAMI1_plot.set_offsets([[x_pami, y_pami]])  # ⭐ Double crochets
-                    elif num_pami == 1:
-                        PAMI2_plot.set_offsets([[x_pami, y_pami]])
-                    elif num_pami == 2:
-                        PAMI3_plot.set_offsets([[x_pami, y_pami]])
-                    elif num_pami == 3:
-                        PAMI4_plot.set_offsets([[x_pami, y_pami]])
-                    elif num_pami == 4:
-                        PAMI5_plot.set_offsets([[x_pami, y_pami]])
-                    elif num_pami == 5:
-                        PAMI6_plot.set_offsets([[x_pami, y_pami]])
-                else:
-                    # Masquer le PAMI s'il est désactivé
-                    if num_pami == 0:
-                        PAMI1_plot.set_offsets([[-100, -100]])
-                    elif num_pami == 1:
-                        PAMI2_plot.set_offsets([[-100, -100]])
-                    elif num_pami == 2:
-                        PAMI3_plot.set_offsets([[-100, -100]])
-                    elif num_pami == 3:
-                        PAMI4_plot.set_offsets([[-100, -100]])
-                    elif num_pami == 4:
-                        PAMI5_plot.set_offsets([[-100, -100]])
-                    elif num_pami == 5:
-                        PAMI6_plot.set_offsets([[-100, -100]])
             ################################################
             
             
@@ -1764,7 +1734,6 @@ if __name__ == '__main__':
                 update_display(background)
                 compteur_affichage = 0
             fig.canvas.flush_events()
-            fig.canvas.draw_idle()
             x_robot_voulu_last = x_robot_voulu
             y_robot_voulu_last = y_robot_voulu
             x_ennemi_old = x_ennemi
