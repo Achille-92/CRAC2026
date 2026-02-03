@@ -4,13 +4,13 @@ Reel = False
 
 Strategie = False
 Astars = True
-Simul_mvt = True
-Simul_action = True
+Simul_mvt = False
+Simul_action = False
 Simul_mvt_ennemi = False
 Lidar_on = False
 Bat_Compet = False
 Debug_Mouv = False
-Mode_pince = False
+Mode_pince = True
 lancement_cartes = False
 ################## Librairies ##########################################
 import matplotlib
@@ -204,12 +204,14 @@ Liste_noisette_xya = [
 
     [1025,175,90,"B"],[1075,175,90,"B"],[1125,175,90,"J"],[1175,175,90,"J"],
     [1825,175,90,"B"],[1875,175,90,"J"],[1925,175,90,"B"],[1975,175,90,"J"],
+
+    [1500,650,90,"B"],[1450,650,90,"B"],
 ] 
 
 Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
 
 
-Liste_zones_recup_noisettes_xy = [((175,1300+R_ROBOT+2*MARGE_NOISETTE),(175,1100-R_ROBOT-2*MARGE_NOISETTE)),
+Liste_noisettes_recup_xy = [((175,1300+R_ROBOT+2*MARGE_NOISETTE),(175,1100-R_ROBOT-2*MARGE_NOISETTE)),
                                   ((175,500+R_ROBOT+2*MARGE_NOISETTE),(175,300-R_ROBOT-2*MARGE_NOISETTE)),
                                   ((2825,1300+R_ROBOT+2*MARGE_NOISETTE),(2825,1100-R_ROBOT-2*MARGE_NOISETTE)),
                                   ((2825,500+R_ROBOT+2*MARGE_NOISETTE),(2825,300-R_ROBOT-2*MARGE_NOISETTE)),
@@ -218,7 +220,7 @@ Liste_zones_recup_noisettes_xy = [((175,1300+R_ROBOT+2*MARGE_NOISETTE),(175,1100
                                   ((1000-R_ROBOT-2*MARGE_NOISETTE,175),(1200+R_ROBOT+2*MARGE_NOISETTE,175)),
                                   ((1800-R_ROBOT-2*MARGE_NOISETTE,175),(2000+R_ROBOT+2*MARGE_NOISETTE,175)),]
 
-Liste_zones_recup_noisettes_angle = [(-90,90),
+Liste_noisettes_recup_angle = [(-90,90),
                                      (-90,90),
                                      (-90,90),
                                      (-90,90),
@@ -227,7 +229,7 @@ Liste_zones_recup_noisettes_angle = [(-90,90),
                                      (0,180),
                                      (0,180),]
 
-Liste_zones_gm_xy = [((1150-R_ROBOT-2*MARGE_GM,1450),(1250,1350-R_ROBOT-2*MARGE_GM)),
+Liste_gm_recup_xy = [((1150-R_ROBOT-2*MARGE_GM,1450),(1250,1350-R_ROBOT-2*MARGE_GM)),
                      ((1750,1350-R_ROBOT-2*MARGE_GM),(1850+R_ROBOT+2*MARGE_GM,1450),),
                      (200+R_ROBOT+2*MARGE_GM,800),
                      ((800,900+R_ROBOT+2*MARGE_GM),(800,700-R_ROBOT-2*MARGE_GM),(700-R_ROBOT-2*MARGE_GM,800),(900+R_ROBOT+2*MARGE_GM,800)),
@@ -238,7 +240,7 @@ Liste_zones_gm_xy = [((1150-R_ROBOT-2*MARGE_GM,1450),(1250,1350-R_ROBOT-2*MARGE_
                      (1500,200+R_ROBOT+2*MARGE_GM),
                      (2300,200+R_ROBOT+2*MARGE_GM)]
 
-Liste_zones_gm_angle = [(0,90),
+Liste_gm_recup_angle = [(0,90),
                         (90,180),
                         180,
                         (-90,90,0,180),
@@ -248,6 +250,22 @@ Liste_zones_gm_angle = [(0,90),
                         -90,
                         -90,
                         -90]
+
+Liste_zones_gm_coins = [
+    [[1150,1350],[1350,1550]],
+    [[1650,1350],[1850,1550]],
+
+    [[0,700],[200,900]],
+    [[700,700],[900,900]],
+    [[1400,700],[1600,900]],
+    [[2100,700],[2300,900]],
+    [[2800,700],[3000,900]],
+
+    [[600,0],[800,200]],
+    [[1400,0],[1600,200]],
+    [[2200,0],[2400,200]],
+]
+
 ###########################################
 
 # Lidar
@@ -817,6 +835,44 @@ if __name__ == '__main__':
                 
                 # Forcer le recalcul de trajectoire
                 demande_recalcul_traj = True
+
+            Liste_Noisettes_dans_GM = []
+            for Noisette in Liste_noisette_xya:
+                x_centre, y_centre, angle = Noisette[0], Noisette[1], Noisette[2]
+    
+                # Dimensions
+                longueur = 150  # mm (dans la direction de l'angle)
+                largeur = 50    # mm (perpendiculaire à l'angle)
+                
+                # Conversion angle en radians
+                angle_rad = math.radians(angle)
+                
+                # Vecteurs directeurs
+                dx_long = (longueur / 2) * math.cos(angle_rad)
+                dy_long = (longueur / 2) * math.sin(angle_rad)
+                dx_larg = (largeur / 2) * math.sin(angle_rad)  # Perpendiculaire = rotation de 90°
+                dy_larg = -(largeur / 2) * math.cos(angle_rad)
+                
+                # Calcul des 4 coins (sens trigonométrique depuis le centre)
+                Noisette_coin_hg = (x_centre - dx_long - dx_larg, y_centre - dy_long - dy_larg)  # Haut-Gauche
+                Noisette_coin_hd = (x_centre + dx_long - dx_larg, y_centre + dy_long - dy_larg)  # Haut-Droite
+                Noisette_coin_bd = (x_centre + dx_long + dx_larg, y_centre + dy_long + dy_larg)  # Bas-Droite
+                Noisette_coin_bg = (x_centre - dx_long + dx_larg, y_centre - dy_long + dy_larg)  # Bas-Gauche
+    
+                 # Vérifier si AU MOINS UN coin est dans une zone GM
+                for num_gm in range(len(Liste_zones_gm_coins)):
+                    zone = Liste_zones_gm_coins[num_gm]
+                    x_min, y_min = zone[0]
+                    x_max, y_max = zone[1]
+                    
+                    # Liste des 4 coins
+                    coins = [Noisette_coin_hg, Noisette_coin_hd, Noisette_coin_bd, Noisette_coin_bg]
+                    
+                    # Vérifier si au moins un coin est dans la zone
+                    if any(x_min <= coin[0] <= x_max and y_min <= coin[1] <= y_max for coin in coins):
+                        Liste_Noisettes_dans_GM.append(Noisette)
+                        break  # Sortir dès qu'une zone est trouvée
+            print("Liste_Noisettes_dans_GM : ",Liste_Noisettes_dans_GM)      
             # ================================================================================================= #
             
             
