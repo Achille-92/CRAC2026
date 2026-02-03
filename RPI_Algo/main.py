@@ -769,8 +769,7 @@ if __name__ == '__main__':
             temps_restant = temps_max - temps_ecoules
 
             step +=1
-            if Debug_Mouv:
-                print("step :",step)
+            print("step :",step)
             if Astars:
                 grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, 
                             obs_manager, obs_manager_noisettes,
@@ -878,8 +877,16 @@ if __name__ == '__main__':
             
             # ============ Prise de décision ========== #
             # ========================================= #
+            
+            # === Retour au Nid au bout d'un certains temps === #
+            if temps_restant <= temps_retour and not reset_fin:
+                Liste_actions.clear() 
+                Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour)],["Rotation",angle_robot_retour]]
+                print(Liste_actions)
+                reset_fin = True
+            # ================================================= #
 
-            # Lire l'action courante
+            # ========== Lire l'action courante =============== #
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer"]:
                 action_voulu = Liste_actions[0][0]
                 x_robot_voulu = Liste_actions[0][1] 
@@ -898,29 +905,22 @@ if __name__ == '__main__':
                 pince_a_utilise = Liste_actions[0][1]
                 noisette_a_manipulee = Liste_actions[0][2]
                 print("Appeler Pince N°",pince_a_utilise," pour ",action_voulu," les Noisettes ",noisette_a_manipulee)
-            #####################################
+            # ================================================= #
 
             # ====== Bouger si Robot dans Zone interdite pour Attraper et Relacher === #
             if len(Liste_actions)>2:
-                if (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper"]) or Liste_actions[1][0] in ["Attraper"] or action_voulu in ["Attraper"] or (action_precedente in ["Relacher"] and action_voulu in ["Reculer"]):
+                if (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper"]) or Liste_actions[1][0] in ["Attraper"] or action_voulu in ["Attraper"] or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","Avancer","Reculer"]):
                     mode_attraper = True
                 else : 
                     mode_attraper = False
             print("mode_attraper : ",mode_attraper)
             # ======================================================================== #
 
-            # === Retour au Nid au bout d'un certains temps === #
-            if temps_restant <= temps_retour and not reset_fin:
-                Liste_actions.clear() 
-                Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour)],["Rotation",angle_robot_retour]]
-                print(Liste_actions)
-                reset_fin = True
-            # ================================================= #
-    
             distance_robot_ennemi = math.sqrt((x_ennemi - x_robot_actuel)**2 + (y_ennemi - y_robot_actuel)**2)
             angle_ennemi = np.degrees(math.atan2(y_ennemi-y_ennemi_old,x_ennemi-x_ennemi_old))
             mouvement_ennemi = math.sqrt((x_ennemi - x_ennemi_old)**2 + (y_ennemi - y_ennemi_old)**2)
 
+            # =========== Détection demande_recalcul_traj ============= #
             if Astars:
                 if verifier_segments_trajectoire_ennemi(Liste_actions,x_ennemi, y_ennemi,R_securite, MARGE_TRAJECTOIRE,x_robot_actuel, y_robot_actuel):
                     demande_recalcul_traj = True
@@ -938,8 +938,9 @@ if __name__ == '__main__':
                                 break
             if Debug_Mouv:
                 print("demande_recalcul_traj : ",demande_recalcul_traj)
+            # ======================================================================== #
 
-            # === CALCUL DE LA TRAJECTOIRE A* ===
+            # ======================== CALCUL DE LA TRAJECTOIRE A* =================== #
             if Astars: 
                 # === CALCUL DE LA TRAJECTOIRE A* ===
                 if (action_voulu in ["Consigne","Reculer"] or demande_recalcul_traj == True) and not mode_attraper:
@@ -1009,21 +1010,29 @@ if __name__ == '__main__':
                             if Debug_Mouv:
                                 print("CHEMIN INACCESSIBLE")
 
+            # ======================================================================== #
 
+
+            # ========== Lire l'action courante =============== #
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer"]:
                 action_voulu = Liste_actions[0][0]
                 x_robot_voulu = Liste_actions[0][1] 
                 y_robot_voulu = Liste_actions[0][2]
                 angle_robot_voulu = -181
+
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Recalage X","Recalage Y"]:
+                action_voulu = Liste_actions[0][0]
                 
-            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2: # Si la consigne est un angle
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
                 action_voulu = Liste_actions[0][0]
                 angle_robot_voulu = round(Liste_actions[0][1],0)
-                    
+                
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Attraper","Retourner","Relacher"]:
                 action_voulu = Liste_actions[0][0]
                 pince_a_utilise = Liste_actions[0][1]
                 noisette_a_manipulee = Liste_actions[0][2]
+                print("Appeler Pince N°",pince_a_utilise," pour ",action_voulu," les Noisettes ",noisette_a_manipulee)
+            # ================================================= #
                 
             
             if (distance_robot_ennemi < R_securite-MARGE_TRAJECTOIRE) or Astars_a_fail:
@@ -1054,18 +1063,18 @@ if __name__ == '__main__':
 
             # ========== MISE À JOUR AUTOMATIQUE DE Liste_trajectoire ==========
             # Trouver la première rotation (s'il y en a une)
-            index_rotation = None
+            index_prochain_stop = None
             for i, action in enumerate(Liste_actions):
                 if isinstance(action, list) and action[0] in ["Rotation"]:
-                    index_rotation = i
+                    index_prochain_stop = i
                     break
 
             # Extraire TOUS les points "Avancer" ou "Consigne"
-            if index_rotation is not None:
+            if index_prochain_stop is not None:
                 points_avancer = [
                     [int(action[1]), int(action[2])] 
                     for i, action in enumerate(Liste_actions)
-                    if i < index_rotation
+                    if i < index_prochain_stop
                     and isinstance(action, list) 
                     and len(action) >= 3 
                     and action[0] in ["Avancer", "Consigne","Reculer"]
@@ -1095,13 +1104,13 @@ if __name__ == '__main__':
             if Debug_Mouv:
                 print("Liste_trajectoire : ",Liste_trajectoire)
                 print("Ordre Mouvement : ",ordre_mouvement) 
-            # ====================================================================
+            # ==================================================================== #
 
-            # Envoi des Ordres de Consigne de Rotation à la Carte Moteur
+            # ==== Envoi des Ordres de Consigne de Rotation à la Carte Asserv ==== #
             dico_envoi[0x205] = angle_robot_voulu+360
-            ################################################
+            # ==================================================================== #
 
-            # Envoi des Ordres de Manipulation des Noisettes à la Carte Actionneur
+            # Envoi des Ordres de Manipulation des Noisettes à la Carte Actionneur #
             if action_voulu in ["Attraper","Retourner","Relacher"]:
                 if action_voulu in ["Attraper"]:
                     dico_envoi[0x500+pince_a_utilise]=1
@@ -1110,9 +1119,9 @@ if __name__ == '__main__':
                 elif action_voulu in ["Relacher"]:
                     dico_envoi[0x500+pince_a_utilise]=3
                 dico_envoi[0x502+pince_a_utilise]=noisette_a_manipulee
-            ################################################
+            # ==================================================================== #
             
-            ##### Simulation Mouvement Robot
+            # ================== Simulation Mouvement Robot ====================== #
             if not Reel: 
                 print(Noisettes_stockees_dans_robot)
                 if Simul_mvt:
@@ -1411,6 +1420,8 @@ if __name__ == '__main__':
                                     Liste_noisette_xya.append([x_noisette_4,y_noisette_4,angle_noisette_4,Noisettes_stockees_dans_robot[1][1]])
                                     Noisettes_stockees_dans_robot= [["N","N"],["N","N"]]
                                     changement_noisettes_detecte = True
+            
+            # ==================================================================== #
 
             if changement_noisettes_detecte:
                 changement_noisettes_detecte = False
@@ -1434,19 +1445,19 @@ if __name__ == '__main__':
                     alpha=0.7, linewidth=2
                 )
 
-            ############## MISE À JOUR AFFICHAGE ################
+            # ============== MISE À JOUR AFFICHAGE ==================== #
+
             # Mettre à jour robot, ennemi et consigne sur affichage
             robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
             cercle_robot_patch.center = (x_robot_actuel, y_robot_actuel)
             
-            # 🔄 Mettre à jour la zone de sécurité dynamique de l'ennemi
+            # Mettre à jour la zone de sécurité dynamique de l'ennemi
             zone_ennemi_scatter, cercle_ennemi_patch = mettre_a_jour_zone_ennemi(
                 zone_ennemi_scatter, cercle_ennemi_patch,
                 x_ennemi, y_ennemi, R_ROBOT, R_ENNEMI,
                 MARGE_ENNEMI, CASE_MM,
                 X_PISTE, Y_PISTE
             )
-            
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
             if Astars:
                 if (action_voulu in ["Consigne","Avancer","Reculer"]):
@@ -1481,10 +1492,39 @@ if __name__ == '__main__':
             else :
                 robot_angle_voulu_line.set_data([-20, -20], [-40, -40])
 
-            ################################################
+            
+            # Affichage texte Coordonées
+            chronometre_text.set_text(f"Temps : {int(temps_restant)} s\nAction : {action_voulu}")
+
+            info_alim_rpi.set_text(f"V_rpi = {V_rpi:.1f} V\nI_rpi = {I_rpi:.1f} mA")
+
+            robot_info_text.set_text(f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°")
+            x_voulu_text.set_text(f"X = {x_robot_voulu:.1f}")
+            y_voulu_text.set_text(f"Y = {y_robot_voulu:.1f}")
+            A_voulu_text.set_text(f"A = {angle_robot_voulu:.1f}°")
+
+            if(abs(x_robot_actuel-x_robot_voulu)>=TOL_POS_X):
+                x_voulu_text.set_color('black')
+            else:
+                x_voulu_text.set_color('green')
+            if(abs(y_robot_actuel-y_robot_voulu)>=TOL_POS_Y):
+                y_voulu_text.set_color('black')
+            else:
+                y_voulu_text.set_color('green') 
+            if(abs(angle_robot_actuel-angle_robot_voulu)>=TOL_POS_A):
+                A_voulu_text.set_color('black')
+            else:
+                A_voulu_text.set_color('green')
+
+            if V_rpi >= lim_Bat_RPI+0.3:
+                info_alim_rpi.set_color('black')
+            else:
+                info_alim_rpi.set_color('red')
+            
+            # ==================================================================== #
             
             
-            # === GESTION BATTERIES avec les fonctions ===
+            # ======================= GESTION BATTERIES ========================== #
             if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             
@@ -1514,35 +1554,8 @@ if __name__ == '__main__':
                 dico_envoi[0x303]=1
             else:
                 dico_envoi[0x303]=2
-            #######################################
+            # ==================================================================== #
             
-            # Affichage texte Coordonées
-            chronometre_text.set_text(f"Temps : {int(temps_restant)} s\nAction : {action_voulu}")
-
-            info_alim_rpi.set_text(f"V_rpi = {V_rpi:.1f} V\nI_rpi = {I_rpi:.1f} mA")
-
-            robot_info_text.set_text(f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°")
-            x_voulu_text.set_text(f"X = {x_robot_voulu:.1f}")
-            y_voulu_text.set_text(f"Y = {y_robot_voulu:.1f}")
-            A_voulu_text.set_text(f"A = {angle_robot_voulu:.1f}°")
-
-            if(abs(x_robot_actuel-x_robot_voulu)>=TOL_POS_X):
-                x_voulu_text.set_color('black')
-            else:
-                x_voulu_text.set_color('green')
-            if(abs(y_robot_actuel-y_robot_voulu)>=TOL_POS_Y):
-                y_voulu_text.set_color('black')
-            else:
-                y_voulu_text.set_color('green') 
-            if(abs(angle_robot_actuel-angle_robot_voulu)>=TOL_POS_A):
-                A_voulu_text.set_color('black')
-            else:
-                A_voulu_text.set_color('green')
-
-            if V_rpi >= lim_Bat_RPI+0.3:
-                info_alim_rpi.set_color('black')
-            else:
-                info_alim_rpi.set_color('red')
 
             # Si robot est à la position de consigne  
             if not Reel :
@@ -1561,6 +1574,8 @@ if __name__ == '__main__':
                         if(len(Liste_actions_ennemi)!=1):
                             Liste_actions_ennemi.pop(0)
             
+            
+            # ================= Envoi des accusés de réception ======================== #
             if verif_mouv == 1:
                 dico_envoi[0x207]=2
                 if Reel:
@@ -1604,6 +1619,7 @@ if __name__ == '__main__':
                 dico_envoi[0x504+pince_a_utilise]=2
             else :
                 dico_envoi[0x504+pince_a_utilise]=1
+            # ==================================================================== #
             
             if Debug_Mouv:
                 print("verif_mouv : ",verif_mouv)
@@ -1615,6 +1631,8 @@ if __name__ == '__main__':
             print("verif_action : ",verif_action)
             print("ack action : ",dico_envoi[0x504+pince_a_utilise])
             print("action_precedente",action_precedente)
+
+            
             if not action_est_supprime:
                 if (action_voulu in ["Consigne","Avancer","Reculer"] and verif_mouv == 1) or \
                 (action_voulu in ["Rotation"] and verif_angle == 1) or \
