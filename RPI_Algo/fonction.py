@@ -786,3 +786,19 @@ def detecter_changements_noisettes(liste_actuelle, liste_precedente):
             return True
     
     return False
+
+
+def distance(n1, n2):
+    """Calcule la distance entre les centres de deux noisettes"""
+    return math.sqrt((n1[0] - n2[0])**2 + (n1[1] - n2[1])**2)
+
+def sont_paralleles(n1, n2, tolerance=5):
+    """Vérifie si deux noisettes sont parallèles (tolérance en degrés)"""
+    diff_angle = abs(n1[2] - n2[2])
+    # Gérer le cas où les angles sont proches de 0/360
+    diff_angle = min(diff_angle, 360 - diff_angle)
+    return diff_angle <= tolerance
+
+def peuvent_etre_groupees(n1, n2):
+    """Vérifie si deux noisettes peuvent être regroupées"""
+    return sont_paralleles(n1, n2) and distance(n1, n2) <= 60

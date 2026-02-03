@@ -3,14 +3,14 @@ couleur = "B"
 Reel = False
 
 Strategie = False
-Astars = False
+Astars = True
 Simul_mvt = True
 Simul_action = True
 Simul_mvt_ennemi = False
 Lidar_on = False
 Bat_Compet = False
 Debug_Mouv = False
-Mode_pince = True
+Mode_pince = False
 lancement_cartes = False
 ################## Librairies ##########################################
 import matplotlib
@@ -18,7 +18,7 @@ matplotlib.use('Qt5Agg')
 from rplidar import RPLidar
 import math,time,os,can,struct
 import numpy as np
-import threading, queue
+import threading
 from collections import deque 
 import matplotlib.pyplot as plt
 from functools import partial
@@ -26,7 +26,8 @@ from matplotlib.widgets import Button
 from scipy.ndimage import binary_dilation
 from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes
 from calcul_mouv import  calculer_trajectoire_complete,actualiser_zones_jeu,verifier_segments_trajectoire_ennemi
-from fonction import Obstacles,associer_noisette_a_emplacement,detecter_changements_noisettes
+from fonction import Obstacles,associer_noisette_a_emplacement,detecter_changements_noisettes, distance
+from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper_par_quatre
 ########################################################################
 
 # Config CAN 
@@ -66,8 +67,8 @@ if not Astars:
             ["Avancer",2550,1000],
             ["Avancer",2800,890],
 
-            ["Recalage X"],
-            ["Reculer",2800,890],
+            #["Recalage X"],
+            #["Reculer",2800,890],
 
             ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
             ["Rotation",90],
@@ -124,16 +125,16 @@ if not Astars:
 
             ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
             ["Rotation",90],
-            ["Attraper",0,2],
+            ["Attraper",0,12],
             ["Rotation",-90],
             ["Reculer",2825,1250-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
             ["Attraper",1,12],
-            ["Retourner",0,2],
+            ["Retourner",1,12],
             ["Reculer",2725,1750],
             ["Relacher",1,12],
             ["Consigne",2725,1600],
             ["Rotation",90],
-            ["Relacher",0,2],
+            ["Relacher",0,12],
             ["Reculer",2725,1450],
 
             ["Avancer",1920,1170],
@@ -659,109 +660,6 @@ def update_display(background):
     fig.canvas.blit(ax.bbox)
     fig.canvas.flush_events()
 
-def distance(n1, n2):
-    """Calcule la distance entre les centres de deux noisettes"""
-    return math.sqrt((n1[0] - n2[0])**2 + (n1[1] - n2[1])**2)
-
-def sont_paralleles(n1, n2, tolerance=5):
-    """Vérifie si deux noisettes sont parallèles (tolérance en degrés)"""
-    diff_angle = abs(n1[2] - n2[2])
-    # Gérer le cas où les angles sont proches de 0/360
-    diff_angle = min(diff_angle, 360 - diff_angle)
-    return diff_angle <= tolerance
-
-def peuvent_etre_groupees(n1, n2):
-    """Vérifie si deux noisettes peuvent être regroupées"""
-    return sont_paralleles(n1, n2) and distance(n1, n2) <= 60
-
-def trouver_groupes_initiaux(noisettes):
-    """Trouve tous les groupes de noisettes connectées"""
-    n = len(noisettes)
-    adjacence = [[] for _ in range(n)]
-    
-    # Construire le graphe d'adjacence
-    for i in range(n):
-        for j in range(i + 1, n):
-            if peuvent_etre_groupees(noisettes[i], noisettes[j]):
-                adjacence[i].append(j)
-                adjacence[j].append(i)
-    
-    # Trouver les composantes connexes
-    visite = [False] * n
-    groupes = []
-    
-    for i in range(n):
-        if not visite[i]:
-            groupe = []
-            pile = [i]
-            while pile:
-                noeud = pile.pop()
-                if not visite[noeud]:
-                    visite[noeud] = True
-                    groupe.append(noeud)
-                    pile.extend(adjacence[noeud])
-            groupes.append(sorted(groupe))
-    
-    return groupes, adjacence
-
-def separer_groupe(groupe_indices, noisettes, adjacence):
-    """Sépare un groupe en paires et noisettes seules selon les règles"""
-    if len(groupe_indices) == 1:
-        return [[groupe_indices[0]]]
-    
-    if len(groupe_indices) == 2:
-        return [groupe_indices]
-    
-    # Pour les groupes de 3 ou plus, on utilise une approche gloutonne
-    # On forme des paires en priorisant les noisettes avec le moins de voisins
-    indices_restants = set(groupe_indices)
-    paires = []
-    
-    while len(indices_restants) >= 2:
-        # Trouver la noisette avec le moins de voisins non appariés
-        min_voisins = float('inf')
-        noisette_depart = None
-        
-        for idx in indices_restants:
-            voisins_disponibles = [v for v in adjacence[idx] if v in indices_restants and v != idx]
-            if len(voisins_disponibles) < min_voisins:
-                min_voisins = len(voisins_disponibles)
-                noisette_depart = idx
-        
-        # Trouver le voisin le plus proche
-        voisins_disponibles = [v for v in adjacence[noisette_depart] if v in indices_restants and v != noisette_depart]
-        
-        if voisins_disponibles:
-            # Choisir le voisin le plus proche
-            voisin_choisi = min(voisins_disponibles, 
-                               key=lambda v: distance(noisettes[noisette_depart], noisettes[v]))
-            paires.append([noisette_depart, voisin_choisi])
-            indices_restants.remove(noisette_depart)
-            indices_restants.remove(voisin_choisi)
-        else:
-            # Pas de voisin disponible, mettre seul
-            paires.append([noisette_depart])
-            indices_restants.remove(noisette_depart)
-    
-    # Ajouter les noisettes restantes seules
-    for idx in indices_restants:
-        paires.append([idx])
-    
-    return paires
-
-def regrouper_par_quatre(groupe_indices, noisettes):
-    """Regroupe les noisettes en groupes de 4 maximum"""
-    groupes_de_quatre = []
-    
-    # Trier les indices par position pour un regroupement cohérent
-    indices_tries = sorted(groupe_indices, key=lambda i: (noisettes[i][0], noisettes[i][1]))
-    
-    # Créer des groupes de 4
-    for i in range(0, len(indices_tries), 4):
-        groupe = indices_tries[i:i+4]
-        groupes_de_quatre.append(groupe)
-    
-    return groupes_de_quatre
 
 
 ########################################################################
