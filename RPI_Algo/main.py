@@ -3,14 +3,14 @@ couleur = "B"
 Reel = False
 
 Strategie = False
-Astars = True
-Simul_mvt = False
-Simul_action = False
+Astars = False
+Simul_mvt = True
+Simul_action = True
 Simul_mvt_ennemi = False
 Lidar_on = False
 Bat_Compet = False
 Debug_Mouv = False
-Mode_pince = True
+Mode_pince = False
 lancement_cartes = False
 ################## Librairies ##########################################
 import matplotlib
@@ -205,7 +205,6 @@ Liste_noisette_xya = [
     [1025,175,90,"B"],[1075,175,90,"B"],[1125,175,90,"J"],[1175,175,90,"J"],
     [1825,175,90,"B"],[1875,175,90,"J"],[1925,175,90,"B"],[1975,175,90,"J"],
 
-    [1500,650,90,"B"],[1450,650,90,"B"],
 ] 
 
 Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
@@ -1012,7 +1011,7 @@ if __name__ == '__main__':
 
             # ======================================================================== #
 
-
+            
             # ========== Lire l'action courante =============== #
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer"]:
                 action_voulu = Liste_actions[0][0]
@@ -1254,8 +1253,6 @@ if __name__ == '__main__':
                                                 Liste_noisette_xya.remove(coupleNoisette[0])
                                                 Noisettes_stockees_dans_robot[pince_a_utilise][0] = coupleNoisette[0][3]
                                                 changement_noisettes_detecte = True
-
-
 
 
                         if (action_voulu in ["Retourner"]):
@@ -1632,7 +1629,7 @@ if __name__ == '__main__':
             print("ack action : ",dico_envoi[0x504+pince_a_utilise])
             print("action_precedente",action_precedente)
 
-            
+
             if not action_est_supprime:
                 if (action_voulu in ["Consigne","Avancer","Reculer"] and verif_mouv == 1) or \
                 (action_voulu in ["Rotation"] and verif_angle == 1) or \
