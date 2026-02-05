@@ -12,14 +12,15 @@ class Config:
     ajout_horizontal_mm: float = 550.0  # Marge à gauche et à droite
     ajout_vertical_mm: float = 550.0    # Marge en haut et en bas
     tag_taille_mm: float = 100.0           # Tags de référence (20 à 23)
-    tag_taille_mm_Noisette: float = 40.0     # Tags mobiles (36, 47)
-    hauteur_Noisette_mm: float = 30.0      # Hauteur du plan élevé
+    tag_taille_mm_Noisette: float = 100.0     # Tags mobiles (36, 47)
+    hauteur_Noisette_mm: float = 510.0      # Hauteur du plan élevé
     hauteur_camera_mm: float = 1480.0     # Hauteur estimée de la caméra
-    camera_largeur: int = 1280             # Résolution de la caméra
-    camera_longueur: int = 720
+    camera_largeur: int = 1920             # Résolution de la caméra
+    camera_longueur: int = 1080
     tag_reference: Tuple[int, ...] = (20, 21, 22, 23)
-    tag_calibration: int = 5
-    tag_mobile: Tuple[int, ...] = (36, 47)
+    tag_calibration: int = 51
+    #tag_mobile: Tuple[int, ...] = (36, 47)
+    tag_mobile: Tuple[int, ...] = (0,0)
 
     @property
     def largeur_totale_mm(self) -> float:
@@ -45,7 +46,6 @@ class CalculHomographie:
     def position_tag_reference(self) -> Dict[int, np.ndarray]:
         """Renvoi un dictionnaire avec comme clé les N° des Tag de référence, et comme valeur les coordonnées (x,y) des coins extérieurs des Tag dans le plan de référence"""
         cfg = self.config
-        demi_taille = cfg.tag_taille_mm / 2
 
         # Coins extérieurs des tags de référence (basés sur les coins extérieurs des tags)
         positions = {
@@ -57,13 +57,19 @@ class CalculHomographie:
         return positions
 
     def position_tag_elevated(self) -> Dict[int, np.ndarray]:
+        """
+        Retourne les positions des centres des tags dans le plan surélevé.
+        Ces positions correspondent aux mêmes coordonnées que le plan de référence.
+        """
         cfg = self.config
-        demi_taille = cfg.tag_taille_mm / 2
+        
+        # Les positions dans le plan surélevé sont identiques au plan de référence
+        # (même système de coordonnées X,Y, seule la hauteur Z diffère)
         positions = {
-            22: np.array([demi_taille, demi_taille]),  # Coin supérieur droit
-            23: np.array([cfg.largeur_totale_mm - demi_taille, demi_taille]),  # Coin supérieur gauche
-            20: np.array([demi_taille, cfg.longueur_totale_mm - demi_taille]),  # Coin inférieur droit
-            21: np.array([cfg.largeur_totale_mm - demi_taille, cfg.longueur_totale_mm - demi_taille]),  # Coin inférieur gauche
+            22: np.array([0, 0]),  # Coin supérieur droit (origine)
+            23: np.array([cfg.tags_largeur_mm, 0]),  # Coin supérieur gauche
+            20: np.array([0, cfg.tags_longueur_mm]),  # Coin inférieur droit
+            21: np.array([cfg.tags_largeur_mm, cfg.tags_longueur_mm]),  # Coin inférieur gauche
         }
         return positions
 
@@ -151,6 +157,10 @@ class CalculHomographie:
         return False
 
     def calcul_homographie_elevated(self, calibration_points: Dict[int, np.ndarray]) -> bool:
+        """
+        Calcule l'homographie pour le plan surélevé à partir des 4 positions calibrées.
+        calibration_points contient les coins du tag 5 aux 4 positions (au-dessus des tags 20,21,22,23)
+        """
         if len(calibration_points) != 4:
             return False
 
@@ -159,10 +169,13 @@ class CalculHomographie:
         src_points = []
         dst_points = []
 
+        # Pour chaque position de calibration
         for tag_id in [20, 21, 22, 23]:
             if tag_id in calibration_points and tag_id in position_elevated:
+                # Calculer le centre du tag 5 dans l'image
                 centre_tag = np.mean(calibration_points[tag_id], axis=0)
                 src_points.append(centre_tag)
+                # Position correspondante dans le plan surélevé (mêmes coordonnées que plan ref)
                 dst_points.append(position_elevated[tag_id])
 
         if len(src_points) == 4:
@@ -248,7 +261,7 @@ class CorrectionParallaxe:
         return corrected
 
 class ArUcoDetector:
-    def __init__(self, dictionary_type=cv2.aruco.DICT_4X4_50):
+    def __init__(self, dictionary_type=cv2.aruco.DICT_4X4_100):
         self.aruco_dict = cv2.aruco.getPredefinedDictionary(dictionary_type)
         self.detecteur = cv2.aruco.ArucoDetector(self.aruco_dict)
 
@@ -331,7 +344,6 @@ class CalibrationMode:
 class ArUcoTrackingSystem:
     def __init__(self, config: Config, matrice_antidstorsion: Optional[str] = None):
         self.config = config
-        #self.pos_gm = pos_gm
         self.detecteur = ArUcoDetector()
         self.homographie = CalculHomographie(config)
         self.calibration_mode = CalibrationMode(config)
@@ -355,18 +367,9 @@ class ArUcoTrackingSystem:
             print(f"Impossible de charger la calibration: {e}")
 
     def undistort_image(self, image: np.ndarray) -> np.ndarray:
-        if hasattr(self, 'camera_matrix') and hasattr(self, 'dist_coeffs'):
-            return cv2.undistort(image, self.camera_matrix, self.dist_coeffs)
+        """if hasattr(self, 'camera_matrix') and hasattr(self, 'dist_coeffs'):
+            return cv2.undistort(image, self.camera_matrix, self.dist_coeffs)"""
         return image
-
-    """def is_point_in_zone_gm(self, point: np.ndarray, zone_gm: Tuple[Tuple[float, float], Tuple[float, float]]) -> bool:
-        coin1, coin2 = zone_gm
-        x_min = min(coin1[0], coin2[0])
-        x_max = max(coin1[0], coin2[0])
-        y_min = min(coin1[1], coin2[1])
-        y_max = max(coin1[1], coin2[1])
-        
-        return x_min <= point[0] <= x_max and y_min <= point[1] <= y_max"""
 
     def process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, Dict]:
         results = {
@@ -376,8 +379,6 @@ class ArUcoTrackingSystem:
             'tag_mobile': [],
             'calibration_mode': self.mode_calibration_active,
             'calibration_complete': self.calibration_mode.is_complete(),
-            #'liste_gm_libres': [],
-            #'liste_gm_occupees': []
         }
 
         undistorted = self.undistort_image(frame)
@@ -466,12 +467,12 @@ class ArUcoTrackingSystem:
                         tag_20_pixel.astype(int)
                     ], dtype=np.int32)
 
-                    #cv2.polylines(undistorted_copie, [tags_rectangle], True, (255, 0, 0), 3)  # Bleu
+                    cv2.polylines(undistorted_copie, [tags_rectangle], True, (255, 0, 0), 3)  # Bleu
 
         if self.mode_calibration_active:
             target = self.calibration_mode.get_current_target()
             if target is not None:
-                instruction_text = f"MODE CALIBRATION - Positionner Tag {self.config.tag_calibration} dans le coin {target} puis appuyer sur ESPACE"
+                instruction_text = f"MODE CALIBRATION - Positionner Tag {self.config.tag_calibration} au-dessus du tag {target} puis appuyer sur ESPACE"
                 cv2.putText(undistorted_copie, instruction_text, (10, 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
                 cv2.putText(undistorted_copie, f"Progression: {self.calibration_mode.current_index}/4", (10, 60),
@@ -487,7 +488,7 @@ class ArUcoTrackingSystem:
                 results['homographie_elevated_ok'] = True
 
         if self.plan_elevated_calcule:
-            # Utiliser les coins des tags 36 pour dessiner le rectangle du plan élevé
+            # Dessiner le rectangle du plan élevé en utilisant tous les coins détectés (convexHull)
             all_corners = []
             for tag_id in [20, 21, 22, 23]:
                 if tag_id in self.calibration_mode.calibration_points:
@@ -504,8 +505,33 @@ class ArUcoTrackingSystem:
                 hull = cv2.convexHull(sorted_corners.reshape(-1, 1, 2))
                 if hull is not None and len(hull) >= 4:
                     elevated_rectangle = hull.squeeze().astype(int)
-                    cv2.polylines(undistorted_copie, [elevated_rectangle], True, (255, 0, 255), 3)
-
+                    cv2.polylines(undistorted_copie, [elevated_rectangle], True, (255, 0, 255), 3)  # Magenta
+            
+            # Dessiner le rectangle ÉTENDU du plan surélevé (en cyan) - avec les mêmes marges que le plan de référence
+            cfg = self.config
+            
+            # Utiliser les mêmes marges que pour le plan de référence
+            haut_droit_elev_mm = np.array([-cfg.ajout_horizontal_mm-cfg.tag_taille_mm, -cfg.ajout_vertical_mm-cfg.tag_taille_mm])
+            haut_gauche_elev_mm = np.array([cfg.tags_largeur_mm + cfg.ajout_horizontal_mm+cfg.tag_taille_mm, -cfg.ajout_vertical_mm-cfg.tag_taille_mm])
+            bas_droit_elev_mm = np.array([-cfg.ajout_horizontal_mm-cfg.tag_taille_mm/2, cfg.tags_longueur_mm + cfg.ajout_vertical_mm+cfg.tag_taille_mm/2])
+            bas_gauche_elev_mm = np.array([cfg.tags_largeur_mm + cfg.ajout_horizontal_mm +cfg.tag_taille_mm/2, cfg.tags_longueur_mm + cfg.ajout_vertical_mm +cfg.tag_taille_mm/2])
+            
+            haut_droit_elev_pixel = self.homographie.point_elevated_to_cam(haut_droit_elev_mm)
+            haut_gauche_elev_pixel = self.homographie.point_elevated_to_cam(haut_gauche_elev_mm)
+            bas_droit_elev_pixel = self.homographie.point_elevated_to_cam(bas_droit_elev_mm)
+            bas_gauche_elev_pixel = self.homographie.point_elevated_to_cam(bas_gauche_elev_mm)
+            
+            if haut_droit_elev_pixel is not None and haut_gauche_elev_pixel is not None and bas_droit_elev_pixel is not None and bas_gauche_elev_pixel is not None:
+                extended_elevated_rectangle = np.array([
+                    haut_droit_elev_pixel.astype(int),
+                    haut_gauche_elev_pixel.astype(int),
+                    bas_gauche_elev_pixel.astype(int),
+                    bas_droit_elev_pixel.astype(int)
+                ], dtype=np.int32)
+                
+                cv2.polylines(undistorted_copie, [extended_elevated_rectangle], True, (255, 255, 0), 3)  # Cyan
+            
+            
         # Collecter tous les tags mobiles (peut avoir plusieurs fois le même ID)
         tag_mobile_list = []
         for tag_id, coins in detected_tags_list:
@@ -514,9 +540,6 @@ class ArUcoTrackingSystem:
 
         if tag_mobile_list and self.plan_elevated_calcule:
             cfg = self.config
-            
-            # Liste pour stocker les centres des tags dans le plan de référence étendu
-            centres_tags_ref = []
             
             # Afficher l'en-tête dans la console
             print("\n" + "="*80)
@@ -542,26 +565,23 @@ class ArUcoTrackingSystem:
                 pos_elevated = self.homographie.point_cam_to_elevated(centre_pixel)
 
                 if pos_elevated is not None:
-                    # Les coordonnées du plan élevé sont dans le système étendu
-                    pos_ref_extended_mm = pos_elevated.copy()
-                    
-                    # Ajouter le centre à la liste
-                    centres_tags_ref.append(pos_ref_extended_mm)
+                    # Convertir en coordonnées du plan de référence étendu
+                    pos_ref_extended_mm = pos_elevated + np.array([cfg.ajout_horizontal_mm, cfg.ajout_vertical_mm])
                     
                     # Pour dessiner le carré, il faut convertir vers le système du rectangle bleu
-                    pos_ref_mm = pos_elevated - np.array([cfg.ajout_horizontal_mm, cfg.ajout_vertical_mm])
+                    pos_ref_mm = pos_elevated.copy()
 
                     # Afficher les coordonnées dans la console
                     print(f"\nTag {tag_id} (instance {idx + 1}):")
-                    print(f"  Plan élevé    : X = {pos_elevated[0]:7.1f} mm, Y = {pos_elevated[1]:7.1f} mm")
-                    print(f"  Plan référence: X = {pos_ref_extended_mm[0]:7.1f} mm, Y = {pos_ref_extended_mm[1]:7.1f} mm")
+                    print(f"  Plan élevé (rectangle tags): X = {pos_elevated[0]:7.1f} mm, Y = {pos_elevated[1]:7.1f} mm")
+                    print(f"  Plan référence étendu      : X = {pos_ref_extended_mm[0]:7.1f} mm, Y = {pos_ref_extended_mm[1]:7.1f} mm")
 
                     # Dessiner le contour du tag projeté dans le plan de référence
                     demi_taille = self.config.tag_taille_mm_Noisette / 2
-                    coin_hg_ref = pos_ref_mm + np.array([-demi_taille, demi_taille])
-                    coin_hd_ref = pos_ref_mm + np.array([demi_taille, demi_taille])
-                    coin_bd_ref = pos_ref_mm + np.array([demi_taille, -demi_taille])
-                    coin_bg_ref = pos_ref_mm + np.array([-demi_taille, -demi_taille])
+                    coin_hg_ref = pos_ref_mm + np.array([-demi_taille, -demi_taille])
+                    coin_hd_ref = pos_ref_mm + np.array([demi_taille, -demi_taille])
+                    coin_bd_ref = pos_ref_mm + np.array([demi_taille, demi_taille])
+                    coin_bg_ref = pos_ref_mm + np.array([-demi_taille, demi_taille])
 
                     coins_ref_mm = np.array([coin_hg_ref, coin_hd_ref, coin_bd_ref, coin_bg_ref], dtype=np.float32)
 
@@ -580,118 +600,9 @@ class ArUcoTrackingSystem:
                     results['tag_mobile'].append({
                         'tag_id': tag_id,
                         'elevated_mm': pos_elevated.tolist(),
-                        'ref_mm': pos_ref_extended_mm.tolist(),
+                        'ref_extended_mm': pos_ref_extended_mm.tolist(),
                         'pixel_center': centre_pixel.tolist()
                     })
-            
-            # Vérifier l'occupation des zones GM
-            #compteur_par_zone = {i+1: 0 for i in range(len(self.pos_gm))}
-            
-            """ for centre in centres_tags_ref:
-                for idx, zone_gm in enumerate(self.pos_gm):
-                    if self.is_point_in_zone_gm(centre, zone_gm):
-                        compteur_par_zone[idx + 1] += 1"""
-            
-            # Mettre à jour les listes GM libres et occupées
-            """liste_gm_libres = []
-            liste_gm_occupees = []"""
-            
-            """for num_zone, count in compteur_par_zone.items():
-                if count >= 1:
-                    liste_gm_occupees.append(num_zone)
-                else:
-                    liste_gm_libres.append(num_zone)"""
-            
-            """results['liste_gm_libres'] = liste_gm_libres
-            results['liste_gm_occupees'] = liste_gm_occupees"""
-            
-            """# Dessiner les zones GM avec la couleur appropriée
-            if self.plan_reference_calcule:
-                index_GM = 0
-                for zone_gm in self.pos_gm:
-                    index_GM += 1
-                    coin1_mm, coin2_mm = zone_gm
-                    
-                    # Convertir les coordonnées des coins en tenant compte du système de référence
-                    coin1_ref = np.array([coin1_mm[0] - cfg.ajout_horizontal_mm, coin1_mm[1] - cfg.ajout_vertical_mm])
-                    coin2_ref = np.array([coin2_mm[0] - cfg.ajout_horizontal_mm, coin2_mm[1] - cfg.ajout_vertical_mm])
-                    
-                    # Créer les 4 coins du rectangle GM
-                    haut_gauche_gm = np.array([min(coin1_ref[0], coin2_ref[0]), min(coin1_ref[1], coin2_ref[1])])
-                    bas_droit_gm = np.array([max(coin1_ref[0], coin2_ref[0]), max(coin1_ref[1], coin2_ref[1])])
-                    haut_droit_gm = np.array([haut_gauche_gm[0], bas_droit_gm[1]])
-                    bas_gauche_gm = np.array([bas_droit_gm[0], haut_gauche_gm[1]])
-                    
-                    gm_rectangle = np.array([
-                        haut_gauche_gm,
-                        bas_gauche_gm,
-                        bas_droit_gm,
-                        haut_droit_gm
-                    ], dtype=np.float32)
-                    
-                    # Convertir tous les coins en pixels
-                    gm_corners_pixel = []
-                    for corner in gm_rectangle:
-                        corner_pixel = self.homographie.point_ref_to_cam(corner)
-                        if corner_pixel is not None:
-                            gm_corners_pixel.append(corner_pixel)
-                    
-                    if len(gm_corners_pixel) == 4:
-                        gm_corners_pixel = np.array(gm_corners_pixel, dtype=np.int32)
-                        # Déterminer la couleur selon si la zone est libre ou occupée
-                        if index_GM in liste_gm_libres:
-                            color = (0, 255, 0)  # Vert si libre
-                        else:
-                            color = (0, 0, 255)  # Rouge si occupée
-                        cv2.polylines(undistorted_copie, [gm_corners_pixel], True, color, 3)"""
-
-            """# Afficher les informations dans la console
-            print("\n" + "-"*80)
-            print("État des zones GM:")
-            for num_zone, count in compteur_par_zone.items():
-                status = "OCCUPÉE" if count >= 2 else "LIBRE"
-                print(f"  Zone GM n°{num_zone}: {count} tag(s) - {status}")
-            print(f"\nListe GM libres   : {liste_gm_libres}")
-            print(f"Liste GM occupées : {liste_gm_occupees}")
-            print("="*80)"""
-        
-        """# Dessiner les zones GM même sans tags mobiles (toutes en vert au démarrage)
-        elif self.plan_reference_calcule and not tag_mobile_list:
-            cfg = self.config
-            # Toutes les zones sont libres s'il n'y a pas de tags mobiles
-            results['liste_gm_libres'] = list(range(1, len(self.pos_gm) + 1))
-            results['liste_gm_occupees'] = []
-            
-            index_GM = 0
-            for zone_gm in self.pos_gm:
-                index_GM += 1
-                coin1_mm, coin2_mm = zone_gm
-                
-                coin1_ref = np.array([coin1_mm[0] - cfg.ajout_horizontal_mm, coin1_mm[1] - cfg.ajout_vertical_mm])
-                coin2_ref = np.array([coin2_mm[0] - cfg.ajout_horizontal_mm, coin2_mm[1] - cfg.ajout_vertical_mm])
-                
-                haut_gauche_gm = np.array([min(coin1_ref[0], coin2_ref[0]), min(coin1_ref[1], coin2_ref[1])])
-                bas_droit_gm = np.array([max(coin1_ref[0], coin2_ref[0]), max(coin1_ref[1], coin2_ref[1])])
-                haut_droit_gm = np.array([haut_gauche_gm[0], bas_droit_gm[1]])
-                bas_gauche_gm = np.array([bas_droit_gm[0], haut_gauche_gm[1]])
-                
-                gm_rectangle = np.array([
-                    haut_gauche_gm,
-                    bas_gauche_gm,
-                    bas_droit_gm,
-                    haut_droit_gm
-                ], dtype=np.float32)
-                
-                gm_corners_pixel = []
-                for corner in gm_rectangle:
-                    corner_pixel = self.homographie.point_ref_to_cam(corner)
-                    if corner_pixel is not None:
-                        gm_corners_pixel.append(corner_pixel)
-                
-                if len(gm_corners_pixel) == 4:
-                    gm_corners_pixel = np.array(gm_corners_pixel, dtype=np.int32)
-                    color = (0, 255, 0)  # Vert car libre
-                    cv2.polylines(undistorted_copie, [gm_corners_pixel], True, color, 3)"""
 
         if not self.mode_calibration_active:
             cv2.putText(undistorted_copie, "Appuyer sur 'E' pour calibrer plan eleve", (10, undistorted_copie.shape[0] - 40),
@@ -711,7 +622,7 @@ class ArUcoTrackingSystem:
                     if target is None:
                         print("Calibration complete! Appuyer sur 'S' pour sauvegarder.")
                     else:
-                        print(f"Position capturée! Placer le tag dans le coin {target} et appuyer sur ESPACE")
+                        print(f"Position capturée! Placer le tag au-dessus du tag {target} et appuyer sur ESPACE")
                     return True
         
         print(f"Tag {self.config.tag_calibration} non détecté")
@@ -721,16 +632,6 @@ class ArUcoTrackingSystem:
 
 if __name__ == "__main__":
     config = Config()
-    """
-    cote_GM = 200
-    Pos_GM = (
-        ((0,0),(cote_GM,cote_GM)),
-        ((config.largeur_totale_mm-cote_GM,0),(config.largeur_totale_mm,cote_GM))
-    )"""
-    
-    # Initialisation des listes GM
-    """Liste_GM_libres = list(range(1, len(Pos_GM) + 1))
-    Liste_GM_occupees = []"""
     
     print("=" * 80)
     print("Système de Tracking ArUco avec Double Plan")
@@ -745,24 +646,31 @@ if __name__ == "__main__":
     print(f"\nTags de référence (plan h=0): {config.tag_reference}")
     print(f"Tag de calibration (plan h=+{config.hauteur_Noisette_mm:.0f}mm): {config.tag_calibration}")
     print(f"Tags mobiles (plan h=+{config.hauteur_Noisette_mm:.0f}mm): {config.tag_mobile}")
-    """print(f"\nZones GM: {len(Pos_GM)} zone(s) de {cote_GM}x{cote_GM} mm")
-    print(f"Liste GM initiale: {Liste_GM_libres}")"""
-    print(f"\nOrigine du repère: coin SUPÉRIEUR DROIT du plan de référence et du plan surélevé")
+    print(f"\nOrigine du repère: coin SUPÉRIEUR DROIT")
     print(f"  - X positif vers la GAUCHE")
     print(f"  - Y positif vers le BAS")
+    print(f"\nLes plans de référence et surélevé utilisent les mêmes coordonnées X,Y")
+    print(f"Seule la hauteur Z diffère de +{config.hauteur_Noisette_mm:.0f}mm")
     print("\n" + "=" * 80)
     print("INSTRUCTIONS:")
     print("  - Appuyer sur 'E' pour entrer en mode calibration du plan élevé")
     print("  - En mode calibration:")
-    print("    1. Positionner le tag 36 dans les 4 coins extérieurs du rectangle")
+    print(f"    1. Positionner le tag {config.tag_calibration} exactement au-dessus de chaque tag de référence")
+    print("       (successivement au-dessus des tags 20, 21, 22, 23)")
     print("    2. Appuyer sur ESPACE à chaque position pour capturer")
     print("    3. Appuyer sur 'S' pour sauvegarder la calibration")
     print("    4. Appuyer sur 'R' pour recommencer la calibration")
     print("  - Appuyer sur 'L' pour charger une calibration existante")
     print("  - Appuyer sur 'Q' pour quitter")
+    print("\n" + "=" * 80)
+    print("VISUALISATION:")
+    print("  - VERT : Rectangle étendu du plan de référence")
+    print("  - BLEU : Rectangle entre les tags de référence (20-23)")
+    print("  - MAGENTA : Rectangle entre les positions calibrées du plan surélevé")
+    print("  - CYAN : Rectangle étendu du plan surélevé")
     print("=" * 80)
 
-    system = ArUcoTrackingSystem(config, matrice_antidstorsion='calibration_data.npz')
+    system = ArUcoTrackingSystem(config, matrice_antidstorsion='calibration_data_HR_camM.npz')
 
     if system.calibration_mode.load_calibration():
         system.homographie.calcul_homographie_elevated(system.calibration_mode.calibration_points)
@@ -776,8 +684,16 @@ if __name__ == "__main__":
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.camera_largeur)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.camera_longueur)
 
+    # Vérifiez la résolution effective
+    actual_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+    actual_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    print(f"Résolution effective: {actual_width}x{actual_height}")
+
     try:
         while True:
+            cv2.namedWindow("Systeme de Tracking ArUco", cv2.WINDOW_NORMAL)
+            cv2.resizeWindow("Systeme de Tracking ArUco", 1280, 720)  # Taille de la fenêtre d'affichage
+
             ret, frame = cap.read()
             if not ret:
                 print("Erreur de lecture de la caméra")
@@ -789,11 +705,6 @@ if __name__ == "__main__":
                 print("Plan de référence calculé et verrouillé.")
                 system.plan_reference_calcule = True
 
-            # Mettre à jour les listes GM à partir des résultats
-            """if 'liste_gm_libres' in results and 'liste_gm_occupees' in results:
-                Liste_GM_libres = results['liste_gm_libres']
-                Liste_GM_occupees = results['liste_gm_occupees']"""
-
             cv2.imshow("Systeme de Tracking ArUco", annotated)
 
             key = cv2.waitKey(1) & 0xFF
@@ -804,7 +715,7 @@ if __name__ == "__main__":
                 system.mode_calibration_active = True
                 system.calibration_mode.reset()
                 print("\nMode calibration du plan élevé activé")
-                print(f"Positionner le tag {config.tag_calibration} dans le coin {system.calibration_mode.get_current_target()} et appuyer sur ESPACE")
+                print(f"Positionner le tag {config.tag_calibration} au-dessus du tag {system.calibration_mode.get_current_target()} et appuyer sur ESPACE")
             elif key == ord(' ') and system.mode_calibration_active:
                 detected_tags_list, _ = system.detecteur.detect(system.undistort_image(frame))
                 system.handle_calibration_capture(detected_tags_list)
@@ -816,7 +727,7 @@ if __name__ == "__main__":
             elif key == ord('r') and system.mode_calibration_active:
                 system.calibration_mode.reset()
                 print("\nCalibration réinitialisée")
-                print(f"Positionner le tag {config.tag_calibration} dans le coin {system.calibration_mode.get_current_target()} et appuyer sur ESPACE")
+                print(f"Positionner le tag {config.tag_calibration} au-dessus du tag {system.calibration_mode.get_current_target()} et appuyer sur ESPACE")
             elif key == ord('l') and not system.mode_calibration_active:
                 if system.calibration_mode.load_calibration():
                     system.homographie.calcul_homographie_elevated(system.calibration_mode.calibration_points)
@@ -824,4 +735,4 @@ if __name__ == "__main__":
 
     finally:
         cap.release()
-        cv2.destroyAllWindows() 
+        cv2.destroyAllWindows()
