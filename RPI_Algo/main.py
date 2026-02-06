@@ -679,7 +679,6 @@ def update_display(background):
     fig.canvas.flush_events()
 
 
-
 ########################################################################
 
 ############################### Programme principal ####################
@@ -714,18 +713,9 @@ if __name__ == '__main__':
     # création du trait, initialement à la position du robot
     ax.add_line(robot_angle_line)
     ax.add_line(robot_angle_voulu_line)
-
-
-    # ========== CRÉATION DES 2 BOUTONS ATTRAPER ET RELACHER ==========
-    # Position des boutons (en haut de l écran, centrés)
-    action_button_width = 0.12
-    action_button_height = 0.08
-    action_button_y = 0.92  # Position Y en haut
-    action_button_x_start = 0.38  # Position X de départ (centrés)
-    action_button_spacing = 0.14  # Espacement horizontal entre les boutons
     
     # Bouton ATTRAPER
-    ax_attraper_button = plt.axes([action_button_x_start, action_button_y, action_button_width, action_button_height])
+    ax_attraper_button = plt.axes([0.38, 0.92, 0.12, 0.08])
     bouton_attraper = Button(ax_attraper_button, "Action", color="lightblue", hovercolor="blue")
     bouton_attraper.on_clicked(bouton_attraper_callback)
     
