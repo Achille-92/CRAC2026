@@ -1,15 +1,15 @@
 couleur = "B"
-
 Reel = False
 
 Strategie = False
 Astars = False
 Simul_mvt = True
+Debug_Mouv = False
 Simul_action = True
+Debug_Action = False
 Simul_mvt_ennemi = False
 Lidar_on = False
 Bat_Compet = False
-Debug_Mouv = False
 Mode_pince = False
 lancement_cartes = False
 ################## Librairies ##########################################
@@ -24,12 +24,12 @@ import matplotlib.pyplot as plt
 from functools import partial
 from matplotlib.widgets import Button
 from scipy.ndimage import binary_dilation
-from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes
+from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes,fenetre_selection_couleur
 from calcul_mouv import  calculer_trajectoire_complete,actualiser_zones_jeu,verifier_segments_trajectoire_ennemi
 from fonction import Obstacles,associer_noisette_a_emplacement,detecter_changements_noisettes, distance
 from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper_par_quatre
 ########################################################################
-
+#couleur = fenetre_selection_couleur()
 # Config CAN 
 Liste_ID_recoit = [0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
 Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
@@ -1111,13 +1111,13 @@ if __name__ == '__main__':
 
             # Envoi des Ordres de Manipulation des Noisettes à la Carte Actionneur #
             if action_voulu in ["Attraper","Retourner","Relacher"]:
+                dico_envoi[0x502+pince_a_utilise]=noisette_a_manipulee
                 if action_voulu in ["Attraper"]:
                     dico_envoi[0x500+pince_a_utilise]=1
                 elif action_voulu in ["Retourner"]:
                     dico_envoi[0x500+pince_a_utilise]=2
                 elif action_voulu in ["Relacher"]:
                     dico_envoi[0x500+pince_a_utilise]=3
-                dico_envoi[0x502+pince_a_utilise]=noisette_a_manipulee
             # ==================================================================== #
             
             # ================== Simulation Mouvement Robot ====================== #
@@ -1614,8 +1614,16 @@ if __name__ == '__main__':
             
             if verif_action == 1:
                 dico_envoi[0x504+pince_a_utilise]=2
+                if Reel:
+                    format_value = struct.pack('<I',dico_envoi[0x504+pince_a_utilise])
+                    msg = can.Message(arbitration_id=0x504+pince_a_utilise, data=format_value, is_extended_id=False)
+                    bus.send(msg)
             else :
                 dico_envoi[0x504+pince_a_utilise]=1
+                if Reel:
+                    format_value = struct.pack('<I',dico_envoi[0x504+pince_a_utilise])
+                    msg = can.Message(arbitration_id=0x504+pince_a_utilise, data=format_value, is_extended_id=False)
+                    bus.send(msg)
             # ==================================================================== #
             
             if Debug_Mouv:

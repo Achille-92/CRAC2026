@@ -6,6 +6,8 @@ import numpy as np
 from matplotlib.widgets import Button
 from matplotlib.lines import Line2D
 from fonction import creer_zone_securite_ennemi
+import tkinter as tk
+from tkinter import font as tkfont
 
 def afficher_obstacles(ax, obstacle_array, expanded_array, case_mm, 
                        show_expanded=True, show_obstacles=False):
@@ -437,3 +439,89 @@ def dessiner_noisettes(ax, Liste_noisette_xya, longueur=150, largeur=50,
                 fontweight='bold', zorder=6)"""
     
     return patches_noisettes
+
+def fenetre_selection_couleur():
+    """
+    Crée une fenêtre modale pour choisir la couleur (Jaune ou Bleu).
+    Retourne 'J' ou 'B' selon le choix de l'utilisateur.
+    """
+    couleur_selectionnee = [None]  # Liste pour stocker la valeur (closure)
+    
+    # Créer la fenêtre
+    root = tk.Tk()
+    root.title("Sélection de la couleur")
+    root.geometry("400x250")
+    root.configure(bg='white')
+    
+    # Centrer la fenêtre
+    root.update_idletasks()
+    x = (root.winfo_screenwidth() // 2) - (400 // 2)
+    y = (root.winfo_screenheight() // 2) - (250 // 2)
+    root.geometry(f'400x250+{x}+{y}')
+    
+    # Police personnalisée
+    title_font = tkfont.Font(family="Arial", size=18, weight="bold")
+    button_font = tkfont.Font(family="Arial", size=14, weight="bold")
+    
+    # Titre
+    label = tk.Label(
+        root, 
+        text="Choisissez votre couleur :", 
+        font=title_font,
+        bg='white',
+        fg='black'
+    )
+    label.pack(pady=30)
+    
+    # Frame pour les boutons
+    button_frame = tk.Frame(root, bg='white')
+    button_frame.pack(pady=20)
+    
+    def choisir_jaune():
+        couleur_selectionnee[0] = "J"
+        root.destroy()
+    
+    def choisir_bleu():
+        couleur_selectionnee[0] = "B"
+        root.destroy()
+    
+    # Bouton Jaune
+    btn_jaune = tk.Button(
+        button_frame,
+        text="JAUNE",
+        command=choisir_jaune,
+        font=button_font,
+        bg='#FFD700',  # Or/Jaune
+        fg='black',
+        width=12,
+        height=2,
+        relief='raised',
+        bd=3,
+        cursor='hand2'
+    )
+    btn_jaune.pack(side=tk.LEFT, padx=15)
+    
+    # Bouton Bleu
+    btn_bleu = tk.Button(
+        button_frame,
+        text="BLEU",
+        command=choisir_bleu,
+        font=button_font,
+        bg='#4169E1',  # Bleu royal
+        fg='white',
+        width=12,
+        height=2,
+        relief='raised',
+        bd=3,
+        cursor='hand2'
+    )
+    btn_bleu.pack(side=tk.LEFT, padx=15)
+    
+    # Empêcher la fermeture de la fenêtre sans choix
+    root.protocol("WM_DELETE_WINDOW", lambda: None)
+    
+    # Lancer la boucle principale
+    root.mainloop()
+    
+    # Retourner la couleur sélectionnée (ou 'B' par défaut si aucun choix)
+    return couleur_selectionnee[0] if couleur_selectionnee[0] is not None else "B"
