@@ -215,9 +215,10 @@ def init_affichage(x_robot_depart,y_robot_depart,R_ROBOT):
     ax.set_aspect('equal', adjustable='box')
 
     # Textes d'info
-    chronometre_text = ax.text(2900, 2500, "", color='black', fontsize=8, ha='left', va='top')
+    noisette_text = ax.text(2900, 2500, "", color='black', fontsize=8, ha='left', va='top')
+    chronometre_text = ax.text(2200, 2500, "", color='black', fontsize=8, ha='left', va='top')
     
-    info_alim_rpi = ax.text(2200, 2500, "", color='black', fontsize=8, ha='left', va='top')
+    info_alim_rpi = ax.text(1500, 2500, "", color='black', fontsize=8, ha='left', va='top')
 
     robot_info_text = ax.text(1500, 2200, "", color='black', fontsize=8, ha='left', va='top')
     x_voulu_text = ax.text(1500, 2100, "", color='black', fontsize=8, ha='left', va='top')
@@ -248,7 +249,7 @@ def init_affichage(x_robot_depart,y_robot_depart,R_ROBOT):
     return (fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,
             ax_button_stop, bouton_stop, ax_button_start, bouton_start,
             point_voulu_plot, x_voulu_text, y_voulu_text, 
-            A_voulu_text, robot_angle_line, robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch)
+            A_voulu_text, robot_angle_line, robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,noisette_text)
 
 
 def afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries, battery_patches, battery_texts,
