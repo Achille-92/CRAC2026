@@ -690,7 +690,7 @@ def update_display(background):
     fig.canvas.flush_events()
 
 def positionner_robot_devant_Noisette():
-    global x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions
+    global x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur
 
     for grpNoisette in Noisettes_groupees:
         nbr_Noisette = len(grpNoisette)
@@ -820,6 +820,10 @@ def positionner_robot_devant_Noisette():
                     y_arrivee_Astar = strategie_en_cours[0][1]+distance*math.sin(angle_rad2)
                     Liste_actions.insert(0,["Consigne",x_arrivee_Astar,y_arrivee_Astar])
         Liste_actions.append(["Attraper",pince_a_utilise,sous_pince+1])
+
+        if strategie_en_cours[0][3] != couleur:
+            Liste_actions.append(["Retourner",pince_a_utilise,sous_pince+1])
+
         Liste_actions.append(["Consigne",0,0])
 
     else :
@@ -1012,6 +1016,15 @@ def positionner_robot_devant_Noisette():
                     Liste_actions.insert(0,["Consigne",x_arrivee_Astar,y_arrivee_Astar])
         
         Liste_actions.append(["Attraper",pince_a_utilise,12])
+        
+        if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
+            Liste_actions.append(["Retourner",pince_a_utilise,12])
+        elif strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
+            Liste_actions.append(["Retourner",pince_a_utilise,1])
+        elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
+            Liste_actions.append(["Retourner",pince_a_utilise,2])
+
+
         Liste_actions.append(["Consigne",0,0])
     return Liste_actions
 ########################################################################
