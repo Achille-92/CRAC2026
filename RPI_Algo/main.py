@@ -3,7 +3,7 @@ Reel = False
 
 Strategie = True
 Debug_strategie = True
-Astars = True
+Astars = False
 
 Simul_mvt = True
 Simul_mvt_ennemi = False
@@ -17,7 +17,7 @@ Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
 
-Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
+Noisettes_stockees_dans_robot = [["B","B"],["N","N"]]
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -211,6 +211,7 @@ Liste_noisette_xya = [
     [1025,175,90,"B"],[1075,175,90,"B"],[1125,175,90,"J"],[1175,175,90,"J"],
     [1825,175,90,"B"],[1875,175,90,"J"],[1925,175,90,"B"],[1975,175,90,"J"],
 
+    #[700,800,90,"J"],
 ] 
 
 Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
@@ -290,6 +291,10 @@ MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 if couleur == "B":
     x_robot_depart = 2725 
     y_robot_depart = 1670
+    angle_robot_depart = -90
+
+    x_robot_depart = 1000 
+    y_robot_depart = 1100
     angle_robot_depart = -90
 
     x_robot_retour = 2725
@@ -418,7 +423,7 @@ carte_batteries_active = 0
 etat_bau = 1
 
 demande_nouvelle_strat = False
-x_strategie = 1900
+x_strategie = 800
 y_strategie = 800
 strategie_en_cours = [] 
 TOLERANCE_STRATEGIE_NOISETTE = 50
@@ -1043,7 +1048,111 @@ def positionner_robot_devant_Noisette():
                     Liste_actions.append(["Retourner",pince_a_utilise,2])
     else:
         print("aller gm")
-        
+        if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
+            print("Pas de Noisette dans robot")
+            demande_nouvelle_strat = True
+        else:
+            if Noisettes_stockees_dans_robot[0] != ["N","N"]:
+                pince_a_utilise = 0
+            else :
+                pince_a_utilise = 1
+            if Noisettes_stockees_dans_robot[pince_a_utilise] == ["J","B"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["B","J"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["J","J"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["B","B"]:
+                sous_pince = 12
+            elif Noisettes_stockees_dans_robot[pince_a_utilise] == ["J","N"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["B","N"]:
+                sous_pince = 1
+            elif Noisettes_stockees_dans_robot[pince_a_utilise] == ["N","J"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["N","B"]:
+                sous_pince = 2
+
+            print("pince_a_utilise",pince_a_utilise)
+            print("sous_pince : ",sous_pince)
+
+            x_centre_gm = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
+            y_centre_gm = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
+            print(x_centre_gm)
+            print(y_centre_gm)
+
+            Strat_Noisettes_dans_GM = []
+            for Noisette in Liste_noisette_xya:
+                x_centre, y_centre, angle = Noisette[0], Noisette[1], Noisette[2]
+    
+                # Dimensions
+                longueur = 150  # mm (dans la direction de l'angle)
+                largeur = 50    # mm (perpendiculaire à l'angle)
+                
+                # Conversion angle en radians
+                angle_rad = math.radians(angle)
+                
+                # Vecteurs directeurs
+                dx_long = (longueur / 2) * math.cos(angle_rad)
+                dy_long = (longueur / 2) * math.sin(angle_rad)
+                dx_larg = (largeur / 2) * math.sin(angle_rad)  # Perpendiculaire = rotation de 90°
+                dy_larg = -(largeur / 2) * math.cos(angle_rad)
+                
+                # Calcul des 4 coins (sens trigonométrique depuis le centre)
+                Noisette_coin_hg = (x_centre - dx_long - dx_larg, y_centre - dy_long - dy_larg)  # Haut-Gauche
+                Noisette_coin_hd = (x_centre + dx_long - dx_larg, y_centre + dy_long - dy_larg)  # Haut-Droite
+                Noisette_coin_bd = (x_centre + dx_long + dx_larg, y_centre + dy_long + dy_larg)  # Bas-Droite
+                Noisette_coin_bg = (x_centre - dx_long + dx_larg, y_centre - dy_long + dy_larg)  # Bas-Gauche
+    
+                 # Vérifier si AU MOINS UN coin est dans une zone GM
+                zone = Liste_zones_gm_coins[strategie_en_cours]
+                x_min, y_min = zone[0]
+                x_max, y_max = zone[1]
+                
+                # Liste des 4 coins
+                coins = [Noisette_coin_hg, Noisette_coin_hd, Noisette_coin_bd, Noisette_coin_bg]
+                
+                # Vérifier si au moins un coin est dans la zone
+                if any(x_min <= coin[0] <= x_max and y_min <= coin[1] <= y_max for coin in coins):
+                    Strat_Noisettes_dans_GM.append(Noisette)
+            if Debug_Action:
+                print("Strat_Noisettes_dans_GM : ",Strat_Noisettes_dans_GM) 
+
+            # Si Noisette dans GM :
+            #   Si Noisette à gauche ET à droite du centre :
+            #       demande nouvelle strats
+            #   Sinon
+            #       Trouver la Noisette la plus proche du centre du GM
+            #       Se positionner (avec Astar) devant la Noisette
+            #       Relacher
+            #       Reculer assez pour au cas où nouvelle Noisette à déposer
+            # Sinon :
+            #   Trouver le centre du côté d'arrivée
+            #   Se positionner (avec Astar) devant le bord
+            #   Relacher
+            #   Reculer assez pour au cas où nouvelle Noisette à déposer
+            if Strat_Noisettes_dans_GM != []:
+                print("Faire Stratégie avec Noisettes dans GM")
+            else:
+                angle_robot_gm = np.degrees(math.atan2(y_centre_gm - y_robot_actuel, x_centre_gm - x_robot_actuel))
+
+                print("angle_robot_gm : ",angle_robot_gm)
+                if 45<=angle_robot_gm<135:
+                    print("haut")
+                    x_cote = (Liste_zones_gm_coins[num_gm][0][0]+Liste_zones_gm_coins[num_gm][1][0])/2
+                    y_cote = Liste_zones_gm_coins[num_gm][1][1]
+                if 0<=angle_robot_gm<45 or -45<=angle_robot_gm<0:
+                    print("droite")
+                    x_cote = Liste_zones_gm_coins[num_gm][1][0]
+                    y_cote = (Liste_zones_gm_coins[num_gm][0][1]+Liste_zones_gm_coins[num_gm][1][1])/2
+                if 135<=angle_robot_gm<=180 or -135<=angle_robot_gm<=-180:
+                    print("gauche")
+                    x_cote = Liste_zones_gm_coins[num_gm][0][0]
+                    y_cote = (Liste_zones_gm_coins[num_gm][0][1]+Liste_zones_gm_coins[num_gm][1][1])/2
+                if -135<=angle_robot_gm<-45:
+                    print("bas")
+                    x_cote = (Liste_zones_gm_coins[num_gm][0][0]+Liste_zones_gm_coins[num_gm][1][0])/2
+                    y_cote = Liste_zones_gm_coins[num_gm][0][1]
+
+                print("x_cote : ",x_cote,"  y_cote : ",y_cote)
+                if sous_pince == 12:
+                    angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
+                    distance = 100 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+                    x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
+                    y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
+                    Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",np.degrees(angle_centre_cote)-180],["Relacher",pince_a_utilise,sous_pince]]
+            
+
     Liste_actions.append(["Attente"])
     return Liste_actions
 ########################################################################
