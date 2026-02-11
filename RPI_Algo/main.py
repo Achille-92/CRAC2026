@@ -17,7 +17,7 @@ Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
 
-Noisettes_stockees_dans_robot = [["B","N"],["B","N"]]
+Noisettes_stockees_dans_robot = [["B","B"],["N","N"]]
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -1319,11 +1319,11 @@ def positionner_robot_devant_Noisette():
                 elif sous_pince == 1: 
                     angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
                     print("angle_centre_cote : ",np.degrees(angle_centre_cote))
-                    distance = 70 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+                    distance = 75 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
                     x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
                     y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
-                    x_arrivee_Astar = x_cote + (distance+60)*math.cos(angle_centre_cote)
-                    y_arrivee_Astar = y_cote + (distance+60)*math.sin(angle_centre_cote)
+                    x_arrivee_Astar = x_cote + (distance+75)*math.cos(angle_centre_cote)
+                    y_arrivee_Astar = y_cote + (distance+75)*math.sin(angle_centre_cote)
 
                     distance_point_noisette_min = 100000
                     Noisette_la_plus_proche = []
@@ -1362,11 +1362,11 @@ def positionner_robot_devant_Noisette():
                         print("x_cote : ",x_cote,"  y_cote : ",y_cote)
                         angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
                         print("angle_centre_cote : ",np.degrees(angle_centre_cote))
-                        distance = 70 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+                        distance = 75 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
                         x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
                         y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
-                        x_arrivee_Astar = x_cote + (distance+70)*math.cos(angle_centre_cote)
-                        y_arrivee_Astar = y_cote + (distance+70)*math.sin(angle_centre_cote)
+                        x_arrivee_Astar = x_cote + (distance+75)*math.cos(angle_centre_cote)
+                        y_arrivee_Astar = y_cote + (distance+75)*math.sin(angle_centre_cote)
 
                         distance_point_noisette_min = 100000
                         Noisette_la_plus_proche = []
@@ -1405,11 +1405,11 @@ def positionner_robot_devant_Noisette():
                             print("x_cote : ",x_cote,"  y_cote : ",y_cote)
                             angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
                             print("angle_centre_cote : ",np.degrees(angle_centre_cote))
-                            distance = 70 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+                            distance = 75 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
                             x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
                             y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
-                            x_arrivee_Astar = x_cote + (distance+70)*math.cos(angle_centre_cote)
-                            y_arrivee_Astar = y_cote + (distance+70)*math.sin(angle_centre_cote)
+                            x_arrivee_Astar = x_cote + (distance+75)*math.cos(angle_centre_cote)
+                            y_arrivee_Astar = y_cote + (distance+75)*math.sin(angle_centre_cote)
 
                             distance_point_noisette_min = 100000
                             Noisette_la_plus_proche = []
@@ -1447,11 +1447,11 @@ def positionner_robot_devant_Noisette():
                                 print("x_cote : ",x_cote,"  y_cote : ",y_cote)
                                 angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
                                 print("angle_centre_cote : ",np.degrees(angle_centre_cote))
-                                distance = 70 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+                                distance = 75 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
                                 x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
                                 y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
-                                x_arrivee_Astar = x_cote + (distance+70)*math.cos(angle_centre_cote)
-                                y_arrivee_Astar = y_cote + (distance+70)*math.sin(angle_centre_cote)
+                                x_arrivee_Astar = x_cote + (distance+75)*math.cos(angle_centre_cote)
+                                y_arrivee_Astar = y_cote + (distance+75)*math.sin(angle_centre_cote)
 
                                 distance_point_noisette_min = 100000
                                 Noisette_la_plus_proche = []
