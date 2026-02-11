@@ -17,7 +17,7 @@ Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
 
-Noisettes_stockees_dans_robot = [["N","N"],["B","B"]]
+Noisettes_stockees_dans_robot = [["B","N"],["B","N"]]
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -423,8 +423,8 @@ carte_batteries_active = 0
 etat_bau = 1
 
 demande_nouvelle_strat = False
-x_strategie = 2200
-y_strategie = 800
+x_strategie = 2825
+y_strategie = 1150
 strategie_en_cours = [] 
 TOLERANCE_STRATEGIE_NOISETTE = 50
 
@@ -697,6 +697,8 @@ def update_display(background):
 def positionner_robot_devant_Noisette():
     global x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins
 
+    Liste_actions.clear()
+
     chercher_Noisette = None
     for num_gm in range(len(Liste_zones_gm_coins)):
         if Liste_zones_gm_coins[num_gm][0][0]<= x_strategie <= Liste_zones_gm_coins[num_gm][1][0] and Liste_zones_gm_coins[num_gm][0][1]<= y_strategie <= Liste_zones_gm_coins[num_gm][1][1]:
@@ -726,7 +728,6 @@ def positionner_robot_devant_Noisette():
     print("strategie_en_cours : ",strategie_en_cours)
 
     if chercher_Noisette:
-
         if len(strategie_en_cours)==1:
             angle_noisette = strategie_en_cours[0][2]
 
@@ -840,7 +841,6 @@ def positionner_robot_devant_Noisette():
             if strategie_en_cours[0][3] != couleur:
                 Liste_actions.append(["Retourner",pince_a_utilise,sous_pince+1])
 
-            Liste_actions.append(["Consigne",0,0])
 
         else :
             pince_a_utilise = None
@@ -1146,14 +1146,14 @@ def positionner_robot_devant_Noisette():
                     y_cote = Liste_zones_gm_coins[num_gm][0][1]
 
                 print("x_cote : ",x_cote,"  y_cote : ",y_cote)
-                if sous_pince == 12:
+                if sous_pince == 12 or sous_pince == 2:
                     angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
                     print("angle_centre_cote : ",np.degrees(angle_centre_cote))
                     distance = 120 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
                     x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
                     y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
-                    x_arrivee_Astar = x_cote + (distance+60)*math.cos(angle_centre_cote)
-                    y_arrivee_Astar = y_cote + (distance+60)*math.sin(angle_centre_cote)
+                    x_arrivee_Astar = x_cote + (distance+70)*math.cos(angle_centre_cote)
+                    y_arrivee_Astar = y_cote + (distance+70)*math.sin(angle_centre_cote)
 
                     distance_point_noisette_min = 100000
                     Noisette_la_plus_proche = []
@@ -1164,8 +1164,10 @@ def positionner_robot_devant_Noisette():
                             Noisette_la_plus_proche = Noisette
                     print("Noisette_la_plus_proche : ",Noisette_la_plus_proche)
                     print("distance_point_noisette_min : ",distance_point_noisette_min)
-                    print("R_ROBOT + 2*MARGE_NOISETTE : ",R_ROBOT + MARGE_NOISETTE)
-                    if distance_point_noisette_min <= R_ROBOT + MARGE_NOISETTE:
+                    print("R_ROBOT + 2*MARGE_NOISETTE : ",R_ROBOT + 2*MARGE_NOISETTE)
+                    robot_hors_piste = ((600-(R_ROBOT+MARGE_TRAJECTOIRE) <= x_arrivee_1 <= 2400+(R_ROBOT+MARGE_TRAJECTOIRE)) and (1550 -(R_ROBOT+MARGE_TRAJECTOIRE)<= y_arrivee_1 <= Y_PISTE)) or not((R_ROBOT <= x_arrivee_1 <= X_PISTE - (R_ROBOT)) and (R_ROBOT <= y_arrivee_1 <= Y_PISTE - (R_ROBOT)))
+                    print("robot_hors_piste : ",robot_hors_piste)
+                    if distance_point_noisette_min <= R_ROBOT + 2*MARGE_NOISETTE or robot_hors_piste:
                         print("Changer point")
                         angle_robot_gm -= 90
                         angle_robot_gm %= 360
@@ -1193,8 +1195,8 @@ def positionner_robot_devant_Noisette():
                         distance = 120 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
                         x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
                         y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
-                        x_arrivee_Astar = x_cote + (distance+60)*math.cos(angle_centre_cote)
-                        y_arrivee_Astar = y_cote + (distance+60)*math.sin(angle_centre_cote)
+                        x_arrivee_Astar = x_cote + (distance+70)*math.cos(angle_centre_cote)
+                        y_arrivee_Astar = y_cote + (distance+70)*math.sin(angle_centre_cote)
 
                         distance_point_noisette_min = 100000
                         Noisette_la_plus_proche = []
@@ -1205,8 +1207,10 @@ def positionner_robot_devant_Noisette():
                                 Noisette_la_plus_proche = Noisette
                         print("Noisette_la_plus_proche : ",Noisette_la_plus_proche)
                         print("distance_point_noisette_min : ",distance_point_noisette_min)
-                        print("R_ROBOT + 2*MARGE_NOISETTE : ",R_ROBOT + MARGE_NOISETTE)
-                        if distance_point_noisette_min <= R_ROBOT + MARGE_NOISETTE:
+                        print("R_ROBOT + 2*MARGE_NOISETTE : ",R_ROBOT + 2*MARGE_NOISETTE)
+                        robot_hors_piste = ((600-(R_ROBOT+MARGE_TRAJECTOIRE) <= x_arrivee_1 <= 2400+(R_ROBOT+MARGE_TRAJECTOIRE)) and (1550 -(R_ROBOT+MARGE_TRAJECTOIRE)<= y_arrivee_1 <= Y_PISTE)) or not((R_ROBOT <= x_arrivee_1 <= X_PISTE - (R_ROBOT)) and (R_ROBOT <= y_arrivee_1 <= Y_PISTE - (R_ROBOT)))
+                        print("robot_hors_piste : ",robot_hors_piste)
+                        if distance_point_noisette_min <= R_ROBOT + 2*MARGE_NOISETTE or robot_hors_piste:
                             print("Changer point")
                             angle_robot_gm -= 90
                             angle_robot_gm %= 360
@@ -1234,8 +1238,8 @@ def positionner_robot_devant_Noisette():
                             distance = 120 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
                             x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
                             y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
-                            x_arrivee_Astar = x_cote + (distance+60)*math.cos(angle_centre_cote)
-                            y_arrivee_Astar = y_cote + (distance+60)*math.sin(angle_centre_cote)
+                            x_arrivee_Astar = x_cote + (distance+70)*math.cos(angle_centre_cote)
+                            y_arrivee_Astar = y_cote + (distance+70)*math.sin(angle_centre_cote)
 
                             distance_point_noisette_min = 100000
                             Noisette_la_plus_proche = []
@@ -1244,10 +1248,12 @@ def positionner_robot_devant_Noisette():
                                 if distance_point_noisette <= distance_point_noisette_min:
                                     distance_point_noisette_min = distance_point_noisette
                                     Noisette_la_plus_proche = Noisette
+                            robot_hors_piste = ((600-(R_ROBOT+MARGE_TRAJECTOIRE) <= x_arrivee_1 <= 2400+(R_ROBOT+MARGE_TRAJECTOIRE)) and (1550 -(R_ROBOT+MARGE_TRAJECTOIRE)<= y_arrivee_1 <= Y_PISTE)) or not((R_ROBOT <= x_arrivee_1 <= X_PISTE - (R_ROBOT)) and (R_ROBOT <= y_arrivee_1 <= Y_PISTE - (R_ROBOT)))
+                            print("robot_hors_piste : ",robot_hors_piste)
                             print("Noisette_la_plus_proche : ",Noisette_la_plus_proche)
                             print("distance_point_noisette_min : ",distance_point_noisette_min)
-                            print("R_ROBOT + 2*MARGE_NOISETTE : ",R_ROBOT + MARGE_NOISETTE)
-                            if distance_point_noisette_min <= R_ROBOT + MARGE_NOISETTE:
+                            print("R_ROBOT + 2*MARGE_NOISETTE : ",R_ROBOT + 2*MARGE_NOISETTE)
+                            if distance_point_noisette_min <= R_ROBOT + 2*MARGE_NOISETTE or robot_hors_piste:
                                 print("Changer point")
                                 angle_robot_gm -= 90
                                 angle_robot_gm %= 360
@@ -1274,8 +1280,8 @@ def positionner_robot_devant_Noisette():
                                 distance = 120 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
                                 x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
                                 y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
-                                x_arrivee_Astar = x_cote + (distance+60)*math.cos(angle_centre_cote)
-                                y_arrivee_Astar = y_cote + (distance+60)*math.sin(angle_centre_cote)
+                                x_arrivee_Astar = x_cote + (distance+70)*math.cos(angle_centre_cote)
+                                y_arrivee_Astar = y_cote + (distance+70)*math.sin(angle_centre_cote)
 
                                 distance_point_noisette_min = 100000
                                 Noisette_la_plus_proche = []
@@ -1284,8 +1290,10 @@ def positionner_robot_devant_Noisette():
                                     if distance_point_noisette <= distance_point_noisette_min:
                                         distance_point_noisette_min = distance_point_noisette
                                         Noisette_la_plus_proche = Noisette
+                                robot_hors_piste = ((600-(R_ROBOT+MARGE_TRAJECTOIRE) <= x_arrivee_1 <= 2400+(R_ROBOT+MARGE_TRAJECTOIRE)) and (1550 -(R_ROBOT+MARGE_TRAJECTOIRE)<= y_arrivee_1 <= Y_PISTE)) or not((R_ROBOT <= x_arrivee_1 <= X_PISTE - (R_ROBOT)) and (R_ROBOT <= y_arrivee_1 <= Y_PISTE - (R_ROBOT)))
+                                print("robot_hors_piste : ",robot_hors_piste)
                                 print("Noisette_la_plus_proche : ",Noisette_la_plus_proche)
-                                if distance_point_noisette_min <= R_ROBOT + MARGE_NOISETTE:
+                                if distance_point_noisette_min <= R_ROBOT + 2*MARGE_NOISETTE or robot_hors_piste:
                                     demande_nouvelle_strat = True
                                     print("DEMANDE NOUVELLE STRAT")
                                 else : 
@@ -1308,7 +1316,176 @@ def positionner_robot_devant_Noisette():
                         Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["Reculer",x_arrivee_Astar,y_arrivee_Astar]]
                     else :
                         Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
-                        
+                elif sous_pince == 1: 
+                    angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
+                    print("angle_centre_cote : ",np.degrees(angle_centre_cote))
+                    distance = 70 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+                    x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
+                    y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
+                    x_arrivee_Astar = x_cote + (distance+60)*math.cos(angle_centre_cote)
+                    y_arrivee_Astar = y_cote + (distance+60)*math.sin(angle_centre_cote)
+
+                    distance_point_noisette_min = 100000
+                    Noisette_la_plus_proche = []
+                    for Noisette in Liste_noisette_xya:
+                        distance_point_noisette = math.sqrt((x_arrivee_1 - Noisette[0])**2 + (y_arrivee_1 - Noisette[1])**2)
+                        if distance_point_noisette <= distance_point_noisette_min:
+                            distance_point_noisette_min = distance_point_noisette
+                            Noisette_la_plus_proche = Noisette
+                    print("Noisette_la_plus_proche : ",Noisette_la_plus_proche)
+                    print("distance_point_noisette_min : ",distance_point_noisette_min)
+                    print("R_ROBOT + 2*MARGE_NOISETTE : ",R_ROBOT + 2*MARGE_NOISETTE)
+                    robot_hors_piste = ((600-(R_ROBOT+MARGE_TRAJECTOIRE) <= x_arrivee_1 <= 2400+(R_ROBOT+MARGE_TRAJECTOIRE)) and (1550 -(R_ROBOT+MARGE_TRAJECTOIRE)<= y_arrivee_1 <= Y_PISTE)) or not((R_ROBOT <= x_arrivee_1 <= X_PISTE - (R_ROBOT)) and (R_ROBOT <= y_arrivee_1 <= Y_PISTE - (R_ROBOT)))
+                    print("robot_hors_piste : ",robot_hors_piste)
+                    if distance_point_noisette_min <= R_ROBOT + 2*MARGE_NOISETTE or robot_hors_piste:
+                        print("Changer point")
+                        angle_robot_gm -= 90
+                        angle_robot_gm %= 360
+                        print("angle_robot_gm : ",angle_robot_gm)
+                        if 45<=angle_robot_gm<135:
+                            print("haut")
+                            x_cote = (Liste_zones_gm_coins[num_gm][0][0]+Liste_zones_gm_coins[num_gm][1][0])/2
+                            y_cote = Liste_zones_gm_coins[num_gm][1][1]
+                        if 0<=angle_robot_gm<45 or 315<=angle_robot_gm<360:
+                            print("droite")
+                            x_cote = Liste_zones_gm_coins[num_gm][1][0]
+                            y_cote = (Liste_zones_gm_coins[num_gm][0][1]+Liste_zones_gm_coins[num_gm][1][1])/2
+                        if 135<=angle_robot_gm<225:
+                            print("gauche")
+                            x_cote = Liste_zones_gm_coins[num_gm][0][0]
+                            y_cote = (Liste_zones_gm_coins[num_gm][0][1]+Liste_zones_gm_coins[num_gm][1][1])/2
+                        if 225<=angle_robot_gm<315:
+                            print("bas")
+                            x_cote = (Liste_zones_gm_coins[num_gm][0][0]+Liste_zones_gm_coins[num_gm][1][0])/2
+                            y_cote = Liste_zones_gm_coins[num_gm][0][1]
+
+                        print("x_cote : ",x_cote,"  y_cote : ",y_cote)
+                        angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
+                        print("angle_centre_cote : ",np.degrees(angle_centre_cote))
+                        distance = 70 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+                        x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
+                        y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
+                        x_arrivee_Astar = x_cote + (distance+70)*math.cos(angle_centre_cote)
+                        y_arrivee_Astar = y_cote + (distance+70)*math.sin(angle_centre_cote)
+
+                        distance_point_noisette_min = 100000
+                        Noisette_la_plus_proche = []
+                        for Noisette in Liste_noisette_xya:
+                            distance_point_noisette = math.sqrt((x_arrivee_1 - Noisette[0])**2 + (y_arrivee_1 - Noisette[1])**2)
+                            if distance_point_noisette <= distance_point_noisette_min:
+                                distance_point_noisette_min = distance_point_noisette
+                                Noisette_la_plus_proche = Noisette
+                        print("Noisette_la_plus_proche : ",Noisette_la_plus_proche)
+                        print("distance_point_noisette_min : ",distance_point_noisette_min)
+                        print("R_ROBOT + 2*MARGE_NOISETTE : ",R_ROBOT + 2*MARGE_NOISETTE)
+                        robot_hors_piste = ((600-(R_ROBOT+MARGE_TRAJECTOIRE) <= x_arrivee_1 <= 2400+(R_ROBOT+MARGE_TRAJECTOIRE)) and (1550 -(R_ROBOT+MARGE_TRAJECTOIRE)<= y_arrivee_1 <= Y_PISTE)) or not((R_ROBOT <= x_arrivee_1 <= X_PISTE - (R_ROBOT)) and (R_ROBOT <= y_arrivee_1 <= Y_PISTE - (R_ROBOT)))
+                        print("robot_hors_piste : ",robot_hors_piste)
+                        if distance_point_noisette_min <= R_ROBOT + 2*MARGE_NOISETTE or robot_hors_piste:
+                            print("Changer point")
+                            angle_robot_gm -= 90
+                            angle_robot_gm %= 360
+                            print(angle_robot_gm)
+                            if 45<=angle_robot_gm<135:
+                                print("haut")
+                                x_cote = (Liste_zones_gm_coins[num_gm][0][0]+Liste_zones_gm_coins[num_gm][1][0])/2
+                                y_cote = Liste_zones_gm_coins[num_gm][1][1]
+                            if 0<=angle_robot_gm<45 or 315<=angle_robot_gm<360:
+                                print("droite")
+                                x_cote = Liste_zones_gm_coins[num_gm][1][0]
+                                y_cote = (Liste_zones_gm_coins[num_gm][0][1]+Liste_zones_gm_coins[num_gm][1][1])/2
+                            if 135<=angle_robot_gm<225:
+                                print("gauche")
+                                x_cote = Liste_zones_gm_coins[num_gm][0][0]
+                                y_cote = (Liste_zones_gm_coins[num_gm][0][1]+Liste_zones_gm_coins[num_gm][1][1])/2
+                            if 225<=angle_robot_gm<315:
+                                print("bas")
+                                x_cote = (Liste_zones_gm_coins[num_gm][0][0]+Liste_zones_gm_coins[num_gm][1][0])/2
+                                y_cote = Liste_zones_gm_coins[num_gm][0][1]
+
+                            print("x_cote : ",x_cote,"  y_cote : ",y_cote)
+                            angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
+                            print("angle_centre_cote : ",np.degrees(angle_centre_cote))
+                            distance = 70 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+                            x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
+                            y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
+                            x_arrivee_Astar = x_cote + (distance+70)*math.cos(angle_centre_cote)
+                            y_arrivee_Astar = y_cote + (distance+70)*math.sin(angle_centre_cote)
+
+                            distance_point_noisette_min = 100000
+                            Noisette_la_plus_proche = []
+                            for Noisette in Liste_noisette_xya:
+                                distance_point_noisette = math.sqrt((x_arrivee_1 - Noisette[0])**2 + (y_arrivee_1 - Noisette[1])**2)
+                                if distance_point_noisette <= distance_point_noisette_min:
+                                    distance_point_noisette_min = distance_point_noisette
+                                    Noisette_la_plus_proche = Noisette
+                            robot_hors_piste = ((600-(R_ROBOT+MARGE_TRAJECTOIRE) <= x_arrivee_1 <= 2400+(R_ROBOT+MARGE_TRAJECTOIRE)) and (1550 -(R_ROBOT+MARGE_TRAJECTOIRE)<= y_arrivee_1 <= Y_PISTE)) or not((R_ROBOT <= x_arrivee_1 <= X_PISTE - (R_ROBOT)) and (R_ROBOT <= y_arrivee_1 <= Y_PISTE - (R_ROBOT)))
+                            print("robot_hors_piste : ",robot_hors_piste)
+                            print("Noisette_la_plus_proche : ",Noisette_la_plus_proche)
+                            print("distance_point_noisette_min : ",distance_point_noisette_min)
+                            print("R_ROBOT + 2*MARGE_NOISETTE : ",R_ROBOT + 2*MARGE_NOISETTE)
+                            if distance_point_noisette_min <= R_ROBOT + 2*MARGE_NOISETTE or robot_hors_piste:
+                                print("Changer point")
+                                angle_robot_gm -= 90
+                                angle_robot_gm %= 360
+                                print(angle_robot_gm)
+                                if 45<=angle_robot_gm<135:
+                                    print("haut")
+                                    x_cote = (Liste_zones_gm_coins[num_gm][0][0]+Liste_zones_gm_coins[num_gm][1][0])/2
+                                    y_cote = Liste_zones_gm_coins[num_gm][1][1]
+                                if 0<=angle_robot_gm<45 or 315<=angle_robot_gm<360:
+                                    print("droite")
+                                    x_cote = Liste_zones_gm_coins[num_gm][1][0]
+                                    y_cote = (Liste_zones_gm_coins[num_gm][0][1]+Liste_zones_gm_coins[num_gm][1][1])/2
+                                if 135<=angle_robot_gm<225:
+                                    print("gauche")
+                                    x_cote = Liste_zones_gm_coins[num_gm][0][0]
+                                    y_cote = (Liste_zones_gm_coins[num_gm][0][1]+Liste_zones_gm_coins[num_gm][1][1])/2
+                                if 225<=angle_robot_gm<315:
+                                    print("bas")
+                                    x_cote = (Liste_zones_gm_coins[num_gm][0][0]+Liste_zones_gm_coins[num_gm][1][0])/2
+                                    y_cote = Liste_zones_gm_coins[num_gm][0][1]
+                                print("x_cote : ",x_cote,"  y_cote : ",y_cote)
+                                angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
+                                print("angle_centre_cote : ",np.degrees(angle_centre_cote))
+                                distance = 70 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+                                x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
+                                y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
+                                x_arrivee_Astar = x_cote + (distance+70)*math.cos(angle_centre_cote)
+                                y_arrivee_Astar = y_cote + (distance+70)*math.sin(angle_centre_cote)
+
+                                distance_point_noisette_min = 100000
+                                Noisette_la_plus_proche = []
+                                for Noisette in Liste_noisette_xya:
+                                    distance_point_noisette = math.sqrt((x_arrivee_1 - Noisette[0])**2 + (y_arrivee_1 - Noisette[1])**2)
+                                    if distance_point_noisette <= distance_point_noisette_min:
+                                        distance_point_noisette_min = distance_point_noisette
+                                        Noisette_la_plus_proche = Noisette
+                                robot_hors_piste = ((600-(R_ROBOT+MARGE_TRAJECTOIRE) <= x_arrivee_1 <= 2400+(R_ROBOT+MARGE_TRAJECTOIRE)) and (1550 -(R_ROBOT+MARGE_TRAJECTOIRE)<= y_arrivee_1 <= Y_PISTE)) or not((R_ROBOT <= x_arrivee_1 <= X_PISTE - (R_ROBOT)) and (R_ROBOT <= y_arrivee_1 <= Y_PISTE - (R_ROBOT)))
+                                print("robot_hors_piste : ",robot_hors_piste)
+                                print("Noisette_la_plus_proche : ",Noisette_la_plus_proche)
+                                if distance_point_noisette_min <= R_ROBOT + 2*MARGE_NOISETTE or robot_hors_piste:
+                                    demande_nouvelle_strat = True
+                                    print("DEMANDE NOUVELLE STRAT")
+                                else : 
+                                    if pince_a_utilise == 0:
+                                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["Reculer",x_arrivee_Astar,y_arrivee_Astar]]
+                                    else :
+                                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                            else : 
+                                if pince_a_utilise == 0:
+                                    Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["Reculer",x_arrivee_Astar,y_arrivee_Astar]]
+                                else :
+                                    Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                        else : 
+                            if pince_a_utilise == 0:
+                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["Reculer",x_arrivee_Astar,y_arrivee_Astar]]
+                            else :
+                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+
+                    if pince_a_utilise == 0:
+                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["Reculer",x_arrivee_Astar,y_arrivee_Astar]]
+                    else :
+                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]     
                  
 
     Liste_actions.append(["Attente"])
@@ -1957,7 +2134,7 @@ if __name__ == '__main__':
                                         if verif_action == 1:
                                             Noisettes_groupees.remove(coupleNoisette)
                                             Liste_noisette_xya.remove(coupleNoisette[0])
-                                            Noisettes_stockees_dans_robot[pince_a_utilise][0] = coupleNoisette[0][3]
+                                            Noisettes_stockees_dans_robot[pince_a_utilise][1] = coupleNoisette[0][3]
                                             changement_noisettes_detecte = True
 
 
