@@ -1,16 +1,16 @@
 couleur = "B"
-Reel = False
+Reel = True
 
-Strategie = True
-Debug_strategie = True
-Astars = True
+Strategie = False
+Debug_strategie = False
+Astars = False
 
 Simul_mvt = True
 Simul_mvt_ennemi = False
-Debug_Mouv = True
+Debug_Mouv = False
 
 Simul_action = True
-Debug_Action = True
+Debug_Action = False
 
 Lidar_on = False
 Bat_Compet = False
@@ -37,7 +37,7 @@ from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper
 ########################################################################
 #couleur = fenetre_selection_couleur()
 # Config CAN 
-Liste_ID_recoit = [0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
+Liste_ID_recoit = [0x03,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
 Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
@@ -125,6 +125,7 @@ if not Astars:
         ]
     else :
         Liste_actions = [
+            ["Relacher",0,12],
             ["Avancer",2550,1400],
             ["Avancer",2550,1000],
             ["Avancer",2800,890],
@@ -293,8 +294,8 @@ if couleur == "B":
     y_robot_depart = 1670
     angle_robot_depart = -90
 
-    x_robot_depart = 2000 
-    y_robot_depart = 1300
+    x_robot_depart = 2725 
+    y_robot_depart = 1670
     angle_robot_depart = -90
 
     x_robot_retour = 2725
@@ -579,7 +580,7 @@ def LectureCAN(stop_event):
             Batteries_alert[2] = struct.unpack('<H', bytes(msg.data[:2]))[0]
             
         elif msg.arbitration_id == 0x109:
-            verif_action = struct.unpack('f', bytes(msg.data))[0]
+            verif_action = struct.unpack('i', bytes(msg.data))[0]
 
         elif msg.arbitration_id == 0x10C:
             V_rpi = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
@@ -597,7 +598,7 @@ def LectureCAN(stop_event):
         elif msg.arbitration_id == 0x002:
             carte_asserv_active = struct.unpack('f', bytes(msg.data))[0]
         elif msg.arbitration_id == 0x003:
-            carte_actionneur_active = struct.unpack('f', bytes(msg.data))[0]
+            carte_actionneur_active = struct.unpack('i', bytes(msg.data))[0]
         elif msg.arbitration_id == 0x004:
             carte_RPI_active = struct.unpack('f', bytes(msg.data))[0]
         elif msg.arbitration_id == 0x005:
@@ -1624,6 +1625,7 @@ if __name__ == '__main__':
 
             step +=1
             print("step :",step)
+            print(f"verif_action : {verif_action}")
             if Astars:
                 grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, 
                             obs_manager, obs_manager_noisettes,
@@ -2574,14 +2576,14 @@ if __name__ == '__main__':
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
-                        if key in [0x01,0x206,0x209,0x300,0x301,0x302,0x303]:
+                        if key in [0x01,0x206,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
                             format_value = struct.pack('<I',dico_envoi[key])
                         else:
                             format_value = struct.pack('<f',dico_envoi[key])
                         msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
                         bus.send(msg)
                         dico_envoi[key]=0
-                        time.sleep(0.0005)
+                        time.sleep(0.0006)
             
 
             # MAJ de l'affichage et des Variables de Bouncing
