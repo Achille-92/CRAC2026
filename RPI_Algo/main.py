@@ -1,5 +1,5 @@
 couleur = "B"
-Reel = True
+Reel = False
 
 Strategie = False
 Debug_strategie = False
@@ -9,7 +9,7 @@ Simul_mvt = True
 Simul_mvt_ennemi = False
 Debug_Mouv = False
 
-Simul_action = True
+Simul_action = False
 Debug_Action = False
 
 Lidar_on = False
@@ -125,6 +125,8 @@ if not Astars:
         ]
     else :
         Liste_actions = [
+            ["Attraper",0,12],
+            ["Retourner",0,12],
             ["Relacher",0,12],
             ["Avancer",2550,1400],
             ["Avancer",2550,1000],
