@@ -145,9 +145,45 @@ class Obstacles:
         )
         self._obstacles[nom] = obstacle
         self._invalider_cache()
-        print(f"➕ Rectangle ajouté : {nom} @ {coin_bas_gauche_mm} - {coin_haut_droit_mm}")
+        #print(f"➕ Rectangle ajouté : {nom} @ {coin_bas_gauche_mm} - {coin_haut_droit_mm}")
     
     
+    
+    def ajouter_rectangle_oriente(self, nom: str, centre_mm: Tuple[int, int],
+                                  longueur_mm: int, largeur_mm: int, angle_deg: float,
+                                  actif: bool = True, priorite: int = 0) -> None:
+        """
+        Ajoute un obstacle rectangulaire orienté.
+        
+        Args:
+            nom: Identifiant unique
+            centre_mm: (x, y) centre du rectangle en mm
+            longueur_mm: Longueur du rectangle (dans la direction de l'angle) en mm
+            largeur_mm: Largeur du rectangle (perpendiculaire à l'angle) en mm
+            angle_deg: Angle de rotation en degrés (0° = horizontal, 90° = vertical)
+            actif: Si True, obstacle actif dès création
+            priorite: Ordre de traitement
+            
+        Example:
+            >>> obs.ajouter_rectangle_oriente("noisette1", (175, 1200), 150, 50, 0)
+            >>> obs.ajouter_rectangle_oriente("noisette2", (1500, 800), 150, 50, 90)
+        """
+        obstacle = Obstacle(
+            nom=nom,
+            forme="rectangle_oriente",
+            params={
+                "centre": centre_mm,
+                "longueur": longueur_mm,
+                "largeur": largeur_mm,
+                "angle": angle_deg
+            },
+            actif=actif,
+            priorite=priorite
+        )
+        self._obstacles[nom] = obstacle
+        self._invalider_cache()
+        #print(f"➕ Rectangle orienté ajouté : {nom} @ {centre_mm} ({longueur_mm}×{largeur_mm}mm, {angle_deg}°)")
+
     def ajouter_cercle(self, nom: str, centre_mm: Tuple[int, int],
                       rayon_mm: int, actif: bool = True, priorite: int = 0) -> None:
         """
@@ -172,7 +208,7 @@ class Obstacles:
         )
         self._obstacles[nom] = obstacle
         self._invalider_cache()
-        print(f"➕ Cercle ajouté : {nom} @ {centre_mm} (r={rayon_mm}mm)")
+        #print(f"➕ Cercle ajouté : {nom} @ {centre_mm} (r={rayon_mm}mm)")
     
     
     def ajouter_polygone(self, nom: str, sommets_mm: List[Tuple[int, int]],
@@ -198,7 +234,7 @@ class Obstacles:
         )
         self._obstacles[nom] = obstacle
         self._invalider_cache()
-        print(f"➕ Polygone ajouté : {nom} ({len(sommets_mm)} sommets)")
+        #print(f"➕ Polygone ajouté : {nom} ({len(sommets_mm)} sommets)")
     
     
     # ========================================================================
@@ -286,7 +322,7 @@ class Obstacles:
         
         del self._obstacles[nom]
         self._invalider_cache()
-        print(f"🗑️  Obstacle '{nom}' retiré")
+        #print(f"🗑️  Obstacle '{nom}' retiré")
         return True
     
     
@@ -295,7 +331,7 @@ class Obstacles:
         count = len(self._obstacles)
         self._obstacles.clear()
         self._invalider_cache()
-        print(f"🗑️  {count} obstacles retirés")
+        #print(f"🗑️  {count} obstacles retirés")
     
     
     # ========================================================================
@@ -401,6 +437,8 @@ class Obstacles:
                 cases = self._generer_rectangle(obs.params)
             elif obs.forme == "cercle":
                 cases = self._generer_cercle(obs.params)
+            elif obs.forme == "rectangle_oriente":
+                cases = self._generer_rectangle_oriente(obs.params)
             elif obs.forme == "polygone":
                 cases = self._generer_polygone(obs.params)
             else:
@@ -477,6 +515,78 @@ class Obstacles:
         return cases
     
     
+    
+    def _generer_rectangle_oriente(self, params: dict) -> Set[Tuple[int, int]]:
+        """
+        Génère les cases d'un rectangle orienté.
+        Utilise une transformation matricielle pour calculer les points du rectangle tourné.
+        """
+        cx_mm, cy_mm = params["centre"]
+        longueur_mm = params["longueur"]
+        largeur_mm = params["largeur"]
+        angle_deg = params["angle"]
+        
+        # Conversion en cases
+        cx = cx_mm / self.case_mm
+        cy = cy_mm / self.case_mm
+        demi_longueur = longueur_mm / (2 * self.case_mm)
+        demi_largeur = largeur_mm / (2 * self.case_mm)
+        
+        # Angle en radians
+        angle_rad = math.radians(angle_deg)
+        cos_a = math.cos(angle_rad)
+        sin_a = math.sin(angle_rad)
+        
+        # Calculer les 4 coins du rectangle avant rotation
+        # Coin 1: (-demi_longueur, -demi_largeur)
+        # Coin 2: (+demi_longueur, -demi_largeur)
+        # Coin 3: (+demi_longueur, +demi_largeur)
+        # Coin 4: (-demi_longueur, +demi_largeur)
+        
+        coins_local = [
+            (-demi_longueur, -demi_largeur),
+            (+demi_longueur, -demi_largeur),
+            (+demi_longueur, +demi_largeur),
+            (-demi_longueur, +demi_largeur)
+        ]
+        
+        # Appliquer la rotation et translation à chaque coin
+        coins_global = []
+        for (lx, ly) in coins_local:
+            # Rotation
+            rx = lx * cos_a - ly * sin_a
+            ry = lx * sin_a + ly * cos_a
+            # Translation
+            gx = rx + cx
+            gy = ry + cy
+            coins_global.append((gx, gy))
+        
+        # Trouver la bounding box
+        min_x = min(p[0] for p in coins_global)
+        max_x = max(p[0] for p in coins_global)
+        min_y = min(p[1] for p in coins_global)
+        max_y = max(p[1] for p in coins_global)
+        
+        # Parcourir tous les points dans la bounding box
+        cases = set()
+        for x in range(int(min_x) - 1, int(max_x) + 2):
+            for y in range(int(min_y) - 1, int(max_y) + 2):
+                # Vérifier si le point est dans le rectangle
+                # Transformer le point dans le repère local du rectangle
+                dx = x - cx
+                dy = y - cy
+                # Rotation inverse
+                local_x = dx * cos_a + dy * sin_a
+                local_y = -dx * sin_a + dy * cos_a
+                
+                # Vérifier si dans le rectangle
+                if abs(local_x) <= demi_longueur and abs(local_y) <= demi_largeur:
+                    # Vérifier les limites du terrain
+                    if 0 <= x < self.width and 0 <= y < self.height:
+                        cases.add((int(x), int(y)))
+        
+        return cases
+
     def _generer_cercle(self, params: dict) -> Set[Tuple[int, int]]:
         """Génère les cases d'un cercle."""
         cx_mm, cy_mm = params["centre"]
@@ -555,67 +665,14 @@ class Obstacles:
         """Invalide le cache de grille."""
         self._cache_valide = False
 
-
-# ============================================================================
-# FONCTION COMPATIBLE AVEC ANCIEN CODE
-# ============================================================================
-
-def creer_obstacles(terrain_w_mm, terrain_h_mm, 
-                    rayon_robot_mm, marge_obstacles_mm, case_mm):
-    """
-    Fonction de compatibilité avec l'ancien code.
-    Crée les obstacles par défaut de la Coupe de France de Robotique.
-    
-    ⚠️  DEPRECATED : Utilisez plutôt la classe Obstacles
-    
-    Returns:
-        tuple: (grid, grid_expanded, obstacle_array, expanded_array)
-    """
-    # Créer gestionnaire
-    obs_manager = Obstacles(terrain_w_mm, terrain_h_mm, 
-                           rayon_robot_mm, marge_obstacles_mm, case_mm)
-    
-    # Ajouter obstacles par défaut (Coupe de France 2024/2025)
-    zones_centres = [
-        (1250, 1450), (1750, 1450),
-        (100, 800), (800, 800), (1500, 800), (2200, 800), (2900, 800),
-        (700, 100), (1500, 100), (2300, 100),
-    ]
-    
-    for i, (x, y) in enumerate(zones_centres, 1):
-        obs_manager.ajouter_carre(f"zone{i}", (x, y), 200, actif=True)
-
-    zones_noisettes = [
-        [(100,1100),(250,1300)],
-         [(100,300),(250,500)],
-         [(2750,1100),(2900,1300)],
-         [(2750,300),(2900,500)],
-         [(1050,725),(1250,875)],
-         [(1750,725),(1950,875)],
-         [(1000,100),(1200,250)],
-         [(1800,100),(2000,250)]
-    ]
-    i = 1
-    for noisettes in zones_noisettes :
-        x1 = noisettes[0][0]
-        y1 = noisettes[0][1]
-        x2 = noisettes[1][0]
-        y2 = noisettes[1][1]
-        obs_manager.ajouter_rectangle(f"Noisette{i}", (x1, y1), (x2, y2), actif=True)
-        i+=1
-    # Zone rectangulaire (grenier)
-    obs_manager.ajouter_rectangle("grenier", (600, 1550), (2400, 2000), actif=True)
-    
-    return obs_manager.generer_grille()
-
-
 # ============================================================================
 # FONCTIONS POUR LA ZONE DE SÉCURITÉ DYNAMIQUE DE L'ENNEMI
 # ============================================================================
 
+
 def creer_zone_securite_ennemi(x_ennemi, y_ennemi, r_robot, r_ennemi, 
-                                marge_securite=50, case_mm=10,
-                                terrain_w_mm=3000, terrain_h_mm=2000):
+                                marge_securite, case_mm,
+                                terrain_w_mm, terrain_h_mm):
     """
     Crée une zone de sécurité circulaire autour de la position de l'ennemi.
     Cette zone est considérée comme un obstacle temporaire.
@@ -670,115 +727,78 @@ def creer_zone_securite_ennemi(x_ennemi, y_ennemi, r_robot, r_ennemi,
 # FONCTIONS POUR LES BATTERIES
 # ============================================================================
 
-def calculer_pourcentage_batteries(Batteries, U_last):
+def associer_noisette_a_emplacement(noisette, positions_theoriques, seuil):
     """
-    Calcule le pourcentage de charge de chaque batterie.
+    Associe une noisette à son emplacement théorique le plus proche.
     
     Args:
-        Batteries: Liste de 3 batteries [[Vmin, Vmax, Vactuel, %], ...]
-        U_last: Liste des dernières tensions [U1, U2, U3]
+        noisette: [x, y, angle, couleur]
+        positions_theoriques: Liste des 4 positions [[x1,y1], [x2,y2], ...]
+        seuil: Distance max pour valider l'association
     
     Returns:
-        Batteries: Liste mise à jour avec les nouveaux pourcentages
+        index (0-3) ou None si trop loin
     """
-    for i in range(len(Batteries)):
-        if Batteries[i][2] != U_last[i]:
-            print(f"MAJ Batterie N°{i+1}")
-            Batteries[i][3] = 100 * (Batteries[i][2] - Batteries[i][0]) / (Batteries[i][1] - Batteries[i][0])
-            Batteries[i][3] = round(Batteries[i][3], 2)
+    x_noisette, y_noisette = noisette[0], noisette[1]
     
-    return Batteries
-
-
-def gerer_basculement_batteries(Batteries, U_last, Ordre_Batteries, seuil_critique=5.0):
+    distances = []
+    for idx, (x_theo, y_theo) in enumerate(positions_theoriques):
+        distance = math.sqrt((x_noisette - x_theo)**2 + (y_noisette - y_theo)**2)
+        distances.append((idx, distance))
+    
+    # Trouver l'emplacement le plus proche
+    idx_min, dist_min = min(distances, key=lambda x: x[1])
+    
+    if dist_min <= seuil:
+        return idx_min
+    else:
+        return None  # Noisette trop éloignée (erreur de détection ?)
+    
+    
+    
+def detecter_changements_noisettes(liste_actuelle, liste_precedente):
     """
-    Gère le basculement automatique entre batteries quand l'une est déchargée.
+    Détecte si Liste_noisette_xya a changé (ajout, suppression ou modification).
     
     Args:
-        Batteries: Liste des états des batteries
-        U_last: Liste des dernières tensions
-        Ordre_Batteries: Liste [1,0,0] ou [0,1,0] ou [0,0,1]
-        seuil_critique: Seuil de pourcentage pour basculer (défaut: 5.0%)
+        liste_actuelle: Liste_noisette_xya actuelle
+        liste_precedente: Liste_noisette_xya de l'itération précédente
     
     Returns:
-        Ordre_Batteries: Ordre mis à jour
+        bool: True si changement détecté
     """
-    if Batteries[0][2] != U_last[0] and Batteries[0][3] <= seuil_critique:
-        print("Utilisation Bat2")
-        Ordre_Batteries = [0, 1, 0]
+    # Vérification rapide : même longueur ?
+    if len(liste_actuelle) != len(liste_precedente):
+        return True
     
-    if Batteries[1][2] != U_last[1] and Batteries[1][3] <= seuil_critique:
-        print("Utilisation Bat3")
-        Ordre_Batteries = [0, 0, 1]
+    # Vérification détaillée : mêmes éléments ?
+    for i, noisette_actuelle in enumerate(liste_actuelle):
+        if i >= len(liste_precedente):
+            return True
+        
+        noisette_precedente = liste_precedente[i]
+        
+        # Comparer les 4 premiers éléments [x, y, angle, couleur]
+        if (noisette_actuelle[0] != noisette_precedente[0] or
+            noisette_actuelle[1] != noisette_precedente[1] or
+            noisette_actuelle[2] != noisette_precedente[2] or
+            noisette_actuelle[3] != noisette_precedente[3]):
+            return True
     
-    if Batteries[2][2] != U_last[2] and Batteries[2][3] <= seuil_critique:
-        print("Batteries déchargées")
-    
-    return Ordre_Batteries
+    return False
 
 
-# ============================================================================
-# FONCTION DE TEST
-# ============================================================================
+def distance(n1, n2):
+    """Calcule la distance entre les centres de deux noisettes"""
+    return math.sqrt((n1[0] - n2[0])**2 + (n1[1] - n2[1])**2)
 
-def tester_classe_obstacles():
-    """Fonction de test pour la classe Obstacles."""
-    print("\n" + "="*70)
-    print("TEST DE LA CLASSE OBSTACLES")
-    print("="*70 + "\n")
-    
-    # Créer gestionnaire
-    obs = Obstacles(3000, 2000, 150, 50, 10)
-    
-    # Ajouter différents types d'obstacles
-    print("\n--- AJOUT D'OBSTACLES ---")
-    obs.ajouter_carre("zone1", (1250, 1450), 200)
-    obs.ajouter_carre("zone2", (1750, 1450), 200, actif=False)
-    obs.ajouter_rectangle("grenier", (600, 1550), (2400, 2000))
-    obs.ajouter_cercle("danger", (1500, 1000), 300)
-    obs.ajouter_polygone("triangle", [(100, 100), (300, 100), (200, 300)])
-    
-    # Lister
-    print("\n--- LISTE COMPLÈTE ---")
-    obs.lister()
-    
-    # Activer/Désactiver
-    print("\n--- ACTIVATION/DÉSACTIVATION ---")
-    obs.desactiver("zone1")
-    obs.activer("zone2")
-    obs.basculer("grenier")
-    
-    print("\n--- OBSTACLES ACTIFS ---")
-    obs.lister(filtre_actif=True)
-    
-    # Générer grille
-    print("\n--- GÉNÉRATION GRILLE ---")
-    grid, grid_expanded, obstacle_array, expanded_array = obs.generer_grille()
-    print(f"✅ Grille : {grid.shape}, {np.sum(grid)} cases obstacles")
-    
-    obs.retirer("danger")
-    obs.lister()
+def sont_paralleles(n1, n2, tolerance=5):
+    """Vérifie si deux noisettes sont parallèles (tolérance en degrés)"""
+    diff_angle = abs(n1[2] - n2[2])
+    # Gérer le cas où les angles sont proches de 0/360
+    diff_angle = min(diff_angle, 360 - diff_angle)
+    return diff_angle <= tolerance
 
-
-"""if __name__ == "__main__":
-    # Exécuter le test si le fichier est lancé directement
-    tester_classe_obstacles()"""
-
-def clamp(val, min_val, max_val):
-    return max(min_val, min(val, max_val))
-
-def calcul_angle_vers_point(x_actuel, y_actuel, x_suivant, y_suivant):
-    """
-    Calcule l'angle absolu (en degrés 0–360) à viser pour aller vers (x_suivant, y_suivant)
-    depuis (x_actuel, y_actuel).
-    """
-    dx = x_suivant - x_actuel
-    dy = y_suivant - y_actuel
-    angle = (math.degrees(math.atan2(dy, dx)) + 360) % 360
-    return round(angle, 2)
-
-
-def distance_euclidienne(x1, y1, x2, y2):
-    """Calcule la distance euclidienne entre deux points"""
-    return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
-
+def peuvent_etre_groupees(n1, n2):
+    """Vérifie si deux noisettes peuvent être regroupées"""
+    return sont_paralleles(n1, n2) and distance(n1, n2) <= 60
