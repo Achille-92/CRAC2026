@@ -5,7 +5,7 @@ Strategie = False
 Debug_strategie = False
 Astars = False
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Debug_Mouv = False
 
@@ -125,9 +125,9 @@ if not Astars:
         ]
     else :
         Liste_actions = [
-            ["Attraper",0,12],
-            ["Retourner",0,12],
-            ["Relacher",0,12],
+            #["Attraper",0,12],
+            #["Retourner",0,12],
+            #["Relacher",0,12],
             ["Avancer",2550,1400],
             ["Avancer",2550,1000],
             ["Avancer",2800,890],
@@ -214,7 +214,7 @@ Liste_noisette_xya = [
     [1025,175,90,"B"],[1075,175,90,"B"],[1125,175,90,"J"],[1175,175,90,"J"],
     [1825,175,90,"B"],[1875,175,90,"J"],[1925,175,90,"B"],[1975,175,90,"J"],
 
-    [2200,950,0,"J"],#[2350,800,90,"J"],
+    [2125,800,90,"B"],[2175,800,90,"B"],[2225,800,90,"B"],
 ] 
 
 Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
@@ -426,8 +426,8 @@ carte_batteries_active = 0
 etat_bau = 1
 
 demande_nouvelle_strat = False
-x_strategie = 2825
-y_strategie = 1150
+x_strategie = 2300
+y_strategie = 800
 strategie_en_cours = [] 
 TOLERANCE_STRATEGIE_NOISETTE = 50
 
@@ -1125,7 +1125,10 @@ def positionner_robot_devant_Noisette():
             #   Relacher
             #   Reculer assez pour au cas où nouvelle Noisette à déposer
             if Strat_Noisettes_dans_GM != []:
-                print("Faire Stratégie avec Noisettes dans GM")
+                if len(Strat_Noisettes_dans_GM)==3 and sous_pince == 12:
+                    demande_nouvelle_strat = True
+                
+                
             else:
                 angle_robot_gm = np.degrees(math.atan2(y_centre_gm - y_robot_actuel, x_centre_gm - x_robot_actuel))
                 angle_robot_gm += 360
@@ -1587,6 +1590,7 @@ if __name__ == '__main__':
     if Reel :
         tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
         tache_LectureCAN.start()
+
     if Reel and lancement_cartes:
         while(carte_asserv_active == 0 and carte_actionneur_active == 0 and carte_RPI_active == 0 and carte_batteries_active == 0):
             print(f"Etat Carte Asserv : {carte_asserv_active}")
@@ -1619,7 +1623,7 @@ if __name__ == '__main__':
         Liste_actions_ennemi = [[int(x_robot_actuel-10),int(y_robot_actuel-10)],[275,1650]]
         n_init = len(Liste_actions_ennemi)
 
-        while (not stop_event.is_set() and V_rpi > lim_Bat_RPI and len(Liste_actions)!=0 and temps_restant >=0 and etat_bau==1): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
+        while (not stop_event.is_set() and len(Liste_actions)!=0 and temps_restant >=0): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
             dico_envoi[0x01]=1
 
             temps_ecoules = time.time() - temps_demarage
@@ -1627,7 +1631,6 @@ if __name__ == '__main__':
 
             step +=1
             print("step :",step)
-            print(f"verif_action : {verif_action}")
             if Astars:
                 grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, 
                             obs_manager, obs_manager_noisettes,
@@ -1771,9 +1774,6 @@ if __name__ == '__main__':
             # ================================================= #
 
             # ====== Bouger si Robot dans Zone interdite pour Attraper et Relacher === #
-            if (action_precedente in ["Relacher"] and action_voulu in ["Consigne","Avancer","Reculer"]):
-                print("sdferfqrsf")
-
             if len(Liste_actions)>2 or action_precedente in ["Relacher"]:
                 if (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper"]) or Liste_actions[1][0] in ["Attraper"] or action_voulu in ["Attraper"] or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","Avancer","Reculer"]) or (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Relacher"]) or Liste_actions[1][0] in ["Relacher"] or action_voulu in ["Relacher"]:
                     mode_attraper = True
@@ -2419,6 +2419,13 @@ if __name__ == '__main__':
             
             
             # ======================= GESTION BATTERIES ========================== #
+            
+            print(f"\netat_bau : {etat_bau}")
+            print(f"carte_batteries_active : {carte_batteries_active}")
+            print(f"Batteries : {Batteries}")
+            print(f"Batteries_alert : {Batteries_alert}")
+            print(f"Batteries_interrupteur : {Batteries_interrupteur}")
+            print(f"Bat_Compet : {Bat_Compet}")
             if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             
