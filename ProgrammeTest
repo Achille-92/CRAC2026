@@ -2431,11 +2431,12 @@ if __name__ == '__main__':
             if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             
-            if not Bat_Compet: 
-                if Batteries_alert[0]==0:
-                    Batteries_interrupteur[0]=2
-                else :
-                    Batteries_interrupteur[0]=1
+            if not Bat_Compet:                      # Si on est en mode Test
+                if Batteries_alert[0]==0:           #   Si il n'y a pas de message d'alerte pour la batterie
+                    Batteries_interrupteur[0]=2     #     On met l'interrupteur à 1
+                else :                              #   Sinon   
+                    Batteries_interrupteur[0]=1     #     On met l'interrupteur à 2
+
                 if Batteries_alert[1]==0:
                     Batteries_interrupteur[1]=2
                 else :
@@ -2444,8 +2445,8 @@ if __name__ == '__main__':
                     Batteries_interrupteur[2]=2
                 else :
                     Batteries_interrupteur[2]=1
-            else :
-                Batteries_interrupteur[0]=2
+            else :                                  # Sinon
+                Batteries_interrupteur[0]=2         #  On met tous les interrupteurs à 1
                 Batteries_interrupteur[1]=2
                 Batteries_interrupteur[2]=2
                 
@@ -2613,8 +2614,7 @@ if __name__ == '__main__':
             print("")
             time.sleep(0.000005)
 
-        if V_rpi <= lim_Bat_RPI:
-            print("Batterie RPI trop faible")
+
         if etat_bau == 1:
             print("BAU enfoncé")
         time.sleep(2) 
@@ -2644,14 +2644,11 @@ if __name__ == '__main__':
             data_etat_RPI = struct.pack('<I',etat_RPI)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat_RPI, is_extended_id=False))
 
-            dico_envoi[0x300]=Batteries_interrupteur[0]
-            dico_envoi[0x301]=Batteries_interrupteur[1]
-            dico_envoi[0x302]=Batteries_interrupteur[2]
-            data_etat_RPI = struct.pack('<I',Batteries_interrupteur[0])
+            data_etat_RPI = struct.pack('<I',1)
             bus.send(can.Message(arbitration_id=0x300, data=data_etat_RPI, is_extended_id=False))
-            data_etat_RPI = struct.pack('<I',Batteries_interrupteur[1])
+            data_etat_RPI = struct.pack('<I',1)
             bus.send(can.Message(arbitration_id=0x301, data=data_etat_RPI, is_extended_id=False))
-            data_etat_RPI = struct.pack('<I',Batteries_interrupteur[2])
+            data_etat_RPI = struct.pack('<I',1)
             bus.send(can.Message(arbitration_id=0x302, data=data_etat_RPI, is_extended_id=False))
             
         plt.close(fig)
