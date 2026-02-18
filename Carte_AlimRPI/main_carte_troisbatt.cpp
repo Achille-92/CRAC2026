@@ -116,15 +116,20 @@ void setup()
   // Batterie1.setAlertLimit(limit);
   // Batterie1.setAlertRegister(INA236_POWER_OVER_LIMIT); // masque pour le mode de fonctionnement que l’on veut
 
+  
+}
+
+void loop()
+{
+  /*
   // message dans le bus CAN pour dire que la carte à fini de boot
   CAN_TX_msg.id = BOOT_CARTE_PUISSANCE;
   CAN_TX_msg.len = 1;
   CAN_TX_msg.buf[0] = 1; // dit dans le bus que la carte à boot
   Can1.write(CAN_TX_msg);
-}
+  */
+  envoi_int_CAN(1, BOOT_CARTE_PUISSANCE);
 
-void loop()
-{
   // lecture des entrées
   val_aru = digitalRead(PINARU);
   val_alert = digitalRead(PINALERT);
@@ -332,7 +337,7 @@ void loop()
         envoi_int_CAN(1, ALERTE_DECHARGE_BATT3);
     }
 
-    envoi_int_CAN(5, ARU);
+    envoi_int_CAN(val_aru, ARU);
 
     previousMillis = currentMillis; // Met à jour le temps de référence
   }
@@ -394,8 +399,8 @@ void loop()
   // Serial.print(Batt2);
   // Serial.printf(" | Batt1 = %d%%", Batt1);
   // Serial.printf(" | Batt2 = %d%%", Batt2);
-  Serial.printf(" | Batt2 = %d%%", Batt3);
-  Serial.printf(" | int2   = %d", etat_interrupteur3);
+  Serial.printf(" | Batt2 = %d%%", Batt2);
+  Serial.printf(" | int2   = %d", etat_interrupteur2);
   // Serial.printf(" | Alerte decharge = %d", ALERTE_DECHARGE_BATT3);
   printf("\n");
 }
@@ -596,11 +601,6 @@ void arret_urgence(void)
   digitalWrite(PININTERRUPTEURBATT2, LOW);
   digitalWrite(PININTERRUPTEURBATT3, LOW);
 
-  // message CAN pour l'aru
-  CAN_TX_msg.id = ARU;
-  CAN_TX_msg.len = 1;    // longueur 1 octet
-  CAN_TX_msg.buf[0] = 1; // aru actionné
-  Can1.write(CAN_TX_msg);
 
   // éteint toutes les alimentations
   etat_interrupteur1 = OFF;
