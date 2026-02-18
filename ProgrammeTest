@@ -2615,7 +2615,7 @@ if __name__ == '__main__':
 
         if V_rpi <= lim_Bat_RPI:
             print("Batterie RPI trop faible")
-        if etat_bau == 0:
+        if etat_bau == 1:
             print("BAU enfoncé")
         time.sleep(2) 
         stop_event.set()
