@@ -1,5 +1,5 @@
 couleur = "B"
-Reel = False
+Reel = True
 
 Strategie = False
 Debug_strategie = False
@@ -37,7 +37,7 @@ from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper
 ########################################################################
 #couleur = fenetre_selection_couleur()
 # Config CAN 
-Liste_ID_recoit = [0x03,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
+Liste_ID_recoit = [0x03,0x05,0x06,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
 Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
@@ -604,10 +604,12 @@ def LectureCAN(stop_event):
         elif msg.arbitration_id == 0x004:
             carte_RPI_active = struct.unpack('f', bytes(msg.data))[0]
         elif msg.arbitration_id == 0x005:
-            carte_batteries_active = struct.unpack('f', bytes(msg.data))[0]
-        elif msg.arbitration_id == 0x006:
-            etat_bau = struct.unpack('f', bytes(msg.data))[0]
-
+            carte_batteries_active = struct.unpack('<H', bytes(msg.data[:2]))[0]
+        elif msg.arbitration_id == 0x06:
+            if msg.dlc >= 2:
+                etat_bau = struct.unpack('<H', bytes(msg.data[:2]))[0]
+            else:
+                etat_bau = msg.data[0]
     
 ##############################################################################
 
@@ -2429,11 +2431,12 @@ if __name__ == '__main__':
             if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             
-            if not Bat_Compet: 
-                if Batteries_alert[0]==0:
-                    Batteries_interrupteur[0]=2
-                else :
-                    Batteries_interrupteur[0]=1
+            if not Bat_Compet:                      # Si on est en mode Test
+                if Batteries_alert[0]==0:           #   Si il n'y a pas de message d'alerte pour la batterie
+                    Batteries_interrupteur[0]=2     #     On met l'interrupteur à 1
+                else :                              #   Sinon   
+                    Batteries_interrupteur[0]=1     #     On met l'interrupteur à 2
+
                 if Batteries_alert[1]==0:
                     Batteries_interrupteur[1]=2
                 else :
@@ -2442,8 +2445,8 @@ if __name__ == '__main__':
                     Batteries_interrupteur[2]=2
                 else :
                     Batteries_interrupteur[2]=1
-            else :
-                Batteries_interrupteur[0]=2
+            else :                                  # Sinon
+                Batteries_interrupteur[0]=2         #  On met tous les interrupteurs à 1
                 Batteries_interrupteur[1]=2
                 Batteries_interrupteur[2]=2
                 
@@ -2611,9 +2614,8 @@ if __name__ == '__main__':
             print("")
             time.sleep(0.000005)
 
-        if V_rpi <= lim_Bat_RPI:
-            print("Batterie RPI trop faible")
-        if etat_bau == 0:
+
+        if etat_bau == 1:
             print("BAU enfoncé")
         time.sleep(2) 
         stop_event.set()
@@ -2641,7 +2643,14 @@ if __name__ == '__main__':
             etat_RPI = 2
             data_etat_RPI = struct.pack('<I',etat_RPI)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat_RPI, is_extended_id=False))
-        
+
+            data_etat_RPI = struct.pack('<I',1)
+            bus.send(can.Message(arbitration_id=0x300, data=data_etat_RPI, is_extended_id=False))
+            data_etat_RPI = struct.pack('<I',1)
+            bus.send(can.Message(arbitration_id=0x301, data=data_etat_RPI, is_extended_id=False))
+            data_etat_RPI = struct.pack('<I',1)
+            bus.send(can.Message(arbitration_id=0x302, data=data_etat_RPI, is_extended_id=False))
+            
         plt.close(fig)
 
 ########################################################################
