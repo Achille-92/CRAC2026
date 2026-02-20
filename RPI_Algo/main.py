@@ -37,7 +37,7 @@ from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper
 ########################################################################
 #couleur = fenetre_selection_couleur()
 # Config CAN 
-Liste_ID_recoit = [0x03,0x05,0x06,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
+Liste_ID_recoit = [0x03,0x05,0x06,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
 Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
@@ -377,12 +377,10 @@ expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes]) if 
 # ======================================================= #
 
 # Variables fonctionnelles des Batteries
-Batteries = [100,100,100] # V décharge, V charge, V actuel, % de charge
+Batteries = [100,100,100,100] # V décharge, V charge, V actuel, % de charge
 Batteries_interrupteur = [1,1,1]
-Batteries_alert = [0,0,0]
-lim_Bat_RPI = 11.0
-V_rpi = 12.0
-I_rpi = 0
+Batteries_alert = [0,0,0,0]
+RPI_decharge = False
 ############################
 
 # Variables pour l'affichage des rectangles de batteries et des textes
@@ -393,10 +391,10 @@ seuils = [1, 20, 50, 75, 90]
 largeur_rect = 50       # largeur en mm
 hauteur_rect = 150      # hauteur en mm
 espacement = 0         # espace entre rectangles
-espacement_salves = 200 # espace entre chaque salve
+espacement_salves = 100 # espace entre chaque salve
 y_base = 2050           # position verticale (en haut de la piste)
 marge_texte = 20  # espace horizontal entre texte et rectangle
-texte_offset_y = 80  # décalage vertical du texte par rapport aux rectangles
+texte_offset_y = 50  # décalage vertical du texte par rapport aux rectangles
 longueur_trait = 100  # longueur trait de direction
 compteur_affichage = 0
 FREQUENCE_AFFICHAGE = 4
@@ -423,7 +421,7 @@ carte_asserv_active = 0
 carte_actionneur_active = 0
 carte_RPI_active = 0
 carte_batteries_active = 0
-etat_bau = 1
+etat_bau = 0
 
 demande_nouvelle_strat = False
 x_strategie = 2300
@@ -547,7 +545,7 @@ def LectureCAN(stop_event):
     Si l'ID du message n'est pas dans la Liste_ID, saute
     Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
     """
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, bus, V_rpi, I_rpi, verif_mouv, verif_angle,verif_recalage,verif_action,Batteries_alert, carte_RPI_active, carte_actionneur_active, carte_asserv_active, carte_batteries_active, etat_bau
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, bus, verif_mouv, verif_angle,verif_recalage,verif_action,Batteries_alert, carte_RPI_active, carte_actionneur_active, carte_asserv_active, carte_batteries_active, etat_bau
     while not stop_event.is_set():
         msg = bus.recv(0.01)  # attend 10 ms max
         if msg is None:
@@ -559,10 +557,8 @@ def LectureCAN(stop_event):
 
         if msg.arbitration_id == 0x100:
             x_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
-
         elif msg.arbitration_id == 0x101:
             y_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
-
         elif msg.arbitration_id == 0x102:
             angle_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
 
@@ -573,22 +569,20 @@ def LectureCAN(stop_event):
             Batteries[1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
         elif msg.arbitration_id == 0x105:
             Batteries[2] = struct.unpack('<H', bytes(msg.data[:2]))[0]
-        
+        elif msg.arbitration_id == 0x10A:
+            Batteries[3] = struct.unpack('<H', bytes(msg.data[:2]))[0]
+
         elif msg.arbitration_id == 0x106:
             Batteries_alert[0] = struct.unpack('<H', bytes(msg.data[:2]))[0]
         elif msg.arbitration_id == 0x107:
             Batteries_alert[1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
         elif msg.arbitration_id == 0x108:
             Batteries_alert[2] = struct.unpack('<H', bytes(msg.data[:2]))[0]
+        elif msg.arbitration_id == 0x10B:
+            Batteries_alert[3] = struct.unpack('<H', bytes(msg.data[:2]))[0]
             
         elif msg.arbitration_id == 0x109:
             verif_action = struct.unpack('i', bytes(msg.data))[0]
-
-        elif msg.arbitration_id == 0x10C:
-            V_rpi = struct.unpack('<H', bytes(msg.data[:2]))[0]/100
-
-        elif msg.arbitration_id == 0x10D:
-            I_rpi = struct.unpack('<H', bytes(msg.data[:2]))[0]
 
         elif msg.arbitration_id == 0x10E:
             verif_mouv = struct.unpack('f', bytes(msg.data))[0]
@@ -1509,6 +1503,10 @@ if __name__ == '__main__':
 
     stop_event = threading.Event()
 
+    if Reel :
+        tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
+        tache_LectureCAN.start()
+
     fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,noisette_text = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
 
     cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
@@ -1587,12 +1585,8 @@ if __name__ == '__main__':
     if Strategie:
         Liste_actions = positionner_robot_devant_Noisette()
         print(Liste_actions)
+
     
-
-    if Reel :
-        tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
-        tache_LectureCAN.start()
-
     if Reel and lancement_cartes:
         while(carte_asserv_active == 0 and carte_actionneur_active == 0 and carte_RPI_active == 0 and carte_batteries_active == 0):
             print(f"Etat Carte Asserv : {carte_asserv_active}")
@@ -1600,7 +1594,7 @@ if __name__ == '__main__':
             print(f"Etat Carte Alim RPI : {carte_RPI_active}")
             print(f"Etat Carte Batteries : {carte_batteries_active}")
             plt.pause(0.1)
-        while(etat_bau == 0):
+        while(etat_bau == 1):
             print(f"Etat BAU : {etat_bau}")
 
     while(lancement_strategie==False):
@@ -1625,7 +1619,7 @@ if __name__ == '__main__':
         Liste_actions_ennemi = [[int(x_robot_actuel-10),int(y_robot_actuel-10)],[275,1650]]
         n_init = len(Liste_actions_ennemi)
 
-        while (not stop_event.is_set() and len(Liste_actions)!=0 and temps_restant >=0): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
+        while (not stop_event.is_set() and len(Liste_actions)!=0 and temps_restant >=0 and not RPI_decharge and not etat_bau): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
             dico_envoi[0x01]=1
 
             temps_ecoules = time.time() - temps_demarage
@@ -2392,8 +2386,6 @@ if __name__ == '__main__':
             noisette_text.set_text(f"Avant : {Noisettes_stockees_dans_robot[0]} \nArrière : {Noisettes_stockees_dans_robot[1]}")
             chronometre_text.set_text(f"Temps : {int(temps_restant)} s\nAction : {action_voulu}")
 
-            info_alim_rpi.set_text(f"V_rpi = {V_rpi:.1f} V\nI_rpi = {I_rpi:.1f} mA")
-
             robot_info_text.set_text(f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°")
             x_voulu_text.set_text(f"X = {x_robot_voulu:.1f}")
             y_voulu_text.set_text(f"Y = {y_robot_voulu:.1f}")
@@ -2411,11 +2403,6 @@ if __name__ == '__main__':
                 A_voulu_text.set_color('black')
             else:
                 A_voulu_text.set_color('green')
-
-            if V_rpi >= lim_Bat_RPI+0.3:
-                info_alim_rpi.set_color('black')
-            else:
-                info_alim_rpi.set_color('red')
             
             # ==================================================================== #
             
@@ -2445,6 +2432,11 @@ if __name__ == '__main__':
                     Batteries_interrupteur[2]=2
                 else :
                     Batteries_interrupteur[2]=1
+                if Batteries_alert[3]==0:
+                    RPI_decharge = False
+                else :
+                    RPI_decharge = True
+                
             else :                                  # Sinon
                 Batteries_interrupteur[0]=2         #  On met tous les interrupteurs à 1
                 Batteries_interrupteur[1]=2
@@ -2617,7 +2609,10 @@ if __name__ == '__main__':
 
         if etat_bau == 1:
             print("BAU enfoncé")
-        time.sleep(2) 
+
+        if Batteries_alert[3]==1:
+            print("Batterie RPI trop faible")
+            
         stop_event.set()
 
     except KeyboardInterrupt:

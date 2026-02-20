@@ -258,7 +258,7 @@ def afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries, battery_patches
                       largeur_rect=50, hauteur_rect=150, 
                       espacement=0, espacement_salves=200,
                       y_base=2050, texte_offset_y=80,
-                      x_depart_base=200):
+                      x_depart_base=100):
     """
     Affiche l'etat de la batterie active sous forme de barres colorees.
      
