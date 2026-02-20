@@ -1,15 +1,39 @@
-case INTERRUPTEUR_BATT1:
-    // Convertir 2=ON, 1=OFF en HIGH/LOW
-    etat_interrupteur1 = (CAN_RX_msg.buf[0] == 2) ? HIGH : LOW;
-    if(CAN_RX_msg.buf[0] == 2) start_millis = millis();
-    break;
+#include <Arduino.h>
 
-case INTERRUPTEUR_BATT2:
-    etat_interrupteur2 = (CAN_RX_msg.buf[0] == 2) ? HIGH : LOW;
-    if(CAN_RX_msg.buf[0] == 2) start_millis = millis();
-    break;
+#ifndef _ID_H
+#define _ID_H
 
-case INTERRUPTEUR_BATT3:
-    etat_interrupteur3 = (CAN_RX_msg.buf[0] == 2) ? HIGH : LOW;
-    if(CAN_RX_msg.buf[0] == 2) start_millis = millis();
-    break;
+#define RPI 0x001
+#define ARU 0x006
+#define COURT_CIRCUITBATT1 0x805
+#define COURT_CIRCUITBATT2 0x804 
+#define COURT_CIRCUITBATT3 0x807
+#define BATT_MAIN 0x610
+#define BATT_1 0x605
+#define BATT_2 0x608
+#define BATT_3 0x60C
+#define CELLULE_BAT 0x606
+#define MODE 0x303
+#define INTERRUPTEUR_BATT1 0x300
+#define INTERRUPTEUR_BATT2 0x301
+#define INTERRUPTEUR_BATT3 0x302
+#define BOOT_CARTE_PUISSANCE 0x005
+#define BATT_1_MIN 0x603
+#define BATT_1_MAX 0x604
+#define BATT_2_MIN 0x606
+#define BATT_2_MAX 0x607    
+#define BATT_3_MIN 0x609
+#define BATT_3_MAX 0x60A
+
+#define ALERTE_DECHARGE_BATT1 0x106
+#define ALERTE_DECHARGE_BATT2 0x107
+#define ALERTE_DECHARGE_BATT3 0x108
+
+#define STOP_ROBOT_FIN_MATCH 0x60B
+
+
+#define POURCENTAGE_BATT1 0x103
+#define POURCENTAGE_BATT2 0x104
+#define POURCENTAGE_BATT3 0x105
+
+#endif
