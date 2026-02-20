@@ -37,7 +37,7 @@ from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper
 ########################################################################
 #couleur = fenetre_selection_couleur()
 # Config CAN 
-Liste_ID_recoit = [0x03,0x05,0x06,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
+Liste_ID_recoit = [0x03,0x05,0x06,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
 Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
@@ -377,9 +377,9 @@ expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes]) if 
 # ======================================================= #
 
 # Variables fonctionnelles des Batteries
-Batteries = [100,100,100] # V décharge, V charge, V actuel, % de charge
+Batteries = [100,100,100,100] # V décharge, V charge, V actuel, % de charge
 Batteries_interrupteur = [1,1,1]
-Batteries_alert = [0,0,0]
+Batteries_alert = [0,0,0,0]
 lim_Bat_RPI = 11.0
 V_rpi = 12.0
 I_rpi = 0
@@ -573,13 +573,17 @@ def LectureCAN(stop_event):
             Batteries[1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
         elif msg.arbitration_id == 0x105:
             Batteries[2] = struct.unpack('<H', bytes(msg.data[:2]))[0]
-        
+        elif msg.arbitration_id == 0x10A:
+            Batteries[3] = struct.unpack('<H', bytes(msg.data[:2]))[0]
+
         elif msg.arbitration_id == 0x106:
             Batteries_alert[0] = struct.unpack('<H', bytes(msg.data[:2]))[0]
         elif msg.arbitration_id == 0x107:
             Batteries_alert[1] = struct.unpack('<H', bytes(msg.data[:2]))[0]
         elif msg.arbitration_id == 0x108:
             Batteries_alert[2] = struct.unpack('<H', bytes(msg.data[:2]))[0]
+        elif msg.arbitration_id == 0x10B:
+            Batteries_alert[3] = struct.unpack('<H', bytes(msg.data[:2]))[0]
             
         elif msg.arbitration_id == 0x109:
             verif_action = struct.unpack('i', bytes(msg.data))[0]
