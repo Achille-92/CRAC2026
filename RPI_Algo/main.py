@@ -1,5 +1,5 @@
 couleur = "B"
-Reel = True
+Reel = False
 
 Strategie = False
 Debug_strategie = False
@@ -2643,13 +2643,6 @@ if __name__ == '__main__':
             etat_RPI = 2
             data_etat_RPI = struct.pack('<I',etat_RPI)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat_RPI, is_extended_id=False))
-
-            data_etat_RPI = struct.pack('<I',1)
-            bus.send(can.Message(arbitration_id=0x300, data=data_etat_RPI, is_extended_id=False))
-            data_etat_RPI = struct.pack('<I',1)
-            bus.send(can.Message(arbitration_id=0x301, data=data_etat_RPI, is_extended_id=False))
-            data_etat_RPI = struct.pack('<I',1)
-            bus.send(can.Message(arbitration_id=0x302, data=data_etat_RPI, is_extended_id=False))
             
         plt.close(fig)
 
