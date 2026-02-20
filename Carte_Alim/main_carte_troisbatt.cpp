@@ -93,8 +93,8 @@ void setup()
   Can1.setFilter(0, INTERRUPTEUR_BATT1, 0x1FFFFFFF);
   Can1.setFilter(1, INTERRUPTEUR_BATT2, 0x1FFFFFFF);
   Can1.setFilter(2, INTERRUPTEUR_BATT3, 0x1FFFFFFF);
-  Can1.setFilter(4, MODE, 0x1FFFFFFF);
-  Can1.setFilter(5, RPI, 0x1FFFFFFF);
+  Can1.setFilter(3, MODE, 0x1FFFFFFF);
+  Can1.setFilter(4, RPI, 0x1FFFFFFF);
 
   // Can1.setFilter(3, STOP_ROBOT_FIN_MATCH, 0x1FFFFFFF);
 
@@ -244,15 +244,15 @@ void loop()
         envoi_int_CAN(Batt3, POURCENTAGE_BATT3);
 
         // gestion des décharge des batteries
-        if (etat_interrupteur1 && Batt1 < 5)
+        if (etat_interrupteur1 && Vbatt1 < 11.0)
         {
           envoi_int_CAN(1, ALERTE_DECHARGE_BATT1);
         }
-        if (etat_interrupteur2 && Batt2 < 5)
+        if (etat_interrupteur2 && Vbatt2 < 6.6)
         {
           envoi_int_CAN(1, ALERTE_DECHARGE_BATT2);
         }
-        if (etat_interrupteur3 && Batt3 < 5)
+        if (etat_interrupteur3 && Vbatt3 < 6.6)
         {
           envoi_int_CAN(1, ALERTE_DECHARGE_BATT3);
         }
@@ -368,38 +368,8 @@ void loop()
   // Serial.printf(" | nbre_element_Main:%1d", nbre_cellulse_Main);
   // Serial.printf(" | VbattMain_decharge:");
   // Serial.print(VbattMAIN_decharge);
-  // Batterie 1
-  // Serial.printf(" | Vbatt1:");
-  // Serial.print(Vbatt1);
-  // Serial.printf("V | Ibatt1:");
-  // Serial.print(Ibatt1);
-  // Serial.printf("mA | Vbatt1_charge:");
-  // Serial.print(Vbatt1_charge);
-  // Serial.printf("V | Vbatt1_decharge:");
-  // Serial.print(Vbatt1_decharge);
-  // Serial.printf(" | mode = %1d", mode_actuel);
-  // Serial.printf(" | nbre_element_1:%1d", nbre_cellules_1);
-  // Serial.printf(" | Vbatt1_decharge:");
-  // Serial.print(Vbatt1_decharge);
-  // Batterie 2
-  // Serial.printf(" | Vbatt2:");
-  // Serial.print(Vbatt3);
-  // Serial.printf("V | Ibatt2:");
-  // Serial.print(Ibatt2);
-  //  Serial.printf(" | nbre_element_2:%1d", nbre_cellules_2);
-  //  Serial.printf(" | Vbatt2_decharge:");
-  //  Serial.print(Vbatt2_decharge);
-  //  Batterie 3
-  // Serial.printf(" | Vbatt3:");
-  // Serial.print(Vbatt3);
-  // Serial.printf("V | Ibatt3:");
-  // Serial.print(Ibatt3);
-  //  Serial.printf("mA P:");
-  //  Serial.print(Batterie1.getPower());
-  //  Serial.print(Batterie1.getAlertFlag());
-  //  Serial.printf(" | nbre_element_3:%1d", nbre_cellules_3);
-  //  Serial.printf(" | Vbatt3_decharge:");
-  //  Serial.print(Vbatt3_decharge);
+  
+  
   // Serial.printf("V | mode =  ");
   // Serial.print(mode_actuel);
   // Serial.printf(" | Batt2  =  ");
@@ -410,7 +380,7 @@ void loop()
   Serial.printf(" | int1   = %d", etat_interrupteur1);
   Serial.printf(" | int2   = %d", etat_interrupteur2);
   Serial.printf(" | int3   = %d", etat_interrupteur3);
-  Serial.printf(" | C2   = %d", nbre_cellules_2);
+  //Serial.printf(" | Vbatt2   = %.1f", Vbatt2);
   // Serial.printf(" | Alerte decharge = %d", ALERTE_DECHARGE_BATT3);
   printf("\n");
 }
@@ -619,4 +589,5 @@ void arret_urgence(void)
   // reinitialisation du timer
   start_millis = millis();
 }
+
 
