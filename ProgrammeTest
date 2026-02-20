@@ -380,6 +380,7 @@ expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes]) if 
 Batteries = [100,100,100,100] # V décharge, V charge, V actuel, % de charge
 Batteries_interrupteur = [1,1,1]
 Batteries_alert = [0,0,0,0]
+RPI_decharge = False
 lim_Bat_RPI = 11.0
 V_rpi = 12.0
 I_rpi = 0
@@ -1629,7 +1630,7 @@ if __name__ == '__main__':
         Liste_actions_ennemi = [[int(x_robot_actuel-10),int(y_robot_actuel-10)],[275,1650]]
         n_init = len(Liste_actions_ennemi)
 
-        while (not stop_event.is_set() and len(Liste_actions)!=0 and temps_restant >=0): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
+        while (not stop_event.is_set() and len(Liste_actions)!=0 and temps_restant >=0 and not RPI_decharge): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
             dico_envoi[0x01]=1
 
             temps_ecoules = time.time() - temps_demarage
@@ -2449,6 +2450,11 @@ if __name__ == '__main__':
                     Batteries_interrupteur[2]=2
                 else :
                     Batteries_interrupteur[2]=1
+                if Batteries_alert[3]==0:
+                    RPI_decharge = False
+                else :
+                    RPI_decharge = True
+                
             else :                                  # Sinon
                 Batteries_interrupteur[0]=2         #  On met tous les interrupteurs à 1
                 Batteries_interrupteur[1]=2
