@@ -94,8 +94,9 @@ void setup()
   Can1.setFilter(1, INTERRUPTEUR_BATT2, 0x1FFFFFFF);
   Can1.setFilter(2, INTERRUPTEUR_BATT3, 0x1FFFFFFF);
   Can1.setFilter(4, MODE, 0x1FFFFFFF);
+  Can1.setFilter(5, RPI, 0x1FFFFFFF);
 
-  Can1.setFilter(3, STOP_ROBOT_FIN_MATCH, 0x1FFFFFFF);
+  // Can1.setFilter(3, STOP_ROBOT_FIN_MATCH, 0x1FFFFFFF);
 
   // Initialisation batterie main
   BatterieMain.begin();
@@ -158,7 +159,7 @@ void loop()
       break;
 
     case RPI:
-      Serial.printf("RPI recu ");
+      // Serial.printf("RPI recu ");
       etat_RPI = CAN_RX_msg.buf[0]; // ON si on a 1, off 0
       if (etat_RPI)
         start_millis = millis();
@@ -197,7 +198,7 @@ void loop()
     }
     else
     {
-      if (step < 20)
+      if (step < 10)
       {
         etat_interrupteur1 = ON;
         etat_interrupteur2 = ON;
@@ -243,27 +244,28 @@ void loop()
         envoi_int_CAN(Batt3, POURCENTAGE_BATT3);
 
         // gestion des décharge des batteries
-        if (etat_interrupteur1 && Vbatt1 < 11.0)
+        if (etat_interrupteur1 && Batt1 < 5)
         {
           envoi_int_CAN(1, ALERTE_DECHARGE_BATT1);
         }
-        if (etat_interrupteur2 && Vbatt2 < 6.6)
+        if (etat_interrupteur2 && Batt2 < 5)
         {
           envoi_int_CAN(1, ALERTE_DECHARGE_BATT2);
         }
-        if (etat_interrupteur3 && Vbatt3 < 6.6)
+        if (etat_interrupteur3 && Batt3 < 5)
         {
           envoi_int_CAN(1, ALERTE_DECHARGE_BATT3);
         }
       }
-      // allume/eteint les interrupteurs
-      digitalWrite(PININTERRUPTEURBATT1, etat_interrupteur1);
-      digitalWrite(PININTERRUPTEURBATT2, etat_interrupteur2);
-      digitalWrite(PININTERRUPTEURBATT3, etat_interrupteur3);
 
       step += 1;
     }
   }
+
+  // allume/eteint les interrupteurs
+  digitalWrite(PININTERRUPTEURBATT1, etat_interrupteur1);
+  digitalWrite(PININTERRUPTEURBATT2, etat_interrupteur2);
+  digitalWrite(PININTERRUPTEURBATT3, etat_interrupteur3);
 
   /*
   // lecture des entrées
@@ -408,6 +410,7 @@ void loop()
   Serial.printf(" | int1   = %d", etat_interrupteur1);
   Serial.printf(" | int2   = %d", etat_interrupteur2);
   Serial.printf(" | int3   = %d", etat_interrupteur3);
+  Serial.printf(" | C2   = %d", nbre_cellules_2);
   // Serial.printf(" | Alerte decharge = %d", ALERTE_DECHARGE_BATT3);
   printf("\n");
 }
