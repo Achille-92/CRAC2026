@@ -36,7 +36,7 @@ static CAN_message_t CAN_RX_msg;
 
 int i;
 char val_aru, val_alert, etat_interrupteur1 = OFF, etat_interrupteur2 = OFF, etat_interrupteur3 = OFF;
-int idTrames_CAN_Recu, mode_actuel = 1;
+int idTrames_CAN_Recu, mode_actuel = 1, etat_RPI, step;
 float valtest;
 float VbattMAIN, IbattMAIN, VbattMAIN_decharge; // Tension, Courant et Tension pour laquelle la batterie est déchargé
 float Vbatt1, Ibatt1, Vbatt1_decharge;
@@ -115,60 +115,160 @@ void setup()
   // limit = power_limit_W / (32 * (3 / 32768.0)); // puissance en valeur entiere (codé dans le composant)
   // Batterie1.setAlertLimit(limit);
   // Batterie1.setAlertRegister(INA236_POWER_OVER_LIMIT); // masque pour le mode de fonctionnement que l’on veut
-
-  
 }
 
 void loop()
 {
-  /*
-  // message dans le bus CAN pour dire que la carte à fini de boot
-  CAN_TX_msg.id = BOOT_CARTE_PUISSANCE;
-  CAN_TX_msg.len = 1;
-  CAN_TX_msg.buf[0] = 1; // dit dans le bus que la carte à boot
-  Can1.write(CAN_TX_msg);
-  */
   envoi_int_CAN(1, BOOT_CARTE_PUISSANCE);
 
-  // lecture des entrées
+  // Lis les trames CAN reçu
+  if (Can1.read(CAN_RX_msg)) // regarde si une trame à été reçu et met les informations dans l'objet CAN_RX_msg
+  {
+    // Serial.printf("ID %x\n", CAN_RX_msg.id); // affichage en hexa avec %x
+    // Serial.printf("msg :");
+    // for (i = 0; i < CAN_RX_msg.len; i++)
+    // Serial.printf("%2x ", CAN_RX_msg.buf[i]);
+
+    idTrames_CAN_Recu = CAN_RX_msg.id;
+    switch (idTrames_CAN_Recu) // traite les messages CAN
+    {
+    case INTERRUPTEUR_BATT1:
+      etat_interrupteur1 = CAN_RX_msg.buf[0] - 1; // ON si on a 1, off 0
+      if (etat_interrupteur1)
+        start_millis = millis();
+      break;
+
+    case INTERRUPTEUR_BATT2:
+      etat_interrupteur2 = CAN_RX_msg.buf[0] - 1; // ON si on a 1, off 0
+      if (etat_interrupteur2)
+        start_millis = millis();
+      break;
+
+    case INTERRUPTEUR_BATT3:
+      etat_interrupteur3 = CAN_RX_msg.buf[0] - 1; // ON si on a 1, off 0
+      if (etat_interrupteur3)
+        start_millis = millis();
+      break;
+
+    case MODE:
+      // Serial.printf("mode recu ");
+      mode_actuel = CAN_RX_msg.buf[0]; // 0 mode test, 1 mode match
+      if (mode_actuel)
+        start_millis = millis();
+      break;
+
+    case RPI:
+      Serial.printf("RPI recu ");
+      etat_RPI = CAN_RX_msg.buf[0]; // ON si on a 1, off 0
+      if (etat_RPI)
+        start_millis = millis();
+      break;
+
+      /*
+          case STOP_ROBOT_FIN_MATCH:
+            etat_interrupteur1 = OFF;
+            etat_interrupteur2 = OFF;
+            etat_interrupteur3 = OFF;
+            break;
+      */
+    default:
+      break;
+    }
+  }
+
   val_aru = digitalRead(PINARU);
-  val_alert = digitalRead(PINALERT);
-  VbattMAIN = BatterieMain.getBusVoltage();
-  IbattMAIN = BatterieMain.getCurrent_mA();
-  Vbatt1 = Batterie1.getBusVoltage();
-  Ibatt1 = Batterie1.getCurrent_mA();
-  Vbatt2 = Batterie2.getBusVoltage();
-  Ibatt2 = Batterie2.getCurrent_mA();
-  Vbatt3 = Batterie3.getBusVoltage();
-  Ibatt3 = Batterie3.getCurrent_mA();
+  envoi_int_CAN(val_aru, ARU);
 
-  // Calcul des nombre de cellules
-  nbre_cellules_Main = calcul_nombre_cellules(VbattMAIN);
-  nbre_cellules_1 = calcul_nombre_cellules(Vbatt1);
-  nbre_cellules_2 = calcul_nombre_cellules(Vbatt2);
-  nbre_cellules_3 = calcul_nombre_cellules(Vbatt3);
-  // Calcul des tensions déchargé des batteries
-  VbattMAIN_decharge = nbre_cellules_Main * TENSION_CELLULE_DECHARGE;
-  Vbatt1_decharge = nbre_cellules_1 * TENSION_CELLULE_DECHARGE;
-  Vbatt2_decharge = nbre_cellules_2 * TENSION_CELLULE_DECHARGE;
-  Vbatt3_decharge = nbre_cellules_3 * TENSION_CELLULE_DECHARGE;
-  // Calcul des tensions chargé des batteries
-  Vbatt1_charge = nbre_cellules_1 * TENSION_CELLULE_CHARGE;
-  Vbatt2_charge = nbre_cellules_2 * TENSION_CELLULE_CHARGE;
-  Vbatt3_charge = nbre_cellules_3 * TENSION_CELLULE_CHARGE;
-
-  Vbatt1CAN = Vbatt1 * 100; // conversion pour envoyer en int (2 décimales)
-  Vbatt2CAN = Vbatt2 * 100;
-  Vbatt3CAN = Vbatt3 * 100;
-
-  /**/
-
-  if (val_aru == 1)
-  { // eteint tout les interrupteurs
+  if (etat_RPI == 0 || etat_RPI == 2)
+  {
     etat_interrupteur1 = OFF;
     etat_interrupteur2 = OFF;
     etat_interrupteur3 = OFF;
+    step = 0;
   }
+  else
+  {
+    if (val_aru == 1)
+    { // eteint tout les interrupteurs
+      etat_interrupteur1 = OFF;
+      etat_interrupteur2 = OFF;
+      etat_interrupteur3 = OFF;
+      step = 0;
+    }
+    else
+    {
+      if (step < 20)
+      {
+        etat_interrupteur1 = ON;
+        etat_interrupteur2 = ON;
+        etat_interrupteur3 = ON;
+      }
+      else
+      {
+        VbattMAIN = BatterieMain.getBusVoltage();
+        IbattMAIN = BatterieMain.getCurrent_mA();
+        Vbatt1 = Batterie1.getBusVoltage();
+        Ibatt1 = Batterie1.getCurrent_mA();
+        Vbatt2 = Batterie2.getBusVoltage();
+        Ibatt2 = Batterie2.getCurrent_mA();
+        Vbatt3 = Batterie3.getBusVoltage();
+        Ibatt3 = Batterie3.getCurrent_mA();
+
+        // Calcul des nombre de cellules
+        nbre_cellules_Main = calcul_nombre_cellules(VbattMAIN);
+        nbre_cellules_1 = calcul_nombre_cellules(Vbatt1);
+        nbre_cellules_2 = calcul_nombre_cellules(Vbatt2);
+        nbre_cellules_3 = calcul_nombre_cellules(Vbatt3);
+        // Calcul des tensions déchargé des batteries
+        VbattMAIN_decharge = nbre_cellules_Main * TENSION_CELLULE_DECHARGE;
+        Vbatt1_decharge = nbre_cellules_1 * TENSION_CELLULE_DECHARGE;
+        Vbatt2_decharge = nbre_cellules_2 * TENSION_CELLULE_DECHARGE;
+        Vbatt3_decharge = nbre_cellules_3 * TENSION_CELLULE_DECHARGE;
+        // Calcul des tensions chargé des batteries
+        Vbatt1_charge = nbre_cellules_1 * TENSION_CELLULE_CHARGE;
+        Vbatt2_charge = nbre_cellules_2 * TENSION_CELLULE_CHARGE;
+        Vbatt3_charge = nbre_cellules_3 * TENSION_CELLULE_CHARGE;
+
+        Vbatt1CAN = Vbatt1 * 100; // conversion pour envoyer en int (2 décimales)
+        Vbatt2CAN = Vbatt2 * 100;
+        Vbatt3CAN = Vbatt3 * 100;
+
+        Batt1 = Calcul_bat(Vbatt1, Vbatt1_charge, Vbatt1_decharge);
+        Batt2 = Calcul_bat(Vbatt2, Vbatt2_charge, Vbatt2_decharge);
+        Batt3 = Calcul_bat(Vbatt3, Vbatt3_charge, Vbatt3_decharge);
+
+        // Envoi des pourcentages de batterie sur le bus CAN
+        envoi_int_CAN(Batt1, POURCENTAGE_BATT1);
+        envoi_int_CAN(Batt2, POURCENTAGE_BATT2);
+        envoi_int_CAN(Batt3, POURCENTAGE_BATT3);
+
+        // gestion des décharge des batteries
+        if (etat_interrupteur1 && Vbatt1 < 11.0)
+        {
+          envoi_int_CAN(1, ALERTE_DECHARGE_BATT1);
+        }
+        if (etat_interrupteur2 && Vbatt2 < 6.6)
+        {
+          envoi_int_CAN(1, ALERTE_DECHARGE_BATT2);
+        }
+        if (etat_interrupteur3 && Vbatt3 < 6.6)
+        {
+          envoi_int_CAN(1, ALERTE_DECHARGE_BATT3);
+        }
+      }
+      // allume/eteint les interrupteurs
+      digitalWrite(PININTERRUPTEURBATT1, etat_interrupteur1);
+      digitalWrite(PININTERRUPTEURBATT2, etat_interrupteur2);
+      digitalWrite(PININTERRUPTEURBATT3, etat_interrupteur3);
+
+      step += 1;
+    }
+  }
+
+  /*
+  // lecture des entrées
+  // val_alert = digitalRead(PINALERT);
+
   unsigned long currentMillis = millis(); // Récupère le temps actuel
 
   /*
@@ -206,7 +306,7 @@ void loop()
     previousMillis = currentMillis; // Met à jour le temps de référence
 
   }
-*/
+
 
   // regarde si on a un court-circuit
   detectionCC(Vbatt1, Ibatt1, 1);
@@ -227,59 +327,11 @@ void loop()
     if(etat_interrupteur3 && Vbatt3 < 6.5){
       etat_interrupteur3 = OFF;
     }
-  }*/
+  }
 
   // Vérifie si 1 secondes se sont écoulées
   if (currentMillis - previousMillis >= interval)
   {
-
-    // Lis les trames CAN reçu
-    if (Can1.read(CAN_RX_msg)) // regarde si une trame à été reçu et met les informations dans l'objet CAN_RX_msg
-    {
-      Serial.printf("ID %x\n", CAN_RX_msg.id); // affichage en hexa avec %x
-      Serial.printf("msg :");
-      for (i = 0; i < CAN_RX_msg.len; i++)
-        Serial.printf("%2x ", CAN_RX_msg.buf[i]);
-
-      idTrames_CAN_Recu = CAN_RX_msg.id;
-      switch (idTrames_CAN_Recu) // traite les messages CAN
-      {
-      case INTERRUPTEUR_BATT1:
-        etat_interrupteur1 = CAN_RX_msg.buf[0] - 1; // ON si on a 1, off 0
-        if (etat_interrupteur1)
-          start_millis = millis();
-        break;
-
-      case INTERRUPTEUR_BATT2:
-        etat_interrupteur2 = CAN_RX_msg.buf[0] - 1; // ON si on a 1, off 0
-        if (etat_interrupteur2)
-          start_millis = millis();
-        break;
-
-      case INTERRUPTEUR_BATT3:
-        etat_interrupteur3 = CAN_RX_msg.buf[0] - 1; // ON si on a 1, off 0
-        if (etat_interrupteur3)
-          start_millis = millis();
-        break;
-
-      case MODE:
-        Serial.printf("mode recu ");
-        mode_actuel = CAN_RX_msg.buf[0]; // 0 mode test, 1 mode match
-        if (mode_actuel)
-          start_millis = millis();
-        break;
-
-        /*
-            case STOP_ROBOT_FIN_MATCH:
-              etat_interrupteur1 = OFF;
-              etat_interrupteur2 = OFF;
-              etat_interrupteur3 = OFF;
-              break;
-        */
-      default:
-        break;
-      }
-    }
 
     /*
     envoi_int_CAN(Vbatt1CAN,BATT_1);
@@ -292,67 +344,20 @@ void loop()
     envoi_int_CAN(Vbatt3_decharge, BATT_3_MIN);
     envoi_int_CAN(Vbatt3_charge, BATT_3_MAX);
     envoi_char_CAN(mode_actuel, MODE);
-  */
 
-    Batt1 = Calcul_bat(Vbatt1, Vbatt1_charge, Vbatt1_decharge);
-    Batt2 = Calcul_bat(Vbatt2, Vbatt2_charge, Vbatt2_decharge);
-    Batt3 = Calcul_bat(Vbatt3, Vbatt3_charge, Vbatt3_decharge);
-
-    // Envoi des pourcentages de batterie sur le bus CAN
-    envoi_int_CAN(Batt1, POURCENTAGE_BATT1);
-    envoi_int_CAN(Batt2, POURCENTAGE_BATT2);
-    envoi_int_CAN(Batt3, POURCENTAGE_BATT3);
 
     // envoi_char_CAN(mode_actuel, MODE);
-
-    // gestion des décharge des batteries
-    if (etat_interrupteur1 && Vbatt1 < 11.3)
-    {
-      if (mode_actuel == 2) // teste
-        envoi_int_CAN(1, ALERTE_DECHARGE_BATT1);
-    }
-    if (etat_interrupteur1 && Vbatt1 < 11)
-    {
-      if (mode_actuel == 1)
-        envoi_int_CAN(1, ALERTE_DECHARGE_BATT1);
-    }
-    if (etat_interrupteur2 && Vbatt2 < 11.3)
-    {
-      if (mode_actuel == 2)
-        envoi_int_CAN(1, ALERTE_DECHARGE_BATT2);
-    }
-    if (etat_interrupteur2 && Vbatt2 < 11)
-    {
-      if (mode_actuel == 1)
-        envoi_int_CAN(1, ALERTE_DECHARGE_BATT2);
-    }
-    if (etat_interrupteur3 && Vbatt3 < 11.3)
-    {
-      if (mode_actuel == 2)
-        envoi_int_CAN(1, ALERTE_DECHARGE_BATT3);
-    }
-    if (etat_interrupteur3 && Vbatt3 < 11)
-    {
-      if (mode_actuel == 1)
-        envoi_int_CAN(1, ALERTE_DECHARGE_BATT3);
-    }
-
-    envoi_int_CAN(val_aru, ARU);
 
     previousMillis = currentMillis; // Met à jour le temps de référence
   }
 
-  // allume/eteint les interrupteurs
-  digitalWrite(PININTERRUPTEURBATT1, etat_interrupteur1);
-  digitalWrite(PININTERRUPTEURBATT2, etat_interrupteur2);
-  digitalWrite(PININTERRUPTEURBATT3, etat_interrupteur3);
-
   // Serial.printf("PININTERRUPTEURBATT1 %d | ", (int)etat_interrupteur1);
   // Serial.printf("PININTERRUPTEURBATT2 %d | ", (int)etat_interrupteur1);
   // Serial.printf("PININTERRUPTEURBATT2 %d | ", (int)etat_interrupteur1);
+ */
 
   Serial.printf("aru = %1d", val_aru);
-  Serial.printf(" | alert = %1d", val_alert);
+  Serial.printf(" | RPI = %1d", etat_RPI);
   // Batterie pricipale
   // Serial.printf(" | VbattMAIN:");
   // Serial.print(VbattMAIN);
@@ -375,8 +380,8 @@ void loop()
   // Serial.printf(" | Vbatt1_decharge:");
   // Serial.print(Vbatt1_decharge);
   // Batterie 2
-  Serial.printf(" | Vbatt2:");
-  Serial.print(Vbatt3);
+  // Serial.printf(" | Vbatt2:");
+  // Serial.print(Vbatt3);
   // Serial.printf("V | Ibatt2:");
   // Serial.print(Ibatt2);
   //  Serial.printf(" | nbre_element_2:%1d", nbre_cellules_2);
@@ -393,14 +398,16 @@ void loop()
   //  Serial.printf(" | nbre_element_3:%1d", nbre_cellules_3);
   //  Serial.printf(" | Vbatt3_decharge:");
   //  Serial.print(Vbatt3_decharge);
-  Serial.printf("V | mode =  ");
-  Serial.print(mode_actuel);
+  // Serial.printf("V | mode =  ");
+  // Serial.print(mode_actuel);
   // Serial.printf(" | Batt2  =  ");
   // Serial.print(Batt2);
-  // Serial.printf(" | Batt1 = %d%%", Batt1);
-  // Serial.printf(" | Batt2 = %d%%", Batt2);
+  Serial.printf(" | Batt1 = %d%%", Batt1);
   Serial.printf(" | Batt2 = %d%%", Batt2);
+  Serial.printf(" | Batt3 = %d%%", Batt3);
+  Serial.printf(" | int1   = %d", etat_interrupteur1);
   Serial.printf(" | int2   = %d", etat_interrupteur2);
+  Serial.printf(" | int3   = %d", etat_interrupteur3);
   // Serial.printf(" | Alerte decharge = %d", ALERTE_DECHARGE_BATT3);
   printf("\n");
 }
@@ -600,7 +607,6 @@ void arret_urgence(void)
   digitalWrite(PININTERRUPTEURBATT1, LOW);
   digitalWrite(PININTERRUPTEURBATT2, LOW);
   digitalWrite(PININTERRUPTEURBATT3, LOW);
-
 
   // éteint toutes les alimentations
   etat_interrupteur1 = OFF;
