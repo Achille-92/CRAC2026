@@ -9,7 +9,7 @@ Simul_mvt = False
 Simul_mvt_ennemi = False
 Debug_Mouv = False
 
-Simul_action = False
+Simul_action = True
 Debug_Action = False
 
 Lidar_on = False
@@ -17,7 +17,7 @@ Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
 
-Noisettes_stockees_dans_robot = [["B","B"],["N","N"]]
+Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -125,9 +125,9 @@ if not Astars:
         ]
     else :
         Liste_actions = [
-            #["Attraper",0,12],
-            #["Retourner",0,12],
-            #["Relacher",0,12],
+            ["Attraper",0,2],
+            ["Retourner",0,2],
+            ["Relacher",0,2],
             ["Avancer",2550,1400],
             ["Avancer",2550,1000],
             ["Avancer",2800,890],
@@ -214,7 +214,7 @@ Liste_noisette_xya = [
     [1025,175,90,"B"],[1075,175,90,"B"],[1125,175,90,"J"],[1175,175,90,"J"],
     [1825,175,90,"B"],[1875,175,90,"J"],[1925,175,90,"B"],[1975,175,90,"J"],
 
-    [2125,800,90,"B"],[2175,800,90,"B"],[2225,800,90,"B"],
+    [2725,1550,0,"J"],[2725,1500,0,"J"],
 ] 
 
 Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
@@ -2643,13 +2643,6 @@ if __name__ == '__main__':
             etat_RPI = 2
             data_etat_RPI = struct.pack('<I',etat_RPI)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat_RPI, is_extended_id=False))
-
-            data_etat_RPI = struct.pack('<I',1)
-            bus.send(can.Message(arbitration_id=0x300, data=data_etat_RPI, is_extended_id=False))
-            data_etat_RPI = struct.pack('<I',1)
-            bus.send(can.Message(arbitration_id=0x301, data=data_etat_RPI, is_extended_id=False))
-            data_etat_RPI = struct.pack('<I',1)
-            bus.send(can.Message(arbitration_id=0x302, data=data_etat_RPI, is_extended_id=False))
             
         plt.close(fig)
 
