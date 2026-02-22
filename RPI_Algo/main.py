@@ -1,5 +1,6 @@
 couleur = "B"
 Reel = False
+Wifi = False
 
 Strategie = False
 Debug_strategie = False
@@ -22,7 +23,7 @@ Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 import matplotlib
 matplotlib.use('Qt5Agg')
 from rplidar import RPLidar
-import math,time,os,can,struct
+import math,time,os,can,struct,random
 import numpy as np
 import threading
 from collections import deque 
@@ -217,8 +218,39 @@ Liste_noisette_xya = [
     [2725,1550,0,"J"],[2725,1500,0,"J"],
 ] 
 
-Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
+Liste_noisette_xya = [
+    [175,1125,0,"R"],[175,1175,0,"R"],[175,1225,0,"R"],[175,1275,0,"R"],
+    [175,325,0,"R"],[175,375,0,"R"],[175,425,0,"R"],[175,475,0,"R"],
 
+    [2825,1125,0,"R"],[2825,1175,0,"R"],[2825,1275,0,"R"],[2825,1225,0,"R"],
+    [2825,325,0,"R"],[2825,375,0,"R"],[2825,425,0,"R"],[2825,475,0,"R"],
+
+    [1075,800,90,"R"],[1125,800,90,"R"],[1175,800,90,"R"],[1225,800,90,"R"],
+    [1775,800,90,"R"],[1825,800,90,"R"],[1875,800,90,"R"],[1925,800,90,"R"],
+
+    [1025,175,90,"R"],[1075,175,90,"R"],[1125,175,90,"R"],[1175,175,90,"R"],
+    [1825,175,90,"R"],[1875,175,90,"R"],[1925,175,90,"R"],[1975,175,90,"R"],
+
+] 
+
+Liste_noisette_xya_cam = [
+    [175-30,1125+20,0+2,"B"],[175-30,1175+20,0+2,"J"],[175-30,1225+20,0+2,"B"],[175-30,1275+20,0+2,"J"],
+    [175-30,325-20,0-2,"B"],[175-30,375-20,0-2,"B"],[175-30,425-20,0-2,"J"],[175-30,475-20,0-2,"J"],
+
+    [2825+30,1125+20,0-2,"J"],[2825+30,1175+20,0-2,"J"],[2825+30,1275+20,0+2,"B"],[2825+30,1225+20,0+2,"B"],
+    [2825+30,325-20,0-2,"B"],[2825+30,375-20,0-2,"J"],[2825+30,425-20,0+2,"J"],[2825+30,475-20,0+2,"B"],
+
+    [1075-30,800-20,90+2,"J"],[1125-30,800-20,90-2,"J"],[1175-30,800-20,90+2,"B"],[1225-30,800-20,90-2,"B"],
+    [1775+30,800-20,90+2,"J"],[1825+30,800-20,90-2,"B"],[1875+30,800-20,90+2,"B"],[1925+30,800-20,90-2,"J"],
+
+    [1025-30,175-20,90-2,"B"],[1075-30,175-20,90+2,"B"],[1125-30,175-20,90-2,"J"],[1175-30,175-20,90+2,"J"],
+    [1825+30,175-20,90-2,"B"],[1875+30,175-20,90+2,"B"],#[1925+30,175-20,90-2,"B"],[1975+30,175-20,90+2,"J"],
+
+] 
+
+Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
+Noisette_init = False
+TOL_CAM_NOISETTE = 60
 
 Liste_noisettes_recup_xy = [((175,1300+R_ROBOT+2*MARGE_NOISETTE),(175,1100-R_ROBOT-2*MARGE_NOISETTE)),
                                   ((175,500+R_ROBOT+2*MARGE_NOISETTE),(175,300-R_ROBOT-2*MARGE_NOISETTE)),
@@ -275,6 +307,16 @@ Liste_zones_gm_coins = [
     [[2200,0],[2400,200]],
 ]
 
+Liste_zones_Noisette_depart = [
+    [[100,1100],[250,1300]],
+    [[100,300],[250,500]],
+    [[2750,1100],[2900,1300]],
+    [[2750,300],[2900,500]],
+    [[1050,725],[1250,875]],
+    [[1750,725],[1950,875]],
+    [[1000,100],[1200,250]],
+    [[1800,100],[2000,250]]
+]
 ###########################################
 
 # Lidar
@@ -296,17 +338,19 @@ if couleur == "B":
     y_robot_depart = 1670
     angle_robot_depart = -90
 
-    x_robot_depart = 2725 
-    y_robot_depart = 1670
-    angle_robot_depart = -90
-
     x_robot_retour = 2725
     y_robot_retour = 1670
     angle_robot_retour = -90
+    
+    x_ennemi = 275
+    y_ennemi = 1650
 else:
     x_robot_depart = 275 
     y_robot_depart = 1670
     angle_robot_depart = -90
+
+    x_ennemi = 2725 
+    y_ennemi = 1650
 
 x_robot_actuel = x_robot_depart
 y_robot_actuel = y_robot_depart
@@ -315,19 +359,10 @@ angle_robot_actuel = angle_robot_depart
 x_robot_voulu = -1
 y_robot_voulu = -1
 angle_robot_voulu = -181
-############
-
-# Coordonnées Ennemi
-if couleur == "B":
-    x_ennemi = 275
-    y_ennemi = 1650
-else:
-    x_ennemi = 2725 
-    y_ennemi = 1650
 
 x_ennemi_old = x_ennemi
 y_ennemi_old = y_ennemi
-########
+############
 
 # Variable pour les Grilles du A*
 CASE_MM = 10
@@ -1627,6 +1662,52 @@ if __name__ == '__main__':
 
             step +=1
             print("step :",step)
+
+            if not Noisette_init:
+                for Noisette_posconnue in Liste_noisette_xya:
+                    if Noisette_posconnue[3]=="R":
+                        for Noisette_couleurconnue in Liste_noisette_xya_cam:
+                            distance_NN = math.sqrt((Noisette_posconnue[0] - Noisette_couleurconnue[0])**2 + (Noisette_posconnue[1] - Noisette_couleurconnue[1])**2)
+                            print(distance_NN)
+                            if distance_NN <= TOL_CAM_NOISETTE:
+                                Noisette_posconnue[3]=Noisette_couleurconnue[3]
+                                Liste_noisette_xya_cam.remove(Noisette_couleurconnue)
+                                break
+                            
+                Liste_noisettes_restantes = [n for n in Liste_noisette_xya if n[3] == "R"]
+                if len(Liste_noisettes_restantes) != 0 :
+                    print("Il reste encore des Noisettes dont les couleurs sont inconnues")
+                    if temps_ecoules > 1:
+                        Liste_noisette_xya_copie = Liste_noisette_xya
+                        print("Faire tri par déduction")
+                        Noisette_groupee_debut = [[],[],[],[],[],[],[],[]]
+                        for Noisette in Liste_noisette_xya_copie:
+                            i = 0
+                            for zone_depart in Liste_zones_Noisette_depart:
+                                if zone_depart[0][0] <= Noisette[0] <= zone_depart[1][0] and zone_depart[0][1] <= Noisette[1] <= zone_depart[1][1]:
+                                    Noisette_groupee_debut[i].append(Noisette)
+                                i+=1
+
+                        for Noisette_restante in Liste_noisettes_restantes:
+                            for num_zone_depart in range(len(Noisette_groupee_debut)):
+                                if Noisette_restante in Noisette_groupee_debut[num_zone_depart]:
+                                    nbr_bleu = sum(1 for n in Noisette_groupee_debut[num_zone_depart] if n[3] == "B")
+                                    nbr_jaune = sum(1 for n in Noisette_groupee_debut[num_zone_depart] if n[3] == "J")
+                                    nbr_non = sum(1 for n in Noisette_groupee_debut[num_zone_depart] if n[3] == "R")
+
+                                    if nbr_bleu == 2:
+                                        Noisette_restante[3]="J"
+                                    if nbr_jaune == 2:
+                                        Noisette_restante[3]="B"
+                                    if nbr_jaune == 1 and nbr_bleu == 1:
+                                        val = random.randint(0,1)
+                                        if val == 0:
+                                            Noisette_restante[3]="B"
+                                        if val == 1:
+                                            Noisette_restante[3]="J"
+                else:
+                    Noisette_init = True
+
             if Astars:
                 grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, 
                             obs_manager, obs_manager_noisettes,
@@ -2409,12 +2490,6 @@ if __name__ == '__main__':
             
             # ======================= GESTION BATTERIES ========================== #
             
-            print(f"\netat_bau : {etat_bau}")
-            print(f"carte_batteries_active : {carte_batteries_active}")
-            print(f"Batteries : {Batteries}")
-            print(f"Batteries_alert : {Batteries_alert}")
-            print(f"Batteries_interrupteur : {Batteries_interrupteur}")
-            print(f"Bat_Compet : {Bat_Compet}")
             if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             
