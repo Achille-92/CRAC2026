@@ -23,7 +23,10 @@ Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 import matplotlib
 matplotlib.use('Qt5Agg')
 from rplidar import RPLidar
-import math,time,os,can,struct,random
+import math,time,os,can,struct,random,platform,sys
+current_os = platform.system()
+if current_os == "Linux":
+    import RPi.GPIO as GPIO
 import numpy as np
 import threading
 from collections import deque 
@@ -457,6 +460,7 @@ carte_actionneur_active = 0
 carte_RPI_active = 0
 carte_batteries_active = 0
 etat_bau = 0
+etat_jack = True
 
 demande_nouvelle_strat = False
 x_strategie = 2300
@@ -487,6 +491,12 @@ mode_attraper = False
 
 pince_a_utilise = -1
 noisette_a_manipulee = 0
+Pince_Avant = True
+Pince_Av_1 = True
+Pince_Av_2 = True
+Pince_Arriere = True
+Pince_Ar_1 = True
+Pince_Ar_2 = True
 
 demande_recalcul_traj = False
 Astars_a_fail = False
@@ -1539,6 +1549,8 @@ if __name__ == '__main__':
     stop_event = threading.Event()
 
     if Reel :
+        GPIO.setmode(GPIO.BCM)  # Utilisation de la numérotation BCM
+        GPIO.setup(23, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Activation de la résistance de pull-up interne
         tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
         tache_LectureCAN.start()
 
@@ -1632,7 +1644,9 @@ if __name__ == '__main__':
         while(etat_bau == 1):
             print(f"Etat BAU : {etat_bau}")
 
-    while(lancement_strategie==False):
+    while(lancement_strategie==False and etat_jack):
+        if current_os == "Linux":
+            etat_jack = GPIO.input(23)
         print("Attente du Jack")
         plt.pause(0.1)
     
