@@ -6,7 +6,7 @@ Strategie = False
 Debug_strategie = False
 Astars = False
 
-Simul_mvt = False
+Simul_mvt = True
 Simul_mvt_ennemi = False
 Debug_Mouv = False
 
@@ -139,7 +139,7 @@ if not Astars:
             ["Rotation",-90],
             ["Reculer",2825,1250-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
             ["Attraper",1,12],
-            ["Retourner",1,12],
+            ["Retourner",0,12],
             ["Reculer",2725,1750],
             ["Relacher",1,12],
             ["Consigne",2725,1600],
@@ -156,7 +156,7 @@ if not Astars:
             ["Rotation",180],
             ["Reculer",1850-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
             ["Attraper",1,12],
-            ["Retourner",0,2],
+            ["Retourner",0,1],
             ["Retourner",1,2],
             ["Reculer",2200-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
             ["Relacher",1,12],
@@ -164,6 +164,10 @@ if not Astars:
             ["Rotation",0],
             ["Relacher",0,12],
             ["Reculer",2100-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],   
+
+            ["Avancer",1900,1160], 
+            ["Avancer",2550,1400],  
+            ["Avancer",2725,1670]
 
         ]
 else :
@@ -1679,7 +1683,7 @@ if __name__ == '__main__':
 
             step +=1
             print("step :",step)
-            
+
             # =============== Association Couleur CAM à Noisette Aveugle ==================== #
             if not Noisette_init:
                 for Noisette_posconnue in Liste_noisette_xya:
@@ -1872,7 +1876,7 @@ if __name__ == '__main__':
                 noisette_a_manipulee = Liste_actions[0][2]
                 print("Appeler Pince N°",pince_a_utilise," pour ",action_voulu," les Noisettes ",noisette_a_manipulee)
             # ================================================= #
-
+            print("test 1")
             # ====== Bouger si Robot dans Zone interdite pour Attraper et Relacher === #
             if len(Liste_actions)>2 or action_precedente in ["Relacher"]:
                 if (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper"]) or Liste_actions[1][0] in ["Attraper"] or action_voulu in ["Attraper"] or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","Avancer","Reculer"]) or (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Relacher"]) or Liste_actions[1][0] in ["Relacher"] or action_voulu in ["Relacher"]:
@@ -1884,6 +1888,7 @@ if __name__ == '__main__':
             if Debug_Action:
                 print("mode_attraper : ",mode_attraper)
             # ======================================================================== #
+            print("test 2")
 
             distance_robot_ennemi = math.sqrt((x_ennemi - x_robot_actuel)**2 + (y_ennemi - y_robot_actuel)**2)
             angle_ennemi = np.degrees(math.atan2(y_ennemi-y_ennemi_old,x_ennemi-x_ennemi_old))
