@@ -41,7 +41,7 @@ from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper
 ########################################################################
 #couleur = fenetre_selection_couleur()
 # Config CAN 
-Liste_ID_recoit = [0x03,0x05,0x06,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
+Liste_ID_recoit = [0x03,0x05,0x06,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
 Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
@@ -129,9 +129,6 @@ if not Astars:
         ]
     else :
         Liste_actions = [
-            ["Attraper",0,2],
-            ["Retourner",0,2],
-            ["Relacher",0,2],
             ["Avancer",2550,1400],
             ["Avancer",2550,1000],
             ["Avancer",2800,890],
@@ -201,6 +198,11 @@ else :
         ["Rotation",-90]
 ]
 
+"""Liste_actions = [
+    ["Attraper",0,12],
+    ["Retourner",0,12],
+    ["Relacher",0,12],
+]"""
 Liste_trajectoire = []
 
 Liste_actions_ennemi = []
@@ -247,7 +249,7 @@ Liste_noisette_xya_cam = [
     [1775+30,800-20,90+2,"J"],[1825+30,800-20,90-2,"B"],[1875+30,800-20,90+2,"B"],[1925+30,800-20,90-2,"J"],
 
     [1025-30,175-20,90-2,"B"],[1075-30,175-20,90+2,"B"],[1125-30,175-20,90-2,"J"],[1175-30,175-20,90+2,"J"],
-    [1825+30,175-20,90-2,"B"],[1875+30,175-20,90+2,"B"],#[1925+30,175-20,90-2,"B"],[1975+30,175-20,90+2,"J"],
+    [1825+30,175-20,90-2,"B"],[1875+30,175-20,90+2,"J"],[1925+30,175-20,90-2,"J"],[1975+30,175-20,90+2,"B"],
 
 ] 
 
@@ -454,10 +456,11 @@ expanded_scatter = None
 
 # =========== Variables pour le fonctionnement Logique du Robot
 lancement_strategie = False
+step = 0
 
 carte_asserv_active = 0
-carte_actionneur_active = 0
-carte_RPI_active = 0
+carte_actionneur0_active = 0
+carte_actionneur1_active = 0
 carte_batteries_active = 0
 etat_bau = 0
 etat_jack = True
@@ -467,8 +470,11 @@ x_strategie = 2300
 y_strategie = 800
 strategie_en_cours = [] 
 TOLERANCE_STRATEGIE_NOISETTE = 50
+action_en_cours = None
+action_precedente = None
+aller_Noisette = False
+aller_GM = False
 
-step = 0
 
 temps_demarage = 0
 temps_ecoules = 0
@@ -477,15 +483,12 @@ temps_retour = 15 # Temps restant pour revenir au départ en fin de match
 temps_max = 3600
 reset_fin = False
 
-action_en_cours = None
-action_precedente = None
 
 verif_mouv = 0
 old_verif_mouv = verif_mouv
 verif_angle = 0
 verif_recalage = 0
 verif_action = 0
-verif_Noisette_a_bouge_simul = 0
 action_est_supprime = False 
 mode_attraper = False
 
@@ -590,7 +593,7 @@ def LectureCAN(stop_event):
     Si l'ID du message n'est pas dans la Liste_ID, saute
     Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
     """
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, bus, verif_mouv, verif_angle,verif_recalage,verif_action,Batteries_alert, carte_RPI_active, carte_actionneur_active, carte_asserv_active, carte_batteries_active, etat_bau
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, bus, verif_mouv, verif_angle,verif_recalage,verif_action,Batteries_alert, carte_actionneur0_active, carte_actionneur1_active, carte_asserv_active, carte_batteries_active, etat_bau
     while not stop_event.is_set():
         msg = bus.recv(0.01)  # attend 10 ms max
         if msg is None:
@@ -639,9 +642,9 @@ def LectureCAN(stop_event):
         elif msg.arbitration_id == 0x002:
             carte_asserv_active = struct.unpack('f', bytes(msg.data))[0]
         elif msg.arbitration_id == 0x003:
-            carte_actionneur_active = struct.unpack('i', bytes(msg.data))[0]
+            carte_actionneur0_active = struct.unpack('i', bytes(msg.data))[0]
         elif msg.arbitration_id == 0x004:
-            carte_RPI_active = struct.unpack('f', bytes(msg.data))[0]
+            carte_actionneur1_active = struct.unpack('f', bytes(msg.data))[0]
         elif msg.arbitration_id == 0x005:
             carte_batteries_active = struct.unpack('<H', bytes(msg.data[:2]))[0]
         elif msg.arbitration_id == 0x06:
@@ -1635,10 +1638,10 @@ if __name__ == '__main__':
 
     
     if Reel and lancement_cartes:
-        while(carte_asserv_active == 0 and carte_actionneur_active == 0 and carte_RPI_active == 0 and carte_batteries_active == 0):
+        while(carte_asserv_active == 0 and carte_actionneur0_active == 0 and carte_actionneur1_active == 0 and carte_batteries_active == 0):
             print(f"Etat Carte Asserv : {carte_asserv_active}")
-            print(f"Etat Carte Actionneur : {carte_actionneur_active}")
-            print(f"Etat Carte Alim RPI : {carte_RPI_active}")
+            print(f"Etat Carte Actionneur 0 : {carte_actionneur0_active}")
+            print(f"Etat Carte Actionneur 1 : {carte_actionneur1_active}")
             print(f"Etat Carte Batteries : {carte_batteries_active}")
             plt.pause(0.1)
         while(etat_bau == 1):
@@ -1676,7 +1679,8 @@ if __name__ == '__main__':
 
             step +=1
             print("step :",step)
-
+            
+            # =============== Association Couleur CAM à Noisette Aveugle ==================== #
             if not Noisette_init:
                 for Noisette_posconnue in Liste_noisette_xya:
                     if Noisette_posconnue[3]=="R":
@@ -1687,7 +1691,6 @@ if __name__ == '__main__':
                                 Noisette_posconnue[3]=Noisette_couleurconnue[3]
                                 Liste_noisette_xya_cam.remove(Noisette_couleurconnue)
                                 break
-                            
                 Liste_noisettes_restantes = [n for n in Liste_noisette_xya if n[3] == "R"]
                 if len(Liste_noisettes_restantes) != 0 :
                     print("Il reste encore des Noisettes dont les couleurs sont inconnues")
@@ -1701,7 +1704,6 @@ if __name__ == '__main__':
                                 if zone_depart[0][0] <= Noisette[0] <= zone_depart[1][0] and zone_depart[0][1] <= Noisette[1] <= zone_depart[1][1]:
                                     Noisette_groupee_debut[i].append(Noisette)
                                 i+=1
-
                         for Noisette_restante in Liste_noisettes_restantes:
                             for num_zone_depart in range(len(Noisette_groupee_debut)):
                                 if Noisette_restante in Noisette_groupee_debut[num_zone_depart]:
@@ -1713,7 +1715,7 @@ if __name__ == '__main__':
                                         Noisette_restante[3]="J"
                                     if nbr_jaune == 2:
                                         Noisette_restante[3]="B"
-                                    if nbr_jaune == 1 and nbr_bleu == 1:
+                                    if nbr_jaune == 1 and nbr_bleu == 1 or nbr_non == 3:
                                         val = random.randint(0,1)
                                         if val == 0:
                                             Noisette_restante[3]="B"
@@ -1721,6 +1723,7 @@ if __name__ == '__main__':
                                             Noisette_restante[3]="J"
                 else:
                     Noisette_init = True
+            # ============================================================================ #
 
             if Astars:
                 grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, 
@@ -1745,7 +1748,7 @@ if __name__ == '__main__':
             ###
             
             # ======================== Tri Noisettes ============================================= #
-            if Mode_pince :
+            """if Mode_pince :
                 groupes_initiaux, adjacence = trouver_groupes_initiaux(Liste_noisette_xya)
 
                 Noisettes_groupees = []
@@ -1763,8 +1766,20 @@ if __name__ == '__main__':
                     groupes_quatre = regrouper_par_quatre(groupe, Liste_noisette_xya)
                     for groupe_quatre in groupes_quatre:
                         noisettes_groupe = [Liste_noisette_xya[i] for i in groupe_quatre]
-                        Noisettes_groupees.append(noisettes_groupe)
+                        Noisettes_groupees.append(noisettes_groupe)"""
+            
+            # Détermine les groupes de Noisettes, 1 / 2 / 3 / 4
+            groupes_initiaux, adjacence = trouver_groupes_initiaux(Liste_noisette_xya)
+            Noisettes_groupe = [ [] for n in range(len(groupes_initiaux))]
+            i = 0
+            for grp in groupes_initiaux :
+                for indice in grp:
+                    Noisettes_groupe[i].append(Liste_noisette_xya[indice])
+                print(Noisettes_groupe[i])
+                i += 1
+            ###
 
+            # Détecte si la Liste de Noisette a changé, puis met à jour la grille
             changement_noisettes_detecte = detecter_changements_noisettes(
                 Liste_noisette_xya, 
                 Liste_noisette_xya_precedente
@@ -1787,39 +1802,33 @@ if __name__ == '__main__':
                 
                 # Forcer le recalcul de trajectoire
                 demande_recalcul_traj = True
+            ### 
 
             Liste_Noisettes_dans_GM = []
             for Noisette in Liste_noisette_xya:
                 x_centre, y_centre, angle = Noisette[0], Noisette[1], Noisette[2]
-    
                 # Dimensions
                 longueur = 150  # mm (dans la direction de l'angle)
                 largeur = 50    # mm (perpendiculaire à l'angle)
-                
                 # Conversion angle en radians
                 angle_rad = math.radians(angle)
-                
                 # Vecteurs directeurs
                 dx_long = (longueur / 2) * math.cos(angle_rad)
                 dy_long = (longueur / 2) * math.sin(angle_rad)
                 dx_larg = (largeur / 2) * math.sin(angle_rad)  # Perpendiculaire = rotation de 90°
                 dy_larg = -(largeur / 2) * math.cos(angle_rad)
-                
                 # Calcul des 4 coins (sens trigonométrique depuis le centre)
                 Noisette_coin_hg = (x_centre - dx_long - dx_larg, y_centre - dy_long - dy_larg)  # Haut-Gauche
                 Noisette_coin_hd = (x_centre + dx_long - dx_larg, y_centre + dy_long - dy_larg)  # Haut-Droite
                 Noisette_coin_bd = (x_centre + dx_long + dx_larg, y_centre + dy_long + dy_larg)  # Bas-Droite
                 Noisette_coin_bg = (x_centre - dx_long + dx_larg, y_centre - dy_long + dy_larg)  # Bas-Gauche
-    
                  # Vérifier si AU MOINS UN coin est dans une zone GM
                 for num_gm in range(len(Liste_zones_gm_coins)):
                     zone = Liste_zones_gm_coins[num_gm]
                     x_min, y_min = zone[0]
                     x_max, y_max = zone[1]
-                    
                     # Liste des 4 coins
                     coins = [Noisette_coin_hg, Noisette_coin_hd, Noisette_coin_bd, Noisette_coin_bg]
-                    
                     # Vérifier si au moins un coin est dans la zone
                     if any(x_min <= coin[0] <= x_max and y_min <= coin[1] <= y_max for coin in coins):
                         Liste_Noisettes_dans_GM.append(Noisette)
@@ -2638,7 +2647,6 @@ if __name__ == '__main__':
                     verif_mouv=0
                     verif_angle = 0
                     verif_recalage = 0
-                    verif_Noisette_a_bouge_simul = 0
                     angle_robot_voulu = -181
                     verif_action = 0
                     action_est_supprime = True
