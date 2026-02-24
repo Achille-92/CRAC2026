@@ -203,10 +203,9 @@ else :
 ]
 
 Liste_actions = [
-    ["Attraper",0,2],
-    #["Retourner",0,2],
-    #["Retourner",0,2],
-    ["Relacher",0,2],
+    ["Attraper",0,12],
+    ["Retourner",0,12],
+    ["Relacher",0,12],
 ]
 Liste_trajectoire = []
 
@@ -1654,7 +1653,7 @@ if __name__ == '__main__':
             plt.pause(0.1)
     if Reel:
         while(etat_bau == 1):
-            print(f"Etat BAU : {etat_bau}")
+            print(f"Attente BAU")
 
     while(lancement_strategie==False and not etat_jack):
         if current_os == "Linux":
@@ -2716,7 +2715,7 @@ if __name__ == '__main__':
         if etat_bau == 1:
             print("BAU enfoncé")
 
-        if Batteries_alert[3]==1:
+        if RPI_decharge:
             print("Batterie RPI trop faible")
             
         stop_event.set()
