@@ -1,6 +1,6 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 
 Strategie = False
 Debug_strategie = False
@@ -23,7 +23,7 @@ Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 import matplotlib
 matplotlib.use('Qt5Agg')
 from rplidar import RPLidar
-import math,time,os,can,struct,random,platform,sys
+import math,time,os,can,struct,random,platform,sys, json, socket
 current_os = platform.system()
 if current_os == "Linux":
     import RPi.GPIO as GPIO
@@ -202,11 +202,11 @@ else :
         ["Rotation",-90]
 ]
 
-"""Liste_actions = [
+Liste_actions = [
     ["Attraper",0,12],
     ["Retourner",0,12],
     ["Relacher",0,12],
-]"""
+]
 Liste_trajectoire = []
 
 Liste_actions_ennemi = []
@@ -241,25 +241,25 @@ Liste_noisette_xya = [
     [1825,175,90,"R"],[1875,175,90,"R"],[1925,175,90,"R"],[1975,175,90,"R"],
 
 ] 
+if not Wifi:
+    Liste_noisette_xya_cam = [
+        [175-30,1125+20,0+2,"B"],[175-30,1175+20,0+2,"J"],[175-30,1225+20,0+2,"B"],[175-30,1275+20,0+2,"J"],
+        [175-30,325-20,0-2,"B"],[175-30,375-20,0-2,"B"],[175-30,425-20,0-2,"J"],[175-30,475-20,0-2,"J"],
 
-Liste_noisette_xya_cam = [
-    [175-30,1125+20,0+2,"B"],[175-30,1175+20,0+2,"J"],[175-30,1225+20,0+2,"B"],[175-30,1275+20,0+2,"J"],
-    [175-30,325-20,0-2,"B"],[175-30,375-20,0-2,"B"],[175-30,425-20,0-2,"J"],[175-30,475-20,0-2,"J"],
+        [2825+30,1125+20,0-2,"J"],[2825+30,1175+20,0-2,"J"],[2825+30,1275+20,0+2,"B"],[2825+30,1225+20,0+2,"B"],
+        [2825+30,325-20,0-2,"B"],[2825+30,375-20,0-2,"J"],[2825+30,425-20,0+2,"J"],[2825+30,475-20,0+2,"B"],
 
-    [2825+30,1125+20,0-2,"J"],[2825+30,1175+20,0-2,"J"],[2825+30,1275+20,0+2,"B"],[2825+30,1225+20,0+2,"B"],
-    [2825+30,325-20,0-2,"B"],[2825+30,375-20,0-2,"J"],[2825+30,425-20,0+2,"J"],[2825+30,475-20,0+2,"B"],
+        [1075-30,800-20,90+2,"J"],[1125-30,800-20,90-2,"J"],[1175-30,800-20,90+2,"B"],[1225-30,800-20,90-2,"B"],
+        [1775+30,800-20,90+2,"J"],[1825+30,800-20,90-2,"B"],[1875+30,800-20,90+2,"B"],[1925+30,800-20,90-2,"J"],
 
-    [1075-30,800-20,90+2,"J"],[1125-30,800-20,90-2,"J"],[1175-30,800-20,90+2,"B"],[1225-30,800-20,90-2,"B"],
-    [1775+30,800-20,90+2,"J"],[1825+30,800-20,90-2,"B"],[1875+30,800-20,90+2,"B"],[1925+30,800-20,90-2,"J"],
+        [1025-30,175-20,90-2,"B"],[1075-30,175-20,90+2,"B"],[1125-30,175-20,90-2,"J"],[1175-30,175-20,90+2,"J"],
+        [1825+30,175-20,90-2,"B"],[1875+30,175-20,90+2,"J"],[1925+30,175-20,90-2,"J"],[1975+30,175-20,90+2,"B"],
 
-    [1025-30,175-20,90-2,"B"],[1075-30,175-20,90+2,"B"],[1125-30,175-20,90-2,"J"],[1175-30,175-20,90+2,"J"],
-    [1825+30,175-20,90-2,"B"],[1875+30,175-20,90+2,"J"],[1925+30,175-20,90-2,"J"],[1975+30,175-20,90+2,"B"],
-
-] 
+    ] 
 
 Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
 Noisette_init = False
-TOL_CAM_NOISETTE = 60
+TOL_CAM_NOISETTE = 40
 
 Liste_noisettes_recup_xy = [((175,1300+R_ROBOT+2*MARGE_NOISETTE),(175,1100-R_ROBOT-2*MARGE_NOISETTE)),
                                   ((175,500+R_ROBOT+2*MARGE_NOISETTE),(175,300-R_ROBOT-2*MARGE_NOISETTE)),
@@ -333,6 +333,14 @@ PORT_NAME = '/dev/ttyUSB0'
 BAUDRATE = 256000
 lidar = None
 ####################################
+
+# Configuration pour la réception
+HOST_PC = '0.0.0.0'
+PORT_RECEPTION = 5000
+
+# Configuration pour l'envoi vers la BC
+HOST_RPI = "192.168.0.100"  # IP de la BC
+PORT_ENVOI = 5001
 
 # Piste
 X_PISTE = 3000
@@ -467,7 +475,7 @@ carte_actionneur0_active = 0
 carte_actionneur1_active = 0
 carte_batteries_active = 0
 etat_bau = 0
-etat_jack = True
+etat_jack = False
 
 demande_nouvelle_strat = False
 x_strategie = 2300
@@ -534,6 +542,14 @@ grid_expanded = binary_dilation(grid, structure=structure)
 # Carte de distance aux obstacles (pour A* pondéré)
 from scipy.ndimage import distance_transform_edt
 distance_map = distance_transform_edt(~grid_expanded)
+
+x_robot_actuel_cam = x_robot_depart
+y_robot_actuel_cam = y_robot_depart
+angle_robot_actuel_cam = angle_robot_depart
+x_ennemi_cam = x_ennemi
+y_ennemi_cam = y_ennemi
+angle_ennemi_cam = 0
+Liste_noisette_xya_cam = []
 
 ################## Fonction Threads ##########################################
 
@@ -634,7 +650,8 @@ def LectureCAN(stop_event):
             Batteries_alert[3] = struct.unpack('<H', bytes(msg.data[:2]))[0]
             
         elif msg.arbitration_id == 0x109:
-            verif_action = struct.unpack('i', bytes(msg.data))[0]
+            if msg.dlc >= 1:
+                verif_action = msg.data[0]
 
         elif msg.arbitration_id == 0x10E:
             verif_mouv = struct.unpack('f', bytes(msg.data))[0]
@@ -646,7 +663,9 @@ def LectureCAN(stop_event):
         elif msg.arbitration_id == 0x002:
             carte_asserv_active = struct.unpack('f', bytes(msg.data))[0]
         elif msg.arbitration_id == 0x003:
-            carte_actionneur0_active = struct.unpack('i', bytes(msg.data))[0]
+            if msg.dlc >= 1:
+                carte_actionneur0_active = msg.data[0]
+
         elif msg.arbitration_id == 0x004:
             carte_actionneur1_active = struct.unpack('f', bytes(msg.data))[0]
         elif msg.arbitration_id == 0x005:
@@ -657,6 +676,50 @@ def LectureCAN(stop_event):
             else:
                 etat_bau = msg.data[0]
     
+# Fonction pour recevoir des données de la RPI
+def comm_bc(stop_event):
+    print(f"[Récepteur] Serveur en attente sur le port {PORT_RECEPTION}...")
+    global Liste_noisette_xya_cam,x_robot_actuel_cam,y_robot_actuel_cam,angle_robot_actuel_cam,x_ennemi_cam,y_ennemi_cam,angle_ennemi_cam
+
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.bind((HOST_PC, PORT_RECEPTION))
+    server_socket.listen(1)
+    
+    try:
+        while not stop_event.is_set():
+            conn, addr = server_socket.accept()
+            print(f"\n[Récepteur] --- Connexion depuis {addr} ---")
+            
+            # Réception des données
+            data = b""
+            while True:
+                packet = conn.recv(1024)
+                if not packet:
+                    break
+                data += packet
+            
+            conn.close()
+            
+            # Décodage et affichage
+            try:
+                donnees_de_bc = json.loads(data.decode())
+                
+                Liste_noisette_xya_cam = donnees_de_bc["Liste_noisette_xya_cam"]
+                x_robot_actuel_cam = donnees_de_bc["x_robot_actuel_cam"]
+                y_robot_actuel_cam = donnees_de_bc["y_robot_actuel_cam"]
+                angle_robot_actuel_cam = donnees_de_bc["angle_robot_actuel_cam"]
+                x_ennemi_cam = donnees_de_bc["x_ennemi_cam"]
+                y_ennemi_cam = donnees_de_bc["y_ennemi_cam"]
+                angle_ennemi_cam  = donnees_de_bc["angle_ennemi_cam"]
+                
+            except json.JSONDecodeError:
+                print("[Récepteur] Erreur : données JSON invalides")
+            
+    except KeyboardInterrupt:
+        print("[Récepteur] Arrêt.")
+    finally:
+        server_socket.close()
 ##############################################################################
 
 ################## Fonction ##################################################
@@ -1557,9 +1620,13 @@ if __name__ == '__main__':
 
     if Reel :
         GPIO.setmode(GPIO.BCM)  # Utilisation de la numérotation BCM
-        GPIO.setup(23, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Activation de la résistance de pull-up interne
+        GPIO.setup(26, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Activation de la résistance de pull-up interne
         tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
         tache_LectureCAN.start()
+
+    if Wifi:
+        thread_reception = threading.Thread(target=comm_bc, args=(stop_event,),daemon=True)
+        thread_reception.start()
 
     fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,noisette_text = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
 
@@ -1648,12 +1715,13 @@ if __name__ == '__main__':
             print(f"Etat Carte Actionneur 1 : {carte_actionneur1_active}")
             print(f"Etat Carte Batteries : {carte_batteries_active}")
             plt.pause(0.1)
+    if Reel:
         while(etat_bau == 1):
-            print(f"Etat BAU : {etat_bau}")
+            print(f"Attente BAU")
 
-    while(lancement_strategie==False and etat_jack):
+    while(lancement_strategie==False and not etat_jack):
         if current_os == "Linux":
-            etat_jack = GPIO.input(23)
+            etat_jack = GPIO.input(26)
         print("Attente du Jack")
         plt.pause(0.1)
     
@@ -1691,14 +1759,20 @@ if __name__ == '__main__':
                         for Noisette_couleurconnue in Liste_noisette_xya_cam:
                             distance_NN = math.sqrt((Noisette_posconnue[0] - Noisette_couleurconnue[0])**2 + (Noisette_posconnue[1] - Noisette_couleurconnue[1])**2)
                             print(distance_NN)
-                            if distance_NN <= TOL_CAM_NOISETTE:
-                                Noisette_posconnue[3]=Noisette_couleurconnue[3]
-                                Liste_noisette_xya_cam.remove(Noisette_couleurconnue)
-                                break
+                            if (0 <= Noisette_posconnue[0] <= 300 and 0 <= Noisette_posconnue[1] <= 500 and couleur == "B")or(2700 <= Noisette_posconnue[0] <= 3000 and 0 <= Noisette_posconnue[1] <= 500 and couleur == "J"):
+                                if distance_NN <= TOL_CAM_NOISETTE-10:
+                                    Noisette_posconnue[3]=Noisette_couleurconnue[3]
+                                    Liste_noisette_xya_cam.remove(Noisette_couleurconnue)
+                                    break
+                            else :
+                                if distance_NN <= TOL_CAM_NOISETTE:
+                                    Noisette_posconnue[3]=Noisette_couleurconnue[3]
+                                    Liste_noisette_xya_cam.remove(Noisette_couleurconnue)
+                                    break
                 Liste_noisettes_restantes = [n for n in Liste_noisette_xya if n[3] == "R"]
                 if len(Liste_noisettes_restantes) != 0 :
                     print("Il reste encore des Noisettes dont les couleurs sont inconnues")
-                    if temps_ecoules > 1:
+                    if temps_ecoules > 2:
                         Liste_noisette_xya_copie = Liste_noisette_xya
                         print("Faire tri par déduction")
                         Noisette_groupee_debut = [[],[],[],[],[],[],[],[]]
@@ -1779,7 +1853,7 @@ if __name__ == '__main__':
             for grp in groupes_initiaux :
                 for indice in grp:
                     Noisettes_groupe[i].append(Liste_noisette_xya[indice])
-                print(Noisettes_groupe[i])
+                #print(Noisettes_groupe[i])
                 i += 1
             ###
 
@@ -1843,7 +1917,7 @@ if __name__ == '__main__':
             
             # ============ Prise de décision ========== #
             if demande_nouvelle_strat:
-                Liste_actions = positionner_robot_devant_Noisette()
+                #Liste_actions = positionner_robot_devant_Noisette()
                 demande_nouvelle_strat = False
                 demande_recalcul_traj = True
                 
@@ -1875,8 +1949,8 @@ if __name__ == '__main__':
                 pince_a_utilise = Liste_actions[0][1]
                 noisette_a_manipulee = Liste_actions[0][2]
                 print("Appeler Pince N°",pince_a_utilise," pour ",action_voulu," les Noisettes ",noisette_a_manipulee)
-            # ================================================= #
-            print("test 1")
+
+
             # ====== Bouger si Robot dans Zone interdite pour Attraper et Relacher === #
             if len(Liste_actions)>2 or action_precedente in ["Relacher"]:
                 if (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper"]) or Liste_actions[1][0] in ["Attraper"] or action_voulu in ["Attraper"] or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","Avancer","Reculer"]) or (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Relacher"]) or Liste_actions[1][0] in ["Relacher"] or action_voulu in ["Relacher"]:
@@ -1888,7 +1962,6 @@ if __name__ == '__main__':
             if Debug_Action:
                 print("mode_attraper : ",mode_attraper)
             # ======================================================================== #
-            print("test 2")
 
             distance_robot_ennemi = math.sqrt((x_ennemi - x_robot_actuel)**2 + (y_ennemi - y_robot_actuel)**2)
             angle_ennemi = np.degrees(math.atan2(y_ennemi-y_ennemi_old,x_ennemi-x_ennemi_old))
@@ -2517,7 +2590,7 @@ if __name__ == '__main__':
             
             
             # ======================= GESTION BATTERIES ========================== #
-            
+            Batteries = [60, 60, 60, 60]
             if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             
@@ -2705,6 +2778,30 @@ if __name__ == '__main__':
             old_verif_mouv = verif_mouv
             Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
             Liste_actions_precedente = Liste_actions.copy()
+
+            if Wifi:
+                donnees_vers_bc = {
+                    "x_robot_actuel": x_robot_actuel,
+                    "y_robot_actuel": y_robot_actuel,
+                    "angle_robot_actuel": angle_robot_actuel,
+                    "x_ennemi": x_ennemi,
+                    "y_ennemi": y_ennemi,
+                    "Batteries": Batteries,
+                    "Batteries_alert": Batteries_alert,
+                    "Noisettes_stockees_dans_robot": Noisettes_stockees_dans_robot,
+                    "action_voulu" : action_voulu,
+                    "action_precedente" : action_precedente,
+                    "temps_restant" : temps_restant,
+                }
+                try:
+                    message = json.dumps(donnees_vers_bc)
+                    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    client_socket.settimeout(0.1)
+                    client_socket.connect((HOST_RPI, PORT_ENVOI))
+                    client_socket.sendall(message.encode())
+                    client_socket.close()
+                except (socket.timeout, ConnectionRefusedError, OSError) as e:
+                    print(f"WiFi Envoi échoué : {e}")
             print("")
             time.sleep(0.000005)
 
@@ -2712,7 +2809,7 @@ if __name__ == '__main__':
         if etat_bau == 1:
             print("BAU enfoncé")
 
-        if Batteries_alert[3]==1:
+        if RPI_decharge:
             print("Batterie RPI trop faible")
             
         stop_event.set()
