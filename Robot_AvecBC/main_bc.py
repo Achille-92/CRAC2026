@@ -18,6 +18,7 @@ Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
 
+Noisette_stockees_dans_robot = [["N","N"],["N","N"]]
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -223,6 +224,7 @@ temps_retour = 15 # Temps restant pour revenir au départ en fin de match
 temps_max = 3600
 reset_fin = False
 
+action_voulu = None
 action_en_cours = None
 action_precedente = None
 
@@ -252,6 +254,8 @@ TOL_POS_A = 5
 def comm_robot():
     print(f"[Récepteur] Serveur en attente sur le port {PORT_RECEPTION}...")
     
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi, Batteries, Batteries_alert,Noisette_stockees_dans_robot, action_voulu, action_precedente, temps_restant
+
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind((HOST_RPI, PORT_RECEPTION))
@@ -275,9 +279,7 @@ def comm_robot():
             # Décodage et affichage
             try:
                 donnees_recues = json.loads(data.decode())
-                
-                print("[Récepteur] Données reçues depuis l'ordinateur :")
-                print(json.dumps(donnees_recues, indent=4))
+
                 
                 x_robot_actuel = donnees_recues["x_robot_actuel"]
                 y_robot_actuel = donnees_recues["y_robot_actuel"]
@@ -285,14 +287,12 @@ def comm_robot():
                 x_ennemi = donnees_recues["x_ennemi"]
                 y_ennemi = donnees_recues["y_ennemi"]
                 Batteries = donnees_recues["Batteries"]
+                Batteries_alert = donnees_recues["Batteries_alert"]
+                Noisette_stockees_dans_robot = donnees_recues["Noisette_stockees_dans_robot"]
+                action_voulu = donnees_recues["action_en_cours"]
+                action_precedente = donnees_recues["action_precedente"]
+                temps_restant = donnees_recues["temps_restant"]
                 
-
-                print(f"[Récepteur] x_robot_actuel : {x_robot_actuel}")
-                print(f"[Récepteur] y_robot_actuel : {y_robot_actuel}")
-                print(f"[Récepteur] angle_robot_actuel : {angle_robot_actuel}")
-                print(f"[Récepteur] x_ennemi : {x_ennemi}")
-                print(f"[Récepteur] y_ennemi : {y_ennemi}")
-                print(f"[Récepteur] Batteries : {Batteries}")
                 
             except json.JSONDecodeError:
                 print("[Récepteur] Erreur : données JSON invalides")
@@ -417,9 +417,9 @@ if __name__ == '__main__':
 
     stop_event = threading.Event()
     
-    """if WiFi:
+    if WiFi:
         thread_reception = threading.Thread(target=comm_robot, daemon=True)
-        thread_reception.start()"""
+        thread_reception.start()
 
     fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,noisette_text = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
 
@@ -642,9 +642,6 @@ if __name__ == '__main__':
                 except (socket.timeout, ConnectionRefusedError, OSError) as e:
                     print(f"WiFi Envoi échoué : {e}")
 
-            temps_ecoules = time.time() - temps_demarage
-            temps_restant = temps_max - temps_ecoules
-
             step +=1
             print("step :",step)
             
@@ -748,12 +745,10 @@ if __name__ == '__main__':
             robot_angle_line.set_data([x0, x1], [y0, y1])
             
             # Affichage texte Coordonées
-            chronometre_text.set_text(f"Temps : {int(temps_restant)} s")
+            noisette_text.set_text(f"Avant : {Noisette_stockees_dans_robot[0]} \nArrière : {Noisette_stockees_dans_robot[1]}")
+            chronometre_text.set_text(f"Temps : {int(temps_restant)} s\nAction : {action_voulu}")
 
             robot_info_text.set_text(f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°")
-            x_voulu_text.set_text(f"X = {x_robot_voulu:.1f}")
-            y_voulu_text.set_text(f"Y = {y_robot_voulu:.1f}")
-            A_voulu_text.set_text(f"A = {angle_robot_voulu:.1f}°")
 
             # ==================================================================== #
             
@@ -763,11 +758,6 @@ if __name__ == '__main__':
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             # ==================================================================== #
             
-            # ================= Envoi des accusés de réception ======================== #
-            
-            # ==================================================================== #
-
-            # ==================================================================== #
 
             # MAJ de l'affichage et des Variables de Bouncing
             update_display(background)
