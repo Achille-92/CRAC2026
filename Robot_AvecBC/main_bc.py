@@ -1,6 +1,6 @@
 couleur = "B"
 Camera = True
-WiFi = False
+WiFi = True
 
 Strategie = False
 Debug_strategie = False
@@ -41,7 +41,7 @@ from homographie_couleur import Config,ArUcoTrackingSystem,ButtonManager,Button_
 #couleur = fenetre_selection_couleur()
 # Config Wi-Fi 
 # Configuration pour l'envoi
-HOST_PC = "192.168.0.99"  # IP de l'ordinateur
+HOST_PC = "192.168.0.102"  # IP de l'ordinateur
 PORT_ENVOI = 5000
 
 # Configuration pour la réception
@@ -249,7 +249,7 @@ TOL_POS_Y = 16
 TOL_POS_A = 5
 
 ################## Fonction Threads ##########################################
-def recevoir_donnees():
+def comm_robot():
     print(f"[Récepteur] Serveur en attente sur le port {PORT_RECEPTION}...")
     
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -416,6 +416,10 @@ def appliquer_couleur(config: Config, couleur: str) -> Config:
 if __name__ == '__main__':
 
     stop_event = threading.Event()
+    
+    """if WiFi:
+        thread_reception = threading.Thread(target=comm_robot, daemon=True)
+        thread_reception.start()"""
 
     fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,noisette_text = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
 
@@ -465,7 +469,7 @@ if __name__ == '__main__':
             system.homographie.calcul_homographie_robot(system.calibration_mode_robot.calibration_points)
             system.plan_robot_calcule = True
 
-        cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         if not cap.isOpened():
             print("Erreur: impossible d'ouvrir la caméra")
 
@@ -504,9 +508,6 @@ if __name__ == '__main__':
     
     temps_demarage = time.time()
     try:
-        if WiFi:
-            thread_reception = threading.Thread(target=recevoir_donnees, daemon=True)
-            thread_reception.start()
         while (not stop_event.is_set()): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
             if Camera:
                 cv2.namedWindow("Systeme de Tracking ArUco", cv2.WINDOW_NORMAL)
