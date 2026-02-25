@@ -339,7 +339,7 @@ HOST_PC = '0.0.0.0'
 PORT_RECEPTION = 5000
 
 # Configuration pour l'envoi vers la BC
-HOST_RPI = "192.168.0.100"  # IP de la BC
+HOST_RPI = "192.168.0.103"  # IP de la BC
 PORT_ENVOI = 5001
 
 # Piste
@@ -1759,7 +1759,7 @@ if __name__ == '__main__':
                         for Noisette_couleurconnue in Liste_noisette_xya_cam:
                             distance_NN = math.sqrt((Noisette_posconnue[0] - Noisette_couleurconnue[0])**2 + (Noisette_posconnue[1] - Noisette_couleurconnue[1])**2)
                             print(distance_NN)
-                            if (0 <= Noisette_posconnue[0] <= 300 and 0 <= Noisette_posconnue[1] <= 500 and couleur == "B")or(2700 <= Noisette_posconnue[0] <= 3000 and 0 <= Noisette_posconnue[1] <= 500 and couleur == "J"):
+                            if Reel and (0 <= Noisette_posconnue[0] <= 300 and 0 <= Noisette_posconnue[1] <= 500 and couleur == "B")or(2700 <= Noisette_posconnue[0] <= 3000 and 0 <= Noisette_posconnue[1] <= 500 and couleur == "J"):
                                 if distance_NN <= TOL_CAM_NOISETTE-10:
                                     Noisette_posconnue[3]=Noisette_couleurconnue[3]
                                     Liste_noisette_xya_cam.remove(Noisette_couleurconnue)
