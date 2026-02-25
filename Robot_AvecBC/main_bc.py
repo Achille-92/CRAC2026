@@ -289,7 +289,7 @@ def comm_robot():
                 Batteries = donnees_recues["Batteries"]
                 Batteries_alert = donnees_recues["Batteries_alert"]
                 Noisette_stockees_dans_robot = donnees_recues["Noisette_stockees_dans_robot"]
-                action_voulu = donnees_recues["action_en_cours"]
+                action_voulu = donnees_recues["action_voulu"]
                 action_precedente = donnees_recues["action_precedente"]
                 temps_restant = donnees_recues["temps_restant"]
                 
