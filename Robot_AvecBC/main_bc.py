@@ -632,12 +632,15 @@ if __name__ == '__main__':
                     "y_ennemi_cam": y_ennemi_cam,
                     "angle_ennemi_cam": angle_ennemi_cam,
                 }
-
-                message = json.dumps(donnees_pour_robot)
-                client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                client_socket.connect((HOST_PC, PORT_ENVOI))
-                client_socket.sendall(message.encode())
-                client_socket.close()
+                try :
+                    message = json.dumps(donnees_pour_robot)
+                    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    client_socket.settimeout(0.1)
+                    client_socket.connect((HOST_PC, PORT_ENVOI))
+                    client_socket.sendall(message.encode())
+                    client_socket.close()
+                except (socket.timeout, ConnectionRefusedError, OSError) as e:
+                    print(f"WiFi Envoi échoué : {e}")
 
             temps_ecoules = time.time() - temps_demarage
             temps_restant = temps_max - temps_ecoules
