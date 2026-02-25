@@ -1,5 +1,5 @@
 couleur = "B"
-Camera = True
+Camera = False
 WiFi = True
 
 Strategie = False
@@ -18,12 +18,11 @@ Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
 
-Noisette_stockees_dans_robot = [["N","N"],["N","N"]]
+Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
-from rplidar import RPLidar
-import math,time,os,can,struct,cv2
+import math,time,os,struct,cv2
 import numpy as np
 import threading
 from collections import deque 
@@ -32,10 +31,9 @@ from functools import partial
 from matplotlib.widgets import Button
 import socket
 import json
-from scipy.ndimage import binary_dilation
 from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes,fenetre_selection_couleur
 from calcul_mouv import  calculer_trajectoire_complete,actualiser_zones_jeu,verifier_segments_trajectoire_ennemi
-from fonction import Obstacles,associer_noisette_a_emplacement,detecter_changements_noisettes, distance
+from fonction import associer_noisette_a_emplacement,detecter_changements_noisettes, distance
 from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper_par_quatre
 from homographie_couleur import Config,ArUcoTrackingSystem,ButtonManager,Button_A
 ########################################################################
@@ -62,21 +60,23 @@ MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 ############################
 
-Liste_noisette_xya = [
-    [175,1125,0,"B"],[175,1175,0,"J"],[175,1225,0,"B"],[175,1275,0,"J"],
-    [175,325,0,"B"],[175,375,0,"B"],[175,425,0,"J"],[175,475,0,"J"],
+if Camera :
+    Liste_noisette_xya = [] 
+else :
+    Liste_noisette_xya = [
+        [175-30,1125+20,0+2,"B"],[175-30,1175+20,0+2,"J"],[175-30,1225+20,0+2,"B"],[175-30,1275+20,0+2,"J"],
+        [175-30,325-20,0-2,"B"],[175-30,375-20,0-2,"J"],[175-30,425-20,0-2,"B"],[175-30,475-20,0-2,"J"],
 
-    [2825,1125,0,"J"],[2825,1175,0,"J"],[2825,1275,0,"B"],[2825,1225,0,"B"],
-    [2825,325,0,"B"],[2825,375,0,"J"],[2825,425,0,"J"],[2825,475,0,"B"],
+        [2825+30,1125+20,0-2,"J"],[2825+30,1175+20,0-2,"J"],[2825+30,1275+20,0+2,"B"],[2825+30,1225+20,0+2,"B"],
+        [2825+30,325-20,0-2,"B"],[2825+30,375-20,0-2,"J"],[2825+30,425-20,0+2,"J"],[2825+30,475-20,0+2,"B"],
 
-    [1075,800,90,"J"],[1125,800,90,"J"],[1175,800,90,"B"],[1225,800,90,"B"],
-    [1775,800,90,"J"],[1825,800,90,"B"],[1875,800,90,"B"],[1925,800,90,"J"],
+        [1075-30,800-20,90+2,"J"],[1125-30,800-20,90-2,"J"],[1175-30,800-20,90+2,"B"],[1225-30,800-20,90-2,"B"],
+        [1775+30,800-20,90+2,"J"],[1825+30,800-20,90-2,"B"],[1875+30,800-20,90+2,"B"],[1925+30,800-20,90-2,"J"],
 
-    [1025,175,90,"B"],[1075,175,90,"B"],[1125,175,90,"J"],[1175,175,90,"J"],
-    [1825,175,90,"B"],[1875,175,90,"J"],[1925,175,90,"B"],[1975,175,90,"J"],
+        [1025-30,175-20,90-2,"B"],[1075-30,175-20,90+2,"B"],[1125-30,175-20,90-2,"J"],[1175-30,175-20,90+2,"J"],
+        [1825+30,175-20,90-2,"B"],[1875+30,175-20,90+2,"J"],[1925+30,175-20,90-2,"J"],[1975+30,175-20,90+2,"B"],
 
-    [2200,950,0,"J"],#[2350,800,90,"J"],
-] 
+    ] 
 
 Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
 
@@ -254,7 +254,7 @@ TOL_POS_A = 5
 def comm_robot():
     print(f"[Récepteur] Serveur en attente sur le port {PORT_RECEPTION}...")
     
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi, Batteries, Batteries_alert,Noisette_stockees_dans_robot, action_voulu, action_precedente, temps_restant
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi, Batteries, Batteries_alert,Noisettes_stockees_dans_robot, action_voulu, action_precedente, temps_restant
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -288,7 +288,7 @@ def comm_robot():
                 y_ennemi = donnees_recues["y_ennemi"]
                 Batteries = donnees_recues["Batteries"]
                 Batteries_alert = donnees_recues["Batteries_alert"]
-                Noisette_stockees_dans_robot = donnees_recues["Noisette_stockees_dans_robot"]
+                Noisettes_stockees_dans_robot = donnees_recues["Noisettes_stockees_dans_robot"]
                 action_voulu = donnees_recues["action_voulu"]
                 action_precedente = donnees_recues["action_precedente"]
                 temps_restant = donnees_recues["temps_restant"]
@@ -745,7 +745,7 @@ if __name__ == '__main__':
             robot_angle_line.set_data([x0, x1], [y0, y1])
             
             # Affichage texte Coordonées
-            noisette_text.set_text(f"Avant : {Noisette_stockees_dans_robot[0]} \nArrière : {Noisette_stockees_dans_robot[1]}")
+            noisette_text.set_text(f"Avant : {Noisettes_stockees_dans_robot[0]} \nArrière : {Noisettes_stockees_dans_robot[1]}")
             chronometre_text.set_text(f"Temps : {int(temps_restant)} s\nAction : {action_voulu}")
 
             robot_info_text.set_text(f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°")
