@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Tuple, Dict, List
 from collections import deque
 import json
@@ -12,50 +12,147 @@ class Config:
     ajout_horizontal_mm: float = 550.0  # Marge à gauche et à droite
     ajout_vertical_mm: float = 550.0    # Marge en haut et en bas
     tag_taille_mm: float = 100.0           # Tags de référence (20 à 23)
-    tag_taille_mm_robots: float = 100.0     # Tags mobiles 
+    tag_taille_mm_robot: float = 100.0     # Tags mobiles
+    hauteur_camera_mm: float = 1480.0     # Hauteur estimée de la caméra
     camera_largeur: int = 1920             # Résolution de la caméra
     camera_longueur: int = 1080
     tag_reference: Tuple[int, ...] = (20, 21, 22, 23)
-    tag_calibration: Tuple[int, ...] = (51,71)
-    tag_mobile: Tuple[int, ...] = (0,1,2,3,4,5,6,7,8,9,10)
+    tag_calibration_Noisette: int = 0
+    tag_calibration_robot: int = 0
+    tag_robot: Tuple[int, ...] = ()
+    tag_ennemi: Tuple[int, ...] = ()
+    tag_mobile: Tuple[int, ...] = (0, 0)
 
     couleur_jaune_rgb: Tuple[int, int, int] = (247, 181, 0)
     couleur_bleu_rgb: Tuple[int, int, int] = (0, 91, 140)
-    tolerance_hsv: Tuple[int, int, int] = (30, 150, 150)  # Tolérance pour HSV
-    taille_min_contour: int = 12  # Taille minimale du contour en pixels
-    taille_max_contour: int = 10000  # Taille maximale du contour en pixels
+    tolerance_hsv: Tuple[int, int, int] = (30, 150, 150)
+    taille_min_contour: int = 12
+    taille_max_contour: int = 10000
 
     @property
     def largeur_totale_mm(self) -> float:
-        """Renvoi un entier qui correspond à la largeur totale de la Piste"""
         return self.tags_largeur_mm + 2 * self.ajout_horizontal_mm
 
     @property
     def longueur_totale_mm(self) -> float:
-        """Renvoi un entier qui correspond à la longueur totale de la Piste"""
         return self.tags_longueur_mm + 2 * self.ajout_vertical_mm
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GESTIONNAIRE DE BOUTONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Button_A:
+    def __init__(self, x, y, w, h, text, color=(100, 100, 100), text_color=(255, 255, 255)):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.text = text
+        self.color = color
+        self.text_color = text_color
+        self.hovered = False
+        
+    def draw(self, img):
+        color = tuple(min(c + 30, 255) for c in self.color) if self.hovered else self.color
+        cv2.rectangle(img, (self.x, self.y), (self.x + self.w, self.y + self.h), color, -1)
+        cv2.rectangle(img, (self.x, self.y), (self.x + self.w, self.y + self.h), (255, 255, 255), 2)
+        
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.5
+        thickness = 1
+        text_size = cv2.getTextSize(self.text, font, font_scale, thickness)[0]
+        text_x = self.x + (self.w - text_size[0]) // 2
+        text_y = self.y + (self.h + text_size[1]) // 2
+        cv2.putText(img, self.text, (text_x, text_y), font, font_scale, self.text_color, thickness)
+    
+    def is_clicked(self, x, y):
+        return self.x <= x <= self.x + self.w and self.y <= y <= self.y + self.h
+    
+    def update_hover(self, x, y):
+        self.hovered = self.is_clicked(x, y)
+
+
+class ButtonManager:
+    def __init__(self, window_name):
+        self.window_name = window_name
+        self.buttons = []
+        self.last_click = None
+        cv2.setMouseCallback(window_name, self._mouse_callback)
+    
+    def _mouse_callback(self, event, x, y, flags, param):
+        if event == cv2.EVENT_MOUSEMOVE:
+            for button in self.buttons:
+                button.update_hover(x, y)
+        elif event == cv2.EVENT_LBUTTONDOWN:
+            for button in self.buttons:
+                if button.is_clicked(x, y):
+                    self.last_click = button.text
+    
+    def add_button(self, button):
+        self.buttons.append(button)
+    
+    def draw_all(self, img):
+        for button in self.buttons:
+            button.draw(img)
+    
+    def get_last_click(self):
+        click = self.last_click
+        self.last_click = None
+        return click
+
+
+def appliquer_couleur(config: Config, couleur: str) -> Config:
+    """
+    Configure les variables de tags selon la couleur de l'équipe.
+    couleur == 'B' : équipe Bleue
+    couleur == 'J' : équipe Jaune
+    """
+    if couleur == "B":
+        config.tag_calibration_Noisette = 51
+        config.tag_calibration_robot    = 52
+        config.tag_robot                = (1, 2, 3, 4, 5)
+        config.tag_ennemi               = (6, 7, 8, 9, 10)
+    elif couleur == "J":
+        config.tag_calibration_Noisette = 71
+        config.tag_calibration_robot    = 72
+        config.tag_robot                = (6, 7, 8, 9, 10)
+        config.tag_ennemi               = (1, 2, 3, 4, 5)
+    else:
+        raise ValueError(f"Couleur '{couleur}' invalide. Valeurs acceptées : 'B' ou 'J'.")
+    return config
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HOMOGRAPHIE
+# ─────────────────────────────────────────────────────────────────────────────
 
 class CalculHomographie:
     def __init__(self, config: Config):
         self.config = config
+        # Plan de référence (sol)
         self.H_cam_to_ref: Optional[np.ndarray] = None
         self.H_ref_to_cam: Optional[np.ndarray] = None
+        # Plan surélevé Noisette
         self.H_cam_to_elevated: Optional[np.ndarray] = None
         self.H_elevated_to_cam: Optional[np.ndarray] = None
         self.H_ref_to_elevated: Optional[np.ndarray] = None
         self.H_elevated_to_ref: Optional[np.ndarray] = None
+        # Plan surélevé Robot
+        self.H_cam_to_robot: Optional[np.ndarray] = None
+        self.H_robot_to_cam: Optional[np.ndarray] = None
+
         self.tag_memory = {tag_id: deque(maxlen=10) for tag_id in config.tag_reference}
 
-    def position_tag_reference(self) -> Dict[int, np.ndarray]:
-        """Renvoi un dictionnaire avec comme clé les N° des Tag de référence, et comme valeur les coordonnées (x,y) des coins extérieurs des Tag dans le plan de référence"""
-        cfg = self.config
+    # ── Positions de référence ────────────────────────────────────────────────
 
-        # Coins extérieurs des tags de référence (basés sur les coins extérieurs des tags)
+    def position_tag_reference(self) -> Dict[int, np.ndarray]:
+        cfg = self.config
         positions = {
-            22: np.array([0, 0]),  # Coin supérieur droit (origine)
-            23: np.array([cfg.tags_largeur_mm, 0]),  # Coin supérieur gauche
-            20: np.array([0, cfg.tags_longueur_mm]),  # Coin inférieur droit
-            21: np.array([cfg.tags_largeur_mm, cfg.tags_longueur_mm]),  # Coin inférieur gauche
+            22: np.array([0, 0]),
+            23: np.array([cfg.tags_largeur_mm, 0]),
+            20: np.array([0, cfg.tags_longueur_mm]),
+            21: np.array([cfg.tags_largeur_mm, cfg.tags_longueur_mm]),
         }
         return positions
 
@@ -63,21 +160,36 @@ class CalculHomographie:
         cfg = self.config
         demi_taille = cfg.tag_taille_mm / 2
         positions = {
-            22: np.array([demi_taille, demi_taille]),  # Coin supérieur droit
-            23: np.array([cfg.largeur_totale_mm - demi_taille, demi_taille]),  # Coin supérieur gauche
-            20: np.array([demi_taille, cfg.longueur_totale_mm - demi_taille]),  # Coin inférieur droit
-            21: np.array([cfg.largeur_totale_mm - demi_taille, cfg.longueur_totale_mm - demi_taille]),  # Coin inférieur gauche
+            22: np.array([demi_taille, demi_taille]),
+            23: np.array([cfg.largeur_totale_mm - demi_taille, demi_taille]),
+            20: np.array([demi_taille, cfg.longueur_totale_mm - demi_taille]),
+            21: np.array([cfg.largeur_totale_mm - demi_taille, cfg.longueur_totale_mm - demi_taille]),
+        }
+        return positions
+
+    def position_tag_robot(self) -> Dict[int, np.ndarray]:
+        """
+        Positions d'étalonnage pour le plan Robot.
+        Tag 22: coin haut-droit  (50, 50)
+        Tag 23: coin haut-gauche (2950, 50)
+        Tag 20: coin bas-droit   (50, 1500)  <- MODIFIÉ
+        Tag 21: coin bas-gauche  (2950, 1500) <- MODIFIÉ
+        """
+        cfg = self.config
+        demi_taille = cfg.tag_taille_mm / 2
+        positions = {
+            22: np.array([demi_taille, demi_taille]),                    # (50, 50)
+            23: np.array([cfg.largeur_totale_mm - demi_taille, demi_taille]),  # (2950, 50)
+            20: np.array([demi_taille, 1500.0]),                         # (50, 1500)
+            21: np.array([cfg.largeur_totale_mm - demi_taille, 1500.0]), # (2950, 1500)
         }
         return positions
 
     def tag_vers_coin(self, tag_id: int) -> int:
-        num_coin = {
-            22: 3,  # coin bas-gauche
-            23: 2,  # coin bas-droit
-            21: 1,  # coin haut-droit
-            20: 0,  # coin haut-gauche
-        }
+        num_coin = {22: 3, 23: 2, 21: 1, 20: 0}
         return num_coin[tag_id]
+
+    # ── Mémoire des tags ──────────────────────────────────────────────────────
 
     def update_tag_memory(self, detected_tags: Dict[int, np.ndarray]):
         for tag_id in self.config.tag_reference:
@@ -89,163 +201,135 @@ class CalculHomographie:
             return np.mean(np.array(self.tag_memory[tag_id]), axis=0)
         return None
 
+    # ── Homographie plan sol ──────────────────────────────────────────────────
+
     def calcul_homographie(self, detected_tags: Dict[int, np.ndarray]) -> bool:
         self.update_tag_memory(detected_tags)
         position_ref = self.position_tag_reference()
-
-        src_points = []
-        dst_points = []
+        src_points, dst_points = [], []
 
         for tag_id in self.config.tag_reference:
             corner_idx = self.tag_vers_coin(tag_id)
-            if tag_id in detected_tags:
-                coin_tag = detected_tags[tag_id]
-            else:
+            coin_tag = detected_tags.get(tag_id)
+            if coin_tag is None:
                 coin_tag = self.get_tag_memory(tag_id)
-                if coin_tag is None:
-                    continue
-
-            if coin_tag is not None and tag_id in position_ref:
+            if coin_tag is None:
+                continue
+            if tag_id in position_ref:
                 src_points.append(coin_tag[corner_idx])
                 dst_points.append(position_ref[tag_id])
 
         if len(src_points) >= 4:
             src = np.array(src_points, dtype=np.float32)
             dst = np.array(dst_points, dtype=np.float32)
-
             self.H_cam_to_ref, _ = cv2.findHomography(src, dst)
-
             if self.H_cam_to_ref is not None:
                 self.H_ref_to_cam = np.linalg.inv(self.H_cam_to_ref)
                 return True
-
         elif len(src_points) >= 3:
             return self.calcul_homographie_3(src_points, dst_points, detected_tags, position_ref)
 
         return False
 
-    def calcul_homographie_3(self, src_points: List[np.ndarray], dst_points: List[np.ndarray], detected_tags: Dict[int, np.ndarray], position_ref: Dict[int, np.ndarray]) -> bool:
-        tag_ref_detectes = [id for id in self.config.tag_reference if id in detected_tags]
-        id_manquant = None
-        for id in self.config.tag_reference:
-            if id not in tag_ref_detectes:
-                id_manquant = id
-                break
-
+    def calcul_homographie_3(self, src_points, dst_points, detected_tags, position_ref) -> bool:
+        id_manquant = next((id for id in self.config.tag_reference if id not in detected_tags), None)
         if id_manquant is None:
             return False
 
-        pos_manquante = position_ref[id_manquant]
-        dst_points.append(pos_manquante)
-
+        dst_points.append(position_ref[id_manquant])
         if len(src_points) == 3:
             estimated_src = src_points[0] + src_points[2] - src_points[1]
             src_points.append(estimated_src)
 
         src = np.array(src_points, dtype=np.float32)
         dst = np.array(dst_points, dtype=np.float32)
-
         self.H_cam_to_ref, _ = cv2.findHomography(src, dst)
 
         if self.H_cam_to_ref is not None:
             self.H_ref_to_cam = np.linalg.inv(self.H_cam_to_ref)
             return True
-
         return False
 
+    # ── Homographie plan Noisette ─────────────────────────────────────────────
+
     def calcul_homographie_elevated(self, calibration_points: Dict[int, np.ndarray]) -> bool:
-        """
-        Calcule l'homographie pour le plan surélevé à partir des 4 positions calibrées.
-        calibration_points contient les coins du tag 5 aux 4 positions (au-dessus des tags 20,21,22,23)
-        """
         if len(calibration_points) != 4:
             return False
 
         position_elevated = self.position_tag_elevated()
+        src_points, dst_points = [], []
 
-        src_points = []
-        dst_points = []
-
-        # Pour chaque position de calibration
         for tag_id in [20, 21, 22, 23]:
             if tag_id in calibration_points and tag_id in position_elevated:
-                # Calculer le centre du tag 5 dans l'image
                 centre_tag = np.mean(calibration_points[tag_id], axis=0)
                 src_points.append(centre_tag)
-                # Position correspondante dans le plan surélevé (mêmes coordonnées que plan ref)
                 dst_points.append(position_elevated[tag_id])
 
         if len(src_points) == 4:
             src = np.array(src_points, dtype=np.float32)
             dst = np.array(dst_points, dtype=np.float32)
-
             self.H_cam_to_elevated, _ = cv2.findHomography(src, dst)
 
             if self.H_cam_to_elevated is not None:
                 self.H_elevated_to_cam = np.linalg.inv(self.H_cam_to_elevated)
-
                 if self.H_cam_to_ref is not None:
                     self.H_ref_to_elevated = self.H_cam_to_elevated @ np.linalg.inv(self.H_cam_to_ref)
                     self.H_elevated_to_ref = np.linalg.inv(self.H_ref_to_elevated)
-
                 return True
 
         return False
 
-    def point_cam_to_ref(self, pixel_point: np.ndarray) -> Optional[np.ndarray]:
-        if self.H_cam_to_ref is None:
+    # ── Homographie plan Robot ────────────────────────────────────────────────
+
+    def calcul_homographie_robot(self, calibration_points: Dict[int, np.ndarray]) -> bool:
+        """
+        Calcule l'homographie pour le plan robot à partir des 4 positions calibrées.
+        Utilise position_tag_robot() avec les coordonnées spécifiques au plan robot.
+        """
+        if len(calibration_points) != 4:
+            return False
+
+        position_robot = self.position_tag_robot()  # <- MODIFIÉ
+        src_points, dst_points = [], []
+
+        for tag_id in [20, 21, 22, 23]:
+            if tag_id in calibration_points and tag_id in position_robot:
+                centre_tag = np.mean(calibration_points[tag_id], axis=0)
+                src_points.append(centre_tag)
+                dst_points.append(position_robot[tag_id])  # <- MODIFIÉ
+
+        if len(src_points) == 4:
+            src = np.array(src_points, dtype=np.float32)
+            dst = np.array(dst_points, dtype=np.float32)
+            self.H_cam_to_robot, _ = cv2.findHomography(src, dst)
+
+            if self.H_cam_to_robot is not None:
+                self.H_robot_to_cam = np.linalg.inv(self.H_cam_to_robot)
+                return True
+
+        return False
+
+    # ── Transformations de points ─────────────────────────────────────────────
+
+    def _transform(self, point: np.ndarray, H: Optional[np.ndarray]) -> Optional[np.ndarray]:
+        if H is None:
             return None
+        pt = np.array([[point]], dtype=np.float32)
+        return cv2.perspectiveTransform(pt, H)[0, 0]
 
-        pt = np.array([[pixel_point]], dtype=np.float32)
-        transformed = cv2.perspectiveTransform(pt, self.H_cam_to_ref)
+    def point_cam_to_ref(self, p):      return self._transform(p, self.H_cam_to_ref)
+    def point_ref_to_cam(self, p):      return self._transform(p, self.H_ref_to_cam)
+    def point_cam_to_elevated(self, p): return self._transform(p, self.H_cam_to_elevated)
+    def point_elevated_to_cam(self, p): return self._transform(p, self.H_elevated_to_cam)
+    def point_ref_to_elevated(self, p): return self._transform(p, self.H_ref_to_elevated)
+    def point_elevated_to_ref(self, p): return self._transform(p, self.H_elevated_to_ref)
+    def point_cam_to_robot(self, p):    return self._transform(p, self.H_cam_to_robot)
+    def point_robot_to_cam(self, p):    return self._transform(p, self.H_robot_to_cam)
 
-        return transformed[0, 0]
 
-    def point_ref_to_cam(self, reference_point: np.ndarray) -> Optional[np.ndarray]:
-        if self.H_ref_to_cam is None:
-            return None
-
-        pt = np.array([[reference_point]], dtype=np.float32)
-        transformed = cv2.perspectiveTransform(pt, self.H_ref_to_cam)
-
-        return transformed[0, 0]
-
-    def point_cam_to_elevated(self, pixel_point: np.ndarray) -> Optional[np.ndarray]:
-        if self.H_cam_to_elevated is None:
-            return None
-
-        pt = np.array([[pixel_point]], dtype=np.float32)
-        transformed = cv2.perspectiveTransform(pt, self.H_cam_to_elevated)
-
-        return transformed[0, 0]
-
-    def point_elevated_to_cam(self, elevated_point: np.ndarray) -> Optional[np.ndarray]:
-        if self.H_elevated_to_cam is None:
-            return None
-
-        pt = np.array([[elevated_point]], dtype=np.float32)
-        transformed = cv2.perspectiveTransform(pt, self.H_elevated_to_cam)
-
-        return transformed[0, 0]
-
-    def point_ref_to_elevated(self, reference_point: np.ndarray) -> Optional[np.ndarray]:
-        if self.H_ref_to_elevated is None:
-            return None
-
-        pt = np.array([[reference_point]], dtype=np.float32)
-        transformed = cv2.perspectiveTransform(pt, self.H_ref_to_elevated)
-
-        return transformed[0, 0]
-
-    def point_elevated_to_ref(self, elevated_point: np.ndarray) -> Optional[np.ndarray]:
-        if self.H_elevated_to_ref is None:
-            return None
-
-        pt = np.array([[elevated_point]], dtype=np.float32)
-        transformed = cv2.perspectiveTransform(pt, self.H_elevated_to_ref)
-
-        return transformed[0, 0]
-
+# ─────────────────────────────────────────────────────────────────────────────
+# DÉTECTEUR ARUCO
+# ─────────────────────────────────────────────────────────────────────────────
 
 class ArUcoDetector:
     def __init__(self, dictionary_type=cv2.aruco.DICT_4X4_100):
@@ -253,23 +337,18 @@ class ArUcoDetector:
         self.detecteur = cv2.aruco.ArucoDetector(self.aruco_dict)
 
     def detect(self, image: np.ndarray) -> Tuple[List[Tuple[int, np.ndarray]], np.ndarray]:
-        """
-        Détecte les tags ArUco et retourne une liste de tuples (tag_id, coins)
-        pour supporter plusieurs tags avec le même ID
-        """
-        if len(image.shape) == 3:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = image
-
-        coins, id, rejected = self.detecteur.detectMarkers(gray)
-
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+        coins, id, _ = self.detecteur.detectMarkers(gray)
         detected_tags = []
         if id is not None:
             for i, tag_id in enumerate(id.flatten()):
                 detected_tags.append((int(tag_id), coins[i][0]))
-
         return detected_tags, gray
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CALIBRATION PLAN NOISETTE
+# ─────────────────────────────────────────────────────────────────────────────
 
 class CalibrationMode:
     def __init__(self, config: Config):
@@ -300,44 +379,119 @@ class CalibrationMode:
         self.current_index = 0
 
     def save_calibration(self):
-        data = {}
-        for tag_id, corners in self.calibration_points.items():
-            data[str(tag_id)] = corners.tolist()
-
+        data = {str(k): v.tolist() for k, v in self.calibration_points.items()}
         with open(self.calibration_file, 'w') as f:
             json.dump(data, f, indent=2)
-        print(f"Calibration sauvegardée dans {self.calibration_file}")
+        print(f"Calibration Noisette sauvegardée dans {self.calibration_file}")
 
     def load_calibration(self) -> bool:
         try:
             with open(self.calibration_file, 'r') as f:
                 data = json.load(f)
-
-            self.calibration_points = {}
-            for tag_id_str, corners_list in data.items():
-                tag_id = int(tag_id_str)
-                self.calibration_points[tag_id] = np.array(corners_list, dtype=np.float32)
-
+            self.calibration_points = {int(k): np.array(v, dtype=np.float32) for k, v in data.items()}
             self.current_index = len(self.calibration_points)
-            print(f"Calibration chargée depuis {self.calibration_file}")
+            print(f"Calibration Noisette chargée depuis {self.calibration_file}")
             return True
         except FileNotFoundError:
-            print(f"Aucun fichier de calibration trouvé")
+            print("Aucun fichier de calibration Noisette trouvé")
             return False
         except Exception as e:
-            print(f"Erreur lors du chargement de la calibration: {e}")
+            print(f"Erreur lors du chargement de la calibration Noisette: {e}")
             return False
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CALIBRATION PLAN ROBOT
+# ─────────────────────────────────────────────────────────────────────────────
+
+class CalibrationModeRobot:
+    def __init__(self, config: Config):
+        self.config = config
+        self.calibration_points = {}
+        self.sequence = [20, 21, 22, 23]
+        self.current_index = 0
+        self.calibration_file = "elevated_plane_calibration_robot.json"
+
+    def is_complete(self) -> bool:
+        return len(self.calibration_points) == 4
+
+    def get_current_target(self) -> Optional[int]:
+        if self.current_index < len(self.sequence):
+            return self.sequence[self.current_index]
+        return None
+
+    def capture_position(self, tag_corners: np.ndarray) -> bool:
+        target = self.get_current_target()
+        if target is not None:
+            self.calibration_points[target] = tag_corners.copy()
+            self.current_index += 1
+            return True
+        return False
+
+    def reset(self):
+        self.calibration_points = {}
+        self.current_index = 0
+
+    def save_calibration(self):
+        data = {str(k): v.tolist() for k, v in self.calibration_points.items()}
+        with open(self.calibration_file, 'w') as f:
+            json.dump(data, f, indent=2)
+        print(f"Calibration Robot sauvegardée dans {self.calibration_file}")
+
+    def load_calibration(self) -> bool:
+        try:
+            with open(self.calibration_file, 'r') as f:
+                data = json.load(f)
+            self.calibration_points = {int(k): np.array(v, dtype=np.float32) for k, v in data.items()}
+            self.current_index = len(self.calibration_points)
+            print(f"Calibration Robot chargée depuis {self.calibration_file}")
+            return True
+        except FileNotFoundError:
+            print("Aucun fichier de calibration Robot trouvé")
+            return False
+        except Exception as e:
+            print(f"Erreur lors du chargement de la calibration Robot: {e}")
+            return False
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SYSTÈME DE TRACKING PRINCIPAL
+# ─────────────────────────────────────────────────────────────────────────────
 
 class ArUcoTrackingSystem:
     def __init__(self, config: Config, matrice_antidstorsion: Optional[str] = None):
         self.config = config
         self.detecteur = ArUcoDetector()
-        self.color_detector = ColorDetector(config)  # Nouveau
+        self.color_detector = ColorDetector(config)
         self.homographie = CalculHomographie(config)
+
+        # Plan Noisette
         self.calibration_mode = CalibrationMode(config)
         self.mode_calibration_active = False
-        self.plan_reference_calcule = False
         self.plan_elevated_calcule = False
+
+        # Plan Robot
+        self.calibration_mode_robot = CalibrationModeRobot(config)
+        self.mode_calibration_robot_active = False
+        self.plan_robot_calcule = False
+
+        self.plan_reference_calcule = False
+
+        # Mémoire des objets colorés détectés (filtre passe-bas)
+        self.color_memory_jaune = {}  # {id: {'obj': dict, 'frames_missing': int, 'last_seen': int}}
+        self.color_memory_bleu = {}
+        self.color_object_id_counter = 0
+        self.max_frames_missing = 2  # Nombre de frames avant suppression
+        self.distance_threshold_mm = 50.0  # Distance max pour considérer 2 objets identiques
+        self.frame_counter = 0
+
+        # Mémoire des paires (noisettes) détectées (filtre passe-bas)
+        self.pair_memory_jaune = {}  # {id: {'pair': dict, 'frames_missing': int, 'last_seen': int}}
+        self.pair_memory_bleu = {}
+        self.pair_id_counter = 0
+        self.max_frames_missing_pairs = 2  # Nombre de frames avant suppression d'une paire
+        self.pair_distance_threshold_mm = 50.0  # Distance max pour considérer 2 paires identiques
+
         if matrice_antidstorsion:
             self.load_calibration(matrice_antidstorsion)
 
@@ -348,61 +502,54 @@ class ArUcoTrackingSystem:
             data = np.load(filepath)
             self.camera_matrix = data['mtx']
             self.dist_coeffs = data['dist']
-            print(f"Calibration chargée depuis {filepath}")
+            print(f"Calibration caméra chargée depuis {filepath}")
         except Exception as e:
-            print(f"Impossible de charger la calibration: {e}")
+            print(f"Impossible de charger la calibration caméra: {e}")
 
     def undistort_image(self, image: np.ndarray) -> np.ndarray:
-        """if hasattr(self, 'camera_matrix') and hasattr(self, 'dist_coeffs'):
-            return cv2.undistort(image, self.camera_matrix, self.dist_coeffs)"""
         return image
+
+    # ── Traitement d'une frame ────────────────────────────────────────────────
 
     def process_frame(self, frame: np.ndarray) -> Tuple[np.ndarray, Dict]:
         results = {
             'homographie_ok': self.plan_reference_calcule,
             'homographie_elevated_ok': self.plan_elevated_calcule,
+            'homographie_robot_ok': self.plan_robot_calcule,
             'tag_reference': {},
             'tag_mobile': [],
+            'tag_robot_detectes': [],
+            'tag_ennemi_detectes': [],
             'objets_colores': [],
+            'Liste_noisette_xya': [],
+            'Liste_robots_xy': [],
             'calibration_mode': self.mode_calibration_active,
             'calibration_complete': self.calibration_mode.is_complete(),
         }
 
         undistorted = self.undistort_image(frame)
-        
-        # IMPORTANT: Créer une copie pour la détection de couleurs SANS rectangles
         undistorted_pour_detection = undistorted.copy()
-        
-        # Créer une copie pour l'affichage AVEC rectangles
         undistorted_copie = undistorted.copy()
 
         detected_tags_list, gray = self.detecteur.detect(undistorted)
 
-        # Dessiner les contours de tous les tags détectés
+        # ── Dessiner les contours des tags détectés ───────────────────────────
         for tag_id, coins in detected_tags_list:
             coins_int = coins.astype(np.int32)
             if tag_id in self.config.tag_reference:
                 cv2.polylines(undistorted_copie, [coins_int], True, (255, 0, 0), 1)
             elif tag_id in self.config.tag_mobile:
-                # Définir la couleur selon le numéro du tag
-                if tag_id == 36:
-                    color = (255, 0, 0)  # Bleu pour tag 36
-                elif tag_id == 47:
-                    color = (0, 255, 255)  # Jaune pour tag 47
-                else:
-                    color = (255, 0, 255)  # Magenta par défaut
+                color = (255, 0, 0) if tag_id == 36 else (0, 255, 255) if tag_id == 47 else (255, 0, 255)
                 cv2.polylines(undistorted_copie, [coins_int], True, color, 2)
 
-        # Créer un dictionnaire pour les tags de référence (un seul de chaque)
+        # ── Homographie plan sol ──────────────────────────────────────────────
         tag_reference = {}
         for tag_id, coins in detected_tags_list:
-            if tag_id in self.config.tag_reference:
-                if tag_id not in tag_reference:
-                    tag_reference[tag_id] = coins
+            if tag_id in self.config.tag_reference and tag_id not in tag_reference:
+                tag_reference[tag_id] = coins
 
         if not self.plan_reference_calcule and len(tag_reference) >= 3:
-            homographie_ok = self.homographie.calcul_homographie(tag_reference)
-            if homographie_ok:
+            if self.homographie.calcul_homographie(tag_reference):
                 self.plan_reference_calcule = True
                 results['homographie_ok'] = True
                 ref_positions = self.homographie.position_tag_reference()
@@ -411,85 +558,65 @@ class ArUcoTrackingSystem:
                         results['tag_reference'][tid] = ref_positions[tid].tolist()
 
         if self.plan_reference_calcule:
-            # Dessiner le rectangle du plan de référence étendu (en vert)
-            if len(tag_reference) >= 3:
-                cfg = self.config
+            cfg = self.config
+            # Rectangle étendu (vert)
+            coins_ref = [
+                np.array([-cfg.ajout_horizontal_mm, -cfg.ajout_vertical_mm]),
+                np.array([cfg.tags_largeur_mm + cfg.ajout_horizontal_mm, -cfg.ajout_vertical_mm]),
+                np.array([cfg.tags_largeur_mm + cfg.ajout_horizontal_mm, cfg.tags_longueur_mm + cfg.ajout_vertical_mm]),
+                np.array([-cfg.ajout_horizontal_mm, cfg.tags_longueur_mm + cfg.ajout_vertical_mm]),
+            ]
+            pixels = [self.homographie.point_ref_to_cam(p) for p in coins_ref]
+            if all(p is not None for p in pixels):
+                rect = np.array([p.astype(int) for p in pixels], dtype=np.int32)
+                cv2.polylines(undistorted_copie, [rect], True, (0, 255, 0), 3)
 
-                haut_droit_mm = np.array([-cfg.ajout_horizontal_mm, -cfg.ajout_vertical_mm])
-                haut_gauche_mm = np.array([cfg.tags_largeur_mm + cfg.ajout_horizontal_mm, -cfg.ajout_vertical_mm])
-                bas_droit_mm = np.array([-cfg.ajout_horizontal_mm, cfg.tags_longueur_mm + cfg.ajout_vertical_mm])
-                bas_gauche_mm = np.array([cfg.tags_largeur_mm + cfg.ajout_horizontal_mm, cfg.tags_longueur_mm + cfg.ajout_vertical_mm])
-
-                haut_droit_pixel = self.homographie.point_ref_to_cam(haut_droit_mm)
-                haut_gauche_pixel = self.homographie.point_ref_to_cam(haut_gauche_mm)
-                bas_droit_pixel = self.homographie.point_ref_to_cam(bas_droit_mm)
-                bas_gauche_pixel = self.homographie.point_ref_to_cam(bas_gauche_mm)
-
-                if haut_droit_pixel is not None and haut_gauche_pixel is not None and bas_droit_pixel is not None and bas_gauche_pixel is not None:
-                    extended_rectangle = np.array([
-                        haut_droit_pixel.astype(int),
-                        haut_gauche_pixel.astype(int),
-                        bas_gauche_pixel.astype(int),
-                        bas_droit_pixel.astype(int)
-                    ], dtype=np.int32)
-
-                    cv2.polylines(undistorted_copie, [extended_rectangle], True, (0, 255, 0), 3)
-
-            # Dessiner le rectangle reliant les tags 20, 21, 22, 23 (en bleu)
-            if len(tag_reference) >= 3:
-                cfg = self.config
-
-                # Positions des tags dans le plan de référence (coins extérieurs)
-                tag_22_mm = np.array([0, 0])  # Coin supérieur droit
-                tag_23_mm = np.array([cfg.tags_largeur_mm, 0])  # Coin supérieur gauche
-                tag_20_mm = np.array([0, cfg.tags_longueur_mm])  # Coin inférieur droit
-                tag_21_mm = np.array([cfg.tags_largeur_mm, cfg.tags_longueur_mm])  # Coin inférieur gauche
-
-                # Convertir en pixels
-                tag_22_pixel = self.homographie.point_ref_to_cam(tag_22_mm)
-                tag_23_pixel = self.homographie.point_ref_to_cam(tag_23_mm)
-                tag_20_pixel = self.homographie.point_ref_to_cam(tag_20_mm)
-                tag_21_pixel = self.homographie.point_ref_to_cam(tag_21_mm)
-
-                if tag_22_pixel is not None and tag_23_pixel is not None and tag_20_pixel is not None and tag_21_pixel is not None:
-                    tags_rectangle = np.array([
-                        tag_22_pixel.astype(int),
-                        tag_23_pixel.astype(int),
-                        tag_21_pixel.astype(int),
-                        tag_20_pixel.astype(int)
-                    ], dtype=np.int32)
-
-                    #cv2.polylines(undistorted_copie, [tags_rectangle], True, (255, 0, 0), 3)  # Bleu
-
+        # ── Affichage des instructions de calibration ─────────────────────────
         if self.mode_calibration_active:
             target = self.calibration_mode.get_current_target()
             if target is not None:
-                instruction_text = f"MODE CALIBRATION - Positionner Tag {self.config.tag_calibration} au-dessus du tag {target} puis appuyer sur ESPACE"
-                cv2.putText(undistorted_copie, instruction_text, (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
-                cv2.putText(undistorted_copie, f"Progression: {self.calibration_mode.current_index}/4", (10, 60),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                cv2.putText(undistorted_copie,
+                    f"[NOISETTE] Tag {self.config.tag_calibration_Noisette} au-dessus du tag {target} puis ESPACE",
+                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                cv2.putText(undistorted_copie,
+                    f"Progression: {self.calibration_mode.current_index}/4",
+                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
             else:
-                cv2.putText(undistorted_copie, "CALIBRATION TERMINEE - Appuyer sur 'S' pour sauvegarder", (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                cv2.putText(undistorted_copie,
+                    "CALIBRATION NOISETTE TERMINEE - Appuyer sur 'S' pour sauvegarder",
+                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
+        if self.mode_calibration_robot_active:
+            target = self.calibration_mode_robot.get_current_target()
+            if target is not None:
+                cv2.putText(undistorted_copie,
+                    f"[ROBOT] Tag {self.config.tag_calibration_robot} au-dessus du tag {target} puis ESPACE",
+                    (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 200, 255), 2)
+                cv2.putText(undistorted_copie,
+                    f"Progression robot: {self.calibration_mode_robot.current_index}/4",
+                    (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 200, 255), 2)
+            else:
+                cv2.putText(undistorted_copie,
+                    "CALIBRATION ROBOT TERMINEE - Appuyer sur 'P' pour sauvegarder",
+                    (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+        # ── Calcul des homographies surélevées si calibration complète ────────
         if self.calibration_mode.is_complete() and not self.plan_elevated_calcule:
-            homographie_elevated_ok = self.homographie.calcul_homographie_elevated(self.calibration_mode.calibration_points)
-            if homographie_elevated_ok:
+            if self.homographie.calcul_homographie_elevated(self.calibration_mode.calibration_points):
                 self.plan_elevated_calcule = True
                 results['homographie_elevated_ok'] = True
 
+        if self.calibration_mode_robot.is_complete() and not self.plan_robot_calcule:
+            if self.homographie.calcul_homographie_robot(self.calibration_mode_robot.calibration_points):
+                self.plan_robot_calcule = True
+                results['homographie_robot_ok'] = True
+
+        # ── Détection des couleurs (plan Noisette) ────────────────────────────
         if self.plan_elevated_calcule:
-            # MODIFICATION IMPORTANTE: Détection des couleurs sur l'image SANS rectangles
+            self.frame_counter += 1  # Incrémenter le compteur de frames
+            
             color_results = self.color_detector.detect_colors(undistorted_pour_detection)
-            
-            # Compteurs pour les statistiques
-            total_jaune = len(color_results['jaune'])
-            total_bleu = len(color_results['bleu'])
-            filtre_jaune = 0
-            filtre_bleu = 0
-            
-            # Définir le rectangle étendu du plan SURÉLEVÉ pour le filtrage spatial
+
             cfg = self.config
             coins_elevated_mm = [
                 np.array([0, 0]),
@@ -497,311 +624,311 @@ class ArUcoTrackingSystem:
                 np.array([cfg.largeur_totale_mm, cfg.longueur_totale_mm]),
                 np.array([0, cfg.longueur_totale_mm])
             ]
-            
-            # Listes pour stocker les objets valides (après filtrage spatial)
-            objets_jaunes_valides = []
-            objets_bleus_valides = []
-            
-            # Traiter les objets jaunes avec filtrage spatial
+
+            objets_jaunes_valides, objets_bleus_valides = [], []
+            filtre_jaune, filtre_bleu = 0, 0
+
             for obj in color_results['jaune']:
-                centre_pixel = obj['centre_pixel']
-                pos_elevated = self.homographie.point_cam_to_elevated(centre_pixel)
-                
-                if pos_elevated is not None:
-                    if self.point_dans_polygone(pos_elevated, coins_elevated_mm):
-                        obj['pos_elevated'] = pos_elevated
-                        objets_jaunes_valides.append(obj)
-                    else:
-                        filtre_jaune += 1
-            
-            # Traiter les objets bleus avec filtrage spatial
+                pos_elevated = self.homographie.point_cam_to_elevated(obj['centre_pixel'])
+                if pos_elevated is not None and self.point_dans_polygone(pos_elevated, coins_elevated_mm):
+                    obj['pos_elevated'] = pos_elevated
+                    objets_jaunes_valides.append(obj)
+                else:
+                    filtre_jaune += 1
+
             for obj in color_results['bleu']:
-                centre_pixel = obj['centre_pixel']
-                pos_elevated = self.homographie.point_cam_to_elevated(centre_pixel)
-                
-                if pos_elevated is not None:
-                    if self.point_dans_polygone(pos_elevated, coins_elevated_mm):
-                        obj['pos_elevated'] = pos_elevated
-                        objets_bleus_valides.append(obj)
-                    else:
-                        filtre_bleu += 1
-            
-            # NOUVEAU: Analyser les paires d'objets
+                pos_elevated = self.homographie.point_cam_to_elevated(obj['centre_pixel'])
+                if pos_elevated is not None and self.point_dans_polygone(pos_elevated, coins_elevated_mm):
+                    obj['pos_elevated'] = pos_elevated
+                    objets_bleus_valides.append(obj)
+                else:
+                    filtre_bleu += 1
+
             objets_jaunes_valides = self._split_large_objects(objets_jaunes_valides)
-            objets_bleus_valides = self._split_large_objects(objets_bleus_valides)
+            objets_bleus_valides  = self._split_large_objects(objets_bleus_valides)
 
-            # Analyser les paires d'objets
-            paires_jaunes = self._analyze_color_pairs(objets_jaunes_valides, 'jaune', objets_bleus_valides)
-            paires_bleues = self._analyze_color_pairs(objets_bleus_valides, 'bleu', objets_jaunes_valides)
+            # Appliquer le filtre passe-bas (mémoire)
+            objets_jaunes_avec_memoire = self._update_color_memory(objets_jaunes_valides, self.color_memory_jaune, 'jaune')
+            objets_bleus_avec_memoire = self._update_color_memory(objets_bleus_valides, self.color_memory_bleu, 'bleu')
 
-            
-            # Afficher les paires détectées
-            for paire in paires_jaunes:
-                self._draw_color_pair(paire, undistorted_copie, (0, 255, 255))  # Jaune
+            # ANALYSE DE PAIRES : Créer les Noisettes à partir des zones de couleur
+            paires_jaunes = self._analyze_color_pairs(objets_jaunes_avec_memoire, 'jaune', objets_bleus_avec_memoire)
+            paires_bleues = self._analyze_color_pairs(objets_bleus_avec_memoire, 'bleu', objets_jaunes_avec_memoire)
+
+            # Appliquer le filtre passe-bas sur les paires (noisettes)
+            paires_jaunes_avec_memoire = self._update_pair_memory(paires_jaunes, self.pair_memory_jaune, 'jaune')
+            paires_bleues_avec_memoire = self._update_pair_memory(paires_bleues, self.pair_memory_bleu, 'bleu')
+
+            # Dessiner les paires (Noisettes)
+            for paire in paires_jaunes_avec_memoire:
+                self._draw_color_pair(paire, undistorted_copie, (0, 255, 255))
                 results['objets_colores'].append(paire)
-            
-            for paire in paires_bleues:
-                self._draw_color_pair(paire, undistorted_copie, (140, 91, 0))  # Bleu
+            for paire in paires_bleues_avec_memoire:
+                self._draw_color_pair(paire, undistorted_copie, (140, 91, 0))
                 results['objets_colores'].append(paire)
-            
-            # Afficher les objets isolés (non appariés)
-            for obj in objets_jaunes_valides:
+
+            # Affichage uniquement des objets individuels (avec mémoire)
+            for obj in objets_jaunes_avec_memoire:
                 if obj.get('pos_elevated') is not None:
                     self._process_colored_object(obj, undistorted_copie, results, (0, 255, 255))
-            
-            for obj in objets_bleus_valides:
+            for obj in objets_bleus_avec_memoire:
                 if obj.get('pos_elevated') is not None:
                     self._process_colored_object(obj, undistorted_copie, results, (140, 91, 0))
-            
-            # Afficher les statistiques
-            if total_jaune > 0 or total_bleu > 0:
-                print(f"\n[Filtrage spatial - Plan SURÉLEVÉ]")
-                print(f"  Jaune: {total_jaune - filtre_jaune}/{total_jaune} acceptés ({filtre_jaune} hors zone)")
-                print(f"    → {len(paires_jaunes)} paire(s) détectée(s)")
-                print(f"  Bleu: {total_bleu - filtre_bleu}/{total_bleu} acceptés ({filtre_bleu} hors zone)")
-                print(f"    → {len(paires_bleues)} paire(s) détectée(s)")
-                print(f"  Total objets/paires valides: {len(results['objets_colores'])}")
-            # NOUVEAU: Analyser les paires d'objets
-            paires_jaunes = self._analyze_color_pairs(objets_jaunes_valides, 'jaune', objets_bleus_valides)
-            paires_bleues = self._analyze_color_pairs(objets_bleus_valides, 'bleu', objets_jaunes_valides)
 
-            # NOUVEAU: Créer la liste Liste_noisette_xya
+            # Construction de Liste_noisette_xya
             Liste_noisette_xya = []
-
-            # Ajouter les paires jaunes
-            for paire in paires_jaunes:
-                x = int(paire['centre_mm'][0])
-                y = int(paire['centre_mm'][1])
-                angle = int(paire['angle_deg'])
-                couleur = 'J'
-                Liste_noisette_xya.append([x, y, angle, couleur])
-
-            # Ajouter les paires bleues
-            for paire in paires_bleues:
-                x = int(paire['centre_mm'][0])
-                y = int(paire['centre_mm'][1])
-                angle = int(paire['angle_deg'])
-                couleur = 'B'
-                Liste_noisette_xya.append([x, y, angle, couleur])
-
-            # Afficher la liste dans la console
-            if len(Liste_noisette_xya) > 0:
-                print("\n" + "="*80)
-                print("LISTE_NOISETTE_XYA:")
-                print("="*80)
-                for i, noisette in enumerate(Liste_noisette_xya):
-                    print(f"  Noisette {i+1}: X={noisette[0]:7.1f}mm, Y={noisette[1]:7.1f}mm, Angle={noisette[2]:6.1f}°, Couleur={noisette[3]}")
-                print("="*80)
-
-            # Ajouter la liste aux résultats
+            for paire in paires_jaunes_avec_memoire:
+                Liste_noisette_xya.append([
+                    int(paire['centre_mm'][0]),
+                    int(paire['centre_mm'][1]),
+                    int(paire['angle_deg']),
+                    'J'
+                ])
+            for paire in paires_bleues_avec_memoire:
+                Liste_noisette_xya.append([
+                    int(paire['centre_mm'][0]),
+                    int(paire['centre_mm'][1]),
+                    int(paire['angle_deg']),
+                    'B'
+                ])
             results['Liste_noisette_xya'] = Liste_noisette_xya
 
-            # Marquer les objets utilisés dans les paires
-            objets_jaunes_utilises = set()
-            objets_bleus_utilises = set()
-            # Dessiner le rectangle du plan élevé en utilisant tous les coins détectés (convexHull)
-            all_corners = []
-            for tag_id in [20, 21, 22, 23]:
-                if tag_id in self.calibration_mode.calibration_points:
-                    corners = self.calibration_mode.calibration_points[tag_id]
-                    all_corners.extend(corners)
-
-            if len(all_corners) == 16:
-                all_corners = np.array(all_corners, dtype=np.float32)
-
-                center = np.mean(all_corners, axis=0)
-                sorted_corners = sorted(all_corners, key=lambda corner: np.arctan2(corner[1] - center[1], corner[0] - center[0]))
-
-                sorted_corners = np.array(sorted_corners, dtype=np.float32)
-                hull = cv2.convexHull(sorted_corners.reshape(-1, 1, 2))
-                if hull is not None and len(hull) >= 4:
-                    elevated_rectangle = hull.squeeze().astype(int)
-                    #cv2.polylines(undistorted_copie, [elevated_rectangle], True, (255, 0, 255), 3)  # Magenta
-            
-            # Dessiner le rectangle ÉTENDU du plan surélevé (en cyan)
+            # Rectangle étendu plan surélevé Noisette (cyan)
             cfg = self.config
-            
-            # Les centres des tags calibrés définissent directement les coins du rectangle
-            haut_droit_elev_mm = np.array([0, 0])
-            haut_gauche_elev_mm = np.array([cfg.tags_largeur_mm + 2*cfg.ajout_horizontal_mm, 0])
-            bas_droit_elev_mm = np.array([0, cfg.tags_longueur_mm + 2*cfg.ajout_vertical_mm])
-            bas_gauche_elev_mm = np.array([cfg.tags_largeur_mm + 2*cfg.ajout_horizontal_mm, cfg.tags_longueur_mm + 2*cfg.ajout_vertical_mm])
+            coins_elev = [
+                np.array([0, 0]),
+                np.array([cfg.largeur_totale_mm, 0]),
+                np.array([cfg.largeur_totale_mm, cfg.longueur_totale_mm]),
+                np.array([0, cfg.longueur_totale_mm]),
+            ]
+            pixels_elev = [self.homographie.point_elevated_to_cam(p) for p in coins_elev]
+            if all(p is not None for p in pixels_elev):
+                rect_elev = np.array([p.astype(int) for p in pixels_elev], dtype=np.int32)
+                cv2.polylines(undistorted_copie, [rect_elev], True, (255, 255, 0), 3)
 
-            haut_droit_elev_pixel = self.homographie.point_elevated_to_cam(haut_droit_elev_mm)
-            haut_gauche_elev_pixel = self.homographie.point_elevated_to_cam(haut_gauche_elev_mm)
-            bas_droit_elev_pixel = self.homographie.point_elevated_to_cam(bas_droit_elev_mm)
-            bas_gauche_elev_pixel = self.homographie.point_elevated_to_cam(bas_gauche_elev_mm)
-            
-            if haut_droit_elev_pixel is not None and haut_gauche_elev_pixel is not None and bas_droit_elev_pixel is not None and bas_gauche_elev_pixel is not None:
-                extended_elevated_rectangle = np.array([
-                    haut_droit_elev_pixel.astype(int),
-                    haut_gauche_elev_pixel.astype(int),
-                    bas_gauche_elev_pixel.astype(int),
-                    bas_droit_elev_pixel.astype(int)
-                ], dtype=np.int32)
+        # ── Dessin du rectangle étendu du plan Robot (orange) ────────────────
+        if self.plan_robot_calcule:
+            cfg = self.config
+            # Les coins du plan Robot : haut complet (y=0), bas tronqué (y=1500)
+            coins_robot = [
+                np.array([0, 0]),                        # Coin haut-droit
+                np.array([cfg.largeur_totale_mm, 0]),   # Coin haut-gauche
+                np.array([cfg.largeur_totale_mm, 1500.0]), # Coin bas-gauche (tronqué à y=1500)
+                np.array([0, 1500.0]),                   # Coin bas-droit (tronqué à y=1500)
+            ]
+            pixels_robot = [self.homographie.point_robot_to_cam(p) for p in coins_robot]
+            if all(p is not None for p in pixels_robot):
+                rect_robot = np.array([p.astype(int) for p in pixels_robot], dtype=np.int32)
+                cv2.polylines(undistorted_copie, [rect_robot], True, (0, 165, 255), 3)  # Orange
+
+        # ── Détection des tags robot et ennemi (plan Robot) ───────────────────
+        if self.plan_robot_calcule:
+            cfg = self.config
+            # Zone de filtrage : rectangle complet en largeur, tronqué à y=1500 en hauteur
+            coins_robot_mm = [
+                np.array([0, 0]),
+                np.array([cfg.largeur_totale_mm, 0]),
+                np.array([cfg.largeur_totale_mm, 1500.0]),  # <- MODIFIÉ
+                np.array([0, 1500.0])                        # <- MODIFIÉ
+            ]
+
+            for tag_id, coins in detected_tags_list:
+                est_robot  = tag_id in self.config.tag_robot
+                est_ennemi = tag_id in self.config.tag_ennemi
+                if not (est_robot or est_ennemi):
+                    continue
+
+                centre_pixel = np.mean(coins, axis=0)
+                pos_robot = self.homographie.point_cam_to_robot(centre_pixel)
+
+                if pos_robot is None:
+                    continue
+                if not self.point_dans_polygone(pos_robot, coins_robot_mm):
+                    continue
+
+                # Calcul de l'angle du tag dans le plan robot
+                # Transformer les 4 coins du tag dans le plan robot
+                coins_robot_plan = []
+                for coin_pixel in coins:
+                    coin_mm = self.homographie.point_cam_to_robot(coin_pixel)
+                    if coin_mm is not None:
+                        coins_robot_plan.append(coin_mm)
                 
-                cv2.polylines(undistorted_copie, [extended_elevated_rectangle], True, (255, 255, 0), 3)  # Cyan
-                    
-            
-        # Collecter tous les tags mobiles (peut avoir plusieurs fois le même ID)
-        tag_mobile_list = []
-        for tag_id, coins in detected_tags_list:
-            if tag_id in self.config.tag_mobile:
-                tag_mobile_list.append((tag_id, coins))
+                # Calculer l'angle si les 4 coins sont disponibles
+                angle_deg = 0.0
+                if len(coins_robot_plan) == 4:
+                    # Vecteur du coin 0 vers coin 1 (côté du tag)
+                    vec_x = coins_robot_plan[1][0] - coins_robot_plan[0][0]
+                    vec_y = coins_robot_plan[1][1] - coins_robot_plan[0][1]
+                    # Angle en degrés par rapport à l'axe X horizontal
+                    angle_rad = np.arctan2(vec_y, vec_x)
+                    angle_deg = np.degrees(angle_rad)
+
+                # Vert pour nos robots, rouge pour les ennemis
+                color_display = (0, 255, 0) if est_robot else (0, 0, 255)
+                label = "ROBOT" if est_robot else "ENNEMI"
+
+                # Contour et centre
+                cv2.polylines(undistorted_copie, [coins.astype(np.int32)], True, color_display, 2)
+                cv2.circle(undistorted_copie, tuple(centre_pixel.astype(int)), 6, color_display, -1)
+
+                # Carré projeté
+                demi = self.config.tag_taille_mm_robot / 2
+                corners_robot_mm = np.array([
+                    pos_robot + np.array([-demi, -demi]),
+                    pos_robot + np.array([ demi, -demi]),
+                    pos_robot + np.array([ demi,  demi]),
+                    pos_robot + np.array([-demi,  demi]),
+                ], dtype=np.float32)
+
+                projected = [self.homographie.point_robot_to_cam(c) for c in corners_robot_mm]
+                if all(p is not None for p in projected):
+                    cv2.polylines(undistorted_copie,
+                                  [np.array(projected, dtype=np.int32)],
+                                  True, color_display, 2)
+                
+                # Dessiner une flèche indiquant l'orientation du tag
+                if len(coins_robot_plan) == 4:
+                    arrow_length = 40
+                    end_x = int(centre_pixel[0] + arrow_length * np.cos(angle_rad))
+                    end_y = int(centre_pixel[1] + arrow_length * np.sin(angle_rad))
+                    cv2.arrowedLine(undistorted_copie, 
+                                   tuple(centre_pixel.astype(int)), 
+                                   (end_x, end_y), 
+                                   color_display, 3, tipLength=0.3)
+
+                entry = {
+                    'tag_id': tag_id,
+                    'position_mm': pos_robot.tolist(),
+                    'pixel_center': centre_pixel.tolist(),
+                    'angle_deg': float(angle_deg),
+                }
+                if est_robot:
+                    results['tag_robot_detectes'].append(entry)
+                else:
+                    results['tag_ennemi_detectes'].append(entry)
+
+                print(f"{label} Tag {tag_id}: X={pos_robot[0]:.1f}mm, Y={pos_robot[1]:.1f}mm, Angle={angle_deg:.1f}°")
+
+            # Construction de Liste_robots_xy
+            # Format : [tag_id, X_mm, Y_mm, angle_deg, 'R' ou 'E']
+            Liste_robots_xy = []
+            for entry in results['tag_robot_detectes']:
+                Liste_robots_xy.append([
+                    entry['tag_id'],
+                    int(entry['position_mm'][0]),
+                    int(entry['position_mm'][1]),
+                    int(entry['angle_deg']),
+                    'R'
+                ])
+            for entry in results['tag_ennemi_detectes']:
+                Liste_robots_xy.append([
+                    entry['tag_id'],
+                    int(entry['position_mm'][0]),
+                    int(entry['position_mm'][1]),
+                    int(entry['angle_deg']),
+                    'E'
+                ])
+            results['Liste_robots_xy'] = Liste_robots_xy
+
+        # ── Tags mobiles (tag_mobile, plan Noisette) ──────────────────────────
+        tag_mobile_list = [(tid, c) for tid, c in detected_tags_list if tid in self.config.tag_mobile]
 
         if tag_mobile_list and self.plan_elevated_calcule:
-            cfg = self.config
-            
-            # Afficher l'en-tête dans la console
-            print("\n" + "="*80)
-            print(f"Frame - {len(tag_mobile_list)} tag(s) mobile(s) détecté(s)")
-            print("="*80)
-            
             for idx, (tag_id, coins) in enumerate(tag_mobile_list):
-                # Définir la couleur selon le numéro du tag
-                if tag_id == 36:
-                    color = (255, 0, 0)  # Bleu pour tag 36
-                elif tag_id == 47:
-                    color = (0, 255, 255)  # Jaune pour tag 47
-                else:
-                    color = (255, 0, 255)  # Magenta par défaut
-
-                # Dessiner le contour du tag dans le plan de la caméra
+                color = (255, 0, 0) if tag_id == 36 else (0, 255, 255) if tag_id == 47 else (255, 0, 255)
                 cv2.polylines(undistorted_copie, [coins.astype(np.int32)], True, color, 2)
 
-                # Calculer le centre du tag dans le plan de la caméra
                 centre_pixel = np.mean(coins, axis=0)
-
-                # Convertir le centre du tag dans le plan surélevé
                 pos_elevated = self.homographie.point_cam_to_elevated(centre_pixel)
 
                 if pos_elevated is not None:
-                    # Afficher les coordonnées dans la console
-                    print(f"\nTag {tag_id} (instance {idx + 1}):")
-                    print(f"  Plan élevé: X = {pos_elevated[0]:7.1f} mm, Y = {pos_elevated[1]:7.1f} mm")
-
-                    # Pour dessiner le carré, utiliser les coordonnées du plan élevé
-                    pos_ref_mm = pos_elevated.copy()
-
-                    # Dessiner le contour du tag projeté dans le plan de référence
                     demi_taille = self.config.tag_taille_mm_robot / 2
-                    coin_hg_ref = pos_ref_mm + np.array([-demi_taille, -demi_taille])
-                    coin_hd_ref = pos_ref_mm + np.array([demi_taille, -demi_taille])
-                    coin_bd_ref = pos_ref_mm + np.array([demi_taille, demi_taille])
-                    coin_bg_ref = pos_ref_mm + np.array([-demi_taille, demi_taille])
+                    coins_mm = np.array([
+                        pos_elevated + np.array([-demi_taille, -demi_taille]),
+                        pos_elevated + np.array([ demi_taille, -demi_taille]),
+                        pos_elevated + np.array([ demi_taille,  demi_taille]),
+                        pos_elevated + np.array([-demi_taille,  demi_taille]),
+                    ], dtype=np.float32)
 
-                    coins_ref_mm = np.array([coin_hg_ref, coin_hd_ref, coin_bd_ref, coin_bg_ref], dtype=np.float32)
+                    projected = [self.homographie.point_elevated_to_cam(c) for c in coins_mm]
+                    if all(p is not None for p in projected):
+                        cv2.polylines(undistorted_copie,
+                                      [np.array(projected, dtype=np.int32)],
+                                      True, color, 2)
 
-                    # Convertir les coins du plan de référence en pixels dans le plan de la caméra
-                    projected_corners_cam = []
-                    for corner_ref in coins_ref_mm:
-                        corner_cam = self.homographie.point_elevated_to_cam(corner_ref)
-                        if corner_cam is not None:
-                            projected_corners_cam.append(corner_cam)
-
-                    if len(projected_corners_cam) == 4:
-                        projected_corners_cam = np.array(projected_corners_cam, dtype=np.int32)
-                        cv2.polylines(undistorted_copie, [projected_corners_cam], True, color, 2)
-
-                    # Ajouter à la liste des résultats
                     results['tag_mobile'].append({
                         'tag_id': tag_id,
                         'position_mm': pos_elevated.tolist(),
                         'pixel_center': centre_pixel.tolist()
                     })
 
-        if not self.mode_calibration_active:
-            cv2.putText(undistorted_copie, "Appuyer sur 'E' pour calibrer plan eleve", (10, undistorted_copie.shape[0] - 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-            cv2.putText(undistorted_copie, "Appuyer sur 'L' pour charger calibration", (10, undistorted_copie.shape[0] - 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        # ── Aide à l'écran ────────────────────────────────────────────────────
+        if not self.mode_calibration_active and not self.mode_calibration_robot_active:
+            cv2.putText(undistorted_copie,
+                "'E' plan noisette | 'R' plan robot | 'L' charger | 'Q' quitter",
+                (10, undistorted_copie.shape[0] - 20),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
         return undistorted_copie, results
 
+    # ── Capture de calibration ────────────────────────────────────────────────
+
     def handle_calibration_capture(self, detected_tags_list: List[Tuple[int, np.ndarray]]) -> bool:
-        # Chercher le tag de calibration dans la liste
         for tag_id, tag_corners in detected_tags_list:
-            if tag_id == self.config.tag_calibration:
+            if tag_id == self.config.tag_calibration_Noisette:
                 success = self.calibration_mode.capture_position(tag_corners)
                 if success:
                     target = self.calibration_mode.get_current_target()
                     if target is None:
-                        print("Calibration complete! Appuyer sur 'S' pour sauvegarder.")
+                        print("Calibration Noisette complète ! Appuyer sur 'S' pour sauvegarder.")
                     else:
-                        print(f"Position capturée! Placer le tag au-dessus du tag {target} et appuyer sur ESPACE")
+                        print(f"[Noisette] Position capturée ! Placer le tag au-dessus du tag {target} et appuyer sur ESPACE")
                     return True
-        
-        print(f"Tag {self.config.tag_calibration} non détecté")
+        print(f"Tag {self.config.tag_calibration_Noisette} non détecté")
         return False
-    
+
+    def handle_calibration_capture_robot(self, detected_tags_list: List[Tuple[int, np.ndarray]]) -> bool:
+        for tag_id, tag_corners in detected_tags_list:
+            if tag_id == self.config.tag_calibration_robot:
+                success = self.calibration_mode_robot.capture_position(tag_corners)
+                if success:
+                    target = self.calibration_mode_robot.get_current_target()
+                    if target is None:
+                        print("Calibration Robot complète ! Appuyer sur 'P' pour sauvegarder.")
+                    else:
+                        print(f"[Robot] Position capturée ! Placer le tag au-dessus du tag {target} et appuyer sur ESPACE")
+                    return True
+        print(f"Tag {self.config.tag_calibration_robot} non détecté")
+        return False
+
+    # ── Méthodes internes ─────────────────────────────────────────────────────
+
     def _process_colored_object(self, obj: Dict, image: np.ndarray, results: Dict, color_bgr: Tuple):
-        """Traite un objet coloré détecté et l'affiche"""
-        cfg = self.config
-        
-        # Dessiner le contour avec une épaisseur plus visible
         cv2.drawContours(image, [obj['contour']], -1, color_bgr, 3)
-        
-        # Dessiner le centre avec un cercle plus grand
         centre_pixel = obj['centre_pixel']
         cv2.circle(image, tuple(centre_pixel.astype(int)), 8, color_bgr, -1)
-        cv2.circle(image, tuple(centre_pixel.astype(int)), 10, (255, 255, 255), 2)  # Contour blanc
-        
-        # Récupérer la position dans le plan surélevé (déjà calculée)
+        cv2.circle(image, tuple(centre_pixel.astype(int)), 10, (255, 255, 255), 2)
+
         pos_elevated_tags = obj.get('pos_elevated')
-        
         if pos_elevated_tags is not None:
-            # Convertir en coordonnées du plan surélevé ÉTENDU (avec marges)
-            # L'origine (0,0) du plan étendu est au coin haut-droit avec les marges
-            pos_elevated_extended_mm = pos_elevated_tags
-            
-            # Afficher les coordonnées dans la console
-            print(f"\nObjet {obj['couleur'].upper()} (aire={obj['aire']:.0f}px):")
-            print(f"  Plan élevé (rectangle tags): X = {pos_elevated_tags[0]:7.1f} mm, Y = {pos_elevated_tags[1]:7.1f} mm")
-            print(f"  Plan élevé ÉTENDU (avec marges): X = {pos_elevated_extended_mm[0]:7.1f} mm, Y = {pos_elevated_extended_mm[1]:7.1f} mm")
-            
-            # Afficher les coordonnées sur l'image avec un fond pour la lisibilité
-            """text_pos = (int(centre_pixel[0]) + 15, int(centre_pixel[1]) - 15)
-            text = f"{obj['couleur'].upper()}: ({pos_elevated_extended_mm[0]:.0f}, {pos_elevated_extended_mm[1]:.0f})mm"
-            
-            # Fond noir pour le texte
-            (text_width, text_height), baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-            cv2.rectangle(image, 
-                        (text_pos[0] - 5, text_pos[1] - text_height - 5),
-                        (text_pos[0] + text_width + 5, text_pos[1] + baseline + 5),
-                        (0, 0, 0), -1)
-            
-            # Texte en couleur
-            cv2.putText(image, text, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.6, color_bgr, 2)"""
-            
-            # Dessiner une croix au centre pour plus de précision
             cross_size = 15
-            cv2.line(image, 
-                    (int(centre_pixel[0]) - cross_size, int(centre_pixel[1])),
-                    (int(centre_pixel[0]) + cross_size, int(centre_pixel[1])),
-                    (255, 255, 255), 2)
-            cv2.line(image, 
-                    (int(centre_pixel[0]), int(centre_pixel[1]) - cross_size),
-                    (int(centre_pixel[0]), int(centre_pixel[1]) + cross_size),
-                    (255, 255, 255), 2)
-            
-            # Ajouter aux résultats avec les coordonnées du plan étendu
+            cx, cy = int(centre_pixel[0]), int(centre_pixel[1])
+            cv2.line(image, (cx - cross_size, cy), (cx + cross_size, cy), (255, 255, 255), 2)
+            cv2.line(image, (cx, cy - cross_size), (cx, cy + cross_size), (255, 255, 255), 2)
+
             results['objets_colores'].append({
                 'couleur': obj['couleur'],
-                'elevated_extended_mm': pos_elevated_extended_mm.tolist(),  # COORDONNÉES PRINCIPALES
-                'elevated_tags_mm': pos_elevated_tags.tolist(),  # Pour référence
+                'elevated_extended_mm': pos_elevated_tags.tolist(),
+                'elevated_tags_mm': pos_elevated_tags.tolist(),
                 'pixel_center': centre_pixel.tolist(),
                 'aire_pixels': obj['aire']
             })
-    
+
     def point_dans_polygone(self, point: np.ndarray, coins_polygone_mm: List[np.ndarray]) -> bool:
-        """
-        Vérifie si un point (en mm) est à l'intérieur d'un polygone défini par ses coins
-        Utilise l'algorithme du ray casting
-        """
         x, y = point[0], point[1]
         n = len(coins_polygone_mm)
         inside = False
-        
         p1x, p1y = coins_polygone_mm[0][0], coins_polygone_mm[0][1]
         for i in range(1, n + 1):
             p2x, p2y = coins_polygone_mm[i % n][0], coins_polygone_mm[i % n][1]
@@ -813,30 +940,181 @@ class ArUcoTrackingSystem:
                         if p1x == p2x or x <= xinters:
                             inside = not inside
             p1x, p1y = p2x, p2y
-        
         return inside
-    def _split_large_objects(self, objects: List[Dict]) -> List[Dict]:
-        """
-        Détecte les zones de couleur dont les dimensions correspondent à 50x100mm
-        (deux noisettes côte-à-côte) et les sépare en deux zones de 50x50mm.
-        La détection se fait dans le plan surélevé en mm.
-        """
-        result = []
 
+    def _update_color_memory(self, detected_objects: List[Dict], color_memory: Dict, color_name: str) -> List[Dict]:
+        """
+        Met à jour la mémoire des objets colorés avec un filtre passe-bas.
+        Conserve les objets même s'ils ne sont plus détectés pendant quelques frames.
+        
+        Args:
+            detected_objects: Liste des objets détectés dans la frame actuelle
+            color_memory: Dictionnaire de mémoire (self.color_memory_jaune ou self.color_memory_bleu)
+            color_name: Nom de la couleur ('jaune' ou 'bleu')
+            
+        Returns:
+            Liste des objets à afficher (détectés + mémoire récente)
+        """
+        current_frame = self.frame_counter
+        matched_ids = set()
+        result_objects = []
+        
+        # Filtrer les objets détectés pour ne garder que ceux avec pos_elevated valide
+        valid_detected = [obj for obj in detected_objects if obj.get('pos_elevated') is not None]
+        
+        print(f"[{color_name}] Frame {current_frame}: {len(valid_detected)} objets détectés, {len(color_memory)} en mémoire")
+        
+        # 1. Associer les objets détectés aux objets en mémoire
+        for obj in valid_detected:
+            pos_current = obj['pos_elevated']
+            best_match_id = None
+            best_distance = self.distance_threshold_mm
+            
+            # Chercher l'objet le plus proche en mémoire
+            for obj_id, mem_data in color_memory.items():
+                mem_obj = mem_data['obj']
+                if mem_obj.get('pos_elevated') is None:
+                    continue
+                    
+                pos_memory = mem_obj['pos_elevated']
+                distance = np.linalg.norm(pos_current - pos_memory)
+                
+                if distance < best_distance:
+                    best_distance = distance
+                    best_match_id = obj_id
+            
+            if best_match_id is not None:
+                # Objet existant : mettre à jour
+                color_memory[best_match_id]['obj'] = obj
+                color_memory[best_match_id]['frames_missing'] = 0
+                color_memory[best_match_id]['last_seen'] = current_frame
+                matched_ids.add(best_match_id)
+                result_objects.append(obj)
+                print(f"  - Objet ID={best_match_id} mis à jour (distance={best_distance:.1f}mm)")
+            else:
+                # Nouvel objet : ajouter à la mémoire
+                new_id = self.color_object_id_counter
+                self.color_object_id_counter += 1
+                color_memory[new_id] = {
+                    'obj': obj,
+                    'frames_missing': 0,
+                    'last_seen': current_frame
+                }
+                matched_ids.add(new_id)
+                result_objects.append(obj)
+                print(f"  - Nouvel objet ID={new_id} créé à [{pos_current[0]:.0f}, {pos_current[1]:.0f}]mm")
+        
+        # 2. Incrémenter le compteur de frames manquantes pour les objets non détectés
+        ids_to_remove = []
+        for obj_id, mem_data in color_memory.items():
+            if obj_id not in matched_ids:
+                mem_data['frames_missing'] += 1
+                
+                # Si l'objet n'a pas été vu depuis trop longtemps, le supprimer
+                if mem_data['frames_missing'] > self.max_frames_missing:
+                    ids_to_remove.append(obj_id)
+                    print(f"  - Objet ID={obj_id} supprimé (absent depuis {mem_data['frames_missing']} frames)")
+                else:
+                    # Conserver l'objet en mémoire
+                    result_objects.append(mem_data['obj'])
+                    print(f"  - Objet ID={obj_id} conservé en mémoire (absent {mem_data['frames_missing']}/{self.max_frames_missing})")
+        
+        # 3. Supprimer les objets trop anciens
+        for obj_id in ids_to_remove:
+            del color_memory[obj_id]
+        
+        print(f"  → Total objets affichés: {len(result_objects)}")
+        return result_objects
+
+    def _update_pair_memory(self, detected_pairs: List[Dict], pair_memory: Dict, color_name: str) -> List[Dict]:
+        """
+        Met à jour la mémoire des paires (noisettes) avec un filtre passe-bas.
+        Conserve les paires même si elles ne sont plus détectées pendant quelques frames.
+        
+        Args:
+            detected_pairs: Liste des paires détectées dans la frame actuelle
+            pair_memory: Dictionnaire de mémoire (self.pair_memory_jaune ou self.pair_memory_bleu)
+            color_name: Nom de la couleur ('jaune' ou 'bleu')
+            
+        Returns:
+            Liste des paires à afficher (détectées + mémoire récente)
+        """
+        current_frame = self.frame_counter
+        matched_ids = set()
+        result_pairs = []
+        
+        print(f"[{color_name} PAIRES] Frame {current_frame}: {len(detected_pairs)} paires détectées, {len(pair_memory)} en mémoire")
+        
+        # 1. Associer les paires détectées aux paires en mémoire
+        for pair in detected_pairs:
+            centre_current = np.array(pair['centre_mm'])
+            best_match_id = None
+            best_distance = self.pair_distance_threshold_mm
+            
+            # Chercher la paire la plus proche en mémoire
+            for pair_id, mem_data in pair_memory.items():
+                mem_pair = mem_data['pair']
+                centre_memory = np.array(mem_pair['centre_mm'])
+                distance = np.linalg.norm(centre_current - centre_memory)
+                
+                if distance < best_distance:
+                    best_distance = distance
+                    best_match_id = pair_id
+            
+            if best_match_id is not None:
+                # Paire existante : mettre à jour
+                pair_memory[best_match_id]['pair'] = pair
+                pair_memory[best_match_id]['frames_missing'] = 0
+                pair_memory[best_match_id]['last_seen'] = current_frame
+                matched_ids.add(best_match_id)
+                result_pairs.append(pair)
+                print(f"  - Paire ID={best_match_id} mise à jour (distance={best_distance:.1f}mm)")
+            else:
+                # Nouvelle paire : ajouter à la mémoire
+                new_id = self.pair_id_counter
+                self.pair_id_counter += 1
+                pair_memory[new_id] = {
+                    'pair': pair,
+                    'frames_missing': 0,
+                    'last_seen': current_frame
+                }
+                matched_ids.add(new_id)
+                result_pairs.append(pair)
+                print(f"  - Nouvelle paire ID={new_id} créée à [{centre_current[0]:.0f}, {centre_current[1]:.0f}]mm")
+        
+        # 2. Incrémenter le compteur de frames manquantes pour les paires non détectées
+        ids_to_remove = []
+        for pair_id, mem_data in pair_memory.items():
+            if pair_id not in matched_ids:
+                mem_data['frames_missing'] += 1
+                
+                # Si la paire n'a pas été vue depuis trop longtemps, la supprimer
+                if mem_data['frames_missing'] > self.max_frames_missing_pairs:
+                    ids_to_remove.append(pair_id)
+                    print(f"  - Paire ID={pair_id} supprimée (absente depuis {mem_data['frames_missing']} frames)")
+                else:
+                    # Conserver la paire en mémoire
+                    result_pairs.append(mem_data['pair'])
+                    print(f"  - Paire ID={pair_id} conservée en mémoire (absente {mem_data['frames_missing']}/{self.max_frames_missing_pairs})")
+        
+        # 3. Supprimer les paires trop anciennes
+        for pair_id in ids_to_remove:
+            del pair_memory[pair_id]
+        
+        print(f"  → Total paires affichées: {len(result_pairs)}")
+        return result_pairs
+
+    def _split_large_objects(self, objects: List[Dict]) -> List[Dict]:
+        result = []
         for obj in objects:
             contour = obj['contour']
-
-            # Obtenir le rectangle orienté minimum englobant le contour (en pixels)
             rect = cv2.minAreaRect(contour)
             (cx, cy), (w, h), angle = rect
-
-            # S'assurer que w est toujours la grande dimension
             if w < h:
                 w, h = h, w
                 angle += 90
 
-            # Convertir les 4 coins du rectangle en coordonnées mm dans le plan surélevé
-            box_pixels = cv2.boxPoints(rect)  # 4 coins en pixels
+            box_pixels = cv2.boxPoints(rect)
             coins_mm = []
             for pt in box_pixels:
                 pt_mm = self.homographie.point_cam_to_elevated(np.array(pt))
@@ -847,474 +1125,690 @@ class ArUcoTrackingSystem:
                 result.append(obj)
                 continue
 
-            # Calculer largeur et hauteur en mm à partir des coins projetés
             coins_mm = np.array(coins_mm)
             largeur_mm = np.linalg.norm(coins_mm[1] - coins_mm[0])
             hauteur_mm = np.linalg.norm(coins_mm[2] - coins_mm[1])
-
-            # S'assurer que largeur_mm est la grande dimension
             if largeur_mm < hauteur_mm:
                 largeur_mm, hauteur_mm = hauteur_mm, largeur_mm
 
-            # Vérifier si les dimensions correspondent à ~50x100mm (tolérance ±20mm)
-            est_double = (
-                70 < largeur_mm < 130 and   # grande dimension ~100mm
-                30 < hauteur_mm < 70         # petite dimension ~50mm
-            )
-
-            if not est_double:
+            # Déterminer si c'est un groupe de noisettes collées
+            # Les noisettes sont espacées de 50mm chacune
+            # 1 noisette seule : ~50mm de large
+            # 2 noisettes côte à côte : ~100mm de large (50mm + 50mm)
+            # 3 noisettes alignées : ~150mm de large (50mm + 50mm + 50mm)
+            # 4 noisettes alignées : ~200mm de large (50mm + 50mm + 50mm + 50mm)
+            
+            nb_noisettes = 0
+            
+            if 30 < hauteur_mm < 70:  # Hauteur cohérente avec des noisettes
+                if 70 < largeur_mm < 130:  # Environ 100mm = 2 noisettes
+                    nb_noisettes = 2
+                    print(f"  → Détecté : Groupe de 2 noisettes (largeur={largeur_mm:.1f}mm)")
+                elif 130 < largeur_mm < 180:  # Environ 150mm = 3 noisettes
+                    nb_noisettes = 3
+                    print(f"  → Détecté : Groupe de 3 noisettes (largeur={largeur_mm:.1f}mm)")
+                elif 180 < largeur_mm < 230:  # Environ 200mm = 4 noisettes
+                    nb_noisettes = 4
+                    print(f"  → Détecté : Groupe de 4 noisettes (largeur={largeur_mm:.1f}mm)")
+            
+            # Si ce n'est pas un groupe de noisettes collées, garder tel quel
+            if nb_noisettes == 0:
                 result.append(obj)
                 continue
 
-            # La zone est double : calculer les centres des deux sous-zones en mm
-            # Centre de la zone complète
+            # Calculer la direction principale (axe le plus long du rectangle)
             centre_mm = obj['pos_elevated']
-
-            # Vecteur unitaire dans la direction de la grande dimension (en mm)
-            # On cherche la direction en comparant les coins projetés
             v1 = coins_mm[1] - coins_mm[0]
             v2 = coins_mm[2] - coins_mm[1]
-            if np.linalg.norm(v1) > np.linalg.norm(v2):
-                direction = v1 / np.linalg.norm(v1)
+            direction = v1 / np.linalg.norm(v1) if np.linalg.norm(v1) > np.linalg.norm(v2) else v2 / np.linalg.norm(v2)
+
+            # Créer les positions pour chaque noisette
+            # Les noisettes individuelles font 50mm de large et sont espacées de 50mm entre leurs centres
+            # Pour 2 noisettes : centres à -25, +25 (espacement total de 50mm)
+            # Pour 3 noisettes : centres à -50, 0, +50 (espacements de 50mm)
+            # Pour 4 noisettes : centres à -75, -25, +25, +75 (espacements de 50mm)
+            
+            if nb_noisettes == 2:
+                offsets = [-25.0, 25.0]
+            elif nb_noisettes == 3:
+                offsets = [-50.0, 0.0, 50.0]
+            elif nb_noisettes == 4:
+                offsets = [-75.0, -25.0, 25.0, 75.0]
             else:
-                direction = v2 / np.linalg.norm(v2)
-
-            # Décalage de 25mm de chaque côté du centre
-            offset_mm = 25.0
-            pos1_mm = centre_mm + direction * offset_mm
-            pos2_mm = centre_mm - direction * offset_mm
-
-            # Retrouver les pixels correspondants
-            centre1_pixel = self.homographie.point_elevated_to_cam(pos1_mm)
-            centre2_pixel = self.homographie.point_elevated_to_cam(pos2_mm)
-
-            if centre1_pixel is None or centre2_pixel is None:
-                result.append(obj)
-                continue
-
-            # Créer les deux objets séparés
-            obj1 = {
-                'centre_pixel': centre1_pixel,
-                'contour': contour,
-                'aire': obj['aire'] / 2,
-                'couleur': obj['couleur'],
-                'pos_elevated': pos1_mm,
-            }
-            obj2 = {
-                'centre_pixel': centre2_pixel,
-                'contour': contour,
-                'aire': obj['aire'] / 2,
-                'couleur': obj['couleur'],
-                'pos_elevated': pos2_mm,
-            }
-
-            result.append(obj1)
-            result.append(obj2)
-
-            print(f"\n[SPLIT] Zone {obj['couleur'].upper()} séparée: "
-                f"{largeur_mm:.0f}x{hauteur_mm:.0f}mm → 2 zones de ~50x50mm")
+                offsets = []
+            
+            # Créer un objet pour chaque noisette
+            aire_par_noisette = obj['aire'] / nb_noisettes
+            
+            for offset in offsets:
+                pos_mm = centre_mm + direction * offset
+                centre_pixel = self.homographie.point_elevated_to_cam(pos_mm)
+                
+                if centre_pixel is not None:
+                    result.append({
+                        'centre_pixel': centre_pixel,
+                        'contour': contour,
+                        'aire': aire_par_noisette,
+                        'couleur': obj['couleur'],
+                        'pos_elevated': pos_mm
+                    })
 
         return result
-    def _analyze_color_pairs(self, objects: List[Dict], color_name: str, other_objects: List[Dict], tolerance_mm: float = 20.0) -> List[Dict]:
-        """
-        Analyse les objets colorés pour détecter les paires espacées d'environ 100mm
-        
-        Args:
-            objects: Liste des objets détectés de la même couleur
-            color_name: Nom de la couleur
-            other_objects: Liste des objets de l'autre couleur (pour vérifier qu'il n'y a pas d'intrusion)
-            tolerance_mm: Tolérance autour de 100mm (par défaut ±20mm)
-        
-        Returns:
-            Liste des paires détectées avec centre et angle
-        """
-        target_distance = 100.0  # Distance cible en mm
+
+    def _analyze_color_pairs(self, objects, color_name, other_objects, tolerance_mm=20.0):
+        target_distance = 100.0
         min_distance = target_distance - tolerance_mm
         max_distance = target_distance + tolerance_mm
-        
-        pairs = []
-        used_indices = set()
-        
-        # Comparer chaque paire d'objets
+        pairs, used_indices = [], set()
+
         for i in range(len(objects)):
             if i in used_indices:
                 continue
-                
             obj1 = objects[i]
             pos1 = obj1['pos_elevated']
-            
+
             for j in range(i + 1, len(objects)):
                 if j in used_indices:
                     continue
-                    
                 obj2 = objects[j]
                 pos2 = obj2['pos_elevated']
-                
-                # Calculer la distance entre les deux objets
                 distance = np.linalg.norm(pos2 - pos1)
-                
-                # Vérifier si la distance est proche de 100mm
+
                 if min_distance <= distance <= max_distance:
-                    # NOUVEAU: Vérifier qu'il n'y a pas d'objet de l'autre couleur entre les deux
+                    # NOUVELLE VÉRIFICATION : Pas d'objet de même couleur entre obj1 et obj2
+                    if self._check_same_color_between(pos1, pos2, objects, i, j, color_name):
+                        continue  # Il y a un objet de même couleur entre les deux → pas de paire
+                    
+                    # Vérification originale : pas d'interférence avec l'autre couleur
                     if self._check_interference(pos1, pos2, other_objects):
-                        # Il y a une zone de l'autre couleur entre les deux -> ne pas associer
                         continue
                     
-                    # Calculer le centre de la paire
                     centre = (pos1 + pos2) / 2
-                    
-                    # Calculer l'angle (en degrés) entre les deux zones
-                    # Angle par rapport à l'axe horizontal (X)
-                    delta_x = pos2[0] - pos1[0]
-                    delta_y = pos2[1] - pos1[1]
-                    angle_rad = np.arctan2(delta_y, delta_x)
-                    angle_deg = np.degrees(angle_rad)
-                    
-                    # Marquer les objets comme utilisés
+                    delta_x, delta_y = pos2[0] - pos1[0], pos2[1] - pos1[1]
+                    angle_deg = np.degrees(np.arctan2(delta_y, delta_x))
                     used_indices.add(i)
                     used_indices.add(j)
-                    
                     pairs.append({
                         'couleur': color_name,
-                        'objet1': {
-                            'position_mm': pos1.tolist(),
-                            'aire_pixels': obj1['aire']
-                        },
-                        'objet2': {
-                            'position_mm': pos2.tolist(),
-                            'aire_pixels': obj2['aire']
-                        },
+                        'objet1': {'position_mm': pos1.tolist(), 'aire_pixels': obj1['aire']},
+                        'objet2': {'position_mm': pos2.tolist(), 'aire_pixels': obj2['aire']},
                         'centre_mm': centre.tolist(),
                         'distance_mm': float(distance),
                         'angle_deg': float(angle_deg),
                         'pixel_centers': [obj1['centre_pixel'].tolist(), obj2['centre_pixel'].tolist()]
                     })
-                    
-                    break  # Passer à l'objet suivant
-        
+                    break
+
+        # NOUVELLE ÉTAPE : Détecter les configurations partielles (3 objets sur 4 détectés)
+        partial_pairs = self._detect_partial_configurations(objects, used_indices, color_name, other_objects)
+        pairs.extend(partial_pairs)
+
         return pairs
 
-    def _check_interference(self, pos1: np.ndarray, pos2: np.ndarray, other_objects: List[Dict]) -> bool:
+    def _detect_partial_configurations(self, objects: List[Dict], used_indices: set, 
+                                       color_name: str, other_objects: List[Dict]) -> List[Dict]:
         """
-        Vérifie si un objet de l'autre couleur se trouve entre deux positions.
-        Utilise un couloir dont la largeur est proportionnelle à la distance entre les deux zones.
+        Détecte les configurations partielles où seulement 3 des 4 zones de couleur sont détectées
+        pour un groupe de 2 noisettes côte à côte.
+        
+        Configuration attendue pour 2 noisettes côte à côte :
+        ●─50mm─●     ●─50mm─●
+        Noisette1    Noisette2
+        (100mm d'écart entre les noisettes)
+        
+        Configurations partielles possibles (3 objets détectés) :
+        - Cas A : Manque obj4 → ●─50─●─100─●  
+        - Cas B : Manque obj3 → ●─100─●─50─●
+        - Cas C : Manque obj2 → ●─150─●
+        - Cas D : Manque obj1 → ●─150─●
+        
+        Args:
+            objects: Liste de tous les objets de la couleur
+            used_indices: Indices des objets déjà utilisés en paires
+            color_name: Nom de la couleur
+            other_objects: Objets de l'autre couleur (pour vérifier les interférences)
+            
+        Returns:
+            Liste des paires détectées à partir de configurations partielles
         """
-        if len(other_objects) == 0:
-            return False
+        partial_pairs = []
+        remaining_objects = [obj for idx, obj in enumerate(objects) if idx not in used_indices]
+        
+        if len(remaining_objects) < 3:
+            return partial_pairs
+        
+        # Parcourir tous les triplets d'objets non utilisés
+        for i in range(len(remaining_objects)):
+            for j in range(i + 1, len(remaining_objects)):
+                for k in range(j + 1, len(remaining_objects)):
+                    obj1 = remaining_objects[i]
+                    obj2 = remaining_objects[j]
+                    obj3 = remaining_objects[k]
+                    
+                    pos1 = obj1['pos_elevated']
+                    pos2 = obj2['pos_elevated']
+                    pos3 = obj3['pos_elevated']
+                    
+                    # Calculer les distances entre les 3 objets
+                    d12 = np.linalg.norm(pos2 - pos1)
+                    d23 = np.linalg.norm(pos3 - pos2)
+                    d13 = np.linalg.norm(pos3 - pos1)
+                    
+                    # Vérifier si les 3 objets sont approximativement alignés
+                    if not self._are_aligned(pos1, pos2, pos3, max_deviation_mm=30.0):
+                        continue
+                    
+                    # CAS A : Configuration ●─50─●─100─● (manque obj4 à droite)
+                    # Distances : 50mm, 100mm, 150mm
+                    if (40 < d12 < 60 and 90 < d23 < 110 and 140 < d13 < 160):
+                        # Les 3 objets forment une configuration partielle
+                        # Noisette 1 = obj1 + obj2, Noisette 2 = obj3 + [obj4 manquant]
+                        centre_noisette1 = (pos1 + pos2) / 2
+                        centre_noisette2 = pos3 + (pos3 - pos2)  # Extrapoler la position de obj4
+                        
+                        centre_paire = (centre_noisette1 + centre_noisette2) / 2
+                        delta = centre_noisette2 - centre_noisette1
+                        angle_deg = np.degrees(np.arctan2(delta[1], delta[0]))
+                        
+                        partial_pairs.append({
+                            'couleur': color_name,
+                            'objet1': {'position_mm': centre_noisette1.tolist(), 'aire_pixels': (obj1['aire'] + obj2['aire']) / 2},
+                            'objet2': {'position_mm': centre_noisette2.tolist(), 'aire_pixels': obj3['aire']},
+                            'centre_mm': centre_paire.tolist(),
+                            'distance_mm': float(np.linalg.norm(delta)),
+                            'angle_deg': float(angle_deg),
+                            'pixel_centers': [obj1['centre_pixel'].tolist(), obj3['centre_pixel'].tolist()],
+                            'partial': True,  # Marqueur pour indiquer que c'est une configuration partielle
+                            'missing': 'obj4'
+                        })
+                        print(f"  ✓ [{color_name}] Configuration partielle détectée (CAS A - manque obj4)")
+                        return partial_pairs
+                    
+                    # CAS B : Configuration ●─100─●─50─● (manque obj3 au milieu-droite)
+                    # Distances : 100mm, 50mm, 150mm
+                    if (90 < d12 < 110 and 40 < d23 < 60 and 140 < d13 < 160):
+                        centre_noisette1 = pos1 + (pos2 - pos1) / 2  # Centre entre obj1 et position extrapolée
+                        centre_noisette2 = (pos2 + pos3) / 2
+                        
+                        centre_paire = (centre_noisette1 + centre_noisette2) / 2
+                        delta = centre_noisette2 - centre_noisette1
+                        angle_deg = np.degrees(np.arctan2(delta[1], delta[0]))
+                        
+                        partial_pairs.append({
+                            'couleur': color_name,
+                            'objet1': {'position_mm': centre_noisette1.tolist(), 'aire_pixels': obj1['aire']},
+                            'objet2': {'position_mm': centre_noisette2.tolist(), 'aire_pixels': (obj2['aire'] + obj3['aire']) / 2},
+                            'centre_mm': centre_paire.tolist(),
+                            'distance_mm': float(np.linalg.norm(delta)),
+                            'angle_deg': float(angle_deg),
+                            'pixel_centers': [obj1['centre_pixel'].tolist(), obj3['centre_pixel'].tolist()],
+                            'partial': True,
+                            'missing': 'obj3'
+                        })
+                        print(f"  ✓ [{color_name}] Configuration partielle détectée (CAS B - manque obj3)")
+                        return partial_pairs
+                    
+                    # CAS C/D : Configuration ●─150─● (manque obj2 ou obj4)
+                    # Distance : 150mm entre obj1 et obj2, obj3 est un autre objet non lié
+                    # On cherche 2 objets espacés de ~150mm
+                    
+        # Recherche de paires espacées de 150mm (2 noisettes sans 2 zones intermédiaires)
+        for i in range(len(remaining_objects)):
+            for j in range(i + 1, len(remaining_objects)):
+                obj1 = remaining_objects[i]
+                obj2 = remaining_objects[j]
+                pos1 = obj1['pos_elevated']
+                pos2 = obj2['pos_elevated']
+                distance = np.linalg.norm(pos2 - pos1)
+                
+                # Configuration ●─150mm─● (2 noisettes avec 2 zones manquantes au milieu)
+                if 140 < distance < 160:
+                    # Vérifier qu'il n'y a pas d'autre objet entre les deux
+                    has_object_between = False
+                    for k in range(len(remaining_objects)):
+                        if k == i or k == j:
+                            continue
+                        obj_k = remaining_objects[k]
+                        pos_k = obj_k['pos_elevated']
+                        
+                        vec = pos2 - pos1
+                        vec_unit = vec / np.linalg.norm(vec)
+                        to_k = pos_k - pos1
+                        proj = np.dot(to_k, vec_unit)
+                        
+                        if 0 < proj < distance:
+                            perp_dist = np.linalg.norm(pos_k - (pos1 + proj * vec_unit))
+                            if perp_dist < 40:
+                                has_object_between = True
+                                break
+                    
+                    if not has_object_between:
+                        centre_paire = (pos1 + pos2) / 2
+                        delta = pos2 - pos1
+                        angle_deg = np.degrees(np.arctan2(delta[1], delta[0]))
+                        
+                        partial_pairs.append({
+                            'couleur': color_name,
+                            'objet1': {'position_mm': pos1.tolist(), 'aire_pixels': obj1['aire']},
+                            'objet2': {'position_mm': pos2.tolist(), 'aire_pixels': obj2['aire']},
+                            'centre_mm': centre_paire.tolist(),
+                            'distance_mm': float(distance),
+                            'angle_deg': float(angle_deg),
+                            'pixel_centers': [obj1['centre_pixel'].tolist(), obj2['centre_pixel'].tolist()],
+                            'partial': True,
+                            'missing': 'obj2_and_obj3'
+                        })
+                        print(f"  ✓ [{color_name}] Configuration partielle détectée (CAS C/D - manque 2 zones centrales)")
+                        return partial_pairs
+        
+        return partial_pairs
 
-        vec = pos2 - pos1
+    def _are_aligned(self, pos1: np.ndarray, pos2: np.ndarray, pos3: np.ndarray, 
+                     max_deviation_mm: float = 30.0) -> bool:
+        """
+        Vérifie si 3 points sont approximativement alignés.
+        
+        Args:
+            pos1, pos2, pos3: Positions des 3 objets
+            max_deviation_mm: Déviation maximale perpendiculaire tolérée
+            
+        Returns:
+            True si les 3 points sont alignés
+        """
+        # Vecteur de pos1 vers pos3
+        vec = pos3 - pos1
         vec_length = np.linalg.norm(vec)
-
+        
         if vec_length == 0:
             return False
-
+        
         vec_unit = vec / vec_length
+        
+        # Projection de pos2 sur l'axe pos1→pos3
+        to_pos2 = pos2 - pos1
+        projection_length = np.dot(to_pos2, vec_unit)
+        projection_point = pos1 + projection_length * vec_unit
+        
+        # Distance perpendiculaire
+        perpendicular_distance = np.linalg.norm(pos2 - projection_point)
+        
+        return perpendicular_distance < max_deviation_mm
 
-        # Largeur du couloir = moitié de la distance (zones font ~50mm, couloir de 50mm de large)
+    def _check_same_color_between(self, pos1: np.ndarray, pos2: np.ndarray, same_color_objects: List[Dict], 
+                                    idx1: int, idx2: int, color_name: str, margin_mm: float = 40.0) -> bool:
+        """
+        Vérifie s'il existe un objet de même couleur entre pos1 et pos2.
+        
+        Args:
+            pos1: Position du premier objet
+            pos2: Position du deuxième objet
+            same_color_objects: Liste de tous les objets de la même couleur
+            idx1: Index du premier objet dans la liste
+            idx2: Index du deuxième objet dans la liste
+            color_name: Nom de la couleur (pour les logs)
+            margin_mm: Distance maximale perpendiculaire pour considérer qu'un objet est "entre" les deux
+            
+        Returns:
+            True s'il y a au moins un objet entre pos1 et pos2
+        """
+        # Vecteur directeur entre pos1 et pos2
+        vec = pos2 - pos1
+        vec_length = np.linalg.norm(vec)
+        
+        if vec_length == 0:
+            return False
+        
+        vec_unit = vec / vec_length
+        
+        # Parcourir tous les objets de même couleur (sauf pos1 et pos2)
+        for k, other_obj in enumerate(same_color_objects):
+            # Ignorer les objets pos1 et pos2 eux-mêmes
+            if k == idx1 or k == idx2:
+                continue
+            
+            other_pos = other_obj['pos_elevated']
+            
+            # Vecteur de pos1 vers l'autre objet
+            to_other = other_pos - pos1
+            
+            # Projection sur l'axe pos1→pos2
+            projection_length = np.dot(to_other, vec_unit)
+            
+            # L'objet doit être entre pos1 et pos2 (pas avant ni après)
+            if projection_length <= 0 or projection_length >= vec_length:
+                continue
+            
+            # Point projeté sur l'axe pos1→pos2
+            projection_point = pos1 + projection_length * vec_unit
+            
+            # Distance perpendiculaire entre l'objet et l'axe pos1→pos2
+            perpendicular_distance = np.linalg.norm(other_pos - projection_point)
+            
+            # Si l'objet est proche de l'axe (< margin_mm), il est "entre" les deux
+            if perpendicular_distance < margin_mm:
+                print(f"  ⚠️ [{color_name}] Objet intermédiaire détecté entre objets {idx1} et {idx2} "
+                      f"(projection={projection_length:.1f}mm, distance_perp={perpendicular_distance:.1f}mm)")
+                return True
+        
+        return False
+
+    def _check_interference(self, pos1, pos2, other_objects):
+        if not other_objects:
+            return False
+        vec = pos2 - pos1
+        vec_length = np.linalg.norm(vec)
+        if vec_length == 0:
+            return False
+        vec_unit = vec / vec_length
         margin_mm = vec_length * 1.5
 
         for other_obj in other_objects:
             other_pos = other_obj['pos_elevated']
-
             to_other = other_pos - pos1
-
-            # Projection sur l'axe pos1->pos2
             projection_length = np.dot(to_other, vec_unit)
-
-            # L'objet doit être STRICTEMENT entre pos1 et pos2
-            # On réduit légèrement les bords pour éviter les faux positifs
-            # si l'objet adverse est juste à côté de pos1 ou pos2
             marge_bord = vec_length * 0.15
             if projection_length < marge_bord or projection_length > vec_length - marge_bord:
                 continue
-
-            # Distance perpendiculaire à la ligne
             projection_point = pos1 + projection_length * vec_unit
-            perpendicular_distance = np.linalg.norm(other_pos - projection_point)
-
-            if perpendicular_distance < margin_mm:
+            if np.linalg.norm(other_pos - projection_point) < margin_mm:
                 return True
-
         return False
-    
-    def _draw_color_pair(self, paire: Dict, image: np.ndarray, color_bgr: Tuple):
-        """Dessine une paire d'objets colorés avec le centre et l'angle"""
-        
-        # Dessiner une ligne entre les deux objets
+
+    def _draw_color_pair(self, paire, image, color_bgr):
         for pixel_center in paire['pixel_centers']:
             cv2.circle(image, tuple(np.array(pixel_center).astype(int)), 6, color_bgr, -1)
-        
-        # Ligne reliant les deux objets
         pt1 = tuple(np.array(paire['pixel_centers'][0]).astype(int))
         pt2 = tuple(np.array(paire['pixel_centers'][1]).astype(int))
         cv2.line(image, pt1, pt2, color_bgr, 2)
-        
-        # Calculer la position du centre en pixels
+
         centre_mm = np.array(paire['centre_mm'])
         centre_pixel = self.homographie.point_elevated_to_cam(centre_mm)
-        
         if centre_pixel is not None:
             centre_pixel_int = tuple(centre_pixel.astype(int))
-            
-            # Dessiner un cercle plus grand au centre
             cv2.circle(image, centre_pixel_int, 12, color_bgr, -1)
             cv2.circle(image, centre_pixel_int, 14, (255, 255, 255), 2)
-            
-            # Dessiner une flèche indiquant l'angle
             angle_rad = np.radians(paire['angle_deg'])
-            arrow_length = 40
-            end_x = int(centre_pixel[0] + arrow_length * np.cos(angle_rad))
-            end_y = int(centre_pixel[1] + arrow_length * np.sin(angle_rad))
+            end_x = int(centre_pixel[0] + 40 * np.cos(angle_rad))
+            end_y = int(centre_pixel[1] + 40 * np.sin(angle_rad))
             cv2.arrowedLine(image, centre_pixel_int, (end_x, end_y), (255, 255, 255), 2, tipLength=0.3)
-            
-            # Afficher les informations
-            """text_pos = (int(centre_pixel[0]) + 20, int(centre_pixel[1]) - 20)
-            text = f"{paire['couleur'].upper()}: ({centre_mm[0]:.0f}, {centre_mm[1]:.0f})mm, {paire['angle_deg']:.1f}°"
-            
-            # Fond noir
-            (text_width, text_height), baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-            cv2.rectangle(image,
-                         (text_pos[0] - 5, text_pos[1] - text_height - 5),
-                         (text_pos[0] + text_width + 5, text_pos[1] + baseline + 5),
-                         (0, 0, 0), -1)
-            
-            # Texte
-            cv2.putText(image, text, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.6, color_bgr, 2)"""
-        
-        # Afficher dans la console
-        print(f"\nPAIRE {paire['couleur'].upper()}:")
-        print(f"  Centre: X = {centre_mm[0]:7.1f} mm, Y = {centre_mm[1]:7.1f} mm")
-        print(f"  Distance: {paire['distance_mm']:.1f} mm")
-        print(f"  Angle: {paire['angle_deg']:.1f}°")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DÉTECTEUR DE COULEURS
+# ─────────────────────────────────────────────────────────────────────────────
 
 class ColorDetector:
     def __init__(self, config: Config):
         self.config = config
+        self.calibration_file = "color_calibration.json"
         
-        # Conversion directe RGB -> HSV
-        # Jaune RGB (247, 181, 0) -> approximativement HSV(37, 255, 247)
-        # Bleu RGB (0, 91, 140) -> approximativement HSV(100, 255, 140)
+        # Valeurs par défaut
+        default_jaune_lower = [17, 105, 205]
+        default_jaune_upper = [36, 255, 255]
+        default_bleu_lower = [47, 105, 101]
+        default_bleu_upper = [135, 255, 255]
         
-        # JAUNE : Définir manuellement les plages HSV optimales
-        # En OpenCV, Hue va de 0-180 (pas 0-360!)
-        # Jaune pur = environ 30° en OpenCV (60°/2 car divisé par 2)
-        self.jaune_lower = np.array([16, 126, 182])   # H, S, V minimums
-        self.jaune_upper = np.array([26, 255, 255])   # H, S, V maximums
-        
-        # BLEU : Bleu cyan
-        # Bleu = environ 100° en OpenCV
-        self.bleu_lower = np.array([34, 139, 106])
-        self.bleu_upper = np.array([135, 255, 255])
-        
+        # Charger depuis le fichier JSON si disponible
+        if not self.load_calibration():
+            # Utiliser les valeurs par défaut si le chargement échoue
+            self.jaune_lower = np.array(default_jaune_lower)
+            self.jaune_upper = np.array(default_jaune_upper)
+            self.bleu_lower = np.array(default_bleu_lower)
+            self.bleu_upper = np.array(default_bleu_upper)
+
         print("\n=== ColorDetector Initialisé ===")
         print(f"Jaune RGB cible: {config.couleur_jaune_rgb}")
         print(f"  -> Plage HSV: {self.jaune_lower} à {self.jaune_upper}")
         print(f"Bleu RGB cible: {config.couleur_bleu_rgb}")
         print(f"  -> Plage HSV: {self.bleu_lower} à {self.bleu_upper}")
+
+    def load_calibration(self) -> bool:
+        """Charge les valeurs HSV depuis le fichier JSON"""
+        try:
+            with open(self.calibration_file, 'r') as f:
+                data = json.load(f)
+            
+            self.jaune_lower = np.array(data['jaune_lower'])
+            self.jaune_upper = np.array(data['jaune_upper'])
+            self.bleu_lower = np.array(data['bleu_lower'])
+            self.bleu_upper = np.array(data['bleu_upper'])
+            
+            print(f"Calibration couleurs chargée depuis {self.calibration_file}")
+            return True
+        except FileNotFoundError:
+            print(f"Aucun fichier de calibration couleurs trouvé, utilisation des valeurs par défaut")
+            return False
+        except Exception as e:
+            print(f"Erreur lors du chargement de la calibration couleurs: {e}")
+            return False
     
+    def save_calibration(self):
+        """Sauvegarde les valeurs HSV dans le fichier JSON"""
+        try:
+            data = {
+                'jaune_lower': self.jaune_lower.tolist(),
+                'jaune_upper': self.jaune_upper.tolist(),
+                'bleu_lower': self.bleu_lower.tolist(),
+                'bleu_upper': self.bleu_upper.tolist()
+            }
+            
+            with open(self.calibration_file, 'w') as f:
+                json.dump(data, f, indent=2)
+            
+            print(f"Calibration couleurs sauvegardée dans {self.calibration_file}")
+            return True
+        except Exception as e:
+            print(f"Erreur lors de la sauvegarde de la calibration couleurs: {e}")
+            return False
+
     def detect_colors(self, image: np.ndarray) -> Dict[str, List[Dict]]:
-        """
-        Détecte les objets jaunes et bleus dans l'image
-        Retourne un dictionnaire avec les centres et contours des objets détectés
-        """
-        # Conversion en HSV
         hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        
-        results = {
-            'jaune': [],
-            'bleu': []
-        }
-        
-        # Détection du jaune
         mask_jaune = cv2.inRange(hsv, self.jaune_lower, self.jaune_upper)
-        pixels_jaune = np.count_nonzero(mask_jaune)
-        results['jaune'] = self._process_mask(mask_jaune, 'jaune')
-        
-        # Détection du bleu
-        mask_bleu = cv2.inRange(hsv, self.bleu_lower, self.bleu_upper)
-        pixels_bleu = np.count_nonzero(mask_bleu)
-        results['bleu'] = self._process_mask(mask_bleu, 'bleu')
-        
-        if pixels_jaune > 0 or pixels_bleu > 0:
-            print(f"\n[Couleurs] Pixels: Jaune={pixels_jaune}, Bleu={pixels_bleu} | Objets: Jaune={len(results['jaune'])}, Bleu={len(results['bleu'])}")
-        
-        return results
-    
+        mask_bleu  = cv2.inRange(hsv, self.bleu_lower,  self.bleu_upper)
+        return {
+            'jaune': self._process_mask(mask_jaune, 'jaune'),
+            'bleu':  self._process_mask(mask_bleu,  'bleu'),
+        }
+
     def _process_mask(self, mask: np.ndarray, color_name: str) -> List[Dict]:
-        """Traite un masque de couleur pour extraire les contours et centres"""
-        # Morphologie pour nettoyer le masque
         kernel = np.ones((5, 5), np.uint8)
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN,  kernel)
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-        
-        # Trouver les contours
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
+
         detected_objects = []
-        
         for contour in contours:
             area = cv2.contourArea(contour)
-            
-            # Filtrer par taille
             if self.config.taille_min_contour < area < self.config.taille_max_contour:
-                # Calculer le centre
                 M = cv2.moments(contour)
                 if M["m00"] != 0:
                     cx = int(M["m10"] / M["m00"])
                     cy = int(M["m01"] / M["m00"])
-                    
                     detected_objects.append({
                         'centre_pixel': np.array([cx, cy]),
                         'contour': contour,
                         'aire': area,
                         'couleur': color_name
                     })
-        
         return detected_objects
-    
+
     def calibrate_interactive(self, image: np.ndarray):
-        """
-        Mode interactif pour calibrer les plages HSV
-        Affiche les masques en temps réel avec des trackbars
-        """
+        # Réduire la taille de l'image pour l'affichage
+        scale_factor = 0.5
+        display_width = int(image.shape[1] * scale_factor)
+        display_height = int(image.shape[0] * scale_factor)
+
         cv2.namedWindow('Calibration HSV')
         cv2.namedWindow('Image Originale')
-        
-        # Créer les trackbars pour le JAUNE
-        cv2.createTrackbar('Jaune H min', 'Calibration HSV', self.jaune_lower[0], 180, lambda x: None)
-        cv2.createTrackbar('Jaune H max', 'Calibration HSV', self.jaune_upper[0], 180, lambda x: None)
-        cv2.createTrackbar('Jaune S min', 'Calibration HSV', self.jaune_lower[1], 255, lambda x: None)
-        cv2.createTrackbar('Jaune S max', 'Calibration HSV', self.jaune_upper[1], 255, lambda x: None)
-        cv2.createTrackbar('Jaune V min', 'Calibration HSV', self.jaune_lower[2], 255, lambda x: None)
-        cv2.createTrackbar('Jaune V max', 'Calibration HSV', self.jaune_upper[2], 255, lambda x: None)
-        
-        # Créer les trackbars pour le BLEU
-        cv2.createTrackbar('Bleu H min', 'Calibration HSV', self.bleu_lower[0], 180, lambda x: None)
-        cv2.createTrackbar('Bleu H max', 'Calibration HSV', self.bleu_upper[0], 180, lambda x: None)
-        cv2.createTrackbar('Bleu S min', 'Calibration HSV', self.bleu_lower[1], 255, lambda x: None)
-        cv2.createTrackbar('Bleu S max', 'Calibration HSV', self.bleu_upper[1], 255, lambda x: None)
-        cv2.createTrackbar('Bleu V min', 'Calibration HSV', self.bleu_lower[2], 255, lambda x: None)
-        cv2.createTrackbar('Bleu V max', 'Calibration HSV', self.bleu_upper[2], 255, lambda x: None)
-        
+
+        # Redimensionner les fenêtres
+        cv2.resizeWindow('Calibration HSV', display_width, display_height)
+        cv2.resizeWindow('Image Originale', display_width, display_height)
+
+        # Position et dimensions du bouton "Sauvegarder" (en haut à gauche)
+        button_x = 10
+        button_y = 10
+        button_width = 120
+        button_height = 30
+        button_color = (0, 150, 0)  # Vert
+
+        # Variable pour indiquer si la sauvegarde est terminée
+        saved = False
+
+        # Fonction pour dessiner le bouton
+        def draw_save_button(img):
+            cv2.rectangle(img, (button_x, button_y), (button_x + button_width, button_y + button_height), button_color, -1)
+            cv2.putText(img, "Sauvegarder", (button_x + 10, button_y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
+        # Fonction de callback pour gérer les clics sur le bouton
+        def mouse_callback(event, x, y, flags, param):
+            nonlocal saved
+            if event == cv2.EVENT_LBUTTONDOWN:
+                if button_x <= x <= button_x + button_width and button_y <= y <= button_y + button_height:
+                    # Sauvegarder les valeurs des sliders
+                    j_lower = np.array([cv2.getTrackbarPos('Jaune H min', 'Calibration HSV'),
+                                        cv2.getTrackbarPos('Jaune S min', 'Calibration HSV'),
+                                        cv2.getTrackbarPos('Jaune V min', 'Calibration HSV')])
+                    j_upper = np.array([cv2.getTrackbarPos('Jaune H max', 'Calibration HSV'),
+                                        cv2.getTrackbarPos('Jaune S max', 'Calibration HSV'),
+                                        cv2.getTrackbarPos('Jaune V max', 'Calibration HSV')])
+                    b_lower = np.array([cv2.getTrackbarPos('Bleu H min', 'Calibration HSV'),
+                                        cv2.getTrackbarPos('Bleu S min', 'Calibration HSV'),
+                                        cv2.getTrackbarPos('Bleu V min', 'Calibration HSV')])
+                    b_upper = np.array([cv2.getTrackbarPos('Bleu H max', 'Calibration HSV'),
+                                        cv2.getTrackbarPos('Bleu S max', 'Calibration HSV'),
+                                        cv2.getTrackbarPos('Bleu V max', 'Calibration HSV')])
+
+                    self.jaune_lower, self.jaune_upper = j_lower, j_upper
+                    self.bleu_lower,  self.bleu_upper  = b_lower, b_upper
+                    
+                    # Sauvegarder dans le fichier JSON
+                    self.save_calibration()
+                    
+                    print(f"Valeurs sauvegardées — Jaune: {j_lower}→{j_upper} | Bleu: {b_lower}→{b_upper}")
+                    saved = True  # Indiquer que la sauvegarde est terminée
+                    self.stop_requested = True
+
+        # Associer la fonction de callback à la fenêtre
+        cv2.setMouseCallback('Calibration HSV', mouse_callback)
+
+        # Créer les sliders
+        for label, val, maxval in [
+            ('Jaune H min', self.jaune_lower[0], 180), ('Jaune H max', self.jaune_upper[0], 180),
+            ('Jaune S min', self.jaune_lower[1], 255), ('Jaune S max', self.jaune_upper[1], 255),
+            ('Jaune V min', self.jaune_lower[2], 255), ('Jaune V max', self.jaune_upper[2], 255),
+            ('Bleu H min',  self.bleu_lower[0],  180), ('Bleu H max',  self.bleu_upper[0],  180),
+            ('Bleu S min',  self.bleu_lower[1],  255), ('Bleu S max',  self.bleu_upper[1],  255),
+            ('Bleu V min',  self.bleu_lower[2],  255), ('Bleu V max',  self.bleu_upper[2],  255),
+        ]:
+            cv2.createTrackbar(label, 'Calibration HSV', val, maxval, lambda x: None)
+
         print("\n=== MODE CALIBRATION COULEURS ===")
-        print("Ajustez les trackbars pour voir les masques en temps réel")
-        print("Appuyez sur 'S' pour sauvegarder les valeurs")
-        print("Appuyez sur 'Q' pour quitter le mode calibration")
-        
-        while True:
-            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-            
-            # Lire les valeurs des trackbars
-            j_h_min = cv2.getTrackbarPos('Jaune H min', 'Calibration HSV')
-            j_h_max = cv2.getTrackbarPos('Jaune H max', 'Calibration HSV')
-            j_s_min = cv2.getTrackbarPos('Jaune S min', 'Calibration HSV')
-            j_s_max = cv2.getTrackbarPos('Jaune S max', 'Calibration HSV')
-            j_v_min = cv2.getTrackbarPos('Jaune V min', 'Calibration HSV')
-            j_v_max = cv2.getTrackbarPos('Jaune V max', 'Calibration HSV')
-            
-            b_h_min = cv2.getTrackbarPos('Bleu H min', 'Calibration HSV')
-            b_h_max = cv2.getTrackbarPos('Bleu H max', 'Calibration HSV')
-            b_s_min = cv2.getTrackbarPos('Bleu S min', 'Calibration HSV')
-            b_s_max = cv2.getTrackbarPos('Bleu S max', 'Calibration HSV')
-            b_v_min = cv2.getTrackbarPos('Bleu V min', 'Calibration HSV')
-            b_v_max = cv2.getTrackbarPos('Bleu V max', 'Calibration HSV')
-            
-            # Créer les masques
-            jaune_lower_temp = np.array([j_h_min, j_s_min, j_v_min])
-            jaune_upper_temp = np.array([j_h_max, j_s_max, j_v_max])
-            bleu_lower_temp = np.array([b_h_min, b_s_min, b_v_min])
-            bleu_upper_temp = np.array([b_h_max, b_s_max, b_v_max])
-            
-            mask_jaune = cv2.inRange(hsv, jaune_lower_temp, jaune_upper_temp)
-            mask_bleu = cv2.inRange(hsv, bleu_lower_temp, bleu_upper_temp)
-            
-            # Combiner les masques pour visualisation
-            combined = np.zeros_like(image)
-            combined[:, :, 2] = mask_jaune  # Rouge pour jaune
-            combined[:, :, 0] = mask_bleu   # Bleu pour bleu
-            
-            cv2.imshow('Image Originale', image)
+        print("Ajustez les trackbars | Cliquez sur 'Sauvegarder' ou 'Q' pour quitter")
+
+        while not saved:  # Boucle jusqu'à ce que la sauvegarde soit terminée
+            # Redimensionner l'image pour l'affichage
+            image_display = cv2.resize(image, (display_width, display_height))
+            hsv = cv2.cvtColor(image_display, cv2.COLOR_BGR2HSV)
+
+            # Récupérer les valeurs des sliders
+            j_lower = np.array([cv2.getTrackbarPos('Jaune H min', 'Calibration HSV'),
+                                cv2.getTrackbarPos('Jaune S min', 'Calibration HSV'),
+                                cv2.getTrackbarPos('Jaune V min', 'Calibration HSV')])
+            j_upper = np.array([cv2.getTrackbarPos('Jaune H max', 'Calibration HSV'),
+                                cv2.getTrackbarPos('Jaune S max', 'Calibration HSV'),
+                                cv2.getTrackbarPos('Jaune V max', 'Calibration HSV')])
+            b_lower = np.array([cv2.getTrackbarPos('Bleu H min', 'Calibration HSV'),
+                                cv2.getTrackbarPos('Bleu S min', 'Calibration HSV'),
+                                cv2.getTrackbarPos('Bleu V min', 'Calibration HSV')])
+            b_upper = np.array([cv2.getTrackbarPos('Bleu H max', 'Calibration HSV'),
+                                cv2.getTrackbarPos('Bleu S max', 'Calibration HSV'),
+                                cv2.getTrackbarPos('Bleu V max', 'Calibration HSV')])
+
+            # Créer une image noire pour afficher les masques et le bouton
+            combined = np.zeros_like(image_display)
+            combined[:, :, 2] = cv2.inRange(hsv, j_lower, j_upper)  # Jaune en rouge (canal R)
+            combined[:, :, 0] = cv2.inRange(hsv, b_lower, b_upper)   # Bleu en bleu (canal B)
+
+            # Dessiner le bouton "Sauvegarder"
+            draw_save_button(combined)
+
+            cv2.imshow('Image Originale', image_display)
             cv2.imshow('Calibration HSV', combined)
-            
+
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 break
-            elif key == ord('s'):
-                self.jaune_lower = jaune_lower_temp
-                self.jaune_upper = jaune_upper_temp
-                self.bleu_lower = bleu_lower_temp
-                self.bleu_upper = bleu_upper_temp
-                print(f"\nValeurs sauvegardées:")
-                print(f"  Jaune: {self.jaune_lower} à {self.jaune_upper}")
-                print(f"  Bleu: {self.bleu_lower} à {self.bleu_upper}")
-        
+
+        # Fermer les fenêtres après la sauvegarde ou la sortie
         cv2.destroyWindow('Calibration HSV')
         cv2.destroyWindow('Image Originale')
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# POINT D'ENTRÉE
+# ─────────────────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
+
+    couleur = "B"  # ← Changer ici : "B" pour Bleu, "J" pour Jaune
+
     config = Config()
-    
-    """print("=" * 80)
-    print("Système de Tracking ArUco avec Double Plan")
-    print("=" * 80)
-    print(f"\nConfiguration:")
-    print(f"  - Plan de référence étendu: {config.largeur_totale_mm:.0f} x {config.longueur_totale_mm:.0f} mm")
-    print(f"  - Rectangle tags: {config.tags_largeur_mm:.0f} x {config.tags_longueur_mm:.0f} mm")
-    print(f"  - Marges: {config.ajout_horizontal_mm:.0f} x {config.ajout_vertical_mm:.0f} mm")
-    print(f"  - Taille des tags de calibration: {config.tag_taille_mm:.0f} mm")
-    print(f"  - Taille des tags mobiles: {config.tag_taille_mm_robot:.0f} mm")
-    print(f"  - Hauteur plan élevé: +{config.hauteur_robot_mm:.0f} mm")
-    print(f"\nTags de référence (plan h=0): {config.tag_reference}")
-    print(f"Tag de calibration (plan h=+{config.hauteur_robot_mm:.0f}mm): {config.tag_calibration}")
-    print(f"Tags mobiles (plan h=+{config.hauteur_robot_mm:.0f}mm): {config.tag_mobile}")
-    print(f"\nOrigine du repère: coin SUPÉRIEUR DROIT")
-    print(f"  - X positif vers la GAUCHE")
-    print(f"  - Y positif vers le BAS")
-    print(f"\nLes plans de référence et surélevé utilisent les mêmes coordonnées X,Y")
-    print(f"Seule la hauteur Z diffère de +{config.hauteur_robot_mm:.0f}mm")
-    print("\n" + "=" * 80)
-    print("INSTRUCTIONS:")
-    print("  - Appuyer sur 'E' pour entrer en mode calibration du plan élevé")
-    print("  - En mode calibration:")
-    print(f"    1. Positionner le tag {config.tag_calibration} exactement au-dessus de chaque tag de référence")
-    print("       (successivement au-dessus des tags 20, 21, 22, 23)")
-    print("    2. Appuyer sur ESPACE à chaque position pour capturer")
-    print("    3. Appuyer sur 'S' pour sauvegarder la calibration")
-    print("    4. Appuyer sur 'R' pour recommencer la calibration")
-    print("  - Appuyer sur 'L' pour charger une calibration existante")
-    print("  - Appuyer sur 'Q' pour quitter")
-    print("\n" + "=" * 80)
-    print("VISUALISATION:")
-    print("  - VERT : Rectangle étendu du plan de référence")
-    print("  - BLEU : Rectangle entre les tags de référence (20-23)")
-    print("  - MAGENTA : Rectangle entre les positions calibrées du plan surélevé")
-    print("  - CYAN : Rectangle étendu du plan surélevé")
-    print("=" * 80)"""
+    config = appliquer_couleur(config, couleur)
+
+    print(f"Équipe configurée : {'Bleue' if couleur == 'B' else 'Jaune'}")
+    print(f"  tag_calibration_Noisette : {config.tag_calibration_Noisette}")
+    print(f"  tag_calibration_robot    : {config.tag_calibration_robot}")
+    print(f"  tag_robot                : {config.tag_robot}")
+    print(f"  tag_ennemi               : {config.tag_ennemi}")
 
     system = ArUcoTrackingSystem(config, matrice_antidstorsion='calibration_data_HR_camM.npz')
 
+    # Chargement automatique des deux calibrations au démarrage
     if system.calibration_mode.load_calibration():
         system.homographie.calcul_homographie_elevated(system.calibration_mode.calibration_points)
         system.plan_elevated_calcule = True
 
-    cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+    if system.calibration_mode_robot.load_calibration():
+        system.homographie.calcul_homographie_robot(system.calibration_mode_robot.calibration_points)
+        system.plan_robot_calcule = True
 
+    cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
     if not cap.isOpened():
         print("Erreur: impossible d'ouvrir la caméra")
 
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.camera_largeur)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH,  config.camera_largeur)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.camera_longueur)
+    print(f"Résolution effective: {cap.get(cv2.CAP_PROP_FRAME_WIDTH):.0f}x{cap.get(cv2.CAP_PROP_FRAME_HEIGHT):.0f}")
 
-    # Vérifiez la résolution effective
-    actual_width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-    actual_height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-    print(f"Résolution effective: {actual_width}x{actual_height}")
+    # Créer la fenêtre et le gestionnaire de boutons
+    window_name = "Systeme de Tracking ArUco"
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(window_name, 1280, 720)
+    
+    button_manager = ButtonManager(window_name)
+    
+    # Ajouter les boutons (position en bas de l'écran redimensionné)
+    btn_y = 680  # Position Y des boutons
+    btn_h = 35   # Hauteur des boutons
+    btn_spacing = 5
+    
+    buttons_config = [
+        (10, "Plan Noisette", (0, 100, 150)),
+        (150, "Plan Robot", (0, 150, 100)),
+        (280, "Capturer", (150, 100, 0)),
+        (400, "Sauvegarder", (0, 150, 150)),
+        (550, "Chargement", (100, 0, 150)),
+        (690, "Couleurs", (150, 150, 0)),
+        (820, "Debug", (100, 100, 0)),
+        (930, "Quitter", (150, 0, 0)),
+    ]
+    
+    for btn_x, btn_text, btn_color in buttons_config:
+        button_manager.add_button(Button_A(btn_x, btn_y, 130, btn_h, btn_text, btn_color))
 
     try:
         while True:
-            cv2.namedWindow("Systeme de Tracking ArUco", cv2.WINDOW_NORMAL)
-            cv2.resizeWindow("Systeme de Tracking ArUco", 1280, 720)  # Taille de la fenêtre d'affichage
 
             ret, frame = cap.read()
             if not ret:
@@ -1323,8 +1817,10 @@ if __name__ == "__main__":
 
             annotated, results = system.process_frame(frame)
             Liste_noisette_xya = results['Liste_noisette_xya']
-            print(Liste_noisette_xya) 
-            
+            Liste_robots_xy    = results['Liste_robots_xy']
+            print(Liste_noisette_xya)
+            print(Liste_robots_xy)
+
             if hasattr(system, 'show_debug') and system.show_debug:
                 system.color_detector.show_debug_masks(frame)
 
@@ -1332,51 +1828,85 @@ if __name__ == "__main__":
                 print("Plan de référence calculé et verrouillé.")
                 system.plan_reference_calcule = True
 
-            cv2.imshow("Systeme de Tracking ArUco", annotated)
-
-            key = cv2.waitKey(1) & 0xFF
-
-            if key == ord('q'):
-                break
-            elif key == ord('e'):
+            # Dessiner les boutons sur l'image
+            button_manager.draw_all(annotated)
+            
+            cv2.imshow(window_name, annotated)
+            
+            # Gérer les clics de boutons
+            button_click = button_manager.get_last_click()
+            
+            if button_click == "Plan Noisette":
                 system.mode_calibration_active = True
                 system.calibration_mode.reset()
-                print("\nMode calibration du plan élevé activé")
-                print(f"Positionner le tag {config.tag_calibration} au-dessus du tag {system.calibration_mode.get_current_target()} et appuyer sur ESPACE")
-            elif key == ord(' ') and system.mode_calibration_active:
+                print("\nMode calibration NOISETTE activé")
+                print(f"Positionner le tag {config.tag_calibration_Noisette} au-dessus du tag "
+                      f"{system.calibration_mode.get_current_target()} et appuyer sur CAPTURER")
+            
+            elif button_click == "Plan Robot":
+                system.mode_calibration_robot_active = True
+                system.calibration_mode_robot.reset()
+                print("\nMode calibration ROBOT activé")
+                print(f"Positionner le tag {config.tag_calibration_robot} au-dessus du tag "
+                      f"{system.calibration_mode_robot.get_current_target()} et appuyer sur CAPTURER")
+            
+            elif button_click == "Capturer":
                 detected_tags_list, _ = system.detecteur.detect(system.undistort_image(frame))
-                system.handle_calibration_capture(detected_tags_list)
-            elif key == ord('s') and system.mode_calibration_active and system.calibration_mode.is_complete():
-                system.calibration_mode.save_calibration()
-                system.mode_calibration_active = False
-                system.plan_elevated_calcule = True
-                print("Mode calibration désactivé")
-            elif key == ord('r') and system.mode_calibration_active:
-                system.calibration_mode.reset()
-                print("\nCalibration réinitialisée")
-                print(f"Positionner le tag {config.tag_calibration} au-dessus du tag {system.calibration_mode.get_current_target()} et appuyer sur ESPACE")
-            elif key == ord('l') and not system.mode_calibration_active:
-                if system.calibration_mode.load_calibration():
-                    system.homographie.calcul_homographie_elevated(system.calibration_mode.calibration_points)
+                if system.mode_calibration_active:
+                    system.handle_calibration_capture(detected_tags_list)
+                elif system.mode_calibration_robot_active:
+                    system.handle_calibration_capture_robot(detected_tags_list)
+                else:
+                    print("Aucune calibration active. Cliquez d'abord sur 'Plan Noisette' ou 'Plan Robot'")
+            
+            elif button_click == "Sauvegarder":
+                if system.mode_calibration_active and system.calibration_mode.is_complete():
+                    system.calibration_mode.save_calibration()
+                    system.mode_calibration_active = False
                     system.plan_elevated_calcule = True
-
-            elif key == ord('c'):
-                # Mode calibration interactive des couleurs
+                    print("Calibration NOISETTE sauvegardée.")
+                elif system.mode_calibration_robot_active and system.calibration_mode_robot.is_complete():
+                    system.calibration_mode_robot.save_calibration()
+                    system.mode_calibration_robot_active = False
+                    system.plan_robot_calcule = True
+                    print("Calibration ROBOT sauvegardée.")
+                else:
+                    print("Aucune calibration complète à sauvegarder")
+            
+            elif button_click == "Chargement":
+                if not system.mode_calibration_active and not system.mode_calibration_robot_active:
+                    if system.calibration_mode.load_calibration():
+                        system.homographie.calcul_homographie_elevated(system.calibration_mode.calibration_points)
+                        system.plan_elevated_calcule = True
+                    if system.calibration_mode_robot.load_calibration():
+                        system.homographie.calcul_homographie_robot(system.calibration_mode_robot.calibration_points)
+                        system.plan_robot_calcule = True
+                else:
+                    print("Impossible de charger pendant une calibration active")
+            
+            elif button_click == "Couleurs":
                 print("\n=== Entrée en mode calibration couleurs ===")
                 system.color_detector.calibrate_interactive(frame)
-
-            elif key == ord('d'):
-                # Activer/désactiver le mode debug
+            
+            elif button_click == "Debug":
                 if not hasattr(system, 'show_debug'):
                     system.show_debug = False
                 system.show_debug = not system.show_debug
                 if system.show_debug:
-                    print("\nMode debug des masques de couleur ACTIVÉ")
+                    print("\nMode debug ACTIVÉ")
                 else:
-                    print("\nMode debug des masques de couleur DÉSACTIVÉ")
-                    cv2.destroyWindow("Masque Jaune")
-                    cv2.destroyWindow("Masque Bleu")
-                    cv2.destroyWindow("Masques Combinés (Bleu=Bleu, Jaune=Rouge)")
+                    print("\nMode debug DÉSACTIVÉ")
+                    for win in ["Masque Jaune", "Masque Bleu", "Masques Combinés (Bleu=Bleu, Jaune=Rouge)"]:
+                        cv2.destroyWindow(win)
+            
+            elif button_click == "Quitter":
+                break
+            
+            key = cv2.waitKey(1) & 0xFF
+
+            if key == ord('q'):
+                break
+
     finally:
         cap.release()
         cv2.destroyAllWindows()
