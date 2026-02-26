@@ -8,7 +8,7 @@ Astars = True
 
 Simul_mvt = True
 Simul_mvt_ennemi = False
-Debug_Mouv = True
+Debug_Mouv = False
 
 Simul_action = True
 Debug_Action = False
@@ -367,9 +367,9 @@ if couleur == "B":
     angle_robot_depart = -90
     
     """x_robot_depart = 1500 
-    y_robot_depart = 750
-    angle_robot_depart = -90
-    """
+    y_robot_depart = 400
+    angle_robot_depart = -90"""
+    
     x_robot_retour = 2725
     y_robot_retour = 1670
     angle_robot_retour = -90
@@ -377,8 +377,8 @@ if couleur == "B":
     x_ennemi = 275
     y_ennemi = 1650
 
-    """x_ennemi = 1300
-    y_ennemi = 800"""
+    x_ennemi = 1300
+    y_ennemi = 800
 else:
     x_robot_depart = 275 
     y_robot_depart = 1670
@@ -467,7 +467,7 @@ marge_texte = 20  # espace horizontal entre texte et rectangle
 texte_offset_y = 50  # décalage vertical du texte par rapport aux rectangles
 longueur_trait = 100  # longueur trait de direction
 compteur_affichage = 0
-FREQUENCE_AFFICHAGE = 4
+FREQUENCE_AFFICHAGE = 8
 ##########################
 
 # Objets et variables pour la fenêtre graphique
@@ -532,9 +532,13 @@ Pince_Ar_1 = True
 Pince_Ar_2 = True
 
 demande_recalcul_traj = False
+sortir_ennemi = False
 Astars_a_fail = False
 ordre_mouvement = 0
 old_ordre_mouvement = 0
+
+x_sortie_fixe = None
+y_sortie_fixe = None
 # ==================================================
 
 TOL_POS_X = 16 
@@ -1626,7 +1630,17 @@ def positionner_robot_devant_Noisette():
     return Liste_actions
 
 
-
+def point_sortie_valide(x, y, x_ennemi, y_ennemi, R_securite, R_ROBOT, X_PISTE, Y_PISTE, width, height, CASE_MM, grid_expanded):
+    if not (R_ROBOT <= x <= X_PISTE - R_ROBOT and R_ROBOT <= y <= Y_PISTE - R_ROBOT):
+        return False
+    x_case = max(0, min(width - 1, int(x // CASE_MM)))
+    y_case = max(0, min(height - 1, int(y // CASE_MM)))
+    if grid_expanded[y_case, x_case]:
+        return False
+    dist_ennemi = math.sqrt((x - x_ennemi)**2 + (y - y_ennemi)**2)
+    if dist_ennemi < R_securite:
+        return False
+    return True
 ########################################################################
 
 ############################### Programme principal ####################
@@ -1820,12 +1834,6 @@ if __name__ == '__main__':
                     Noisette_init = True
             # ============================================================================ #
 
-            if Astars:
-                grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, 
-                            obs_manager, obs_manager_noisettes,
-                            Liste_noisette_xya,  # ⭐ NOUVEAU PARAMÈTRE
-                            obstacle_scatter, expanded_scatter, distance_map, 
-                            ax, width, height, CASE_MM)
             
             # Simu déplacement robot ennemi
             if not Reel:
@@ -1989,7 +1997,7 @@ if __name__ == '__main__':
 
             
             # =========== Détection demande_recalcul_traj ============= #
-            if Astars:
+            if Astars and not sortir_ennemi:
                 if verifier_segments_trajectoire_ennemi(Liste_actions,x_ennemi, y_ennemi,R_securite, MARGE_TRAJECTOIRE,x_robot_actuel, y_robot_actuel):
                     demande_recalcul_traj = True
                     if Debug_Mouv:
@@ -2011,7 +2019,7 @@ if __name__ == '__main__':
             # ======================== CALCUL DE LA TRAJECTOIRE A* =================== #
             if Astars: 
                 # === CALCUL DE LA TRAJECTOIRE A* ===
-                if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper:
+                if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper and not sortir_ennemi:
                     grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
 
                     if Debug_Mouv:
@@ -2112,24 +2120,56 @@ if __name__ == '__main__':
             # ================================================= #
                 
             
-            if (distance_robot_ennemi < R_securite-MARGE_TRAJECTOIRE) and action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]:
+            if (distance_robot_ennemi < R_securite - MARGE_TRAJECTOIRE) and action_voulu in ["Consigne", "Avancer", "Reculer", "ReculerPrecis"]:
                 ordre_mouvement = 1
-                angle_robot_ennemi = math.atan2(y_robot_actuel- y_ennemi,x_robot_actuel-x_ennemi)
-                x_sortie = x_ennemi + (R_securite)*math.cos(angle_robot_ennemi)
-                y_sortie = y_ennemi + (R_securite)*math.sin(angle_robot_ennemi)
-                if Liste_actions[0][0] in ["Avancer","Reculer","Consigne","ReculerPrecis"]:
-                    x_prochain = Liste_actions[0][1]
-                    y_prochain = Liste_actions[0][2]
-                    print(math.sqrt((x_prochain - x_sortie)**2 + (y_prochain - y_sortie)**2))
-                    if distance((x_prochain,y_prochain),(x_sortie,y_sortie))>50:
-                        if action_voulu in ["Consigne","Avancer"]:
-                            Liste_actions.insert(0,["Avancer",x_sortie,y_sortie])
-                        elif action_voulu in ["ReculerPrecis","Reculer"]:
-                            Liste_actions.insert(0,["Reculer",x_sortie,y_sortie])
-                        action_voulu = Liste_actions[0][0]
-                        x_robot_voulu = Liste_actions[0][1] 
-                        y_robot_voulu = Liste_actions[0][2]
-                        angle_robot_voulu = -181
+
+                # ⭐ Ne recalculer le point de sortie QUE si on n'en a pas déjà un
+                if not sortir_ennemi or x_sortie_fixe is None:
+                    angle_robot_ennemi = math.atan2(y_robot_actuel - y_ennemi, x_robot_actuel - x_ennemi)
+
+                    x_sortie_fixe = None
+                    y_sortie_fixe = None
+                    angles_a_tester = [0, 5,-5,10,-10,15,-15,20,-20,25,-25,30,-30,35,-35,40,-40,45,-45,50,-50,55,-55,60,-60]
+                    
+                    for delta in angles_a_tester:
+                        angle_test = math.radians(math.degrees(angle_robot_ennemi) + delta)
+                        x_test = x_ennemi + (R_securite + 2*MARGE_TRAJECTOIRE) * math.cos(angle_test)
+                        y_test = y_ennemi + (R_securite + 2*MARGE_TRAJECTOIRE) * math.sin(angle_test)
+                        if point_sortie_valide(x_test, y_test, x_ennemi, y_ennemi, R_securite, R_ROBOT, X_PISTE, Y_PISTE, width, height, CASE_MM, grid_expanded):
+                            x_sortie_fixe = x_test
+                            y_sortie_fixe = y_test
+                            break
+
+                # ⭐ Utiliser le point mémorisé
+                if x_sortie_fixe is None or y_sortie_fixe is None:
+                    ordre_mouvement = 3
+                    if Debug_Mouv:
+                        print("⚠️ Aucun point de sortie valide autour de l'ennemi")
+                else:
+                    sortir_ennemi = True
+                    while len(Liste_actions) > 1 and Liste_actions[0][0] in ["Avancer", "Reculer"]:
+                        Liste_actions.pop(0)
+
+                    if Liste_actions[0][0] in ["Avancer", "Reculer", "Consigne", "ReculerPrecis"]:
+                        x_prochain = Liste_actions[0][1]
+                        y_prochain = Liste_actions[0][2]
+                        if distance((x_prochain, y_prochain), (x_sortie_fixe, y_sortie_fixe)) > 50:
+                            if action_voulu in ["Consigne", "Avancer"]:
+                                Liste_actions.insert(0, ["Avancer", x_sortie_fixe, y_sortie_fixe])
+                            elif action_voulu in ["ReculerPrecis", "Reculer"]:
+                                Liste_actions.insert(0, ["Reculer", x_sortie_fixe, y_sortie_fixe])
+                            action_voulu = Liste_actions[0][0]
+                            x_robot_voulu = Liste_actions[0][1]
+                            y_robot_voulu = Liste_actions[0][2]
+                            angle_robot_voulu = -181
+                            if Debug_Mouv:
+                                print(f"✅ Point de sortie fixe : ({x_sortie_fixe:.0f}, {y_sortie_fixe:.0f})")
+
+            # ⭐ Réinitialiser le point fixe quand on est sorti
+            elif sortir_ennemi and distance_robot_ennemi >= R_securite:
+                sortir_ennemi = False
+                x_sortie_fixe = None
+                y_sortie_fixe = None
 
             elif action_voulu in ["Avancer"]:
                 ordre_mouvement=1
@@ -2774,6 +2814,9 @@ if __name__ == '__main__':
                     verif_action = 0
                     action_est_supprime = True
                     action_precedente = action_voulu
+                    sortir_ennemi = False
+                    x_sortie_fixe = None
+                    y_sortie_fixe = None
             else :
                 action_est_supprime = False
             
@@ -2811,10 +2854,8 @@ if __name__ == '__main__':
             
 
             # MAJ de l'affichage et des Variables de Bouncing
-            compteur_affichage += 1
-            if compteur_affichage >= FREQUENCE_AFFICHAGE:
+            if step % FREQUENCE_AFFICHAGE == 0:
                 update_display(background)
-                compteur_affichage = 0
             fig.canvas.flush_events()
             x_robot_voulu_last = x_robot_voulu
             y_robot_voulu_last = y_robot_voulu
