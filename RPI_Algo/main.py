@@ -1,14 +1,14 @@
 couleur = "B"
 Reel = False
-Wifi = True
+Wifi = False
 
 Strategie = False
 Debug_strategie = False
-Astars = False
+Astars = True
 
 Simul_mvt = True
 Simul_mvt_ennemi = False
-Debug_Mouv = False
+Debug_Mouv = True
 
 Simul_action = True
 Debug_Action = False
@@ -188,25 +188,34 @@ else :
     # Prendre Decision
     Liste_actions = [
         ["Consigne",2825,1100-3.7*MARGE_NOISETTE-LONGUEUR_ROBOT/2],
+        ["Rotation",90],
         ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
         ["Rotation",90],
-        ["Attraper",0,1234],
-        ["Avancer",2725,1600],
-        ["Consigne",2725,1550],
-        ["Relacher",0,1234],
-        ["Reculer",2725,1450],
+        ["Attraper",0,12],
+        ["Retourner",0,12],
+        ["Rotation",-90],
+        ["ReculerPrecis",2825,1200-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
+        ["Attraper",1,12],
+
+        ["ReculerPrecis",2725,1750],
+        ["Relacher",1,12],
+        ["Consigne",2725,1600],
+        ["Rotation",90],
+        ["Relacher",0,12],
+        ["ReculerPrecis",2725,1450],
         
-        ["Consigne",1500,1300],
+        ["ReculerPrecis",1500,1300],
 
         ["Consigne",2725,1670],
         ["Rotation",-90]
 ]
 
-Liste_actions = [
+"""Liste_actions = [
     ["Attraper",0,12],
     ["Retourner",0,12],
     ["Relacher",0,12],
-]
+]"""
+
 Liste_trajectoire = []
 
 Liste_actions_ennemi = []
@@ -256,6 +265,8 @@ if not Wifi:
         [1825+30,175-20,90-2,"B"],[1875+30,175-20,90+2,"J"],[1925+30,175-20,90-2,"J"],[1975+30,175-20,90+2,"B"],
 
     ] 
+else :
+    Liste_noisette_xya_cam = []
 
 Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
 Noisette_init = False
@@ -354,13 +365,20 @@ if couleur == "B":
     x_robot_depart = 2725 
     y_robot_depart = 1670
     angle_robot_depart = -90
-
+    
+    """x_robot_depart = 1500 
+    y_robot_depart = 750
+    angle_robot_depart = -90
+    """
     x_robot_retour = 2725
     y_robot_retour = 1670
     angle_robot_retour = -90
     
     x_ennemi = 275
     y_ennemi = 1650
+
+    """x_ennemi = 1300
+    y_ennemi = 800"""
 else:
     x_robot_depart = 275 
     y_robot_depart = 1670
@@ -549,7 +567,6 @@ angle_robot_actuel_cam = angle_robot_depart
 x_ennemi_cam = x_ennemi
 y_ennemi_cam = y_ennemi
 angle_ennemi_cam = 0
-Liste_noisette_xya_cam = []
 
 ################## Fonction Threads ##########################################
 
@@ -915,7 +932,7 @@ def positionner_robot_devant_Noisette():
                     if pince_a_utilise == 0:
                         Liste_actions = [["Rotation",180-90+angle_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",180-90+angle_noisette]]
                     elif pince_a_utilise == 1:
-                        Liste_actions = [["Rotation",-90+angle_noisette],["Reculer",x_arrivee_2,y_arrivee_2],["Rotation",-90+angle_noisette]]
+                        Liste_actions = [["Rotation",-90+angle_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",-90+angle_noisette]]
 
                     x_arrivee_Astar = strategie_en_cours[0][0]+distance*math.cos(angle_rad2)
                     y_arrivee_Astar = strategie_en_cours[0][1]+distance*math.sin(angle_rad2)
@@ -924,7 +941,7 @@ def positionner_robot_devant_Noisette():
                     if pince_a_utilise == 0:
                         Liste_actions = [["Rotation",-90+angle_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",-90+angle_noisette]]
                     elif pince_a_utilise == 1:
-                        Liste_actions = [["Rotation",180-90+angle_noisette],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",180-90+angle_noisette]]
+                        Liste_actions = [["Rotation",180-90+angle_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180-90+angle_noisette]]
 
                     x_arrivee_Astar = strategie_en_cours[0][0]+distance*math.cos(angle_rad1)
                     y_arrivee_Astar = strategie_en_cours[0][1]+distance*math.sin(angle_rad1)
@@ -936,7 +953,7 @@ def positionner_robot_devant_Noisette():
                         if pince_a_utilise == 0:
                             Liste_actions = [["Rotation",-90+angle_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",-90+angle_noisette]]
                         elif pince_a_utilise == 1:
-                            Liste_actions = [["Rotation",180-90+angle_noisette],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",180-90+angle_noisette]]
+                            Liste_actions = [["Rotation",180-90+angle_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180-90+angle_noisette]]
 
                         x_arrivee_Astar = strategie_en_cours[0][0]+distance*math.cos(angle_rad1)
                         y_arrivee_Astar = strategie_en_cours[0][1]+distance*math.sin(angle_rad1)
@@ -945,7 +962,7 @@ def positionner_robot_devant_Noisette():
                         if pince_a_utilise == 0:
                             Liste_actions = [["Rotation",180-90+angle_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",180-90+angle_noisette]]
                         elif pince_a_utilise == 1:
-                            Liste_actions = [["Rotation",-90+angle_noisette],["Reculer",x_arrivee_2,y_arrivee_2],["Rotation",90+angle_noisette]]
+                            Liste_actions = [["Rotation",-90+angle_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",90+angle_noisette]]
 
                         x_arrivee_Astar = strategie_en_cours[0][0]+distance*math.cos(angle_rad2)
                         y_arrivee_Astar = strategie_en_cours[0][1]+distance*math.sin(angle_rad2)
@@ -1090,7 +1107,7 @@ def positionner_robot_devant_Noisette():
                     if pince_a_utilise == 0:
                             Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]
                     elif pince_a_utilise == 1:
-                            Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["Reculer",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]
+                            Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]
 
                     distance = 25 + 4*MARGE_NOISETTE+LONGUEUR_ROBOT/2
                     x_arrivee_Astar = strategie_en_cours[len(strategie_en_cours)-1][0]+distance*math.cos(angle_rad2)
@@ -1125,7 +1142,7 @@ def positionner_robot_devant_Noisette():
                         if pince_a_utilise == 0:
                             Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]
                         elif pince_a_utilise == 1:
-                            Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]
+                            Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]
 
                         distance = 25 + 4*MARGE_NOISETTE+LONGUEUR_ROBOT/2
                         x_arrivee_Astar = strategie_en_cours[0][0]+distance*math.cos(angle_rad1)
@@ -1415,24 +1432,24 @@ def positionner_robot_devant_Noisette():
                                     print("DEMANDE NOUVELLE STRAT")
                                 else : 
                                     if pince_a_utilise == 0:
-                                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["Reculer",x_arrivee_Astar,y_arrivee_Astar]]
+                                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                                     else :
-                                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
                             else : 
                                 if pince_a_utilise == 0:
-                                    Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["Reculer",x_arrivee_Astar,y_arrivee_Astar]]
+                                    Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                                 else :
-                                    Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                                    Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
                         else : 
                             if pince_a_utilise == 0:
-                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["Reculer",x_arrivee_Astar,y_arrivee_Astar]]
+                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                             else :
-                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
 
                     if pince_a_utilise == 0:
-                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["Reculer",x_arrivee_Astar,y_arrivee_Astar]]
+                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                     else :
-                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
                 elif sous_pince == 1: 
                     angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
                     print("angle_centre_cote : ",np.degrees(angle_centre_cote))
@@ -1585,24 +1602,24 @@ def positionner_robot_devant_Noisette():
                                     print("DEMANDE NOUVELLE STRAT")
                                 else : 
                                     if pince_a_utilise == 0:
-                                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["Reculer",x_arrivee_Astar,y_arrivee_Astar]]
+                                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                                     else :
-                                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
                             else : 
                                 if pince_a_utilise == 0:
-                                    Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["Reculer",x_arrivee_Astar,y_arrivee_Astar]]
+                                    Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                                 else :
-                                    Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                                    Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
                         else : 
                             if pince_a_utilise == 0:
-                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["Reculer",x_arrivee_Astar,y_arrivee_Astar]]
+                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                             else :
-                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
 
                     if pince_a_utilise == 0:
-                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["Reculer",x_arrivee_Astar,y_arrivee_Astar]]
+                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                     else :
-                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["Reculer",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]     
+                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]     
                  
 
     Liste_actions.append(["Attente"])
@@ -1823,6 +1840,10 @@ if __name__ == '__main__':
 
                     x_ennemi += round(15*np.cos(math.radians(angle_ennemi_consigne)),0)
                     y_ennemi += round(15*np.sin(math.radians(angle_ennemi_consigne)),0)
+
+                """if step > 180:
+                    x_ennemi = 2800
+                    y_ennemi = 800"""
             ###
             
             # ======================== Tri Noisettes ============================================= #
@@ -1931,7 +1952,7 @@ if __name__ == '__main__':
             # ================================================= #
 
             # ========== Lire l'action courante =============== #
-            if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer"]:
+            if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer","ReculerPrecis"]:
                 action_voulu = Liste_actions[0][0]
                 x_robot_voulu = Liste_actions[0][1] 
                 y_robot_voulu = Liste_actions[0][2]
@@ -1950,10 +1971,9 @@ if __name__ == '__main__':
                 noisette_a_manipulee = Liste_actions[0][2]
                 print("Appeler Pince N°",pince_a_utilise," pour ",action_voulu," les Noisettes ",noisette_a_manipulee)
 
-
             # ====== Bouger si Robot dans Zone interdite pour Attraper et Relacher === #
             if len(Liste_actions)>2 or action_precedente in ["Relacher"]:
-                if (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper"]) or Liste_actions[1][0] in ["Attraper"] or action_voulu in ["Attraper"] or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","Avancer","Reculer"]) or (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Relacher"]) or Liste_actions[1][0] in ["Relacher"] or action_voulu in ["Relacher"]:
+                if (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper"]) or Liste_actions[1][0] in ["Attraper"] or action_voulu in ["Attraper"] or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]) or (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Relacher"]) or action_voulu in ["Relacher"]:
                     mode_attraper = True
                 else : 
                     mode_attraper = False
@@ -1967,6 +1987,7 @@ if __name__ == '__main__':
             angle_ennemi = np.degrees(math.atan2(y_ennemi-y_ennemi_old,x_ennemi-x_ennemi_old))
             mouvement_ennemi = math.sqrt((x_ennemi - x_ennemi_old)**2 + (y_ennemi - y_ennemi_old)**2)
 
+            
             # =========== Détection demande_recalcul_traj ============= #
             if Astars:
                 if verifier_segments_trajectoire_ennemi(Liste_actions,x_ennemi, y_ennemi,R_securite, MARGE_TRAJECTOIRE,x_robot_actuel, y_robot_actuel):
@@ -1975,7 +1996,7 @@ if __name__ == '__main__':
                         print("Ennemi coupe trajectoire")
                 else :
                     for action in Liste_actions:
-                        if action[0] in ["Consigne","Avancer","Reculer"]:
+                        if action[0] in ["Consigne","Avancer","Reculer","ReculerPrecis"]:
                             distance_point_ennemi = math.sqrt((action[1] - x_ennemi)**2 + (action[2] - y_ennemi)**2)
                             rayon_detection = (R_securite + MARGE_TRAJECTOIRE)  # Marge de sécurité supplémentaire
                             if distance_point_ennemi <= rayon_detection:
@@ -1990,7 +2011,7 @@ if __name__ == '__main__':
             # ======================== CALCUL DE LA TRAJECTOIRE A* =================== #
             if Astars: 
                 # === CALCUL DE LA TRAJECTOIRE A* ===
-                if (action_voulu in ["Consigne","Reculer"] or demande_recalcul_traj == True) and not mode_attraper:
+                if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper:
                     grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
 
                     if Debug_Mouv:
@@ -2028,14 +2049,18 @@ if __name__ == '__main__':
                         if Debug_Mouv:
                             print(f"✅ Trajectoire calculée : {len(points_bruts)} points")
                         Liste_actions = [action for action in Liste_actions if not (isinstance(action, list) 
-                                            and len(action) >= 2 and action[0] == "Avancer")]
+                                            and len(action) >= 2 and action[0] in ["Avancer","Reculer"])]
                         # ⭐ AJOUT DES POINTS DANS Liste_actions
-
+                        verif_mouv = 0
+                        verif_angle = 0
                         if len(points_bruts) >2:
                             for i in range(len(points_bruts)-1, 0, -1):
                                 x_cible, y_cible = points_bruts[i]
                                 if abs(x_cible - x_robot_voulu) > 20 or abs(y_cible - y_robot_voulu) > 20:
-                                    Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
+                                    if action_voulu in ["Consigne"]:
+                                        Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
+                                    elif action_voulu in ["ReculerPrecis"]:
+                                        Liste_actions.insert(0, ["Reculer", x_cible, y_cible])
                         else :
                             distance_robot_consigne = math.sqrt((x_robot_actuel - points_bruts[1][0])**2 + (y_robot_actuel - points_bruts[1][1])**2)
                             angle_robot_consigne = math.atan2(y_robot_actuel - points_bruts[1][1],x_robot_actuel - points_bruts[1][0])
@@ -2044,7 +2069,10 @@ if __name__ == '__main__':
                                     print("Point trop loin")
                                 x_nouveau = points_bruts[1][0] + 100*math.cos(angle_robot_consigne)
                                 y_nouveau = points_bruts[1][1] + 100*math.sin(angle_robot_consigne)
-                                Liste_actions.insert(0, ["Avancer", x_nouveau, y_nouveau])
+                                if action_voulu in ["Consigne"]:
+                                    Liste_actions.insert(0, ["Avancer", x_nouveau, y_nouveau])
+                                elif action_voulu in ["ReculerPrecis"]:
+                                    Liste_actions.insert(0, ["Reculer", x_nouveau, y_nouveau])
 
                         Astars_a_fail = False
                         if Debug_Mouv:
@@ -2061,10 +2089,9 @@ if __name__ == '__main__':
                                 print("CHEMIN INACCESSIBLE")
 
             # ======================================================================== #
-
             
             # ========== Lire l'action courante =============== #
-            if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer"]:
+            if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer","ReculerPrecis"]:
                 action_voulu = Liste_actions[0][0]
                 x_robot_voulu = Liste_actions[0][1] 
                 y_robot_voulu = Liste_actions[0][2]
@@ -2085,13 +2112,30 @@ if __name__ == '__main__':
             # ================================================= #
                 
             
-            if (distance_robot_ennemi < R_securite-MARGE_TRAJECTOIRE) or Astars_a_fail:
-                ordre_mouvement = 3
+            if (distance_robot_ennemi < R_securite-MARGE_TRAJECTOIRE) and action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]:
+                ordre_mouvement = 1
+                angle_robot_ennemi = math.atan2(y_robot_actuel- y_ennemi,x_robot_actuel-x_ennemi)
+                x_sortie = x_ennemi + (R_securite)*math.cos(angle_robot_ennemi)
+                y_sortie = y_ennemi + (R_securite)*math.sin(angle_robot_ennemi)
+                if Liste_actions[0][0] in ["Avancer","Reculer","Consigne","ReculerPrecis"]:
+                    x_prochain = Liste_actions[0][1]
+                    y_prochain = Liste_actions[0][2]
+                    print(math.sqrt((x_prochain - x_sortie)**2 + (y_prochain - y_sortie)**2))
+                    if distance((x_prochain,y_prochain),(x_sortie,y_sortie))>50:
+                        if action_voulu in ["Consigne","Avancer"]:
+                            Liste_actions.insert(0,["Avancer",x_sortie,y_sortie])
+                        elif action_voulu in ["ReculerPrecis","Reculer"]:
+                            Liste_actions.insert(0,["Reculer",x_sortie,y_sortie])
+                        action_voulu = Liste_actions[0][0]
+                        x_robot_voulu = Liste_actions[0][1] 
+                        y_robot_voulu = Liste_actions[0][2]
+                        angle_robot_voulu = -181
+
             elif action_voulu in ["Avancer"]:
                 ordre_mouvement=1
             elif action_voulu in ["Reculer"]:
                 ordre_mouvement=2
-            elif action_voulu in ["Attraper","Retourner","Relacher"]:
+            elif action_voulu in ["Attraper","Retourner","Relacher"] or Astars_a_fail:
                 ordre_mouvement=3
             elif action_voulu in ["Rotation"]:
                 ordre_mouvement=4
@@ -2101,6 +2145,8 @@ if __name__ == '__main__':
                 ordre_mouvement=6
             elif action_voulu in ["Recalage Y"]:
                 ordre_mouvement=7
+            elif action_voulu in ["ReculerPrecis"]:
+                ordre_mouvement = 8
             else :
                 ordre_mouvement=100
             
@@ -2127,7 +2173,7 @@ if __name__ == '__main__':
                     if i < index_prochain_stop
                     and isinstance(action, list) 
                     and len(action) >= 3 
-                    and action[0] in ["Avancer", "Consigne","Reculer"]
+                    and action[0] in ["Avancer", "Consigne","Reculer","ReculerPrecis"]
                 ]
             else:
                 # Prendre tous les points
@@ -2136,7 +2182,7 @@ if __name__ == '__main__':
                     for action in Liste_actions 
                     if isinstance(action, list) 
                     and len(action) >= 3 
-                    and action[0] in ["Avancer", "Consigne","Reculer"]
+                    and action[0] in ["Avancer", "Consigne","Reculer","ReculerPrecis"]
                 ]
             
             # Remplir Liste_trajectoire
@@ -2146,7 +2192,7 @@ if __name__ == '__main__':
                 Liste_trajectoire.extend(points_avancer)
             elif len(points_avancer) == 1 and len(Liste_actions) > 0:
                 premiere_action = Liste_actions[0]
-                if isinstance(premiere_action, list) and len(premiere_action) >= 3 and premiere_action[0] in ["Consigne", "Avancer","Reculer"]:
+                if isinstance(premiere_action, list) and len(premiere_action) >= 3 and premiere_action[0] in ["Consigne", "Avancer","Reculer","ReculerPrecis"]:
                     Liste_trajectoire.clear()
                     Liste_trajectoire.append(1)
                     Liste_trajectoire.extend(points_avancer)
@@ -2182,7 +2228,7 @@ if __name__ == '__main__':
                                 angle_robot_actuel -= 5
                             elif(angle_robot_actuel < angle_robot_voulu):
                                 angle_robot_actuel += 5
-                        if(action_voulu in ["Consigne","Avancer","Reculer"]):
+                        if(action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]):
                             angle_robot_consigne = math.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel)
                             x_robot_actuel += round(15*np.cos(angle_robot_consigne),0)
                             y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
@@ -2531,7 +2577,7 @@ if __name__ == '__main__':
             )
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
             if Astars:
-                if (action_voulu in ["Consigne","Avancer","Reculer"]):
+                if (action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]):
                     consigne_plot.set_offsets([[x_robot_voulu, y_robot_voulu]])
                 else :
                     consigne_plot.set_offsets([[-20, -20]])
@@ -2540,7 +2586,7 @@ if __name__ == '__main__':
                 points_consigne = [
                     (action[1], action[2])
                     for action in Liste_actions
-                    if isinstance(action, list) and len(action) >= 3 and action[0] in ["Consigne", "Avancer","Reculer"]
+                    if isinstance(action, list) and len(action) >= 3 and action[0] in ["Consigne", "Avancer","Reculer","ReculerPrecis"]
                 ]
 
                 if points_consigne:
@@ -2590,7 +2636,6 @@ if __name__ == '__main__':
             
             
             # ======================= GESTION BATTERIES ========================== #
-            Batteries = [60, 60, 60, 60]
             if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             
@@ -2631,7 +2676,7 @@ if __name__ == '__main__':
 
             # Si robot est à la position de consigne  
             if not Reel :
-                if(abs(x_robot_actuel-x_robot_voulu)<TOL_POS_X and abs(y_robot_actuel-y_robot_voulu)<TOL_POS_Y and action_voulu in ["Consigne","Avancer","Reculer"]):
+                if(abs(x_robot_actuel-x_robot_voulu)<TOL_POS_X and abs(y_robot_actuel-y_robot_voulu)<TOL_POS_Y and action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]):
                     if Debug_Mouv:
                         print("Bonne position")
                     verif_mouv = 1
@@ -2715,7 +2760,7 @@ if __name__ == '__main__':
 
 
             if not action_est_supprime:
-                if (action_voulu in ["Consigne","Avancer","Reculer"] and verif_mouv == 1) or \
+                if (action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"] and verif_mouv == 1) or \
                 (action_voulu in ["Rotation"] and verif_angle == 1) or \
                 (action_voulu in ["Recalage X","Recalage Y"] and verif_recalage == 1) or \
                 (action_voulu in ["Attraper","Retourner","Relacher"] and verif_action == 1):
