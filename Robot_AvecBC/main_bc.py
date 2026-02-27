@@ -41,11 +41,11 @@ from homographie_couleur import Config,ArUcoTrackingSystem,ButtonManager,Button_
 # Config Wi-Fi 
 # Configuration pour l'envoi
 IP_ROBOT = "192.168.0.102"
-PORT_ENVOI = 5000
+PORT_ENVOI = 5001
 
 # Configuration pour la réception
 IP_RECEPTION = '0.0.0.0'  
-PORT_RECEPTION = 5001
+PORT_RECEPTION = 5000
 #################################################
 
 # Perimètre de sécurité
@@ -790,3 +790,4 @@ if __name__ == '__main__':
         cv2.destroyAllWindows()
 
 ########################################################################
+
