@@ -1,12 +1,12 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 
 Strategie = False
 Debug_strategie = False
-Astars = True
+Astars = False
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Debug_Mouv = False
 
@@ -270,7 +270,7 @@ else :
 
 Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
 Noisette_init = False
-TOL_CAM_NOISETTE = 40
+TOL_CAM_NOISETTE = 30
 
 Liste_noisettes_recup_xy = [((175,1300+R_ROBOT+2*MARGE_NOISETTE),(175,1100-R_ROBOT-2*MARGE_NOISETTE)),
                                   ((175,500+R_ROBOT+2*MARGE_NOISETTE),(175,300-R_ROBOT-2*MARGE_NOISETTE)),
@@ -346,12 +346,12 @@ lidar = None
 ####################################
 
 # Configuration pour la réception
-HOST_PC = '0.0.0.0'
-PORT_RECEPTION = 5000
+IP_RECEPTION = '0.0.0.0'
+PORT_RECEPTION = 5001
 
 # Configuration pour l'envoi vers la BC
-HOST_RPI = "192.168.0.103"  # IP de la BC
-PORT_ENVOI = 5001
+IP_BC = "192.168.0.100"  # IP de la BC
+PORT_ENVOI = 5000
 
 # Piste
 X_PISTE = 3000
@@ -377,8 +377,8 @@ if couleur == "B":
     x_ennemi = 275
     y_ennemi = 1650
 
-    x_ennemi = 1300
-    y_ennemi = 800
+    """x_ennemi = 1300
+    y_ennemi = 800"""
 else:
     x_robot_depart = 275 
     y_robot_depart = 1670
@@ -704,7 +704,7 @@ def comm_bc(stop_event):
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_socket.bind((HOST_PC, PORT_RECEPTION))
+    server_socket.bind((IP_RECEPTION, PORT_RECEPTION))
     server_socket.listen(1)
     
     try:
@@ -1785,20 +1785,21 @@ if __name__ == '__main__':
 
             # =============== Association Couleur CAM à Noisette Aveugle ==================== #
             if not Noisette_init:
+                Liste_noisette_xya_cam_copie = Liste_noisette_xya_cam
                 for Noisette_posconnue in Liste_noisette_xya:
                     if Noisette_posconnue[3]=="R":
-                        for Noisette_couleurconnue in Liste_noisette_xya_cam:
+                        for Noisette_couleurconnue in Liste_noisette_xya_cam_copie:
                             distance_NN = math.sqrt((Noisette_posconnue[0] - Noisette_couleurconnue[0])**2 + (Noisette_posconnue[1] - Noisette_couleurconnue[1])**2)
                             print(distance_NN)
                             if Reel and (0 <= Noisette_posconnue[0] <= 300 and 0 <= Noisette_posconnue[1] <= 500 and couleur == "B")or(2700 <= Noisette_posconnue[0] <= 3000 and 0 <= Noisette_posconnue[1] <= 500 and couleur == "J"):
                                 if distance_NN <= TOL_CAM_NOISETTE-10:
                                     Noisette_posconnue[3]=Noisette_couleurconnue[3]
-                                    Liste_noisette_xya_cam.remove(Noisette_couleurconnue)
+                                    Liste_noisette_xya_cam_copie.remove(Noisette_couleurconnue)
                                     break
                             else :
                                 if distance_NN <= TOL_CAM_NOISETTE:
                                     Noisette_posconnue[3]=Noisette_couleurconnue[3]
-                                    Liste_noisette_xya_cam.remove(Noisette_couleurconnue)
+                                    Liste_noisette_xya_cam_copie.remove(Noisette_couleurconnue)
                                     break
                 Liste_noisettes_restantes = [n for n in Liste_noisette_xya if n[3] == "R"]
                 if len(Liste_noisettes_restantes) != 0 :
@@ -2676,6 +2677,7 @@ if __name__ == '__main__':
             
             
             # ======================= GESTION BATTERIES ========================== #
+            Batteries = [60,60,60,60]
             if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             
@@ -2883,7 +2885,7 @@ if __name__ == '__main__':
                     message = json.dumps(donnees_vers_bc)
                     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     client_socket.settimeout(0.1)
-                    client_socket.connect((HOST_RPI, PORT_ENVOI))
+                    client_socket.connect((IP_BC, PORT_ENVOI))
                     client_socket.sendall(message.encode())
                     client_socket.close()
                 except (socket.timeout, ConnectionRefusedError, OSError) as e:
