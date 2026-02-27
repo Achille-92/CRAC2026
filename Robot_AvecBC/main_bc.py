@@ -40,7 +40,7 @@ from homographie_couleur import Config,ArUcoTrackingSystem,ButtonManager,Button_
 #couleur = fenetre_selection_couleur()
 # Config Wi-Fi 
 # Configuration pour l'envoi
-IP_ROBOT = "192.168.0.102"
+IP_ROBOT = "192.168.0.101"
 PORT_ENVOI = 5001
 
 # Configuration pour la réception
