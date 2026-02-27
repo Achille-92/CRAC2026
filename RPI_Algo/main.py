@@ -1,5 +1,5 @@
 couleur = "B"
-Reel = False
+Reel = True
 Wifi = True
 
 Strategie = False
@@ -2677,7 +2677,7 @@ if __name__ == '__main__':
             
             
             # ======================= GESTION BATTERIES ========================== #
-            Batteries = [60,60,60,60]
+            
             if step > 1:
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             
