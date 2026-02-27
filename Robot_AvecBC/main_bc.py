@@ -251,7 +251,7 @@ TOL_POS_Y = 16
 TOL_POS_A = 5
 
 ################## Fonction Threads ##########################################
-def comm_robot():
+def comm_robot(stop_event):
     print(f"[Récepteur] Serveur en attente sur le port {PORT_RECEPTION}...")
     
     global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi, Batteries, Batteries_alert,Noisettes_stockees_dans_robot, action_voulu, action_precedente, temps_restant
@@ -262,7 +262,7 @@ def comm_robot():
     server_socket.listen(1)
     
     try:
-        while True:
+        while not stop_event.is_set():
             conn, addr = server_socket.accept()
             print(f"\n[Récepteur] --- Connexion depuis {addr} ---")
             
@@ -278,8 +278,8 @@ def comm_robot():
             
             # Décodage et affichage
             try:
+                
                 donnees_recues = json.loads(data.decode())
-
                 
                 x_robot_actuel = donnees_recues["x_robot_actuel"]
                 y_robot_actuel = donnees_recues["y_robot_actuel"]
@@ -292,7 +292,8 @@ def comm_robot():
                 action_voulu = donnees_recues["action_voulu"]
                 action_precedente = donnees_recues["action_precedente"]
                 temps_restant = donnees_recues["temps_restant"]
-                
+
+                print("aaaaaaaaaaaaaaaaaa")
                 
             except json.JSONDecodeError:
                 print("[Récepteur] Erreur : données JSON invalides")
@@ -418,7 +419,7 @@ if __name__ == '__main__':
     stop_event = threading.Event()
     
     if WiFi:
-        thread_reception = threading.Thread(target=comm_robot, daemon=True)
+        thread_reception = threading.Thread(target=comm_robot, args=(stop_event,), daemon=True)
         thread_reception.start()
 
     fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,noisette_text = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
@@ -622,6 +623,7 @@ if __name__ == '__main__':
 
                 if key == ord('q'):
                     break
+
             if WiFi:
                 donnees_pour_robot = {
                     "Liste_noisette_xya_cam": Liste_noisette_xya,
