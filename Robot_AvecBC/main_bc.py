@@ -1,5 +1,5 @@
 couleur = "B"
-Camera = False
+Camera = True
 WiFi = True
 
 Strategie = False
@@ -40,11 +40,11 @@ from homographie_couleur import Config,ArUcoTrackingSystem,ButtonManager,Button_
 #couleur = fenetre_selection_couleur()
 # Config Wi-Fi 
 # Configuration pour l'envoi
-HOST_PC = "192.168.0.102"  # IP de l'ordinateur
+IP_ROBOT = "192.168.0.102"
 PORT_ENVOI = 5000
 
 # Configuration pour la réception
-HOST_RPI = '0.0.0.0'  # Écoute sur toutes les interfaces
+IP_RECEPTION = '0.0.0.0'  
 PORT_RECEPTION = 5001
 #################################################
 
@@ -258,7 +258,7 @@ def comm_robot():
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_socket.bind((HOST_RPI, PORT_RECEPTION))
+    server_socket.bind((IP_RECEPTION, PORT_RECEPTION))
     server_socket.listen(1)
     
     try:
@@ -636,7 +636,7 @@ if __name__ == '__main__':
                     message = json.dumps(donnees_pour_robot)
                     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     client_socket.settimeout(0.1)
-                    client_socket.connect((HOST_PC, PORT_ENVOI))
+                    client_socket.connect((IP_ROBOT, PORT_ENVOI))
                     client_socket.sendall(message.encode())
                     client_socket.close()
                 except (socket.timeout, ConnectionRefusedError, OSError) as e:
