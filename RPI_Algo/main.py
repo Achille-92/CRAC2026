@@ -13,7 +13,7 @@ Debug_Mouv = False
 Simul_action = True
 Debug_Action = False
 
-Lidar_on = False
+Lidar_on = False 
 Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
@@ -1691,25 +1691,15 @@ if __name__ == '__main__':
     bouton_attraper = Button(ax_attraper_button, "Action", color="lightblue", hovercolor="blue")
     bouton_attraper.on_clicked(bouton_attraper_callback)
     
-    if Mode_pince :
-        groupes_initiaux, adjacence = trouver_groupes_initiaux(Liste_noisette_xya)
 
-        Noisettes_groupees = []
-        for groupe in groupes_initiaux:
-            paires = separer_groupe(groupe, Liste_noisette_xya, adjacence)
-            for paire in paires:
-                noisettes_paire = [Liste_noisette_xya[i] for i in paire]
-                Noisettes_groupees.append(noisettes_paire)
+    groupes_initiaux, adjacence = trouver_groupes_initiaux(Liste_noisette_xya)
+    Noisettes_groupees = []
+    for groupe in groupes_initiaux:
+        paires = separer_groupe(groupe, Liste_noisette_xya, adjacence)
+        for paire in paires:
+            noisettes_paire = [Liste_noisette_xya[i] for i in paire]
+            Noisettes_groupees.append(noisettes_paire)
             
-    else :
-        groupes_initiaux, adjacence = trouver_groupes_initiaux(Liste_noisette_xya)
-
-        Noisettes_groupees = []
-        for groupe in groupes_initiaux:
-            groupes_quatre = regrouper_par_quatre(groupe, Liste_noisette_xya)
-            for groupe_quatre in groupes_quatre:
-                noisettes_groupe = [Liste_noisette_xya[i] for i in groupe_quatre]
-                Noisettes_groupees.append(noisettes_groupe)
 
     changement_noisettes_detecte = detecter_changements_noisettes(
         Liste_noisette_xya, 
@@ -1856,27 +1846,16 @@ if __name__ == '__main__':
             ###
             
             # ======================== Tri Noisettes ============================================= #
-            """if Mode_pince :
-                groupes_initiaux, adjacence = trouver_groupes_initiaux(Liste_noisette_xya)
-
-                Noisettes_groupees = []
-                for groupe in groupes_initiaux:
-                    paires = separer_groupe(groupe, Liste_noisette_xya, adjacence)
-                    for paire in paires:
-                        noisettes_paire = [Liste_noisette_xya[i] for i in paire]
-                        Noisettes_groupees.append(noisettes_paire)
+            groupes_initiaux, adjacence = trouver_groupes_initiaux(Liste_noisette_xya)
+            Noisettes_groupees = []
+            for groupe in groupes_initiaux:
+                paires = separer_groupe(groupe, Liste_noisette_xya, adjacence)
+                for paire in paires:
+                    noisettes_paire = [Liste_noisette_xya[i] for i in paire]
+                    Noisettes_groupees.append(noisettes_paire)
                     
-            else :
-                groupes_initiaux, adjacence = trouver_groupes_initiaux(Liste_noisette_xya)
-
-                Noisettes_groupees = []
-                for groupe in groupes_initiaux:
-                    groupes_quatre = regrouper_par_quatre(groupe, Liste_noisette_xya)
-                    for groupe_quatre in groupes_quatre:
-                        noisettes_groupe = [Liste_noisette_xya[i] for i in groupe_quatre]
-                        Noisettes_groupees.append(noisettes_groupe)"""
             
-            # Détermine les groupes de Noisettes, 1 / 2 / 3 / 4
+            """# Détermine les groupes de Noisettes, 1 / 2 / 3 / 4
             groupes_initiaux, adjacence = trouver_groupes_initiaux(Liste_noisette_xya)
             Noisettes_groupe = [ [] for n in range(len(groupes_initiaux))]
             i = 0
@@ -1885,7 +1864,7 @@ if __name__ == '__main__':
                     Noisettes_groupe[i].append(Liste_noisette_xya[indice])
                 #print(Noisettes_groupe[i])
                 i += 1
-            ###
+            ###"""
 
             # Détecte si la Liste de Noisette a changé, puis met à jour la grille
             changement_noisettes_detecte = detecter_changements_noisettes(
@@ -2525,58 +2504,6 @@ if __name__ == '__main__':
                                     Noisettes_stockees_dans_robot[pince_a_utilise][1]="N"
                                     changement_noisettes_detecte = True
                                     
-                else :
-                    if (action_voulu in ["Attraper"]):
-                        if Noisettes_stockees_dans_robot != [["N","N"],["N","N"]]:
-                            if Debug_Action:
-                                print("Noisette dans Robot")
-                        else :
-                            for coupleNoisette in Noisettes_groupees:
-                                distance_R_N1 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[0][0],coupleNoisette[0][1]))
-                                distance_R_N2 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[1][0],coupleNoisette[1][1]))
-                                distance_R_N3 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[2][0],coupleNoisette[2][1]))
-                                distance_R_N4 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[3][0],coupleNoisette[3][1]))
-                                if distance_R_N1<=75+LONGUEUR_ROBOT/2 or distance_R_N2<=75+LONGUEUR_ROBOT/2 or distance_R_N3<=75+LONGUEUR_ROBOT/2 or distance_R_N4<=75+LONGUEUR_ROBOT/2:
-                                    noisettes_triees = sorted(
-                                        coupleNoisette,
-                                        key=lambda n: distance((x_robot_actuel, y_robot_actuel), (n[0], n[1]))
-                                    )
-                                    if verif_action == 1:
-                                        Noisettes_groupees.remove(coupleNoisette)
-                                        Liste_noisette_xya.remove(coupleNoisette[0])
-                                        Liste_noisette_xya.remove(coupleNoisette[1])
-                                        Liste_noisette_xya.remove(coupleNoisette[2])
-                                        Liste_noisette_xya.remove(coupleNoisette[3])
-                                        Noisettes_stockees_dans_robot[0] = [noisettes_triees[0][3],noisettes_triees[1][3]]
-                                        Noisettes_stockees_dans_robot[1] = [noisettes_triees[2][3],noisettes_triees[3][3]]
-                                        changement_noisettes_detecte = True
-                                        
-                    if (action_voulu in ["Relacher"]):
-                        if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
-                            if Debug_Action:
-                                print("Pas de Noisette dans Robot")
-                        else :
-                            x_noisette_1 = x_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                            y_noisette_1 = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
-                            x_noisette_2 = x_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                            y_noisette_2 = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
-
-                            x_noisette_3 = x_robot_actuel + (100+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                            y_noisette_3 = y_robot_actuel + (100+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
-                            x_noisette_4 = x_robot_actuel + (150+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                            y_noisette_4 = y_robot_actuel + (150+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
-
-                            angle_noisette_1 = 90+angle_robot_actuel
-                            angle_noisette_2 = 90+angle_robot_actuel
-                            angle_noisette_3 = 90+angle_robot_actuel
-                            angle_noisette_4 = 90+angle_robot_actuel
-                            if verif_action:
-                                Liste_noisette_xya.append([x_noisette_1,y_noisette_1,angle_noisette_1,Noisettes_stockees_dans_robot[0][0]])
-                                Liste_noisette_xya.append([x_noisette_2,y_noisette_2,angle_noisette_2,Noisettes_stockees_dans_robot[0][1]])
-                                Liste_noisette_xya.append([x_noisette_3,y_noisette_3,angle_noisette_3,Noisettes_stockees_dans_robot[1][0]])
-                                Liste_noisette_xya.append([x_noisette_4,y_noisette_4,angle_noisette_4,Noisettes_stockees_dans_robot[1][1]])
-                                Noisettes_stockees_dans_robot= [["N","N"],["N","N"]]
-                                changement_noisettes_detecte = True
             
             # ==================================================================== #
 
@@ -2695,10 +2622,10 @@ if __name__ == '__main__':
                     Batteries_interrupteur[2]=2
                 else :
                     Batteries_interrupteur[2]=1
-                if Batteries_alert[3]==0:
-                    RPI_decharge = False
-                else :
+                if Batteries_alert[3]==1 and Bat_Compet == False:
                     RPI_decharge = True
+                else :
+                    RPI_decharge = False
                 
             else :                                  # Sinon
                 Batteries_interrupteur[0]=2         #  On met tous les interrupteurs à 1
