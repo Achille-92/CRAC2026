@@ -268,194 +268,193 @@ def positionner_robot_devant_Noisette1(x_strategie,y_strategie,Noisettes_groupee
             if Debug_strategie:
                 print("pince_a_utilise : ",pince_a_utilise)
                 print("sous_pince : ",sous_pince)
-            if sous_pince == 12 or sous_pince == 1:
-                distance_robot_n0 = math.sqrt((x_robot_actuel - strategie_en_cours[0][0])**2 + (y_robot_actuel - strategie_en_cours[0][1])**2)
-                distance_robot_n1 = math.sqrt((x_robot_actuel - strategie_en_cours[1][0])**2 + (y_robot_actuel - strategie_en_cours[1][1])**2)
+            distance_robot_n0 = math.sqrt((x_robot_actuel - strategie_en_cours[0][0])**2 + (y_robot_actuel - strategie_en_cours[0][1])**2)
+            distance_robot_n1 = math.sqrt((x_robot_actuel - strategie_en_cours[1][0])**2 + (y_robot_actuel - strategie_en_cours[1][1])**2)
+            if Debug_strategie:
+                print("Distance entre robot et n0 : ",distance_robot_n0)
+                print("Distance entre robot et n1 : ",distance_robot_n1)
+                print("Strategie avant tri : ",strategie_en_cours)
+            # Tri des noisettes par distance
+            if distance_robot_n0 > distance_robot_n1:
+                temp = strategie_en_cours[0]
+                strategie_en_cours[0] = strategie_en_cours[1]
+                strategie_en_cours[1] = temp
+                distance_robot_n0, distance_robot_n1 = distance_robot_n1, distance_robot_n0
+            
+            if Debug_strategie:
+                print("Strategie après tri : ",strategie_en_cours)
+            
+            angle_noisette1 = strategie_en_cours[0][2]
+            angle_noisette2 = strategie_en_cours[len(strategie_en_cours)-1][2]
+            distance = 25 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+
+            # Normaliser l'angle entre 0 et 180°
+            angle_moyen = (angle_noisette1 + angle_noisette2) / 2
+            angle_normalise = angle_moyen % 180
+
+            # ⭐ CALCULER LA POSITION RELATIVE DU ROBOT PAR RAPPORT AUX NOISETTES ⭐
+            x_centre_noisettes = (strategie_en_cours[0][0] + strategie_en_cours[1][0]) / 2
+            y_centre_noisettes = (strategie_en_cours[0][1] + strategie_en_cours[1][1]) / 2
+
+
+            # Déterminer si les noisettes sont horizontales (~0°) ou verticales (~90°)
+            if 45 < angle_normalise < 135:  # Noisettes verticales (~90°)
                 if Debug_strategie:
-                    print("Distance entre robot et n0 : ",distance_robot_n0)
-                    print("Distance entre robot et n1 : ",distance_robot_n1)
-                    print("Strategie avant tri : ",strategie_en_cours)
-                # Tri des noisettes par distance
-                if distance_robot_n0 > distance_robot_n1:
-                    temp = strategie_en_cours[0]
-                    strategie_en_cours[0] = strategie_en_cours[1]
-                    strategie_en_cours[1] = temp
-                    distance_robot_n0, distance_robot_n1 = distance_robot_n1, distance_robot_n0
+                    print("Noisettes verticales détectées")
                 
-                if Debug_strategie:
-                    print("Strategie après tri : ",strategie_en_cours)
+                # Robot à gauche ou à droite des noisettes ?
+                robot_a_gauche = x_robot_actuel < x_centre_noisettes
                 
-                angle_noisette1 = strategie_en_cours[0][2]
-                angle_noisette2 = strategie_en_cours[len(strategie_en_cours)-1][2]
-                distance = 25 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
-
-                # Normaliser l'angle entre 0 et 180°
-                angle_moyen = (angle_noisette1 + angle_noisette2) / 2
-                angle_normalise = angle_moyen % 180
-
-                # ⭐ CALCULER LA POSITION RELATIVE DU ROBOT PAR RAPPORT AUX NOISETTES ⭐
-                x_centre_noisettes = (strategie_en_cours[0][0] + strategie_en_cours[1][0]) / 2
-                y_centre_noisettes = (strategie_en_cours[0][1] + strategie_en_cours[1][1]) / 2
-
-
-                # Déterminer si les noisettes sont horizontales (~0°) ou verticales (~90°)
-                if 45 < angle_normalise < 135:  # Noisettes verticales (~90°)
-                    if Debug_strategie:
-                        print("Noisettes verticales détectées")
-                    
-                    # Robot à gauche ou à droite des noisettes ?
-                    robot_a_gauche = x_robot_actuel < x_centre_noisettes
-                    
-                    if robot_a_gauche:
-                        # Approcher par la gauche
-                        angle_rad1 = math.radians(angle_noisette1 + 90)  # Côté gauche
-                        angle_rad2 = math.radians(angle_noisette2 - 90)
-                    else:
-                        # Approcher par la droite
-                        angle_rad1 = math.radians(angle_noisette1 - 90)  # Côté droit
-                        angle_rad2 = math.radians(angle_noisette2 + 90)
-
-                else:  # Noisettes horizontales (~0° ou ~180°)
-                    if Debug_strategie:
-                        print("Noisettes horizontales détectées")
-                    
-                    # Robot en haut ou en bas des noisettes ?
-                    robot_en_bas = y_robot_actuel < y_centre_noisettes
-                    
-                    if robot_en_bas:
-                        # Approcher par le bas
-                        angle_rad1 = math.radians(angle_noisette1 - 90)  # En bas
-                        angle_rad2 = math.radians(angle_noisette2 + 90)
-                    else:
-                        # Approcher par le haut
-                        angle_rad1 = math.radians(angle_noisette1 + 90)  # En haut
-                        angle_rad2 = math.radians(angle_noisette2 - 90)
-
-                if Debug_strategie:
-                    print("angle_noisette1 : ",angle_noisette1-90)
-                    print("angle_noisette2 : ",angle_noisette2+90)
-                    print("Point1 associé à Noisette : ",strategie_en_cours[0])
-                    print("Point2 associé à Noisette : ",strategie_en_cours[1])
-                x_arrivee_1 = strategie_en_cours[0][0]+distance*math.cos(angle_rad1)
-                y_arrivee_1 = strategie_en_cours[0][1]+distance*math.sin(angle_rad1)
-
-                x_arrivee_2 = strategie_en_cours[len(strategie_en_cours)-1][0]+distance*math.cos(angle_rad2)
-                y_arrivee_2 = strategie_en_cours[len(strategie_en_cours)-1][1]+distance*math.sin(angle_rad2)
-                
-                Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Consigne",x_arrivee_2,y_arrivee_2]]
-                
-                MARGE_X = 45+45*math.cos(np.radians(angle_groupe))   # Largeur du couloir en X
-                MARGE_Y = 45+45*math.sin(np.radians(angle_groupe))  # Largeur du couloir en Y
-                
-                point_1_bloquee = False
-                point_2_bloquee = False
-
-                for Noisette in Liste_noisette_xya:
-                    if Noisette not in strategie_en_cours:
-                        # Vérification point 1 : la noisette doit être dans le rectangle ET dans les deux axes
-                        x_dans_intervalle_1 = (min(x_arrivee_1, strategie_en_cours[0][0]) - MARGE_X <= Noisette[0] 
-                                            <= max(x_arrivee_1, strategie_en_cours[0][0]) + MARGE_X)
-                        y_dans_intervalle_1 = (min(y_arrivee_1, strategie_en_cours[0][1]) - MARGE_Y <= Noisette[1] 
-                                            <= max(y_arrivee_1, strategie_en_cours[0][1]) + MARGE_Y)
-                        
-                        if x_dans_intervalle_1 and y_dans_intervalle_1:
-                            if Debug_strategie:
-                                print(f"Point d'arrivée 1 bloqué par Noisette : {Noisette}")
-                            point_1_bloquee = True
-                        
-                        # Vérification point 2
-                        x_dans_intervalle_2 = (min(x_arrivee_2, strategie_en_cours[-1][0]) - MARGE_X <= Noisette[0] 
-                                            <= max(x_arrivee_2, strategie_en_cours[-1][0]) + MARGE_X)
-                        y_dans_intervalle_2 = (min(y_arrivee_2, strategie_en_cours[-1][1]) - MARGE_Y <= Noisette[1] 
-                                            <= max(y_arrivee_2, strategie_en_cours[-1][1]) + MARGE_Y)
-                        
-                        if x_dans_intervalle_2 and y_dans_intervalle_2:
-                            if Debug_strategie:
-                                print(f"Point d'arrivée 2 bloqué par Noisette : {Noisette}")
-                            point_2_bloquee = True
-
-                if point_1_bloquee and point_2_bloquee:
-                    demande_nouvelle_strat = True
-
+                if robot_a_gauche:
+                    # Approcher par la gauche
+                    angle_rad1 = math.radians(angle_noisette1 + 90)  # Côté gauche
+                    angle_rad2 = math.radians(angle_noisette2 - 90)
                 else:
-                    if point_1_bloquee:
+                    # Approcher par la droite
+                    angle_rad1 = math.radians(angle_noisette1 - 90)  # Côté droit
+                    angle_rad2 = math.radians(angle_noisette2 + 90)
+
+            else:  # Noisettes horizontales (~0° ou ~180°)
+                if Debug_strategie:
+                    print("Noisettes horizontales détectées")
+                
+                # Robot en haut ou en bas des noisettes ?
+                robot_en_bas = y_robot_actuel < y_centre_noisettes
+                
+                if robot_en_bas:
+                    # Approcher par le bas
+                    angle_rad1 = math.radians(angle_noisette1 - 90)  # En bas
+                    angle_rad2 = math.radians(angle_noisette2 + 90)
+                else:
+                    # Approcher par le haut
+                    angle_rad1 = math.radians(angle_noisette1 + 90)  # En haut
+                    angle_rad2 = math.radians(angle_noisette2 - 90)
+
+            if Debug_strategie:
+                print("angle_noisette1 : ",angle_noisette1-90)
+                print("angle_noisette2 : ",angle_noisette2+90)
+                print("Point1 associé à Noisette : ",strategie_en_cours[0])
+                print("Point2 associé à Noisette : ",strategie_en_cours[1])
+            x_arrivee_1 = strategie_en_cours[0][0]+distance*math.cos(angle_rad1)
+            y_arrivee_1 = strategie_en_cours[0][1]+distance*math.sin(angle_rad1)
+
+            x_arrivee_2 = strategie_en_cours[len(strategie_en_cours)-1][0]+distance*math.cos(angle_rad2)
+            y_arrivee_2 = strategie_en_cours[len(strategie_en_cours)-1][1]+distance*math.sin(angle_rad2)
+            
+            Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Consigne",x_arrivee_2,y_arrivee_2]]
+            
+            MARGE_X = 45+45*math.cos(np.radians(angle_groupe))   # Largeur du couloir en X
+            MARGE_Y = 45+45*math.sin(np.radians(angle_groupe))  # Largeur du couloir en Y
+            
+            point_1_bloquee = False
+            point_2_bloquee = False
+
+            for Noisette in Liste_noisette_xya:
+                if Noisette not in strategie_en_cours:
+                    # Vérification point 1 : la noisette doit être dans le rectangle ET dans les deux axes
+                    x_dans_intervalle_1 = (min(x_arrivee_1, strategie_en_cours[0][0]) - MARGE_X <= Noisette[0] 
+                                        <= max(x_arrivee_1, strategie_en_cours[0][0]) + MARGE_X)
+                    y_dans_intervalle_1 = (min(y_arrivee_1, strategie_en_cours[0][1]) - MARGE_Y <= Noisette[1] 
+                                        <= max(y_arrivee_1, strategie_en_cours[0][1]) + MARGE_Y)
+                    
+                    if x_dans_intervalle_1 and y_dans_intervalle_1:
                         if Debug_strategie:
-                            print("point 1 bloqué")
-                        angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[1][1] - y_arrivee_2, strategie_en_cours[1][0] - x_arrivee_2)))
-
-                        if pince_a_utilise == 0:
-                                Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]
-                        elif pince_a_utilise == 1:
-                                Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]
-
-                        distance = 25 + 4*MARGE_NOISETTE+LONGUEUR_ROBOT/2
-                        x_arrivee_Astar = strategie_en_cours[len(strategie_en_cours)-1][0]+distance*math.cos(angle_rad2)
-                        y_arrivee_Astar = strategie_en_cours[len(strategie_en_cours)-1][1]+distance*math.sin(angle_rad2)
-                        Liste_actions.insert(0,["Consigne",x_arrivee_Astar,y_arrivee_Astar])
-
-                    elif point_2_bloquee:
+                            print(f"Point d'arrivée 1 bloqué par Noisette : {Noisette}")
+                        point_1_bloquee = True
+                    
+                    # Vérification point 2
+                    x_dans_intervalle_2 = (min(x_arrivee_2, strategie_en_cours[-1][0]) - MARGE_X <= Noisette[0] 
+                                        <= max(x_arrivee_2, strategie_en_cours[-1][0]) + MARGE_X)
+                    y_dans_intervalle_2 = (min(y_arrivee_2, strategie_en_cours[-1][1]) - MARGE_Y <= Noisette[1] 
+                                        <= max(y_arrivee_2, strategie_en_cours[-1][1]) + MARGE_Y)
+                    
+                    if x_dans_intervalle_2 and y_dans_intervalle_2:
                         if Debug_strategie:
-                            print("point 2 bloqué")
+                            print(f"Point d'arrivée 2 bloqué par Noisette : {Noisette}")
+                        point_2_bloquee = True
+
+            if point_1_bloquee and point_2_bloquee:
+                demande_nouvelle_strat = True
+
+            else:
+                if point_1_bloquee:
+                    if Debug_strategie:
+                        print("point 1 bloqué")
+                    angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[1][1] - y_arrivee_2, strategie_en_cours[1][0] - x_arrivee_2)))
+
+                    if pince_a_utilise == 0:
+                            Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]
+                    elif pince_a_utilise == 1:
+                            Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]
+
+                    distance = 25 + 4*MARGE_NOISETTE+LONGUEUR_ROBOT/2
+                    x_arrivee_Astar = strategie_en_cours[len(strategie_en_cours)-1][0]+distance*math.cos(angle_rad2)
+                    y_arrivee_Astar = strategie_en_cours[len(strategie_en_cours)-1][1]+distance*math.sin(angle_rad2)
+                    Liste_actions.insert(0,["Consigne",x_arrivee_Astar,y_arrivee_Astar])
+
+                elif point_2_bloquee:
+                    if Debug_strategie:
+                        print("point 2 bloqué")
+                    angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[0][1] - y_arrivee_1, strategie_en_cours[0][0] - x_arrivee_1)))
+                    if pince_a_utilise == 0:
+                        Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]
+                    elif pince_a_utilise == 1:
+                        Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]
+
+                    distance = 25 + 4*MARGE_NOISETTE+LONGUEUR_ROBOT/2
+                    x_arrivee_Astar = strategie_en_cours[0][0]+distance*math.cos(angle_rad1)
+                    y_arrivee_Astar = strategie_en_cours[0][1]+distance*math.sin(angle_rad1)
+                    Liste_actions.insert(0,["Consigne",x_arrivee_Astar,y_arrivee_Astar])
+                else:
+                    print("Point 1 :",x_arrivee_1,"  ",y_arrivee_1)
+                    print("Point 2 :",x_arrivee_2,"  ",y_arrivee_2)
+                    distance_robot_point1 = math.sqrt((x_arrivee_1 - x_robot_actuel)**2 + (y_arrivee_1 - y_robot_actuel)**2)
+                    distance_robot_point2 = math.sqrt((x_arrivee_2 - x_robot_actuel)**2 + (y_arrivee_2 - y_robot_actuel)**2)
+                    if Debug_strategie:
+                        print("distance_robot_point1 : ",distance_robot_point1)
+                        print("distance_robot_point2 : ",distance_robot_point2)
+                    if distance_robot_point1 < distance_robot_point2:
+                        if Debug_strategie:
+                            print("aller point 1")
                         angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[0][1] - y_arrivee_1, strategie_en_cours[0][0] - x_arrivee_1)))
                         if pince_a_utilise == 0:
                             Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]
                         elif pince_a_utilise == 1:
-                            Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]
+                            Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]
 
                         distance = 25 + 4*MARGE_NOISETTE+LONGUEUR_ROBOT/2
                         x_arrivee_Astar = strategie_en_cours[0][0]+distance*math.cos(angle_rad1)
                         y_arrivee_Astar = strategie_en_cours[0][1]+distance*math.sin(angle_rad1)
                         Liste_actions.insert(0,["Consigne",x_arrivee_Astar,y_arrivee_Astar])
-                    else:
-                        print("Point 1 :",x_arrivee_1,"  ",y_arrivee_1)
-                        print("Point 2 :",x_arrivee_2,"  ",y_arrivee_2)
-                        distance_robot_point1 = math.sqrt((x_arrivee_1 - x_robot_actuel)**2 + (y_arrivee_1 - y_robot_actuel)**2)
-                        distance_robot_point2 = math.sqrt((x_arrivee_2 - x_robot_actuel)**2 + (y_arrivee_2 - y_robot_actuel)**2)
+                    else :
                         if Debug_strategie:
-                            print("distance_robot_point1 : ",distance_robot_point1)
-                            print("distance_robot_point2 : ",distance_robot_point2)
-                        if distance_robot_point1 < distance_robot_point2:
-                            if Debug_strategie:
-                                print("aller point 1")
-                            angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[0][1] - y_arrivee_1, strategie_en_cours[0][0] - x_arrivee_1)))
-                            if pince_a_utilise == 0:
-                                Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]
-                            elif pince_a_utilise == 1:
-                                Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]
+                            print("aller point 2")
+                        angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[1][1] - y_arrivee_2, strategie_en_cours[1][0] - x_arrivee_2)))
+                        if pince_a_utilise == 0:
+                            Liste_actions =[["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]
+                        elif pince_a_utilise == 1:
+                            Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]
 
-                            distance = 25 + 4*MARGE_NOISETTE+LONGUEUR_ROBOT/2
-                            x_arrivee_Astar = strategie_en_cours[0][0]+distance*math.cos(angle_rad1)
-                            y_arrivee_Astar = strategie_en_cours[0][1]+distance*math.sin(angle_rad1)
-                            Liste_actions.insert(0,["Consigne",x_arrivee_Astar,y_arrivee_Astar])
-                        else :
-                            if Debug_strategie:
-                                print("aller point 2")
-                            angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[1][1] - y_arrivee_2, strategie_en_cours[1][0] - x_arrivee_2)))
-                            if pince_a_utilise == 0:
-                                Liste_actions =[["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]
-                            elif pince_a_utilise == 1:
-                                Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]
+                        distance = 25 + 4*MARGE_NOISETTE+LONGUEUR_ROBOT/2
+                        x_arrivee_Astar = strategie_en_cours[len(strategie_en_cours)-1][0]+distance*math.cos(angle_rad2)
+                        y_arrivee_Astar = strategie_en_cours[len(strategie_en_cours)-1][1]+distance*math.sin(angle_rad2)
+                        Liste_actions.insert(0,["Consigne",x_arrivee_Astar,y_arrivee_Astar])
+            
+            Liste_actions.append(["Attraper",pince_a_utilise,sous_pince])
 
-                            distance = 25 + 4*MARGE_NOISETTE+LONGUEUR_ROBOT/2
-                            x_arrivee_Astar = strategie_en_cours[len(strategie_en_cours)-1][0]+distance*math.cos(angle_rad2)
-                            y_arrivee_Astar = strategie_en_cours[len(strategie_en_cours)-1][1]+distance*math.sin(angle_rad2)
-                            Liste_actions.insert(0,["Consigne",x_arrivee_Astar,y_arrivee_Astar])
+            if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
+                Liste_actions.append(["Retourner",pince_a_utilise,12])
                 
-                Liste_actions.append(["Attraper",pince_a_utilise,sous_pince])
-
-                if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
-                    Liste_actions.append(["Retourner",pince_a_utilise,12])
-                    
-                if point_1_bloquee:
-                    if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
-                        Liste_actions.append(["Retourner",pince_a_utilise,2])
-                    elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
-                        Liste_actions.append(["Retourner",pince_a_utilise,1])
-                else:
-                    if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
-                        Liste_actions.append(["Retourner",pince_a_utilise,1])
-                    elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
-                        Liste_actions.append(["Retourner",pince_a_utilise,2])
+            if point_1_bloquee:
+                if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
+                    Liste_actions.append(["Retourner",pince_a_utilise,2])
+                elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
+                    Liste_actions.append(["Retourner",pince_a_utilise,1])
+            else:
+                if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
+                    Liste_actions.append(["Retourner",pince_a_utilise,1])
+                elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
+                    Liste_actions.append(["Retourner",pince_a_utilise,2])
     """else:
         print("aller gm")
         if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
@@ -973,7 +972,7 @@ def positionner_robot_devant_Noisette(x_strategie,y_strategie,Noisettes_groupees
             x_arrivee_2 = strategie_en_cours[0][0]+distance*math.cos(angle_rad2)
             y_arrivee_2 = strategie_en_cours[0][1]+distance*math.sin(angle_rad2)
         
-            distance = 50*sous_pince + 25 + 4*MARGE_NOISETTE+LONGUEUR_ROBOT/2
+            distance = 50*(sous_pince-1) + 25 + 6*MARGE_NOISETTE+LONGUEUR_ROBOT/2
             x_arrivee_Astar1 = strategie_en_cours[0][0]+distance*math.cos(angle_rad1)
             y_arrivee_Astar1 = strategie_en_cours[0][1]+distance*math.sin(angle_rad1)
             x_arrivee_Astar2 = strategie_en_cours[0][0]+distance*math.cos(angle_rad2)
@@ -1020,6 +1019,160 @@ def positionner_robot_devant_Noisette(x_strategie,y_strategie,Noisettes_groupees
                             Liste_actions.append(["Retourner",pince_a_utilise,sous_pince])
                     else:
                         demande_nouvelle_strat = True
+        else :
+            pince_a_utilise = None
+            sous_pince = None
+            if Noisettes_stockees_dans_robot[0]==["N","N"] and Pince_Av_1 and Pince_Av_2:
+                pince_a_utilise = 0
+                sous_pince = 12
+            elif Noisettes_stockees_dans_robot[1]==["N","N"] and Pince_Ar_1 and Pince_Ar_2:
+                pince_a_utilise = 1
+                sous_pince = 12
+            else:
+                demande_nouvelle_strat = True
+
+            if Debug_strategie:
+                print("pince_a_utilise : ",pince_a_utilise)
+                print("sous_pince : ",sous_pince)
+
+            distance_robot_n0 = math.sqrt((x_robot_actuel - strategie_en_cours[0][0])**2 + (y_robot_actuel - strategie_en_cours[0][1])**2)
+            distance_robot_n1 = math.sqrt((x_robot_actuel - strategie_en_cours[1][0])**2 + (y_robot_actuel - strategie_en_cours[1][1])**2)
+            if Debug_strategie:
+                print("Distance entre robot et n0 : ",distance_robot_n0)
+                print("Distance entre robot et n1 : ",distance_robot_n1)
+                print("Strategie avant tri : ",strategie_en_cours)
+            # Tri des noisettes par distance
+            if distance_robot_n0 > distance_robot_n1:
+                temp = strategie_en_cours[0]
+                strategie_en_cours[0] = strategie_en_cours[1]
+                strategie_en_cours[1] = temp
+                distance_robot_n0, distance_robot_n1 = distance_robot_n1, distance_robot_n0
+            
+            if Debug_strategie:
+                print("Strategie après tri : ",strategie_en_cours)
+
+            angle_noisette1 = strategie_en_cours[0][2]
+            angle_noisette2 = strategie_en_cours[1][2]
+            distance = 25 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+
+            # Normaliser l'angle entre 0 et 180°
+            angle_moyen = (angle_noisette1 + angle_noisette2) / 2
+            angle_normalise = angle_moyen % 180
+
+            # ⭐ CALCULER LA POSITION RELATIVE DU ROBOT PAR RAPPORT AUX NOISETTES ⭐
+            x_centre_noisettes = (strategie_en_cours[0][0] + strategie_en_cours[1][0]) / 2
+            y_centre_noisettes = (strategie_en_cours[0][1] + strategie_en_cours[1][1]) / 2
+
+            # Déterminer si les noisettes sont horizontales (~0°) ou verticales (~90°)
+            if 45 < angle_normalise < 135:  # Noisettes verticales (~90°)
+                if Debug_strategie:
+                    print("Noisettes verticales détectées")
+                # Robot à gauche ou à droite des noisettes ?
+                if x_robot_actuel < x_centre_noisettes:
+                    # Approcher par la gauche
+                    angle_rad1 = math.radians(angle_noisette1 + 90)  # Côté gauche
+                    angle_rad2 = math.radians(angle_noisette2 - 90)
+                else:
+                    # Approcher par la droite
+                    angle_rad1 = math.radians(angle_noisette1 - 90)  # Côté droit
+                    angle_rad2 = math.radians(angle_noisette2 + 90)
+
+            else:  # Noisettes horizontales (~0° ou ~180°)
+                if Debug_strategie:
+                    print("Noisettes horizontales détectées")
+                # Robot en haut ou en bas des noisettes ?
+                if y_robot_actuel < y_centre_noisettes:
+                    # Approcher par le bas
+                    angle_rad1 = math.radians(angle_noisette1 - 90)  # En bas
+                    angle_rad2 = math.radians(angle_noisette2 + 90)
+                else:
+                    # Approcher par le haut
+                    angle_rad1 = math.radians(angle_noisette1 + 90)  # En haut
+                    angle_rad2 = math.radians(angle_noisette2 - 90)
+
+            if Debug_strategie:
+                print("angle_noisette1 : ",angle_noisette1-90)
+                print("angle_noisette2 : ",angle_noisette2+90)
+                print("Point1 associé à Noisette : ",strategie_en_cours[0])
+                print("Point2 associé à Noisette : ",strategie_en_cours[1])
+
+            x_arrivee_1 = strategie_en_cours[0][0]+distance*math.cos(angle_rad1)
+            y_arrivee_1 = strategie_en_cours[0][1]+distance*math.sin(angle_rad1)
+            x_arrivee_2 = strategie_en_cours[1][0]+distance*math.cos(angle_rad2)
+            y_arrivee_2 = strategie_en_cours[1][1]+distance*math.sin(angle_rad2)
+
+            distance = 50 + 25 + 5*MARGE_NOISETTE+LONGUEUR_ROBOT/2
+            x_arrivee_Astar1 = strategie_en_cours[0][0]+distance*math.cos(angle_rad1)
+            y_arrivee_Astar1 = strategie_en_cours[0][1]+distance*math.sin(angle_rad1)
+            x_arrivee_Astar2 = strategie_en_cours[1][0]+distance*math.cos(angle_rad2)
+            y_arrivee_Astar2 = strategie_en_cours[1][1]+distance*math.sin(angle_rad2)
+
+            #Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Consigne",x_arrivee_2,y_arrivee_2],["Consigne",x_arrivee_Astar1,y_arrivee_Astar1],["Consigne",x_arrivee_Astar2,y_arrivee_Astar2]]
+            
+            point_1_bloquee = False
+            point_2_bloquee = False
+            if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar1 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar1 // CASE_MM)))]:
+                point_1_bloquee = True
+            if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar2 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar2 // CASE_MM)))]:
+                point_2_bloquee = True
+
+            if point_1_bloquee and point_2_bloquee:
+                demande_nouvelle_strat = True
+            else:
+                distance_robot_point1 = math.sqrt((x_arrivee_1 - x_robot_actuel)**2 + (y_arrivee_1 - y_robot_actuel)**2)
+                distance_robot_point2 = math.sqrt((x_arrivee_2 - x_robot_actuel)**2 + (y_arrivee_2 - y_robot_actuel)**2)
+                if point_2_bloquee:
+                    print("aaaaaaaaa")
+                    angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[0][1] - y_arrivee_1, strategie_en_cours[0][0] - x_arrivee_1)))
+                    if pince_a_utilise == 0:
+                        Liste_actions = [["Consigne",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]
+                    else:
+                        Liste_actions = [["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]
+                    
+                elif point_1_bloquee:
+                    print("bbbbbbbbb")
+                    angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[1][1] - y_arrivee_2, strategie_en_cours[1][0] - x_arrivee_2)))
+                    if pince_a_utilise == 0:
+                        Liste_actions = [["Consigne",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]
+                    else:
+                        Liste_actions = [["ReculerPrecis",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]
+                    
+                else:
+                    distance_robot_point1 = math.sqrt((x_arrivee_1 - x_robot_actuel)**2 + (y_arrivee_1 - y_robot_actuel)**2)
+                    distance_robot_point2 = math.sqrt((x_arrivee_2 - x_robot_actuel)**2 + (y_arrivee_2 - y_robot_actuel)**2)
+                    if distance_robot_point1 <= distance_robot_point2:
+                        print("cccccccccc")
+                        angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[0][1] - y_arrivee_1, strategie_en_cours[0][0] - x_arrivee_1)))
+                        if pince_a_utilise == 0:
+                            Liste_actions = [["Consigne",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]
+                        else:
+                            Liste_actions = [["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]
+                    else:
+                        print("dddddddd")
+                        angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[1][1] - y_arrivee_2, strategie_en_cours[1][0] - x_arrivee_2)))
+                        if pince_a_utilise == 0:
+                            Liste_actions = [["Consigne",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]
+                        else:
+                            Liste_actions = [["ReculerPrecis",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]
+                Liste_actions.append(["Attraper",pince_a_utilise,sous_pince])
+                if (pince_a_utilise == 0 and Pince_Avant) or (pince_a_utilise == 1 and Pince_Arriere):
+                    if strategie_en_cours[0][3] != "R" and strategie_en_cours[1][3] != "R":
+                        if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
+                            Liste_actions.append(["Retourner",pince_a_utilise,12])
+                        
+                        if point_1_bloquee:
+                            if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
+                                Liste_actions.append(["Retourner",pince_a_utilise,2])
+                            elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
+                                Liste_actions.append(["Retourner",pince_a_utilise,1])
+                        if point_2_bloquee:
+                            if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
+                                Liste_actions.append(["Retourner",pince_a_utilise,1])
+                            elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
+                                Liste_actions.append(["Retourner",pince_a_utilise,2])
+                    else:
+                        demande_nouvelle_strat = True
+                    
 
     elif chercher_Noisette == False:
         print(f"GM n°{strategie_en_cours}")

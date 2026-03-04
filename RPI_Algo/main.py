@@ -7,7 +7,7 @@ Debug_strategie = True
 Astars = True
 
 Simul_mvt = True
-Simul_mvt_ennemi = False
+Simul_mvt_ennemi = True
 Debug_Mouv = False
 
 Simul_action = True
@@ -63,7 +63,7 @@ LARGEUR_ROBOT = 250
 LONGUEUR_ROBOT = 130
 R_ENNEMI = 150
 MARGE_ENNEMI = 100
-MARGE_NOISETTE = 20
+MARGE_NOISETTE = 25
 MARGE_GM = 10
 MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
@@ -240,7 +240,7 @@ Liste_noisette_xya = [
     [175,1125,0,"R"],[175,1175,0,"R"],[175,1225,0,"R"],[175,1275,0,"R"],
     [175,325,0,"R"],[175,375,0,"R"],[175,425,0,"R"],[175,475,0,"R"],
 
-    [2825,1125,0,"R"],[2825,1225,0,"R"],#[2825,1175,0,"R"],[2825,1275,0,"R"],[2825,1225,0,"R"],
+    [2825,1125,0,"R"],[2825,1175,0,"R"],[2825,1225,0,"R"],[2825,1275,0,"R"],
     [2825,325,0,"R"],[2825,375,0,"R"],[2825,425,0,"R"],[2825,475,0,"R"],
 
     [1075,800,90,"R"],[1125,800,90,"R"],[1175,800,90,"R"],[1225,800,90,"R"],
@@ -377,6 +377,11 @@ else:
     x_robot_depart = 275 
     y_robot_depart = 1670
     angle_robot_depart = -90
+
+    
+    x_robot_retour = 275
+    y_robot_retour = 1550
+    angle_robot_retour = -90
 
     x_ennemi = 2725 
     y_ennemi = 1650
@@ -956,7 +961,7 @@ if __name__ == '__main__':
             dico_envoi[0x200]=0
             dico_envoi[0x201]=0
             dico_envoi[0x202]=0
-        Liste_actions_ennemi = [[int(x_robot_actuel-10),int(y_robot_actuel-10)],[275,1650]]
+        Liste_actions_ennemi = [[1500,1000]]
         n_init = len(Liste_actions_ennemi)
 
         while (not stop_event.is_set() and len(Liste_actions)!=0 and temps_restant >=0 and not RPI_decharge and not etat_bau): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
@@ -1023,8 +1028,6 @@ if __name__ == '__main__':
             # Simu déplacement robot ennemi
             if not Reel:
                 if Simul_mvt_ennemi:
-                    if len(Liste_actions_ennemi)>n_init-1:
-                        Liste_actions_ennemi[0] = [int(x_robot_actuel-10),int(y_robot_actuel-10)]
                     
                     x_ennemi_voulu = int(Liste_actions_ennemi[0][0])
                     y_ennemi_voulu = int(Liste_actions_ennemi[0][1])
@@ -1177,7 +1180,7 @@ if __name__ == '__main__':
             if Debug_Mouv:
                 print("demande_recalcul_traj : ",demande_recalcul_traj)
             # ======================================================================== #
-
+            
             # ======================== CALCUL DE LA TRAJECTOIRE A* =================== #
             if Astars: 
                 # === CALCUL DE LA TRAJECTOIRE A* ===
@@ -1257,7 +1260,7 @@ if __name__ == '__main__':
                         else:
                             if Debug_Mouv:
                                 print("CHEMIN INACCESSIBLE")
-
+                                
             # ======================================================================== #
             
             # ========== Lire l'action courante =============== #
@@ -1282,7 +1285,7 @@ if __name__ == '__main__':
             # ================================================= #
                 
             
-            if (distance_robot_ennemi < R_securite - MARGE_TRAJECTOIRE) and action_voulu in ["Consigne", "Avancer", "Reculer", "ReculerPrecis"]:
+            if (distance_robot_ennemi < R_securite - MARGE_TRAJECTOIRE) and action_voulu in ["Consigne", "Avancer", "Reculer", "ReculerPrecis","Rotation"]:
                 ordre_mouvement = 1
 
                 # ⭐ Ne recalculer le point de sortie QUE si on n'en a pas déjà un
@@ -1768,19 +1771,6 @@ if __name__ == '__main__':
             x_voulu_text.set_text(f"X = {x_strategie:.1f}")
             y_voulu_text.set_text(f"Y = {y_strategie:.1f}")
             A_voulu_text.set_text(f"Strat = {demande_nouvelle_strat}")
-
-            if(abs(x_robot_actuel-x_robot_voulu)>=TOL_POS_X):
-                x_voulu_text.set_color('black')
-            else:
-                x_voulu_text.set_color('green')
-            if(abs(y_robot_actuel-y_robot_voulu)>=TOL_POS_Y):
-                y_voulu_text.set_color('black')
-            else:
-                y_voulu_text.set_color('green') 
-            if(abs(angle_robot_actuel-angle_robot_voulu)>=TOL_POS_A):
-                A_voulu_text.set_color('black')
-            else:
-                A_voulu_text.set_color('green')
             
             # ==================================================================== #
             
