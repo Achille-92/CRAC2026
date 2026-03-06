@@ -1157,19 +1157,34 @@ def positionner_robot_devant_Noisette(x_strategie,y_strategie,Noisettes_groupees
                 Liste_actions.append(["Attraper",pince_a_utilise,sous_pince])
                 if (pince_a_utilise == 0 and Pince_Avant) or (pince_a_utilise == 1 and Pince_Arriere):
                     if strategie_en_cours[0][3] != "R" and strategie_en_cours[1][3] != "R":
-                        if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
-                            Liste_actions.append(["Retourner",pince_a_utilise,12])
-                        
                         if point_1_bloquee:
                             if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
                                 Liste_actions.append(["Retourner",pince_a_utilise,2])
                             elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
                                 Liste_actions.append(["Retourner",pince_a_utilise,1])
-                        if point_2_bloquee:
+                        elif point_2_bloquee:
                             if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
                                 Liste_actions.append(["Retourner",pince_a_utilise,1])
                             elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
                                 Liste_actions.append(["Retourner",pince_a_utilise,2])
+                        else:
+                            if distance_robot_point1 <= distance_robot_point2:
+                                print("eeeeee")
+                                if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
+                                    Liste_actions.append(["Retourner",pince_a_utilise,12])
+                                elif strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
+                                    Liste_actions.append(["Retourner",pince_a_utilise,1])
+                                elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
+                                    Liste_actions.append(["Retourner",pince_a_utilise,2])
+                            else:
+                                print("ffffffff")
+                                if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
+                                    Liste_actions.append(["Retourner",pince_a_utilise,12])
+                                elif strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
+                                    Liste_actions.append(["Retourner",pince_a_utilise,2])
+                                elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
+                                    Liste_actions.append(["Retourner",pince_a_utilise,1])
+                        
                     else:
                         demande_nouvelle_strat = True
                     
