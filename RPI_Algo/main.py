@@ -18,7 +18,7 @@ Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
 
-Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
+Noisettes_stockees_dans_robot = [["N","N"],["B","N"]]
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -37,7 +37,7 @@ from scipy.ndimage import binary_dilation
 from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes,fenetre_selection_couleur
 from calcul_mouv import  calculer_trajectoire_complete,actualiser_zones_jeu,verifier_segments_trajectoire_ennemi
 from fonction import Obstacles,associer_noisette_a_emplacement,detecter_changements_noisettes, distance
-from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper_par_quatre,positionner_robot_devant_Noisette
+from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper_par_quatre,remplir_Liste_actions
 ########################################################################
 #couleur = fenetre_selection_couleur()
 # Config CAN 
@@ -58,9 +58,11 @@ for ID in Liste_ID_envoi:
 #################################################
 
 # Perimètre de sécurité
-R_ROBOT = 190
+
 LARGEUR_ROBOT = 250
 LONGUEUR_ROBOT = 130
+R_ROBOT = int(math.sqrt((LARGEUR_ROBOT/2)**2+(LONGUEUR_ROBOT/2)**2))
+R_ROBOT = 170
 R_ENNEMI = 150
 MARGE_ENNEMI = 100
 MARGE_NOISETTE = 25
@@ -248,7 +250,7 @@ Liste_noisette_xya = [
 
     [1025,175,90,"R"],[1075,175,90,"R"],[1125,175,90,"R"],[1175,175,90,"R"],
     [1825,175,90,"R"],[1875,175,90,"R"],[1925,175,90,"R"],[1975,175,90,"R"],
-
+    [2200,1000,0,"R"],[2500,800,90,"R"],
 ] 
 if not Wifi:
     Liste_noisette_xya_cam = [
@@ -367,6 +369,10 @@ if couleur == "B":
     angle_robot_depart = -90
     
     Liste_actions = [["Avancer",2400+LARGEUR_ROBOT/2,1350]]
+
+    x_robot_depart = 2400+LARGEUR_ROBOT/2 
+    y_robot_depart = 1350
+    angle_robot_depart = -90
 
     x_robot_retour = 2725
     y_robot_retour = 1550
@@ -498,8 +504,8 @@ etat_bau = 0
 etat_jack = False
 
 demande_nouvelle_strat = False
-x_strategie = 2825
-y_strategie = 1125
+x_strategie = 2200
+y_strategie = 800
 strategie_en_cours = [] 
 TOLERANCE_STRATEGIE_NOISETTE = 50
 action_en_cours = None
@@ -958,7 +964,7 @@ if __name__ == '__main__':
         demande_recalcul_traj = True
 
     if Strategie and sortir_depart:
-        Liste_actions,demande_nouvelle_strat = positionner_robot_devant_Noisette(x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
+        Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
         print(Liste_actions)
 
     
@@ -974,6 +980,10 @@ if __name__ == '__main__':
             print(f"Attente BAU")
 
     while(lancement_strategie==False and not etat_jack):
+        if Reel:
+            etat_RPI = 1
+            data_etat_RPI = struct.pack('<I',etat_RPI)
+            bus.send(can.Message(arbitration_id=0x01, data=data_etat_RPI, is_extended_id=False))
         if current_os == "Linux":
             etat_jack = GPIO.input(26)
         print("Attente du Jack")
@@ -1155,7 +1165,17 @@ if __name__ == '__main__':
             # ============ Prise de décision ========== #
             if demande_nouvelle_strat and sortir_depart:
                 demande_nouvelle_strat = False
-                Liste_actions,demande_nouvelle_strat = positionner_robot_devant_Noisette(x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
+                if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
+                    aller_Noisette = True
+                    aller_GM = False
+                elif "N" in Noisettes_stockees_dans_robot[0] or "N" in Noisettes_stockees_dans_robot[1]:
+                    aller_Noisette = True
+                    aller_GM = True
+                else:
+                    aller_Noisette = False
+                    aller_GM = False
+
+                Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
                 demande_recalcul_traj = True
                 
             # ========================================= #
@@ -1710,7 +1730,7 @@ if __name__ == '__main__':
                                     y_noisette = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
                                 angle_noisette = 90+angle_robot_actuel
                                 if verif_action:
-                                    Liste_noisette_xya.append([x_noisette,y_noisette,angle_noisette,Noisettes_stockees_dans_robot[pince_a_utilise][0]])
+                                    Liste_noisette_xya.append([int(x_noisette),int(y_noisette),int(angle_noisette),Noisettes_stockees_dans_robot[pince_a_utilise][0]])
                                     Noisettes_stockees_dans_robot[pince_a_utilise][0]="N"
                                     changement_noisettes_detecte = True
                         
@@ -1731,7 +1751,7 @@ if __name__ == '__main__':
                                     y_noisette = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
                                 angle_noisette = 90+angle_robot_actuel
                                 if verif_action:
-                                    Liste_noisette_xya.append([x_noisette,y_noisette,angle_noisette,Noisettes_stockees_dans_robot[pince_a_utilise][1]])
+                                    Liste_noisette_xya.append([int(x_noisette),int(y_noisette),int(angle_noisette),Noisettes_stockees_dans_robot[pince_a_utilise][1]])
                                     Noisettes_stockees_dans_robot[pince_a_utilise][1]="N"
                                     changement_noisettes_detecte = True
                         
@@ -1759,8 +1779,8 @@ if __name__ == '__main__':
                                 angle_noisette_2 = 90+angle_robot_actuel
                                 
                                 if verif_action:
-                                    Liste_noisette_xya.append([x_noisette_1,y_noisette_1,angle_noisette_1,Noisettes_stockees_dans_robot[pince_a_utilise][0]])
-                                    Liste_noisette_xya.append([x_noisette_2,y_noisette_2,angle_noisette_2,Noisettes_stockees_dans_robot[pince_a_utilise][1]])
+                                    Liste_noisette_xya.append([int(x_noisette_1),int(y_noisette_1),int(angle_noisette_1),Noisettes_stockees_dans_robot[pince_a_utilise][0]])
+                                    Liste_noisette_xya.append([int(x_noisette_2),int(y_noisette_2),int(angle_noisette_2),Noisettes_stockees_dans_robot[pince_a_utilise][1]])
                                     Noisettes_stockees_dans_robot[pince_a_utilise][0]="N"
                                     Noisettes_stockees_dans_robot[pince_a_utilise][1]="N"
                                     changement_noisettes_detecte = True
@@ -2074,6 +2094,13 @@ if __name__ == '__main__':
 
         if RPI_decharge:
             print("Batterie RPI trop faible")
+
+        if Batteries_alert[0]==1:
+            print("Batterie 1 Trop faible")
+        if Batteries_alert[1]==1:
+            print("Batterie 2 Trop faible")
+        if Batteries_alert[2]==1:
+            print("Batterie 3 Trop faible")
             
         stop_event.set()
 

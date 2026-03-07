@@ -91,7 +91,7 @@ def regrouper_par_quatre(groupe_indices, noisettes):
     
     return groupes_de_quatre
 
-def positionner_robot_devant_Noisette1(x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2):
+def remplir_Liste_actions1(x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2):
 
     Liste_actions.clear()
 
@@ -455,7 +455,7 @@ def positionner_robot_devant_Noisette1(x_strategie,y_strategie,Noisettes_groupee
                     Liste_actions.append(["Retourner",pince_a_utilise,1])
                 elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
                     Liste_actions.append(["Retourner",pince_a_utilise,2])
-    """else:
+    else:
         print("aller gm")
         if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
             print("Pas de Noisette dans robot")
@@ -898,12 +898,12 @@ def positionner_robot_devant_Noisette1(x_strategie,y_strategie,Noisettes_groupee
                         Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                     else :
                         Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]     
-    """
+    
 
     Liste_actions.append(["Attente"])
     return Liste_actions
 
-def positionner_robot_devant_Noisette(x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded):
+def remplir_Liste_actions(x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded):
 
     Liste_actions.clear()
     chercher_Noisette = None
@@ -1107,8 +1107,6 @@ def positionner_robot_devant_Noisette(x_strategie,y_strategie,Noisettes_groupees
             x_arrivee_Astar2 = strategie_en_cours[1][0]+distance*math.cos(angle_rad2)
             y_arrivee_Astar2 = strategie_en_cours[1][1]+distance*math.sin(angle_rad2)
 
-            #Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Consigne",x_arrivee_2,y_arrivee_2],["Consigne",x_arrivee_Astar1,y_arrivee_Astar1],["Consigne",x_arrivee_Astar2,y_arrivee_Astar2]]
-            
             point_1_bloquee = False
             point_2_bloquee = False
             if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar1 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar1 // CASE_MM)))]:
@@ -1158,18 +1156,24 @@ def positionner_robot_devant_Noisette(x_strategie,y_strategie,Noisettes_groupees
                 if (pince_a_utilise == 0 and Pince_Avant) or (pince_a_utilise == 1 and Pince_Arriere):
                     if strategie_en_cours[0][3] != "R" and strategie_en_cours[1][3] != "R":
                         if point_1_bloquee:
-                            if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
+                            print("eeeeee")
+                            if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
+                                Liste_actions.append(["Retourner",pince_a_utilise,12])
+                            elif strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
                                 Liste_actions.append(["Retourner",pince_a_utilise,2])
                             elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
                                 Liste_actions.append(["Retourner",pince_a_utilise,1])
                         elif point_2_bloquee:
-                            if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
+                            print("ffffffff")
+                            if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
+                                Liste_actions.append(["Retourner",pince_a_utilise,12])
+                            elif strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
                                 Liste_actions.append(["Retourner",pince_a_utilise,1])
                             elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
                                 Liste_actions.append(["Retourner",pince_a_utilise,2])
                         else:
                             if distance_robot_point1 <= distance_robot_point2:
-                                print("eeeeee")
+                                print("gggggggg")
                                 if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
                                     Liste_actions.append(["Retourner",pince_a_utilise,12])
                                 elif strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
@@ -1177,7 +1181,7 @@ def positionner_robot_devant_Noisette(x_strategie,y_strategie,Noisettes_groupees
                                 elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
                                     Liste_actions.append(["Retourner",pince_a_utilise,2])
                             else:
-                                print("ffffffff")
+                                print("hhhhhhhhhh")
                                 if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
                                     Liste_actions.append(["Retourner",pince_a_utilise,12])
                                 elif strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
@@ -1191,6 +1195,177 @@ def positionner_robot_devant_Noisette(x_strategie,y_strategie,Noisettes_groupees
 
     elif chercher_Noisette == False:
         print(f"GM n°{strategie_en_cours}")
+        
+        if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
+            print("Pas de Noisette dans robot")
+            demande_nouvelle_strat = True
+        else:
+            if Noisettes_stockees_dans_robot[0] != ["N","N"]:
+                pince_a_utilise = 0
+            else :
+                pince_a_utilise = 1
+            if Noisettes_stockees_dans_robot[pince_a_utilise] == ["J","B"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["B","J"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["J","J"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["B","B"]:
+                sous_pince = 12
+            elif Noisettes_stockees_dans_robot[pince_a_utilise] == ["J","N"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["B","N"]:
+                sous_pince = 1
+            elif Noisettes_stockees_dans_robot[pince_a_utilise] == ["N","J"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["N","B"]:
+                sous_pince = 2
+
+            print("pince_a_utilise",pince_a_utilise)
+            print("sous_pince : ",sous_pince)
+
+            x_centre_gm = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
+            y_centre_gm = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
+            print(x_centre_gm)
+            print(y_centre_gm)
+
+            angle_robot_gm = np.degrees(math.atan2(y_centre_gm - y_robot_actuel, x_centre_gm - x_robot_actuel))
+            angle_robot_gm += 360
+            angle_robot_gm %= 360
+            print("angle_robot_gm : ",angle_robot_gm)
+            if 45<=angle_robot_gm<135:
+                print("haut")
+                x_cote = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
+                y_cote = Liste_zones_gm_coins[strategie_en_cours][1][1]
+            if 0<=angle_robot_gm<45 or 315<=angle_robot_gm<360:
+                print("droite")
+                x_cote = Liste_zones_gm_coins[strategie_en_cours][1][0]
+                y_cote = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
+            if 135<=angle_robot_gm<225:
+                print("gauche")
+                x_cote = Liste_zones_gm_coins[strategie_en_cours][0][0]
+                y_cote = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
+            if 225<=angle_robot_gm<315:
+                print("bas")
+                x_cote = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
+                y_cote = Liste_zones_gm_coins[strategie_en_cours][0][1]
+
+            print("x_cote : ",x_cote,"  y_cote : ",y_cote)
+
+            if sous_pince == 12 or sous_pince == 2:
+                distance = 100 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+                distanceA = 100 + 25 + 5*MARGE_NOISETTE+LONGUEUR_ROBOT/2
+            elif sous_pince == 1:
+                distance = 50 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+                distanceA = 50 + 25 + 5*MARGE_NOISETTE+LONGUEUR_ROBOT/2
+            angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
+            print("angle_centre_cote : ",np.degrees(angle_centre_cote))
+            x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
+            y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
+            x_arrivee_Astar = x_cote + distanceA*math.cos(angle_centre_cote)
+            y_arrivee_Astar = y_cote + distanceA*math.sin(angle_centre_cote)
+            if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar // CASE_MM)))]:
+                print("Tourner de 90°")
+                angle_robot_gm -= 90
+                angle_robot_gm %= 360
+                print("angle_robot_gm : ",angle_robot_gm)
+                if 45<=angle_robot_gm<135:
+                    print("haut")
+                    x_cote = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
+                    y_cote = Liste_zones_gm_coins[strategie_en_cours][1][1]
+                if 0<=angle_robot_gm<45 or 315<=angle_robot_gm<360:
+                    print("droite")
+                    x_cote = Liste_zones_gm_coins[strategie_en_cours][1][0]
+                    y_cote = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
+                if 135<=angle_robot_gm<225:
+                    print("gauche")
+                    x_cote = Liste_zones_gm_coins[strategie_en_cours][0][0]
+                    y_cote = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
+                if 225<=angle_robot_gm<315:
+                    print("bas")
+                    x_cote = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
+                    y_cote = Liste_zones_gm_coins[strategie_en_cours][0][1]
+
+                print("x_cote : ",x_cote,"  y_cote : ",y_cote)
+                angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
+                print("angle_centre_cote : ",np.degrees(angle_centre_cote))
+                x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
+                y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
+                x_arrivee_Astar = x_cote + distanceA*math.cos(angle_centre_cote)
+                y_arrivee_Astar = y_cote + distanceA*math.sin(angle_centre_cote)
+                if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar // CASE_MM)))]:
+                    print("Tourner de 90°")
+                    angle_robot_gm -= 90
+                    angle_robot_gm %= 360
+                    print("angle_robot_gm : ",angle_robot_gm)
+                    if 45<=angle_robot_gm<135:
+                        print("haut")
+                        x_cote = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
+                        y_cote = Liste_zones_gm_coins[strategie_en_cours][1][1]
+                    if 0<=angle_robot_gm<45 or 315<=angle_robot_gm<360:
+                        print("droite")
+                        x_cote = Liste_zones_gm_coins[strategie_en_cours][1][0]
+                        y_cote = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
+                    if 135<=angle_robot_gm<225:
+                        print("gauche")
+                        x_cote = Liste_zones_gm_coins[strategie_en_cours][0][0]
+                        y_cote = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
+                    if 225<=angle_robot_gm<315:
+                        print("bas")
+                        x_cote = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
+                        y_cote = Liste_zones_gm_coins[strategie_en_cours][0][1]
+
+                    print("x_cote : ",x_cote,"  y_cote : ",y_cote)
+                    angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
+                    print("angle_centre_cote : ",np.degrees(angle_centre_cote))
+                    x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
+                    y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
+                    x_arrivee_Astar = x_cote + distanceA*math.cos(angle_centre_cote)
+                    y_arrivee_Astar = y_cote + distanceA*math.sin(angle_centre_cote)
+                    if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar // CASE_MM)))]:
+                        print("Tourner de 90°")
+                        angle_robot_gm -= 90
+                        angle_robot_gm %= 360
+                        print("angle_robot_gm : ",angle_robot_gm)
+                        if 45<=angle_robot_gm<135:
+                            print("haut")
+                            x_cote = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
+                            y_cote = Liste_zones_gm_coins[strategie_en_cours][1][1]
+                        if 0<=angle_robot_gm<45 or 315<=angle_robot_gm<360:
+                            print("droite")
+                            x_cote = Liste_zones_gm_coins[strategie_en_cours][1][0]
+                            y_cote = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
+                        if 135<=angle_robot_gm<225:
+                            print("gauche")
+                            x_cote = Liste_zones_gm_coins[strategie_en_cours][0][0]
+                            y_cote = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
+                        if 225<=angle_robot_gm<315:
+                            print("bas")
+                            x_cote = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
+                            y_cote = Liste_zones_gm_coins[strategie_en_cours][0][1]
+
+                        print("x_cote : ",x_cote,"  y_cote : ",y_cote)
+                        angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
+                        print("angle_centre_cote : ",np.degrees(angle_centre_cote))
+                        x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
+                        y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
+                        x_arrivee_Astar = x_cote + distanceA*math.cos(angle_centre_cote)
+                        y_arrivee_Astar = y_cote + distanceA*math.sin(angle_centre_cote)
+                        if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar // CASE_MM)))]:
+                            print("GM Inacessible")
+                            demande_nouvelle_strat = True
+                        else:
+                            if pince_a_utilise == 0:
+                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                            else :
+                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                                    
+                    else:
+                        if pince_a_utilise == 0:
+                            Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                        else :
+                            Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                else:
+                    if pince_a_utilise == 0:
+                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                    else :
+                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+            else:
+                if pince_a_utilise == 0:
+                    Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                else :
+                    Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+
     else:
         demande_nouvelle_strat = True
 
