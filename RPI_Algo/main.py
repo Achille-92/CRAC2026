@@ -8,7 +8,7 @@ Astars = True
 
 Simul_mvt = True
 Simul_mvt_ennemi = True
-Debug_Mouv = False
+Debug_Mouv = True
 
 Simul_action = True
 Debug_Action = True
@@ -18,7 +18,7 @@ Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
 
-Noisettes_stockees_dans_robot = [["N","N"],["B","N"]]
+Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -72,6 +72,12 @@ R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 ############################
 
 # Listes pour la Stratégie
+Liste_strategie = [
+    [2825,450],
+    [2825,350],
+    [2150,800],
+    [2250,800],
+]
 if not Astars:
     if not Mode_pince:
         Liste_actions = [
@@ -250,7 +256,7 @@ Liste_noisette_xya = [
 
     [1025,175,90,"R"],[1075,175,90,"R"],[1125,175,90,"R"],[1175,175,90,"R"],
     [1825,175,90,"R"],[1875,175,90,"R"],[1925,175,90,"R"],[1975,175,90,"R"],
-    [2200,1000,0,"R"],[2500,800,90,"R"],
+    #[2200,700,0,"J"],#[2200,750,0,"J"],#[2200,800,0,"J"],#[2200,500,33,"J"],
 ] 
 if not Wifi:
     Liste_noisette_xya_cam = [
@@ -504,11 +510,10 @@ etat_bau = 0
 etat_jack = False
 
 demande_nouvelle_strat = False
-x_strategie = 2200
-y_strategie = 800
+x_strategie = Liste_strategie[0][0]
+y_strategie = Liste_strategie[0][1]
 strategie_en_cours = [] 
 TOLERANCE_STRATEGIE_NOISETTE = 50
-action_en_cours = None
 action_precedente = None
 aller_Noisette = False
 aller_GM = False
@@ -1155,16 +1160,17 @@ if __name__ == '__main__':
             if not sortir_depart:
                 if couleur == "B":
                     distance_robot_pointdepart = distance((x_robot_actuel,y_robot_actuel),(2400+LARGEUR_ROBOT/2,1350))
-                
                 if couleur == "J":
                     distance_robot_pointdepart = distance((x_robot_actuel,y_robot_actuel),(600-LARGEUR_ROBOT/2,1350))
-                    
                 if distance_robot_pointdepart < 50:
                     sortir_depart = True
                     demande_nouvelle_strat = True
             # ============ Prise de décision ========== #
+            print("Liste_strategie : ",Liste_strategie)
             if demande_nouvelle_strat and sortir_depart:
                 demande_nouvelle_strat = False
+                x_strategie = Liste_strategie[0][0]
+                y_strategie = Liste_strategie[0][1]
                 if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
                     aller_Noisette = True
                     aller_GM = False
@@ -1207,8 +1213,13 @@ if __name__ == '__main__':
                 noisette_a_manipulee = Liste_actions[0][2]
 
             # ====== Bouger si Robot dans Zone interdite pour Attraper et Relacher === #
-            if len(Liste_actions)>2 or action_precedente in ["Relacher"]:
-                if (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper"]) or Liste_actions[1][0] in ["Attraper"] or action_voulu in ["Attraper"] or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]) or (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Relacher"]) or action_voulu in ["Relacher"]:
+            print("Liste_actions av : ",Liste_actions)
+            if len(Liste_actions)>2:
+                """if (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper"]) or Liste_actions[1][0] in ["Attraper"] or action_voulu in ["Attraper"] or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]) or (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Relacher"]) or action_voulu in ["Relacher"]:
+                    mode_attraper = True
+                else : 
+                    mode_attraper = False"""
+                if (action_voulu in ["Attraper","Retourner","Relacher"]) or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Attraper","Relacher"]) or (action_voulu in ["Consigne","ReculerPrecis"] and Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper","Relacher"])  or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Consigne","ReculerPrecis"] and Liste_actions[2][0] in ["Rotation"] and Liste_actions[3][0] in ["Attraper","Relacher"]) or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]):
                     mode_attraper = True
                 else : 
                     mode_attraper = False
@@ -1339,10 +1350,10 @@ if __name__ == '__main__':
                                     if x_libre is not None:
                                         print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
                                         # Insérer un Avancer prioritaire vers ce point
-                                        if action_voulu in ["Consigne", "Avancer"]:
+                                        """if action_voulu in ["Consigne", "Avancer"]:
                                             Liste_actions.insert(0, ["Avancer", int(x_libre), int(y_libre)])
                                         elif action_voulu in ["ReculerPrecis", "Reculer"]:
-                                            Liste_actions.insert(0, ["Reculer", int(x_libre), int(y_libre)])
+                                            Liste_actions.insert(0, ["Reculer", int(x_libre), int(y_libre)])"""
                                         demande_recalcul_traj = True
                                         Astars_a_fail = False
                                     else:
@@ -2014,6 +2025,10 @@ if __name__ == '__main__':
                     sortir_ennemi = False
                     x_sortie_fixe = None
                     y_sortie_fixe = None
+                    if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
+                        Liste_strategie.pop(0)
+                        demande_nouvelle_strat = True
+                        demande_recalcul_traj = True
             else :
                 action_est_supprime = False
             
