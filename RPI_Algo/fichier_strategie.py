@@ -96,7 +96,12 @@ def remplir_Liste_actions(x_strategie,y_strategie,Noisettes_groupees,strategie_e
 
     Liste_actions.clear()
     chercher_Noisette = None
+    aller_nid = False
 
+    if (couleur == "B" and 2400<= x_strategie <= 3000 and 1550 <= y_strategie <= 2000) or (couleur == "J" and 0<= x_strategie <= 600 and 1550 <= y_strategie <= 2000):
+        print("Stratégie : nid")
+        aller_nid = True
+    
     for num_gm in range(len(Liste_zones_gm_coins)):
         if Liste_zones_gm_coins[num_gm][0][0]<= x_strategie <= Liste_zones_gm_coins[num_gm][1][0] and Liste_zones_gm_coins[num_gm][0][1]<= y_strategie <= Liste_zones_gm_coins[num_gm][1][1]:
             strategie_en_cours = num_gm
@@ -435,7 +440,7 @@ def remplir_Liste_actions(x_strategie,y_strategie,Noisettes_groupees,strategie_e
                 Noisette_coin_bd = (x_centre + dx_long + dx_larg, y_centre + dy_long + dy_larg)  # Bas-Droite
                 Noisette_coin_bg = (x_centre - dx_long + dx_larg, y_centre - dy_long + dy_larg)  # Bas-Gauche
     
-                 # Vérifier si AU MOINS UN coin est dans une zone GM
+                # Vérifier si AU MOINS UN coin est dans une zone GM
                 zone = Liste_zones_gm_coins[strategie_en_cours]
                 x_min, y_min = zone[0]
                 x_max, y_max = zone[1]
@@ -682,6 +687,8 @@ def remplir_Liste_actions(x_strategie,y_strategie,Noisettes_groupees,strategie_e
                     else :
                         Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
 
+    elif aller_nid:
+        print("Déposer au nid")
     else:
         demande_nouvelle_strat = True
 

@@ -73,6 +73,7 @@ R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 
 # Listes pour la Stratégie
 Liste_strategie = [
+    [2600,1800],
     [2825,450],
     [2825,350],
     [2150,800],
