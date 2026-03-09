@@ -699,6 +699,8 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
             sous_pince = 1
         elif Noisettes_stockees_dans_robot[pince_a_utilise] == ["N","J"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["N","B"]:
             sous_pince = 2
+        else:
+            return [["Attente"]],True
 
         print("pince_a_utilise",pince_a_utilise)
         print("sous_pince : ",sous_pince)

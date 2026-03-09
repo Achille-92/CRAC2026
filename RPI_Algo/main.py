@@ -78,6 +78,7 @@ Liste_strategie = [
     [2150,800],
     [2250,800],
 ]
+
 if not Astars:
     if not Mode_pince:
         Liste_actions = [
