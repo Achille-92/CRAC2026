@@ -92,7 +92,7 @@ def regrouper_par_quatre(groupe_indices, noisettes):
     return groupes_de_quatre
 
 
-def remplir_Liste_actions(x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded):
+def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded):
 
     Liste_actions.clear()
     chercher_Noisette = None
@@ -689,6 +689,89 @@ def remplir_Liste_actions(x_strategie,y_strategie,Noisettes_groupees,strategie_e
 
     elif aller_nid:
         print("Déposer au nid")
+        if Noisettes_stockees_dans_robot[0] != ["N","N"]:
+            pince_a_utilise = 0
+        else :
+            pince_a_utilise = 1
+        if Noisettes_stockees_dans_robot[pince_a_utilise] == ["J","B"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["B","J"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["J","J"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["B","B"]:
+            sous_pince = 12
+        elif Noisettes_stockees_dans_robot[pince_a_utilise] == ["J","N"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["B","N"]:
+            sous_pince = 1
+        elif Noisettes_stockees_dans_robot[pince_a_utilise] == ["N","J"] or Noisettes_stockees_dans_robot[pince_a_utilise] == ["N","B"]:
+            sous_pince = 2
+
+        print("pince_a_utilise",pince_a_utilise)
+        print("sous_pince : ",sous_pince)
+
+        Strat_Noisettes_dans_GM = []
+        for Noisette in Liste_noisette_xya:
+            x_centre, y_centre, angle = Noisette[0], Noisette[1], Noisette[2]
+
+            # Dimensions
+            longueur = 150  # mm (dans la direction de l'angle)
+            largeur = 50    # mm (perpendiculaire à l'angle)
+            
+            # Conversion angle en radians
+            angle_rad = math.radians(angle)
+            
+            # Vecteurs directeurs
+            dx_long = (longueur / 2) * math.cos(angle_rad)
+            dy_long = (longueur / 2) * math.sin(angle_rad)
+            dx_larg = (largeur / 2) * math.sin(angle_rad)  # Perpendiculaire = rotation de 90°
+            dy_larg = -(largeur / 2) * math.cos(angle_rad)
+            
+            # Calcul des 4 coins (sens trigonométrique depuis le centre)
+            Noisette_coin_hg = (x_centre - dx_long - dx_larg, y_centre - dy_long - dy_larg)  # Haut-Gauche
+            Noisette_coin_hd = (x_centre + dx_long - dx_larg, y_centre + dy_long - dy_larg)  # Haut-Droite
+            Noisette_coin_bd = (x_centre + dx_long + dx_larg, y_centre + dy_long + dy_larg)  # Bas-Droite
+            Noisette_coin_bg = (x_centre - dx_long + dx_larg, y_centre - dy_long + dy_larg)  # Bas-Gauche
+
+            # Vérifier si AU MOINS UN coin est dans une zone GM
+            if couleur == "B":
+                x_min, y_min = 2400,1550
+                x_max, y_max = 3000,2000
+            if couleur == "J":
+                x_min, y_min = 0,1550
+                x_max, y_max = 600,2000
+            
+            # Liste des 4 coins
+            coins = [Noisette_coin_hg, Noisette_coin_hd, Noisette_coin_bd, Noisette_coin_bg]
+            
+            # Vérifier si au moins un coin est dans la zone
+            if any(x_min <= coin[0] <= x_max and y_min <= coin[1] <= y_max for coin in coins):
+                Strat_Noisettes_dans_GM.append(Noisette)
+
+        print("Strat_Noisettes_dans_GM : ",Strat_Noisettes_dans_GM)
+
+        if sous_pince == 12 or sous_pince == 2:
+            distance = 100 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+            distanceA = 100 + 25 + 7*MARGE_NOISETTE+LONGUEUR_ROBOT/2
+        elif sous_pince == 1:
+            distance = 50 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+            distanceA = 50 + 25 + 7*MARGE_NOISETTE+LONGUEUR_ROBOT/2
+        
+        if couleur == "B":
+            x_cote = 2400+LARGEUR_ROBOT/2+30
+        else:
+            x_cote = 600-LARGEUR_ROBOT/2-30
+
+        if len(Strat_Noisettes_dans_GM)<6:
+            y_cote = 2000-25-25-60*(len(Strat_Noisettes_dans_GM)-1)
+            angle_Noisette_centre = -math.pi/2
+            x_arrivee_1 = int(x_cote + distance*math.cos(angle_Noisette_centre))
+            y_arrivee_1 = int(y_cote + distance*math.sin(angle_Noisette_centre))
+            x_arrivee_Astar = int(x_cote + distanceA*math.cos(angle_Noisette_centre))
+            y_arrivee_Astar = int(y_cote + distanceA*math.sin(angle_Noisette_centre))
+            if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar // CASE_MM)))]:
+                demande_nouvelle_strat = True
+            else:
+                if pince_a_utilise == 0:
+                    Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_Noisette_centre)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_Noisette_centre)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                else :
+                    Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_Noisette_centre))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_Noisette_centre))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+        else:
+            demande_nouvelle_strat = True 
+
     else:
         demande_nouvelle_strat = True
 

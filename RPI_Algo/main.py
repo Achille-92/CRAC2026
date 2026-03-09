@@ -18,7 +18,7 @@ Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
 
-Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
+Noisettes_stockees_dans_robot = [["B","B"],["B","B"]]
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -258,6 +258,7 @@ Liste_noisette_xya = [
     [1025,175,90,"R"],[1075,175,90,"R"],[1125,175,90,"R"],[1175,175,90,"R"],
     [1825,175,90,"R"],[1875,175,90,"R"],[1925,175,90,"R"],[1975,175,90,"R"],
     #[2200,700,0,"J"],#[2200,750,0,"J"],#[2200,800,0,"J"],#[2200,500,33,"J"],
+    #[2400+LARGEUR_ROBOT/2+30,2000-25-25,0,"J"],[2400+LARGEUR_ROBOT/2+30,2000-25-25-50,0,"J"],
 ] 
 if not Wifi:
     Liste_noisette_xya_cam = [
@@ -377,27 +378,27 @@ if couleur == "B":
     
     Liste_actions = [["Avancer",2400+LARGEUR_ROBOT/2,1350]]
 
-    x_robot_depart = 2400+LARGEUR_ROBOT/2 
+    """x_robot_depart = 2400+LARGEUR_ROBOT/2 
     y_robot_depart = 1350
-    angle_robot_depart = -90
+    angle_robot_depart = -90"""
 
-    x_robot_retour = 2725
-    y_robot_retour = 1550
-    angle_robot_retour = -90
+    x_robot_retour = 3000-LARGEUR_ROBOT/2-30
+    y_robot_retour = 1750
+    angle_robot_retour = 90
     
     x_ennemi = 275
     y_ennemi = 1650
 
 else:
-    x_robot_depart = 600-LARGEUR_ROBOT/2 
+    x_robot_depart = 600-LARGEUR_ROBOT/2
     y_robot_depart = 1550+LONGUEUR_ROBOT/2+100
     angle_robot_depart = -90
     
     Liste_actions = [["Avancer",600-LARGEUR_ROBOT/2,1350]]
     
-    x_robot_retour = 275
-    y_robot_retour = 1550
-    angle_robot_retour = -90
+    x_robot_retour = LARGEUR_ROBOT/2+30
+    y_robot_retour = 1750
+    angle_robot_retour = 90
 
     x_ennemi = 2725 
     y_ennemi = 1650
@@ -422,7 +423,7 @@ rayon_total_case = (R_ROBOT + MARGE_GM) // CASE_MM  # = 20 cases = 200mm
 ####################
 
 # === CRÉATION DES OBSTACLES avec la classe Obstacles === #
-obs_manager = Obstacles(X_PISTE,Y_PISTE,R_ROBOT,MARGE_GM,CASE_MM)
+obs_manager = Obstacles(X_PISTE,Y_PISTE,int(LARGEUR_ROBOT/2),0,CASE_MM)
 obs_manager_noisettes = Obstacles(X_PISTE,Y_PISTE,R_ROBOT,MARGE_NOISETTE,CASE_MM)
 
 # Ajout des Noisettes orientées à partir de Liste_noisette_xya
@@ -523,7 +524,7 @@ aller_GM = False
 temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
-temps_retour = 15 # Temps restant pour revenir au départ en fin de match
+temps_retour = 3500 # Temps restant pour revenir au départ en fin de match
 temps_max = 3600
 reset_fin = False
 
@@ -970,7 +971,7 @@ if __name__ == '__main__':
         demande_recalcul_traj = True
 
     if Strategie and sortir_depart:
-        Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
+        Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
         print(Liste_actions)
 
     
@@ -986,11 +987,7 @@ if __name__ == '__main__':
             print(f"Attente BAU")
 
     while(lancement_strategie==False and not etat_jack):
-        if Reel:
-            etat_RPI = 1
-            data_etat_RPI = struct.pack('<I',etat_RPI)
-            bus.send(can.Message(arbitration_id=0x01, data=data_etat_RPI, is_extended_id=False))
-        if current_os == "Linux":
+        if current_os == "Linux" and Reel:
             etat_jack = GPIO.input(26)
         print("Attente du Jack")
         plt.pause(0.1)
@@ -1170,8 +1167,8 @@ if __name__ == '__main__':
             print("Liste_strategie : ",Liste_strategie)
             if demande_nouvelle_strat and sortir_depart:
                 demande_nouvelle_strat = False
-                x_strategie = Liste_strategie[0][0]
-                y_strategie = Liste_strategie[0][1]
+                """x_strategie = Liste_strategie[0][0]
+                y_strategie = Liste_strategie[0][1]"""
                 if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
                     aller_Noisette = True
                     aller_GM = False
@@ -1182,7 +1179,7 @@ if __name__ == '__main__':
                     aller_Noisette = False
                     aller_GM = False
 
-                Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
+                Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
                 demande_recalcul_traj = True
                 
             # ========================================= #
@@ -1258,7 +1255,7 @@ if __name__ == '__main__':
             # ======================== CALCUL DE LA TRAJECTOIRE A* =================== #
             if Astars: 
                 # === CALCUL DE LA TRAJECTOIRE A* ===
-                if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper and not sortir_ennemi:
+                if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper and not sortir_ennemi and sortir_depart:
                     grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
 
                     if Debug_Mouv:
@@ -2026,10 +2023,10 @@ if __name__ == '__main__':
                     sortir_ennemi = False
                     x_sortie_fixe = None
                     y_sortie_fixe = None
-                    if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
+                    """if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
                         Liste_strategie.pop(0)
                         demande_nouvelle_strat = True
-                        demande_recalcul_traj = True
+                        demande_recalcul_traj = True"""
             else :
                 action_est_supprime = False
             
