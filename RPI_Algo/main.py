@@ -7,7 +7,7 @@ Debug_strategie = True
 Astars = True
 
 Simul_mvt = True
-Simul_mvt_ennemi = True
+Simul_mvt_ennemi = False
 Debug_Mouv = True
 
 Simul_action = True
@@ -18,7 +18,7 @@ Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
 
-Noisettes_stockees_dans_robot = [["B","B"],["B","B"]]
+Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -73,7 +73,6 @@ R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 
 # Listes pour la Stratégie
 Liste_strategie = [
-    [2600,1800],
     [2825,450],
     [2825,350],
     [2150,800],
