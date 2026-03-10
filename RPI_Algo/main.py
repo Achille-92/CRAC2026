@@ -42,7 +42,7 @@ from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper
 #couleur = fenetre_selection_couleur()
 # Config CAN 
 Liste_ID_recoit = [0x03,0x05,0x06,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
-Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x203,0x204,0x205,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
+Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x204,0x205,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
     os.system('sudo ip link set can0 type can bitrate 500000')
@@ -85,9 +85,6 @@ if not Astars:
             ["Avancer",2550,1400],
             ["Avancer",2550,1000],
             ["Avancer",2800,890],
-
-            #["Recalage X"],
-            #["Reculer",2800,890],
 
             ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
             ["Rotation",90],
@@ -532,7 +529,6 @@ reset_fin = False
 verif_mouv = 0
 old_verif_mouv = verif_mouv
 verif_angle = 0
-verif_recalage = 0
 verif_action = 0
 action_est_supprime = False 
 mode_attraper = False
@@ -650,7 +646,7 @@ def LectureCAN(stop_event):
     Si l'ID du message n'est pas dans la Liste_ID, saute
     Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
     """
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, bus, verif_mouv, verif_angle,verif_recalage,verif_action,Batteries_alert, carte_actionneur0_active, carte_actionneur1_active, carte_asserv_active, carte_batteries_active, etat_bau
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, bus, verif_mouv, verif_angle,verif_action,Batteries_alert, carte_actionneur0_active, carte_actionneur1_active, carte_asserv_active, carte_batteries_active, etat_bau
     while not stop_event.is_set():
         msg = bus.recv(0.01)  # attend 10 ms max
         if msg is None:
@@ -694,8 +690,6 @@ def LectureCAN(stop_event):
             verif_mouv = struct.unpack('f', bytes(msg.data))[0]
         elif msg.arbitration_id == 0x10F:
             verif_angle = struct.unpack('f', bytes(msg.data))[0]
-        elif msg.arbitration_id == 0x110:
-            verif_recalage = struct.unpack('f', bytes(msg.data))[0]
             
         elif msg.arbitration_id == 0x002:
             carte_asserv_active = struct.unpack('f', bytes(msg.data))[0]
@@ -1196,7 +1190,7 @@ if __name__ == '__main__':
                 y_robot_voulu = Liste_actions[0][2]
                 angle_robot_voulu = -181
 
-            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Recalage X","Recalage Y","Attente"]:
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Attente"]:
                 action_voulu = Liste_actions[0][0]
                 
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
@@ -1373,7 +1367,7 @@ if __name__ == '__main__':
                 y_robot_voulu = Liste_actions[0][2]
                 angle_robot_voulu = -181
 
-            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Recalage X","Recalage Y"]:
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Attente"]:
                 action_voulu = Liste_actions[0][0]
                 
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
@@ -1449,12 +1443,8 @@ if __name__ == '__main__':
                 ordre_mouvement=4
             elif action_voulu in ["Consigne"]:
                 ordre_mouvement=5
-            elif action_voulu in ["Recalage X"]:
-                ordre_mouvement=6
-            elif action_voulu in ["Recalage Y"]:
-                ordre_mouvement=7
             elif action_voulu in ["ReculerPrecis"]:
-                ordre_mouvement = 8
+                ordre_mouvement = 6
             else :
                 ordre_mouvement=100
             
@@ -1963,18 +1953,6 @@ if __name__ == '__main__':
                     msg = can.Message(arbitration_id=0x208, data=format_value, is_extended_id=False)
                     bus.send(msg)
 
-            """if verif_recalage == 1:
-                dico_envoi[0x203]=2
-                if Reel:
-                    format_value = struct.pack('<I',dico_envoi[0x203])
-                    msg = can.Message(arbitration_id=0x203, data=format_value, is_extended_id=False)
-                    bus.send(msg)
-            else :
-                dico_envoi[0x203]=1
-                if Reel:
-                    format_value = struct.pack('<I',dico_envoi[0x203])
-                    msg = can.Message(arbitration_id=0x203, data=format_value, is_extended_id=False)
-                    bus.send(msg)"""
             
             if verif_action == 1:
                 dico_envoi[0x504+pince_a_utilise]=2
@@ -1995,8 +1973,6 @@ if __name__ == '__main__':
                 print("ack mouv : ",dico_envoi[0x207])
                 print("verif_angle : ",verif_angle)
                 print("ack angle : ",dico_envoi[0x208])
-                print("verif_recalage : ",verif_recalage)
-                print("ack recalage : ",dico_envoi[0x203])
             if Debug_Action:
                 print("verif_action : ",verif_action)
                 print("ack action : ",dico_envoi[0x504+pince_a_utilise])
@@ -2006,14 +1982,12 @@ if __name__ == '__main__':
             if not action_est_supprime:
                 if (action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"] and verif_mouv == 1) or \
                 (action_voulu in ["Rotation"] and verif_angle == 1) or \
-                (action_voulu in ["Recalage X","Recalage Y"] and verif_recalage == 1) or \
                 (action_voulu in ["Attraper","Retourner","Relacher"] and verif_action == 1):
                     
                     # Retirer l'action de la liste 
                     Liste_actions.pop(0) 
                     verif_mouv=0
                     verif_angle = 0
-                    verif_recalage = 0
                     angle_robot_voulu = -181
                     verif_action = 0
                     action_est_supprime = True
