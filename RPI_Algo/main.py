@@ -1,5 +1,5 @@
 couleur = "B"
-Reel = True
+Reel = False
 Wifi = False
 
 Strategie = True
@@ -11,7 +11,7 @@ Simul_mvt_ennemi = False
 Debug_Mouv = True
 
 Simul_action = True
-Debug_Action = True
+Debug_Action = False
 
 Lidar_on = False 
 Bat_Compet = False
@@ -58,7 +58,6 @@ for ID in Liste_ID_envoi:
 #################################################
 
 # Perimètre de sécurité
-
 LARGEUR_ROBOT = 250
 LONGUEUR_ROBOT = 130
 R_ROBOT = int(math.sqrt((LARGEUR_ROBOT/2)**2+(LONGUEUR_ROBOT/2)**2))
@@ -222,7 +221,6 @@ else :
     ["Relacher",0,12],
 ]"""
 
-Liste_trajectoire = []
 
 Liste_actions_ennemi = []
 
@@ -297,27 +295,6 @@ Liste_noisettes_recup_angle = [(-90,90),
                                      (0,180),
                                      (0,180),]
 
-Liste_gm_recup_xy = [((1150-R_ROBOT-2*MARGE_GM,1450),(1250,1350-R_ROBOT-2*MARGE_GM)),
-                     ((1750,1350-R_ROBOT-2*MARGE_GM),(1850+R_ROBOT+2*MARGE_GM,1450),),
-                     (200+R_ROBOT+2*MARGE_GM,800),
-                     ((800,900+R_ROBOT+2*MARGE_GM),(800,700-R_ROBOT-2*MARGE_GM),(700-R_ROBOT-2*MARGE_GM,800),(900+R_ROBOT+2*MARGE_GM,800)),
-                     ((1500,900+R_ROBOT+2*MARGE_GM),(1500,700-R_ROBOT-2*MARGE_GM),(1400-R_ROBOT-2*MARGE_GM,800),(1600+R_ROBOT+2*MARGE_GM,800)),
-                     ((2200,900+R_ROBOT+2*MARGE_GM),(2200,700-R_ROBOT-2*MARGE_GM),(2100-R_ROBOT-2*MARGE_GM,800),(2300+R_ROBOT+2*MARGE_GM,800)),
-                     (2800-R_ROBOT-2*MARGE_GM,800),
-                     (700,200+R_ROBOT+2*MARGE_GM),
-                     (1500,200+R_ROBOT+2*MARGE_GM),
-                     (2300,200+R_ROBOT+2*MARGE_GM)]
-
-Liste_gm_recup_angle = [(0,90),
-                        (90,180),
-                        180,
-                        (-90,90,0,180),
-                        (-90,90,0,180),
-                        (-90,90,0,180),
-                        0,
-                        -90,
-                        -90,
-                        -90]
 
 Liste_zones_gm_coins = [
     [[1150,1350],[1350,1550]],
@@ -375,10 +352,6 @@ if couleur == "B":
     
     Liste_actions = [["Avancer",2400+LARGEUR_ROBOT/2,1350]]
 
-    """x_robot_depart = 2400+LARGEUR_ROBOT/2 
-    y_robot_depart = 1350
-    angle_robot_depart = -90"""
-
     x_robot_retour = 3000-LARGEUR_ROBOT/2-30
     y_robot_retour = 1750
     angle_robot_retour = 90
@@ -423,15 +396,9 @@ rayon_total_case = (R_ROBOT + MARGE_GM) // CASE_MM  # = 20 cases = 200mm
 obs_manager = Obstacles(X_PISTE,Y_PISTE,int(LARGEUR_ROBOT/2),0,CASE_MM)
 obs_manager_noisettes = Obstacles(X_PISTE,Y_PISTE,R_ROBOT,MARGE_NOISETTE,CASE_MM)
 
-# Ajout des Noisettes orientées à partir de Liste_noisette_xya
-# Format: [x_centre, y_centre, angle_degrés, couleur] ou [x_centre, y_centre, angle_degrés]
-# Dimensions: 150mm (longueur) × 50mm (largeur)
 for i, noisette_data in enumerate(Liste_noisette_xya, 1):
-    # Gérer les formats avec ou sans couleur
     if len(noisette_data) >= 3:
         x, y, angle = noisette_data[0], noisette_data[1], noisette_data[2]
-        # La couleur (4e élément) est optionnelle et n'affecte que l'affichage visuel,
-        # pas les obstacles pour l'algorithme A*
         obs_manager_noisettes.ajouter_rectangle_oriente(
             f"Noisette{i}", 
             (x, y),      # Centre
@@ -654,6 +621,7 @@ def LectureCAN(stop_event):
 
         # Vérifie qu'on a bien reçu 4 octets avant de décoder
         if msg.arbitration_id not in Liste_ID_recoit:
+            print(f"[Non traité] : ID : {msg.arbitration_id}")
             continue  # on saute les autres trames
 
         if msg.arbitration_id == 0x100:
@@ -696,9 +664,10 @@ def LectureCAN(stop_event):
         elif msg.arbitration_id == 0x003:
             if msg.dlc >= 1:
                 carte_actionneur0_active = msg.data[0]
-
         elif msg.arbitration_id == 0x004:
-            carte_actionneur1_active = struct.unpack('f', bytes(msg.data))[0]
+            if msg.dlc >= 1:
+                carte_actionneur1_active = msg.data[0]
+
         elif msg.arbitration_id == 0x005:
             carte_batteries_active = struct.unpack('<H', bytes(msg.data[:2]))[0]
         elif msg.arbitration_id == 0x06:
@@ -1075,9 +1044,6 @@ if __name__ == '__main__':
                     x_ennemi += round(15*np.cos(math.radians(angle_ennemi_consigne)),0)
                     y_ennemi += round(15*np.sin(math.radians(angle_ennemi_consigne)),0)
 
-                """if step > 180:
-                    x_ennemi = 2800
-                    y_ennemi = 800"""
             ###
             
             # ======================== Tri Noisettes ============================================= #
@@ -1143,10 +1109,9 @@ if __name__ == '__main__':
                     # Vérifier si au moins un coin est dans la zone
                     if any(x_min <= coin[0] <= x_max and y_min <= coin[1] <= y_max for coin in coins):
                         Liste_Noisettes_dans_GM.append(Noisette)
-                        break  # Sortir dès qu'une zone est trouvée
-            if Debug_Action:
-                print("Liste_Noisettes_dans_GM : ",Liste_Noisettes_dans_GM)      
+                        break  # Sortir dès qu'une zone est trouvée    
             # ================================================================================================= #
+
             if not sortir_depart:
                 if couleur == "B":
                     distance_robot_pointdepart = distance((x_robot_actuel,y_robot_actuel),(2400+LARGEUR_ROBOT/2,1350))
@@ -1156,7 +1121,9 @@ if __name__ == '__main__':
                     sortir_depart = True
                     demande_nouvelle_strat = True
             # ============ Prise de décision ========== #
-            print("Liste_strategie : ",Liste_strategie)
+
+            if Strategie:
+                print("Liste_strategie : ",Liste_strategie)
             if demande_nouvelle_strat and sortir_depart:
                 demande_nouvelle_strat = False
                 """x_strategie = Liste_strategie[0][0]
@@ -1203,12 +1170,7 @@ if __name__ == '__main__':
                 noisette_a_manipulee = Liste_actions[0][2]
 
             # ====== Bouger si Robot dans Zone interdite pour Attraper et Relacher === #
-            print("Liste_actions av : ",Liste_actions)
             if len(Liste_actions)>2:
-                """if (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper"]) or Liste_actions[1][0] in ["Attraper"] or action_voulu in ["Attraper"] or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]) or (Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Relacher"]) or action_voulu in ["Relacher"]:
-                    mode_attraper = True
-                else : 
-                    mode_attraper = False"""
                 if (action_voulu in ["Attraper","Retourner","Relacher"]) or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Attraper","Relacher"]) or (action_voulu in ["Consigne","ReculerPrecis"] and Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper","Relacher"])  or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Consigne","ReculerPrecis"] and Liste_actions[2][0] in ["Rotation"] and Liste_actions[3][0] in ["Attraper","Relacher"]) or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]):
                     mode_attraper = True
                 else : 
@@ -1321,7 +1283,6 @@ if __name__ == '__main__':
                         else:
                             if Debug_Mouv:
                                 print("❌ Aucun chemin trouvé par A*")
-                            Astars_a_fail = True
                             if distance_robot_ennemi < R_securite:
                                 if Debug_Mouv:
                                     print("ENNEMI TROP PROCHE")
@@ -1349,11 +1310,13 @@ if __name__ == '__main__':
                                     else:
                                         print("❌ Aucune case libre trouvée dans le rayon de recherche")
                                         demande_nouvelle_strat = True
+                                        Astars_a_fail = True
                                 else:
                                     # Robot pas dans zone rouge mais chemin inaccessible
                                     # → la destination est peut-être bloquée
                                     print("⚠️ Chemin inaccessible — destination peut-être bloquée")
                                     demande_nouvelle_strat = True
+                                    Astars_a_fail = True
 
                                 if Debug_Mouv:
                                     print("CHEMIN INACCESSIBLE")
@@ -1383,7 +1346,6 @@ if __name__ == '__main__':
                 
             
             if (distance_robot_ennemi < R_securite - MARGE_TRAJECTOIRE) and action_voulu in ["Consigne", "Avancer", "Reculer", "ReculerPrecis","Rotation"]:
-                ordre_mouvement = 1
 
                 # ⭐ Ne recalculer le point de sortie QUE si on n'en a pas déjà un
                 if not sortir_ennemi or x_sortie_fixe is None:
@@ -1412,13 +1374,15 @@ if __name__ == '__main__':
                     while len(Liste_actions) > 1 and Liste_actions[0][0] in ["Avancer", "Reculer"]:
                         Liste_actions.pop(0)
 
-                    if Liste_actions[0][0] in ["Avancer", "Reculer", "Consigne", "ReculerPrecis"]:
+                    if Liste_actions[0][0] in ["Avancer", "Reculer", "Consigne", "ReculerPrecis","Rotation"]:
                         x_prochain = Liste_actions[0][1]
                         y_prochain = Liste_actions[0][2]
                         if distance((x_prochain, y_prochain), (x_sortie_fixe, y_sortie_fixe)) > 50:
-                            if action_voulu in ["Consigne", "Avancer"]:
+                            if action_voulu in ["Consigne", "Avancer","Rotation"]:
+                                ordre_mouvement = 1
                                 Liste_actions.insert(0, ["Avancer", x_sortie_fixe, y_sortie_fixe])
                             elif action_voulu in ["ReculerPrecis", "Reculer"]:
+                                ordre_mouvement = 2
                                 Liste_actions.insert(0, ["Reculer", x_sortie_fixe, y_sortie_fixe])
                             action_voulu = Liste_actions[0][0]
                             x_robot_voulu = Liste_actions[0][1]
@@ -1433,7 +1397,7 @@ if __name__ == '__main__':
                 x_sortie_fixe = None
                 y_sortie_fixe = None
 
-            elif action_voulu in ["Avancer"]:
+            if action_voulu in ["Avancer"]:
                 ordre_mouvement=1
             elif action_voulu in ["Reculer"]:
                 ordre_mouvement=2
@@ -1455,53 +1419,15 @@ if __name__ == '__main__':
                 print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
             print("Liste_actions : ", Liste_actions)
 
-            # ========== MISE À JOUR AUTOMATIQUE DE Liste_trajectoire ==========
-            # Trouver la première rotation (s'il y en a une)
-            index_prochain_stop = None
-            for i, action in enumerate(Liste_actions):
-                if isinstance(action, list) and action[0] in ["Rotation"]:
-                    index_prochain_stop = i
-                    break
-
-            # Extraire TOUS les points "Avancer" ou "Consigne"
-            if index_prochain_stop is not None:
-                points_avancer = [
-                    [int(action[1]), int(action[2])] 
-                    for i, action in enumerate(Liste_actions)
-                    if i < index_prochain_stop
-                    and isinstance(action, list) 
-                    and len(action) >= 3 
-                    and action[0] in ["Avancer", "Consigne","Reculer","ReculerPrecis"]
-                ]
-            else:
-                # Prendre tous les points
-                points_avancer = [
-                    [int(action[1]), int(action[2])] 
-                    for action in Liste_actions 
-                    if isinstance(action, list) 
-                    and len(action) >= 3 
-                    and action[0] in ["Avancer", "Consigne","Reculer","ReculerPrecis"]
-                ]
-            
-            # Remplir Liste_trajectoire
-            if len(points_avancer) >= 2:
-                Liste_trajectoire.clear()
-                Liste_trajectoire.append(len(points_avancer))
-                Liste_trajectoire.extend(points_avancer)
-            elif len(points_avancer) == 1 and len(Liste_actions) > 0:
-                premiere_action = Liste_actions[0]
-                if isinstance(premiere_action, list) and len(premiere_action) >= 3 and premiere_action[0] in ["Consigne", "Avancer","Reculer","ReculerPrecis"]:
-                    Liste_trajectoire.clear()
-                    Liste_trajectoire.append(1)
-                    Liste_trajectoire.extend(points_avancer)
-            
             if Debug_Mouv:
-                print("Liste_trajectoire : ",Liste_trajectoire)
                 print("Ordre Mouvement : ",ordre_mouvement) 
             # ==================================================================== #
 
             # ==== Envoi des Ordres de Consigne de Rotation à la Carte Asserv ==== #
+            dico_envoi[0x20A] = int(x_robot_voulu)
+            dico_envoi[0x20B] = int(y_robot_voulu)
             dico_envoi[0x205] = angle_robot_voulu+360
+            dico_envoi[0x206]= ordre_mouvement
             # ==================================================================== #
 
             # Envoi des Ordres de Manipulation des Noisettes à la Carte Actionneur #
@@ -1925,7 +1851,6 @@ if __name__ == '__main__':
                         if(len(Liste_actions_ennemi)!=1):
                             Liste_actions_ennemi.pop(0)
             
-            
             # ================= Envoi des accusés de réception ======================== #
             if verif_mouv == 1:
                 dico_envoi[0x207]=2
@@ -1976,7 +1901,7 @@ if __name__ == '__main__':
             if Debug_Action:
                 print("verif_action : ",verif_action)
                 print("ack action : ",dico_envoi[0x504+pince_a_utilise])
-                print("action_precedente",action_precedente)
+                print("action_precedente : ",action_precedente)
 
 
             if not action_est_supprime:
@@ -2002,25 +1927,9 @@ if __name__ == '__main__':
             else :
                 action_est_supprime = False
             
-
-            # On supprime, dans le dico, les anciens points de la trajectoire
-            for key in list(dico_envoi.keys()):
-                if 0x209 <= key <= 0x2FF:
-                    del dico_envoi[key]
-            # On remplit le dictionnaire d'envoi du CAN avec les points de la trajectoire
-            if len(Liste_trajectoire) != 0:
-                dico_envoi[0x209] = Liste_trajectoire[0]
-                for couple in range(1,len(Liste_trajectoire)):
-                    dico_envoi[0x20A+2*(couple-1)]=Liste_trajectoire[couple][0]
-                    dico_envoi[0x20B+2*(couple-1)]=Liste_trajectoire[couple][1]
-            ##################################
-
-            
-            old_ordre_mouvement = ordre_mouvement
-            dico_envoi[0x206]=ordre_mouvement
-
-            """for couple in dico_envoi.items():
-                print(hex(couple[0])," : ",couple[1])"""
+            for couple in dico_envoi.items():
+                if couple[1] != 0:
+                    print(hex(couple[0])," : ",couple[1])
             
             if Reel :
                 for key, value in dico_envoi.items() :
@@ -2044,6 +1953,7 @@ if __name__ == '__main__':
             x_ennemi_old = x_ennemi
             y_ennemi_old = y_ennemi
             old_verif_mouv = verif_mouv
+            old_ordre_mouvement = ordre_mouvement
             Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
             Liste_actions_precedente = Liste_actions.copy()
 
