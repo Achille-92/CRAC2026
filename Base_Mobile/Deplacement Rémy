@@ -34,7 +34,7 @@ float tour_droit = 0;
 float distance_droit = 0, old_dist_droit = 0, diff_dist_droit = 0;
 float distance_gauche = 0, old_dist_gauche = 0, diff_dist_gauche = 0;
 float dist = 0, teta = 0, delta_x = 0, delta_y = 0, teta_act = 0, diff_teta = 0, teta_cons = 0;
-float pos_act[2] = {2725, 1650}, pos_fin[2] = {275, 1650}, pos_traj[2] = {0, 0}, E = 0, off_teta_act = 0;
+float pos_act[2] = {200, 200}, pos_fin[2] = {275, 1650}, pos_traj[2] = {0, 0}, E = 0, off_teta_act = 0;
 // const float tic_tour_droit = 4121.7, tic_tour_gauche = 4052, Rayon = 11;
 // const float tic_tour_droit = 3164.0, tic_tour_gauche = 3167.7, Rayon = 11.2;
 const float tic_tour_droit = 3200.0, tic_tour_gauche = 3196.35, Rayon = 12.0;
@@ -117,7 +117,7 @@ void setup()
   moteur.reset();
   tempo=millis();
   xTaskCreate(Asserv, "Asserv", 32000, NULL, 15, &Asservissement);
-  xTaskCreate(CAN_, "CAN", 16000, NULL, 13, &_CAN_);
+  xTaskCreate(CAN_, "CAN", 16000, NULL, 18, &_CAN_);
 }
 
 void loop()
@@ -131,11 +131,10 @@ void loop()
 
 void CAN_(void *)
 {
-  TickType_t xLastWakeTime2;
-  xLastWakeTime2 = xTaskGetTickCount();
+
   while (1)
   {
-    if (RPI == 1)
+    if (1 == 1)
     {
       // liste_point[12].x = 145;
       //  Lecture CAN centralisée
@@ -143,7 +142,8 @@ void CAN_(void *)
       if (packetSize)
       {
         uint32_t canId = CAN.packetId();
-
+         //Serial.printf("ID reçu: 0x%X | taille: %d | extended: %d\n", 
+         //          canId, packetSize, CAN.packetExtended());
         if (canId == 0x01)
         {
           CAN.readBytes((uint8_t *)&etat_RPI, packetSize);
@@ -155,8 +155,8 @@ void CAN_(void *)
 
         if (canId == 0x200 )
         {
-          CAN.readBytes((uint8_t *)&pos_act[0], 4);
-           Serial.print("Reçu X : ");
+          CAN.readBytes((uint8_t *)&pos_act[0], packetSize);
+           Serial.print("Reçu XD : ");
            Serial.println(pos_act[0]);
           encoder.setCount(0);
           encoder2.setCount(0);
@@ -168,34 +168,34 @@ void CAN_(void *)
 
         if (canId == 0x201 )
         {
-          CAN.readBytes((uint8_t *)&pos_act[1], 4);
-            Serial.print("Reçu Y : ");
+          CAN.readBytes((uint8_t *)&pos_act[1], packetSize);
+            Serial.print("Reçu YD : ");
             Serial.println(pos_act[1]);
         }
 
         if (canId == 0x202 )
         {
-          CAN.readBytes((uint8_t *)&teta_recu, 4);
+          CAN.readBytes((uint8_t *)&teta_recu, packetSize);
           Serial.print("Reçu Angle : ");
           Serial.println(teta_recu, 2);
         }
 
         if (canId == 0x203 )
         {
-          CAN.readBytes((uint8_t *)&acuser_recalage, 4);
-           Serial.print("Reçu X : ");
-           Serial.println(pos_fin[0]);
+          CAN.readBytes((uint8_t *)&acuser_recalage, packetSize);
+           Serial.print("accrecalage ");
+           Serial.println(acuser_recalage);
         }
 
-        if (canId == 0x204 && packetSize == 4)
+        if (canId == 0x204 )
         {
-          CAN.readBytes((uint8_t *)&pos_fin[1], 4);
-          Serial.print("Reçu Y : ");
+          CAN.readBytes((uint8_t *)&pos_fin[1], packetSize);
+          Serial.print("Reçu Yfin : ");
            Serial.println(pos_fin[1]);
         }
-        if (canId == 0x205 && packetSize == 4)
+        if (canId == 0x205 )
         {
-          CAN.readBytes((uint8_t *)&teta_cons_recu, 4);
+          CAN.readBytes((uint8_t *)&teta_cons_recu, packetSize);
           Serial.print("Reçu Angle_voulu : ");
           Serial.println(teta_cons_recu, 2);
           teta_cons_recu -= 360;
@@ -205,7 +205,7 @@ void CAN_(void *)
         if (canId == 0x206)
         {
 
-          CAN.readBytes((uint8_t *)&mouv, 4);
+          CAN.readBytes((uint8_t *)&mouv, packetSize);
           if (acuser == 2 || mouv == 3)
             verif_mouv = 0;
           if (acuser_angle == 2 || mouv == 3)
@@ -279,7 +279,7 @@ void CAN_(void *)
 
         if (!x_ok || !y_ok || !angle_ok)
         {
-          //Serial.println("En attente des coordonnées initiales depuis la RPi...");
+          Serial.println("En attente des coordonnées initiales depuis la RPi...");
         }
 
         // Test en continu de la condition de passage à l'état 1
@@ -321,11 +321,11 @@ void CAN_(void *)
         float y = pos_act[1];
         float teta = (180.0 * teta_act) / PI;
         static unsigned long lastSend = 0;
-        if (millis() - lastSend > 1)
+        if (millis() - lastSend > 10)
         { // toutes les 100 ms
           lastSend = millis();
 
-          CAN.beginPacket(0x10E);
+          /*CAN.beginPacket(0x10E);
           CAN.write((uint8_t *)&verif_mouv, sizeof(float)); // 4 octets
           CAN.endPacket();
 
@@ -347,13 +347,13 @@ void CAN_(void *)
 
           CAN.beginPacket(0x110);
           CAN.write((uint8_t *)&verif_recalage, sizeof(float)); // 4 octets
-          CAN.endPacket();
+          CAN.endPacket();*/
         }
 
         break;
       }
     }
-    vTaskDelayUntil(&xLastWakeTime2, pdMS_TO_TICKS(1));
+    //vTaskDelay(pdMS_TO_TICKS(1));
   }
 }
 
@@ -486,7 +486,6 @@ void Asserv(void *)
     {
       Serial.printf("X%d=%.1f Y%d=%.1f", i, liste_point[i].x, i, liste_point[i].y);
     }
-    //
     //Serial.printf("vg:%f vd:%f te:%1.2f d%f diffg%f",Vg,Vd,te,diff_dist_droit,diff_dist_gauche);
     // Serial.printf("teta_act%.1f", (180.0 * teta_act) / PI);
     // Serial.printf("teta_cons%.1f\n", (180.0 * teta_cons) / PI);
@@ -494,7 +493,7 @@ void Asserv(void *)
     //  Serial.printf("mouv%dverif%dverif_angle%dteta_act%.1fteta_cons%.1f\n", mouv, verif_mouv, verif_angle, 180.0 * teta_act / PI, 180.0 * teta_cons / PI);
     //   Serial.printf("diff_teta%.1f\n",(180.0*limit_angle((teta_cons-teta_act)))/PI);
     //   Serial.printf("X%.2f|Y%.2f|vcons%.1f|teta_act|%.1f|X%.1f|Y%.1f|dist%.1f\n", pos_act[0], pos_act[1], position.avant(dist, 0, 1, 1), 180.0 * teta_act / PI, pos_fin[0], pos_fin[1], dist);
-    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(20));
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(5));
   }
 }
 
