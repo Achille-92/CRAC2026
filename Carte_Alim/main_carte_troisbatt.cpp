@@ -42,13 +42,13 @@ float VbattMAIN, IbattMAIN, VbattMAIN_decharge; // Tension, Courant et Tension p
 float Vbatt1, Ibatt1, Vbatt1_decharge;
 float Vbatt2, Ibatt2, Vbatt2_decharge;
 float Vbatt3, Ibatt3, Vbatt3_decharge;
-float Vbatt1_charge, Vbatt2_charge, Vbatt3_charge;
+float Vbatt1_charge, Vbatt2_charge, Vbatt3_charge, VbattMAIN_charge;
 float Vbatt1CAN, Vbatt2CAN, Vbatt3CAN;
 char nbre_cellules_Main, nbre_cellules_1, nbre_cellules_2, nbre_cellules_3;
 unsigned char Tension[4], Courant[4];
-float energieConsommee = 0.0; // énergie consommée en Wh
-char Batt1, Batt2, Batt3;     // pourcentage batterie
-
+float energieConsommee = 0.0;       // énergie consommée en Wh
+char Batt1, Batt2, Batt3, BattMAIN; // pourcentage batterie
+int last_send=0;
 unsigned long previousMillis = 0; // Variable pour stocker le dernier temps enregistré
 const long interval = 1000;       // Intervalle de 1 secondes (1000 millisecondes)
 ulong start_millis = 0;
@@ -96,7 +96,6 @@ void setup()
   Can1.setFilter(3, MODE, 0x1FFFFFFF);
   Can1.setFilter(4, RPI, 0x1FFFFFFF);
 
-  // Can1.setFilter(3, STOP_ROBOT_FIN_MATCH, 0x1FFFFFFF);
 
   // Initialisation batterie main
   BatterieMain.begin();
@@ -119,7 +118,7 @@ void setup()
 }
 
 void loop()
-{
+{ //delay(5);
   envoi_int_CAN(1, BOOT_CARTE_PUISSANCE);
 
   // Lis les trames CAN reçu
@@ -165,13 +164,6 @@ void loop()
         start_millis = millis();
       break;
 
-      /*
-          case STOP_ROBOT_FIN_MATCH:
-            etat_interrupteur1 = OFF;
-            etat_interrupteur2 = OFF;
-            etat_interrupteur3 = OFF;
-            break;
-      */
     default:
       break;
     }
@@ -186,6 +178,10 @@ void loop()
     etat_interrupteur2 = OFF;
     etat_interrupteur3 = OFF;
     step = 0;
+    nbre_cellules_1 = 0;
+    nbre_cellules_2 = 0;
+    nbre_cellules_3 = 0;
+    nbre_cellules_Main = 0;
   }
   else
   {
@@ -195,6 +191,10 @@ void loop()
       etat_interrupteur2 = OFF;
       etat_interrupteur3 = OFF;
       step = 0;
+      nbre_cellules_1 = 0;
+      nbre_cellules_2 = 0;
+      nbre_cellules_3 = 0;
+      nbre_cellules_Main = 0;
     }
     else
     {
@@ -226,6 +226,7 @@ void loop()
         Vbatt2_decharge = nbre_cellules_2 * TENSION_CELLULE_DECHARGE;
         Vbatt3_decharge = nbre_cellules_3 * TENSION_CELLULE_DECHARGE;
         // Calcul des tensions chargé des batteries
+        VbattMAIN_charge = nbre_cellules_Main * TENSION_CELLULE_CHARGE;
         Vbatt1_charge = nbre_cellules_1 * TENSION_CELLULE_CHARGE;
         Vbatt2_charge = nbre_cellules_2 * TENSION_CELLULE_CHARGE;
         Vbatt3_charge = nbre_cellules_3 * TENSION_CELLULE_CHARGE;
@@ -234,14 +235,17 @@ void loop()
         Vbatt2CAN = Vbatt2 * 100;
         Vbatt3CAN = Vbatt3 * 100;
 
+        BattMAIN = Calcul_bat(VbattMAIN, VbattMAIN_charge, VbattMAIN_decharge);
         Batt1 = Calcul_bat(Vbatt1, Vbatt1_charge, Vbatt1_decharge);
         Batt2 = Calcul_bat(Vbatt2, Vbatt2_charge, Vbatt2_decharge);
         Batt3 = Calcul_bat(Vbatt3, Vbatt3_charge, Vbatt3_decharge);
-
+        if((millis()-last_send)>10){
+          last_send=millis();
         // Envoi des pourcentages de batterie sur le bus CAN
         envoi_int_CAN(Batt1, POURCENTAGE_BATT1);
         envoi_int_CAN(Batt2, POURCENTAGE_BATT2);
         envoi_int_CAN(Batt3, POURCENTAGE_BATT3);
+        envoi_int_CAN(BattMAIN, BATT_MAIN);
 
         // gestion des décharge des batteries
         if (etat_interrupteur1 && Vbatt1 < 11.0)
@@ -256,6 +260,11 @@ void loop()
         {
           envoi_int_CAN(1, ALERTE_DECHARGE_BATT3);
         }
+        if (VbattMAIN < 11.2)
+        {
+          envoi_int_CAN(1, ALERTE_DECHARGE_MAIN);
+        }
+      }
       }
 
       step += 1;
@@ -358,7 +367,7 @@ void loop()
   // Serial.printf("PININTERRUPTEURBATT2 %d | ", (int)etat_interrupteur1);
  */
 
-  Serial.printf("aru = %1d", val_aru);
+  /*Serial.printf("aru = %1d", val_aru);
   Serial.printf(" | RPI = %1d", etat_RPI);
   // Batterie pricipale
   // Serial.printf(" | VbattMAIN:");
@@ -368,8 +377,8 @@ void loop()
   // Serial.printf(" | nbre_element_Main:%1d", nbre_cellulse_Main);
   // Serial.printf(" | VbattMain_decharge:");
   // Serial.print(VbattMAIN_decharge);
-  
-  
+
+
   // Serial.printf("V | mode =  ");
   // Serial.print(mode_actuel);
   // Serial.printf(" | Batt2  =  ");
@@ -381,7 +390,11 @@ void loop()
   Serial.printf(" | int2   = %d", etat_interrupteur2);
   Serial.printf(" | int3   = %d", etat_interrupteur3);
   //Serial.printf(" | Vbatt2   = %.1f", Vbatt2);
-  // Serial.printf(" | Alerte decharge = %d", ALERTE_DECHARGE_BATT3);
+  // Serial.printf(" | Alerte decharge = %d", ALERTE_DECHARGE_BATT3);*/
+  //Serial.printf(" | BattMAIN = %d%%", BattMAIN);
+  //Serial.printf(" | VbattMAIN:");
+  //Serial.print(VbattMAIN);
+  // Serial.printf(" | VbattMAIN = %dV", VbattMAIN);
   printf("\n");
 }
 
@@ -589,5 +602,3 @@ void arret_urgence(void)
   // reinitialisation du timer
   start_millis = millis();
 }
-
-
