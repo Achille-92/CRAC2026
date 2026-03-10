@@ -1,5 +1,5 @@
 couleur = "B"
-Reel = False
+Reel = True
 Wifi = False
 
 Strategie = True
@@ -372,8 +372,8 @@ MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 
 # Coordonnées et angle de notre robot (coordonnées initiales en haut)
 if couleur == "B":
-    x_robot_depart = 2400+LARGEUR_ROBOT/2 
-    y_robot_depart = 1550+LONGUEUR_ROBOT/2+100
+    x_robot_depart = int(2400+LARGEUR_ROBOT/2)
+    y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
     
     Liste_actions = [["Avancer",2400+LARGEUR_ROBOT/2,1350]]
@@ -390,8 +390,8 @@ if couleur == "B":
     y_ennemi = 1650
 
 else:
-    x_robot_depart = 600-LARGEUR_ROBOT/2
-    y_robot_depart = 1550+LONGUEUR_ROBOT/2+100
+    x_robot_depart = int(600-LARGEUR_ROBOT/2)
+    y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
     
     Liste_actions = [["Avancer",600-LARGEUR_ROBOT/2,1350]]
@@ -1004,9 +1004,7 @@ if __name__ == '__main__':
             bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
             bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
             bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
-            dico_envoi[0x200]=0
-            dico_envoi[0x201]=0
-            dico_envoi[0x202]=0
+
         Liste_actions_ennemi = [[1500,1000]]
         n_init = len(Liste_actions_ennemi)
 
@@ -1965,7 +1963,7 @@ if __name__ == '__main__':
                     msg = can.Message(arbitration_id=0x208, data=format_value, is_extended_id=False)
                     bus.send(msg)
 
-            if verif_recalage == 1:
+            """if verif_recalage == 1:
                 dico_envoi[0x203]=2
                 if Reel:
                     format_value = struct.pack('<I',dico_envoi[0x203])
@@ -1976,7 +1974,7 @@ if __name__ == '__main__':
                 if Reel:
                     format_value = struct.pack('<I',dico_envoi[0x203])
                     msg = can.Message(arbitration_id=0x203, data=format_value, is_extended_id=False)
-                    bus.send(msg)
+                    bus.send(msg)"""
             
             if verif_action == 1:
                 dico_envoi[0x504+pince_a_utilise]=2
