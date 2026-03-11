@@ -1,17 +1,17 @@
 couleur = "B"
-Reel = False
+Reel = True
 Wifi = False
 
-Strategie = True
+Strategie = False
 Debug_strategie = True
 Astars = True
 
 Simul_mvt = True
 Simul_mvt_ennemi = False
-Debug_Mouv = True
+Debug_Mouv = False
 
 Simul_action = True
-Debug_Action = False
+Debug_Action = True
 
 Lidar_on = False 
 Bat_Compet = False
@@ -41,7 +41,7 @@ from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper
 ########################################################################
 #couleur = fenetre_selection_couleur()
 # Config CAN 
-Liste_ID_recoit = [0x03,0x05,0x06,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x109,0x10A,0x10B,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
+Liste_ID_recoit = [0x03,0x04,0x05,0x06,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
 Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x204,0x205,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
@@ -215,11 +215,12 @@ else :
         ["Rotation",-90]
 ]
 
-"""Liste_actions = [
+Liste_actions = [
     ["Attraper",0,12],
     ["Retourner",0,12],
     ["Relacher",0,12],
-]"""
+    ["Attente"]
+]
 
 
 Liste_actions_ennemi = []
@@ -260,7 +261,7 @@ if not Wifi:
         [175-20,1125+20,0+2,"B"],[175-20,1175+20,0+2,"J"],[175-20,1225+20,0+2,"B"],[175-20,1275+20,0+2,"J"],
         [175-20,325-20,0-2,"B"],[175-20,375-20,0-2,"B"],[175-20,425-20,0-2,"J"],[175-20,475-20,0-2,"J"],
 
-        [2825+20,1125+20,0-2,"J"],[2825+20,1175+20,0-2,"J"],[2825+20,1275+20,0+2,"B"],[2825+20,1225+20,0+2,"B"],
+        [2825+20,1125+20,0-2,"J"],[2825+20,1175+20,0-2,"J"],[2825+20,1275+20,0+2,"J"],[2825+20,1225+20,0+2,"J"],
         [2825+20,325-20,0-2,"B"],[2825+20,375-20,0-2,"J"],[2825+20,425-20,0+2,"J"],[2825+20,475-20,0+2,"B"],
 
         [1075-30,800-20,90+2,"J"],[1125-30,800-20,90-2,"J"],[1175-30,800-20,90+2,"B"],[1225-30,800-20,90-2,"B"],
@@ -350,7 +351,11 @@ if couleur == "B":
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
     
-    Liste_actions = [["Avancer",2400+LARGEUR_ROBOT/2,1350]]
+    #Liste_actions = [["Avancer",2400+LARGEUR_ROBOT/2,1350]]
+
+    x_robot_depart = 2825
+    y_robot_depart = int(1300+LONGUEUR_ROBOT/2)
+    angle_robot_depart = -90
 
     x_robot_retour = 3000-LARGEUR_ROBOT/2-30
     y_robot_retour = 1750
@@ -496,7 +501,8 @@ reset_fin = False
 verif_mouv = 0
 old_verif_mouv = verif_mouv
 verif_angle = 0
-verif_action = 0
+verif_action1 = 0
+verif_action2 = 0
 action_est_supprime = False 
 mode_attraper = False
 
@@ -613,9 +619,9 @@ def LectureCAN(stop_event):
     Si l'ID du message n'est pas dans la Liste_ID, saute
     Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
     """
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, bus, verif_mouv, verif_angle,verif_action,Batteries_alert, carte_actionneur0_active, carte_actionneur1_active, carte_asserv_active, carte_batteries_active, etat_bau
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, bus, verif_mouv, verif_angle,verif_action1,verif_action2,Batteries_alert, carte_actionneur0_active, carte_actionneur1_active, carte_asserv_active, carte_batteries_active, etat_bau
     while not stop_event.is_set():
-        msg = bus.recv(0.01)  # attend 10 ms max
+        msg = bus.recv(0.05)
         if msg is None:
             continue  # pas de message, on repart
 
@@ -650,9 +656,13 @@ def LectureCAN(stop_event):
         elif msg.arbitration_id == 0x10B:
             Batteries_alert[3] = struct.unpack('<H', bytes(msg.data[:2]))[0]
             
-        elif msg.arbitration_id == 0x109:
+        elif msg.arbitration_id == 0x10C:
             if msg.dlc >= 1:
-                verif_action = msg.data[0]
+                verif_action1 = msg.data[0]
+
+        elif msg.arbitration_id == 0x10D:
+            if msg.dlc >= 1:
+                verif_action2 = msg.data[0]
 
         elif msg.arbitration_id == 0x10E:
             verif_mouv = struct.unpack('f', bytes(msg.data))[0]
@@ -781,11 +791,12 @@ def bouton_attraper_callback(event):
     """
     Callback pour le bouton Attraper.
     """
-    global verif_action, action_voulu
+    global verif_action1,verif_action2, action_voulu
     
     # Vérifier qu il y a une action en cours
     if len(Liste_actions) > 0 and action_voulu in ["Attraper","Retourner","Relacher"]:
-        verif_action = 1
+        verif_action1 = 1
+        verif_action2 = 1
 
 
 def update_display(background):
@@ -1494,7 +1505,7 @@ if __name__ == '__main__':
                                     if distance_R_N1<=75+LONGUEUR_ROBOT/2 or distance_R_N2<=75+LONGUEUR_ROBOT/2:
                                         if Debug_Action:
                                             print("Supprimer : ", coupleNoisette)
-                                        if verif_action == 1:
+                                        if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
                                             Noisettes_groupees.remove(coupleNoisette)
                                             Liste_noisette_xya.remove(coupleNoisette[0])
                                             Liste_noisette_xya.remove(coupleNoisette[1])
@@ -1508,7 +1519,7 @@ if __name__ == '__main__':
                                     if distance_R_N<=50+LONGUEUR_ROBOT/2:          
                                         if Debug_Action:
                                             print("Supprimer : ", coupleNoisette)
-                                        if verif_action == 1:
+                                        if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
                                             Noisettes_groupees.remove(coupleNoisette)
                                             Liste_noisette_xya.remove(coupleNoisette[0])
                                             Noisettes_stockees_dans_robot[pince_a_utilise][0] = coupleNoisette[0][3]
@@ -1529,7 +1540,7 @@ if __name__ == '__main__':
                                             else :
                                                 print("Supprimer : ", coupleNoisette[1])
 
-                                        if verif_action == 1:
+                                        if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
                                             if distance_R_N1 < distance_R_N2:
                                                 Liste_noisette_xya.remove(coupleNoisette[0])
                                             else :
@@ -1545,7 +1556,7 @@ if __name__ == '__main__':
                                     if distance_R_N<=100+LONGUEUR_ROBOT/2:
                                         if Debug_Action:
                                             print(coupleNoisette)
-                                        if verif_action == 1:
+                                        if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
                                             Noisettes_groupees.remove(coupleNoisette)
                                             Liste_noisette_xya.remove(coupleNoisette[0])
                                             Noisettes_stockees_dans_robot[pince_a_utilise][0] = coupleNoisette[0][3]
@@ -1566,7 +1577,7 @@ if __name__ == '__main__':
                                             else :
                                                 print("Supprimer : ", coupleNoisette[0])
 
-                                        if verif_action == 1:
+                                        if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
                                             if distance_R_N1 < distance_R_N2:
                                                 Liste_noisette_xya.remove(coupleNoisette[1])
                                             else :
@@ -1583,7 +1594,7 @@ if __name__ == '__main__':
                                     if distance_R_N<=125+LONGUEUR_ROBOT/2:
                                         if Debug_Action:
                                             print(coupleNoisette)
-                                        if verif_action == 1:
+                                        if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
                                             Noisettes_groupees.remove(coupleNoisette)
                                             Liste_noisette_xya.remove(coupleNoisette[0])
                                             Noisettes_stockees_dans_robot[pince_a_utilise][1] = coupleNoisette[0][3]
@@ -1597,7 +1608,7 @@ if __name__ == '__main__':
                                 print("Action impossible, pas de Noisette")
                         else :
                             if noisette_a_manipulee == 1 and Noisettes_stockees_dans_robot[pince_a_utilise][0] != "N":
-                                if verif_action == 1:
+                                if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
                                     if Noisettes_stockees_dans_robot[pince_a_utilise][0] == "J":
                                         Noisettes_stockees_dans_robot[pince_a_utilise][0] = "B"
                                     else :
@@ -1611,7 +1622,7 @@ if __name__ == '__main__':
                                         print("Pas de Noisette à retourner sur Pince Arrière 1")
 
                             if noisette_a_manipulee == 2 and Noisettes_stockees_dans_robot[pince_a_utilise][1] != "N":
-                                if verif_action == 1:
+                                if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
                                     if Noisettes_stockees_dans_robot[pince_a_utilise][1] == "J":
                                         Noisettes_stockees_dans_robot[pince_a_utilise][1] = "B"
                                     else :
@@ -1625,7 +1636,7 @@ if __name__ == '__main__':
                                         print("Pas de Noisette à retourner sur Pince Arrière 2")
 
                             if noisette_a_manipulee == 12 and Noisettes_stockees_dans_robot[pince_a_utilise][0] != "N" and Noisettes_stockees_dans_robot[pince_a_utilise][1] != "N":
-                                if verif_action == 1:
+                                if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
                                     if Noisettes_stockees_dans_robot[pince_a_utilise][0] == "J":
                                         Noisettes_stockees_dans_robot[pince_a_utilise][0] = "B"
                                     else :
@@ -1646,13 +1657,13 @@ if __name__ == '__main__':
                                         print("Pas de Noisette à déposer de la pince Arrière 1")
                             else:
                                 if pince_a_utilise == 0:
-                                    x_noisette = x_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                                    y_noisette = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
+                                    x_noisette = x_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                    y_noisette = y_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
                                 else :
-                                    x_noisette = x_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
-                                    y_noisette = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
+                                    x_noisette = x_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
+                                    y_noisette = y_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
                                 angle_noisette = 90+angle_robot_actuel
-                                if verif_action:
+                                if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
                                     Liste_noisette_xya.append([int(x_noisette),int(y_noisette),int(angle_noisette),Noisettes_stockees_dans_robot[pince_a_utilise][0]])
                                     Noisettes_stockees_dans_robot[pince_a_utilise][0]="N"
                                     changement_noisettes_detecte = True
@@ -1667,13 +1678,13 @@ if __name__ == '__main__':
                                         print("Pas de Noisette à déposer de la pince Arrière 2")
                             else:
                                 if pince_a_utilise == 0:
-                                    x_noisette = x_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                                    y_noisette = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
+                                    x_noisette = x_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                    y_noisette = y_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
                                 else :
-                                    x_noisette = x_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
-                                    y_noisette = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
+                                    x_noisette = x_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
+                                    y_noisette = y_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
                                 angle_noisette = 90+angle_robot_actuel
-                                if verif_action:
+                                if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
                                     Liste_noisette_xya.append([int(x_noisette),int(y_noisette),int(angle_noisette),Noisettes_stockees_dans_robot[pince_a_utilise][1]])
                                     Noisettes_stockees_dans_robot[pince_a_utilise][1]="N"
                                     changement_noisettes_detecte = True
@@ -1688,20 +1699,20 @@ if __name__ == '__main__':
                                         print("Pas de Noisette à déposer de la pince Arrière")
                             else:
                                 if pince_a_utilise == 0:
-                                    x_noisette_1 = x_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                                    y_noisette_1 = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
-                                    x_noisette_2 = x_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                                    y_noisette_2 = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
+                                    x_noisette_1 = x_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                    y_noisette_1 = y_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
+                                    x_noisette_2 = x_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                    y_noisette_2 = y_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
                                 else :
-                                    x_noisette_1 = x_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
-                                    y_noisette_1 = y_robot_actuel + (45+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
-                                    x_noisette_2 = x_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
-                                    y_noisette_2 = y_robot_actuel + (50+45+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
+                                    x_noisette_1 = x_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
+                                    y_noisette_1 = y_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
+                                    x_noisette_2 = x_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
+                                    y_noisette_2 = y_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
 
                                 angle_noisette_1 = 90+angle_robot_actuel
                                 angle_noisette_2 = 90+angle_robot_actuel
                                 
-                                if verif_action:
+                                if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
                                     Liste_noisette_xya.append([int(x_noisette_1),int(y_noisette_1),int(angle_noisette_1),Noisettes_stockees_dans_robot[pince_a_utilise][0]])
                                     Liste_noisette_xya.append([int(x_noisette_2),int(y_noisette_2),int(angle_noisette_2),Noisettes_stockees_dans_robot[pince_a_utilise][1]])
                                     Noisettes_stockees_dans_robot[pince_a_utilise][0]="N"
@@ -1879,12 +1890,12 @@ if __name__ == '__main__':
                     bus.send(msg)
 
             
-            if verif_action == 1:
+            if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
                 dico_envoi[0x504+pince_a_utilise]=2
-                if Reel:
+                """if Reel:
                     format_value = struct.pack('<I',dico_envoi[0x504+pince_a_utilise])
                     msg = can.Message(arbitration_id=0x504+pince_a_utilise, data=format_value, is_extended_id=False)
-                    bus.send(msg)
+                    bus.send(msg)"""
             else :
                 dico_envoi[0x504+pince_a_utilise]=1
                 if Reel:
@@ -1899,7 +1910,8 @@ if __name__ == '__main__':
                 print("verif_angle : ",verif_angle)
                 print("ack angle : ",dico_envoi[0x208])
             if Debug_Action:
-                print("verif_action : ",verif_action)
+                print("verif_action1 : ",verif_action1)
+                print("verif_action2 : ",verif_action2)
                 print("ack action : ",dico_envoi[0x504+pince_a_utilise])
                 print("action_precedente : ",action_precedente)
 
@@ -1907,7 +1919,7 @@ if __name__ == '__main__':
             if not action_est_supprime:
                 if (action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"] and verif_mouv == 1) or \
                 (action_voulu in ["Rotation"] and verif_angle == 1) or \
-                (action_voulu in ["Attraper","Retourner","Relacher"] and verif_action == 1):
+                (action_voulu in ["Attraper","Retourner","Relacher"] and ((verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1))):
                     
                     # Retirer l'action de la liste 
                     Liste_actions.pop(0) 
