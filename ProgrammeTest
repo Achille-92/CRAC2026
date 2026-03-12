@@ -8,7 +8,7 @@ Astars = True
 
 Simul_mvt = True
 Simul_mvt_ennemi = False
-Debug_Mouv = False
+Debug_Mouv = True
 
 Simul_action = True
 Debug_Action = True
@@ -577,18 +577,20 @@ def calcul_points(stop_event):
     buffer_points = deque(maxlen=5)
     
     try:
-        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096):
+        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=16384):
             if stop_event.is_set():
                 break
-            
+            x_r = x_robot_actuel
+            y_r = y_robot_actuel
+            angle_r = angle_robot_actuel
             for (quality, angle_point, distance) in scan:
                 phi = math.radians(angle_point)
                 
                 # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
-                angle_total = phi - math.radians(angle_robot_actuel) - math.radians(8)
+                angle_total = phi - math.radians(angle_r) - math.radians(8)
                 
-                x_point = x_robot_actuel + distance * math.cos(angle_total)
-                y_point = y_robot_actuel - distance * math.sin(angle_total)
+                x_point = x_r + distance * math.cos(angle_total)
+                y_point = y_r - distance * math.sin(angle_total)
                 
                 x_point = max(0, min(X_PISTE, int(x_point)))
                 y_point = max(0, min(Y_PISTE, int(y_point)))
