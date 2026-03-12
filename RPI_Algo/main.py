@@ -68,6 +68,7 @@ MARGE_NOISETTE = 25
 MARGE_GM = 10
 MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
+TOL_CAM_NOISETTE = 30
 ############################
 
 # Listes pour la Stratégie
@@ -277,25 +278,6 @@ else :
 
 Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
 Noisette_init = False
-TOL_CAM_NOISETTE = 30
-
-Liste_noisettes_recup_xy = [((175,1300+R_ROBOT+2*MARGE_NOISETTE),(175,1100-R_ROBOT-2*MARGE_NOISETTE)),
-                                  ((175,500+R_ROBOT+2*MARGE_NOISETTE),(175,300-R_ROBOT-2*MARGE_NOISETTE)),
-                                  ((2825,1300+R_ROBOT+2*MARGE_NOISETTE),(2825,1100-R_ROBOT-2*MARGE_NOISETTE)),
-                                  ((2825,500+R_ROBOT+2*MARGE_NOISETTE),(2825,300-R_ROBOT-2*MARGE_NOISETTE)),
-                                  ((950-R_ROBOT-2*MARGE_NOISETTE,800),(1250+R_ROBOT+2*MARGE_NOISETTE,800)),
-                                  ((1750-R_ROBOT-2*MARGE_NOISETTE,800),(1950+R_ROBOT+2*MARGE_NOISETTE,800)),
-                                  ((1000-R_ROBOT-2*MARGE_NOISETTE,175),(1200+R_ROBOT+2*MARGE_NOISETTE,175)),
-                                  ((1800-R_ROBOT-2*MARGE_NOISETTE,175),(2000+R_ROBOT+2*MARGE_NOISETTE,175)),]
-
-Liste_noisettes_recup_angle = [(-90,90),
-                                     (-90,90),
-                                     (-90,90),
-                                     (-90,90),
-                                     (0,180),
-                                     (0,180),
-                                     (0,180),
-                                     (0,180),]
 
 
 Liste_zones_gm_coins = [
@@ -383,9 +365,9 @@ x_robot_actuel = x_robot_depart
 y_robot_actuel = y_robot_depart
 angle_robot_actuel = angle_robot_depart
 
-x_robot_voulu = -1
-y_robot_voulu = -1
-angle_robot_voulu = -181
+x_robot_voulu = x_robot_actuel
+y_robot_voulu = y_robot_actuel
+angle_robot_voulu = angle_robot_actuel
 
 x_ennemi_old = x_ennemi
 y_ennemi_old = y_ennemi
@@ -443,7 +425,7 @@ RPI_decharge = False
 battery_patches = []
 battery_texts = [] 
 couleurs = ['red', 'orange', 'yellow', 'lime', 'green']
-seuils = [1, 20, 50, 75, 90]
+seuils = [1, 20, 50, 60, 80]
 largeur_rect = 50       # largeur en mm
 hauteur_rect = 150      # hauteur en mm
 espacement = 0         # espace entre rectangles
@@ -520,6 +502,7 @@ demande_recalcul_traj = False
 sortir_ennemi = False
 sortir_depart = True
 Astars_a_fail = False
+calcul_astar = False
 ordre_mouvement = 0
 old_ordre_mouvement = 0
 
@@ -575,38 +558,38 @@ def calcul_points(stop_event):
     x_point = 0
     y_point = 0
     buffer_points = deque(maxlen=5)
-    
-    try:
-        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=16384):
-            if stop_event.is_set():
-                break
-            x_r = x_robot_actuel
-            y_r = y_robot_actuel
-            angle_r = angle_robot_actuel
-            for (quality, angle_point, distance) in scan:
-                phi = math.radians(angle_point)
+    while not stop_event.is_set():
+        try:
+            for scan in lidar.iter_scans(scan_type='express', max_buf_meas=16384):
+                if stop_event.is_set():
+                    break
+                x_r = x_robot_actuel
+                y_r = y_robot_actuel
+                angle_r = angle_robot_actuel
+                for (quality, angle_point, distance) in scan:
+                    phi = math.radians(angle_point)
+                    
+                    # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
+                    angle_total = phi - math.radians(angle_r) - math.radians(8)
+                    
+                    x_point = x_r + distance * math.cos(angle_total)
+                    y_point = y_r - distance * math.sin(angle_total)
+                    
+                    x_point = max(0, min(X_PISTE, int(x_point)))
+                    y_point = max(0, min(Y_PISTE, int(y_point)))
+                    
+                    if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
+                    MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y:
+                        buffer_points.append((x_point, y_point))
                 
-                # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
-                angle_total = phi - math.radians(angle_r) - math.radians(8)
-                
-                x_point = x_r + distance * math.cos(angle_total)
-                y_point = y_r - distance * math.sin(angle_total)
-                
-                x_point = max(0, min(X_PISTE, int(x_point)))
-                y_point = max(0, min(Y_PISTE, int(y_point)))
-                
-                if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
-                   MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y:
-                    buffer_points.append((x_point, y_point))
+                if buffer_points:
+                    xs, ys = zip(*buffer_points)
+                    x_ennemi = np.mean(xs)
+                    y_ennemi = np.mean(ys)
+        
+        except Exception as e:
+            print("Erreur dans le thread Lidar:", e)
             
-            if buffer_points:
-                xs, ys = zip(*buffer_points)
-                x_ennemi = np.mean(xs)
-                y_ennemi = np.mean(ys)
-    
-    except Exception as e:
-        print("Erreur dans le thread Lidar:", e)
-    finally:
         print("Arrêt du Lidar...")
         lidar.stop()
         lidar.stop_motor()
@@ -733,6 +716,11 @@ def comm_bc(stop_event):
         print("[Récepteur] Arrêt.")
     finally:
         server_socket.close()
+
+def calcul_traj(stop_event):
+    
+    while not stop_event.is_set():
+        print("Calcul Astar")
 ##############################################################################
 
 ################## Fonction ##################################################
@@ -879,8 +867,8 @@ if __name__ == '__main__':
         tache_LectureCAN.start()
 
     if Wifi:
-        thread_reception = threading.Thread(target=comm_bc, args=(stop_event,),daemon=True)
-        thread_reception.start()
+        tache_Wifi = threading.Thread(target=comm_bc, args=(stop_event,),daemon=True)
+        tache_Wifi.start()
 
     fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,noisette_text = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
 
@@ -974,6 +962,9 @@ if __name__ == '__main__':
         if Reel and Lidar_on: 
             tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
             tache_lidar.start()
+        if Astars:
+            tache_Astar = threading.Thread(target=calcul_traj, args=(stop_event,), daemon=False)
+            tache_Astar.start()
         if Reel: 
             dico_envoi[0x200]=x_robot_depart
             dico_envoi[0x201]=y_robot_depart
@@ -1234,7 +1225,6 @@ if __name__ == '__main__':
                         print("Point dans zone interdite autour de l'ennemi")
                         demande_nouvelle_strat = True
                     else:
-                        t1 = time.time()
                         
                         points_bruts = calculer_trajectoire_complete(
                             x_robot_actuel, y_robot_actuel,
@@ -1292,8 +1282,7 @@ if __name__ == '__main__':
                                         Liste_actions.insert(0, ["Reculer", int(x_nouveau), int(y_nouveau)])
 
                             Astars_a_fail = False
-                            if Debug_Mouv:
-                                print("Delai : ", time.time()- t1)
+                            
                         else:
                             if Debug_Mouv:
                                 print("❌ Aucun chemin trouvé par A*")
@@ -2023,6 +2012,10 @@ if __name__ == '__main__':
                 tache_lidar.join()
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
+        if Astars:
+            tache_Astar.join()
+        if Wifi:
+            tache_Wifi.join()
             
         
     except Exception as e:
@@ -2037,6 +2030,11 @@ if __name__ == '__main__':
             etat_RPI = 2
             data_etat_RPI = struct.pack('<I',etat_RPI)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat_RPI, is_extended_id=False))
+        
+        if Astars:
+            tache_Astar.join()
+        if Wifi:
+            tache_Wifi.join()
             
         plt.close(fig)
 
