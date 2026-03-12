@@ -1,5 +1,5 @@
 couleur = "B"
-Reel = True
+Reel = False
 Wifi = False
 
 Strategie = True
@@ -23,7 +23,7 @@ Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 import matplotlib
 matplotlib.use('Qt5Agg')
 from rplidar import RPLidar
-import math,time,os,can,struct,random,platform,sys, json, socket
+import math,time,os,can,struct,random,platform,sys, json, socket,queue
 current_os = platform.system()
 if current_os == "Linux":
     import RPi.GPIO as GPIO
@@ -864,6 +864,25 @@ def trouver_case_libre_proche(x_robot, y_robot, grid_expanded,
                                 ny * CASE_MM + CASE_MM // 2)
     return None, None
 
+def calculer_trajectoire_astar(x_robot_actuel, y_robot_actuel, x_robot_voulu, y_robot_voulu, obs_manager, obs_manager_noisettes, x_ennemi, y_ennemi, R_securite, CASE_MM, X_PISTE, Y_PISTE, SAFETY_WEIGHT, MIN_CLEARANCE, SMOOTHNESS, DISTANCE_AJUSTABLE, affichage_ax):
+    points_bruts = calculer_trajectoire_complete(
+        x_robot_actuel, y_robot_actuel,
+        x_robot_voulu, y_robot_voulu,
+        obs_manager, obs_manager_noisettes,
+        x_ennemi, y_ennemi, R_securite,
+        CASE_MM, X_PISTE, Y_PISTE,
+        SAFETY_WEIGHT,
+        MIN_CLEARANCE,
+        SMOOTHNESS,
+        DISTANCE_AJUSTABLE,
+        affichage_ax=affichage_ax
+    )
+    return points_bruts
+
+# Fonction pour exécuter le calcul de la trajectoire dans un thread dédié
+def executer_calcul_trajectoire(x_robot_actuel, y_robot_actuel, x_robot_voulu, y_robot_voulu, obs_manager, obs_manager_noisettes, x_ennemi, y_ennemi, R_securite, CASE_MM, X_PISTE, Y_PISTE, SAFETY_WEIGHT, MIN_CLEARANCE, SMOOTHNESS, DISTANCE_AJUSTABLE, affichage_ax, result_queue):
+    points_bruts = calculer_trajectoire_astar(x_robot_actuel, y_robot_actuel, x_robot_voulu, y_robot_voulu, obs_manager, obs_manager_noisettes, x_ennemi, y_ennemi, R_securite, CASE_MM, X_PISTE, Y_PISTE, SAFETY_WEIGHT, MIN_CLEARANCE, SMOOTHNESS, DISTANCE_AJUSTABLE, affichage_ax)
+    result_queue.put(points_bruts)
 ########################################################################
 
 ############################### Programme principal ####################
@@ -1234,20 +1253,16 @@ if __name__ == '__main__':
                         print("Point dans zone interdite autour de l'ennemi")
                         demande_nouvelle_strat = True
                     else:
-                        t1 = time.time()
                         
-                        points_bruts = calculer_trajectoire_complete(
-                            x_robot_actuel, y_robot_actuel,
-                            x_robot_voulu, y_robot_voulu,
-                            obs_manager, obs_manager_noisettes,
-                            x_ennemi, y_ennemi, R_securite,
-                            CASE_MM, X_PISTE, Y_PISTE,
-                            SAFETY_WEIGHT,
-                            MIN_CLEARANCE,
-                            SMOOTHNESS,
-                            DISTANCE_AJUSTABLE,
-                            affichage_ax=ax
-                        )
+                        result_queue = queue.Queue()
+
+                        # Lancer le thread pour le calcul de la trajectoire
+                        astar_thread = threading.Thread(target=executer_calcul_trajectoire, args=(x_robot_actuel, y_robot_actuel, x_robot_voulu, y_robot_voulu, obs_manager, obs_manager_noisettes, x_ennemi, y_ennemi, R_securite, CASE_MM, X_PISTE, Y_PISTE, SAFETY_WEIGHT, MIN_CLEARANCE, SMOOTHNESS, DISTANCE_AJUSTABLE, ax, result_queue))
+                        astar_thread.start()
+
+                        # Attendre que le thread se termine et récupérer le résultat
+                        astar_thread.join()
+                        points_bruts = result_queue.get()
                         if points_bruts is not None:
                             # 10. AFFICHER (OPTIONNEL)
                             if ax is not None:
@@ -1292,8 +1307,7 @@ if __name__ == '__main__':
                                         Liste_actions.insert(0, ["Reculer", int(x_nouveau), int(y_nouveau)])
 
                             Astars_a_fail = False
-                            if Debug_Mouv:
-                                print("Delai : ", time.time()- t1)
+                            
                         else:
                             if Debug_Mouv:
                                 print("❌ Aucun chemin trouvé par A*")
