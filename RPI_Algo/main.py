@@ -1,19 +1,19 @@
 couleur = "B"
-Reel = True
+Reel = False
 Wifi = False
 
-Strategie = False
+Strategie = True
 Debug_strategie = True
 Astars = True
 
 Simul_mvt = True
 Simul_mvt_ennemi = False
-Debug_Mouv = False
+Debug_Mouv = True
 
 Simul_action = True
 Debug_Action = True
 
-Lidar_on = False 
+Lidar_on = True
 Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
@@ -72,6 +72,7 @@ R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 
 # Listes pour la Stratégie
 Liste_strategie = [
+    [175,1150],
     [2825,450],
     [2825,350],
     [2150,800],
@@ -215,12 +216,12 @@ else :
         ["Rotation",-90]
 ]
 
-Liste_actions = [
-    ["Attraper",0,12],
-    ["Retourner",0,12],
-    ["Relacher",0,12],
+"""Liste_actions = [
+    ["Attraper",1,12],
+    ["Retourner",1,12],
+    ["Relacher",1,12],
     ["Attente"]
-]
+]"""
 
 
 Liste_actions_ennemi = []
@@ -349,13 +350,13 @@ MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 if couleur == "B":
     x_robot_depart = int(2400+LARGEUR_ROBOT/2)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
-    angle_robot_depart = -90
+    angle_robot_depart = 90
     
     #Liste_actions = [["Avancer",2400+LARGEUR_ROBOT/2,1350]]
 
-    x_robot_depart = 2825
-    y_robot_depart = int(1300+LONGUEUR_ROBOT/2)
-    angle_robot_depart = -90
+    """x_robot_depart = 2825
+    y_robot_depart = int(1100-LONGUEUR_ROBOT/2)
+    angle_robot_depart = -90"""
 
     x_robot_retour = 3000-LARGEUR_ROBOT/2-30
     y_robot_retour = 1750
@@ -493,7 +494,7 @@ aller_GM = False
 temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
-temps_retour = 3500 # Temps restant pour revenir au départ en fin de match
+temps_retour = 100 # Temps restant pour revenir au départ en fin de match
 temps_max = 3600
 reset_fin = False
 
@@ -517,7 +518,7 @@ Pince_Ar_2 = True
 
 demande_recalcul_traj = False
 sortir_ennemi = False
-sortir_depart = False
+sortir_depart = True
 Astars_a_fail = False
 ordre_mouvement = 0
 old_ordre_mouvement = 0
@@ -576,18 +577,20 @@ def calcul_points(stop_event):
     buffer_points = deque(maxlen=5)
     
     try:
-        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096):
+        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=16384):
             if stop_event.is_set():
                 break
-            
+            x_r = x_robot_actuel
+            y_r = y_robot_actuel
+            angle_r = angle_robot_actuel
             for (quality, angle_point, distance) in scan:
                 phi = math.radians(angle_point)
                 
                 # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
-                angle_total = phi - math.radians(angle_robot_actuel) - math.radians(11)
+                angle_total = phi - math.radians(angle_r) - math.radians(8)
                 
-                x_point = x_robot_actuel + distance * math.cos(angle_total)
-                y_point = y_robot_actuel - distance * math.sin(angle_total)
+                x_point = x_r + distance * math.cos(angle_total)
+                y_point = y_r - distance * math.sin(angle_total)
                 
                 x_point = max(0, min(X_PISTE, int(x_point)))
                 y_point = max(0, min(Y_PISTE, int(y_point)))
@@ -1939,10 +1942,10 @@ if __name__ == '__main__':
             else :
                 action_est_supprime = False
             
-            for couple in dico_envoi.items():
+            """for couple in dico_envoi.items():
                 if couple[1] != 0:
                     print(hex(couple[0])," : ",couple[1])
-            
+            """
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
