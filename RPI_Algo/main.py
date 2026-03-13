@@ -1,5 +1,5 @@
 couleur = "B"
-Reel = False
+Reel = True
 Wifi = False
 
 Strategie = True
@@ -13,7 +13,7 @@ Debug_Mouv = True
 Simul_action = True
 Debug_Action = True
 
-Lidar_on = True
+Lidar_on = False
 Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
@@ -969,9 +969,9 @@ if __name__ == '__main__':
             dico_envoi[0x200]=x_robot_depart
             dico_envoi[0x201]=y_robot_depart
             dico_envoi[0x202]=angle_robot_depart
-            bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
-            bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
-            bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<i',dico_envoi[0x200]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<i',dico_envoi[0x201]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<i',dico_envoi[0x202]), is_extended_id=False))
 
         Liste_actions_ennemi = [[1500,1000]]
         n_init = len(Liste_actions_ennemi)
@@ -1858,26 +1858,26 @@ if __name__ == '__main__':
             if verif_mouv == 1:
                 dico_envoi[0x207]=2
                 if Reel:
-                    format_value = struct.pack('<I',dico_envoi[0x207])
+                    format_value = struct.pack('<i',dico_envoi[0x207])
                     msg = can.Message(arbitration_id=0x207, data=format_value, is_extended_id=False)
                     bus.send(msg)
             else :
                 dico_envoi[0x207]=1
                 if Reel:
-                    format_value = struct.pack('<I',dico_envoi[0x207])
+                    format_value = struct.pack('<i',dico_envoi[0x207])
                     msg = can.Message(arbitration_id=0x207, data=format_value, is_extended_id=False)
                     bus.send(msg)
 
             if verif_angle == 1:
                 dico_envoi[0x208]=2
                 if Reel:
-                    format_value = struct.pack('<I',dico_envoi[0x208])
+                    format_value = struct.pack('<i',dico_envoi[0x208])
                     msg = can.Message(arbitration_id=0x208, data=format_value, is_extended_id=False)
                     bus.send(msg)
             else :
                 dico_envoi[0x208]=1
                 if Reel:
-                    format_value = struct.pack('<I',dico_envoi[0x208])
+                    format_value = struct.pack('<i',dico_envoi[0x208])
                     msg = can.Message(arbitration_id=0x208, data=format_value, is_extended_id=False)
                     bus.send(msg)
 
@@ -1891,7 +1891,7 @@ if __name__ == '__main__':
             else :
                 dico_envoi[0x504+pince_a_utilise]=1
                 if Reel:
-                    format_value = struct.pack('<I',dico_envoi[0x504+pince_a_utilise])
+                    format_value = struct.pack('<i',dico_envoi[0x504+pince_a_utilise])
                     msg = can.Message(arbitration_id=0x504+pince_a_utilise, data=format_value, is_extended_id=False)
                     bus.send(msg)
             # ==================================================================== #
@@ -1938,8 +1938,8 @@ if __name__ == '__main__':
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
-                        if key in [0x01,0x206,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
-                            format_value = struct.pack('<I',dico_envoi[key])
+                        if key in [0x01,0x200,0x201,0x202,0x206,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
+                            format_value = struct.pack('<i',dico_envoi[key])
                         else:
                             format_value = struct.pack('<f',dico_envoi[key])
                         msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
@@ -2028,7 +2028,7 @@ if __name__ == '__main__':
                 tache_lidar.join()
             tache_LectureCAN.join()
             etat_RPI = 2
-            data_etat_RPI = struct.pack('<I',etat_RPI)
+            data_etat_RPI = struct.pack('<i',etat_RPI)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat_RPI, is_extended_id=False))
         
         if Astars:
