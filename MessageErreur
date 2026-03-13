@@ -1,4 +1,6 @@
-Exception has occurred: error
-unpack requires a buffer of 2 bytes
-  File "/home/youssef/Desktop/CRAC2026/main.py", line 637, in LectureCAN
-    verif_action = struct.unpack('<H', bytes(msg.data[:2]))[0]
+Exception has occurred: RPLidarException
+Descriptor length mismatch
+  File "/home/youssef/Desktop/CRAC2026/testLidar.py", line 69, in calcul_points
+    print("INFO:", lidar.get_info())                                    # Affichage d'informations propres au Lidar
+                   ^^^^^^^^^^^^^^^^
+rplidar.RPLidarException: Descriptor length mismatch
