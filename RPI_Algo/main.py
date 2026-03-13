@@ -1,12 +1,12 @@
 couleur = "B"
-Reel = True
+Reel = False
 Wifi = False
 
 Strategie = True
 Debug_strategie = True
 Astars = True
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Debug_Mouv = True
 
@@ -22,7 +22,7 @@ Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
-from rplidar import RPLidar
+from pyrplidar import PyRPlidar
 import math,time,os,can,struct,random,platform,sys, json, socket
 current_os = platform.system()
 if current_os == "Linux":
@@ -309,7 +309,8 @@ Liste_zones_Noisette_depart = [
 
 # Lidar
 PORT_NAME = '/dev/ttyUSB0'
-BAUDRATE = 256000
+PORT_NAME = 'COM14'
+BAUDRATE = 1000000
 lidar = None
 ####################################
 
@@ -332,7 +333,7 @@ MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 if couleur == "B":
     x_robot_depart = int(2400+LARGEUR_ROBOT/2)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
-    angle_robot_depart = 90
+    angle_robot_depart = -90
     
     #Liste_actions = [["Avancer",2400+LARGEUR_ROBOT/2,1350]]
 
@@ -544,15 +545,9 @@ angle_ennemi_cam = 0
 ################## Fonction Threads ##########################################
 
 def calcul_points(stop_event):
-    lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)
     
-    lidar.stop_motor()
-    time.sleep(0.5)
-    print("INFO:", lidar.get_info())
-    print("HEALTH:", lidar.get_health())
-    lidar.start_motor()   
-    time.sleep(0.5)
-    
+    lidar = PyRPlidar()
+
     global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi
     
     x_point = 0
@@ -560,27 +555,37 @@ def calcul_points(stop_event):
     buffer_points = deque(maxlen=5)
     while not stop_event.is_set():
         try:
-            for scan in lidar.iter_scans(scan_type='express', max_buf_meas=16384):
+            lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
+            lidar.set_motor_pwm(500)
+            time.sleep(1)
+            
+            scan_generator = lidar.start_scan()
+            print("Lidar démarré, lecture des points...")
+
+            for scan in scan_generator():
+                angle_point = scan.angle
+                distance = scan.distance
+                quality = scan.quality
                 if stop_event.is_set():
                     break
                 x_r = x_robot_actuel
                 y_r = y_robot_actuel
                 angle_r = angle_robot_actuel
-                for (quality, angle_point, distance) in scan:
-                    phi = math.radians(angle_point)
-                    
-                    # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
-                    angle_total = phi - math.radians(angle_r) - math.radians(8)
-                    
-                    x_point = x_r + distance * math.cos(angle_total)
-                    y_point = y_r - distance * math.sin(angle_total)
-                    
-                    x_point = max(0, min(X_PISTE, int(x_point)))
-                    y_point = max(0, min(Y_PISTE, int(y_point)))
-                    
-                    if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
-                    MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y:
-                        buffer_points.append((x_point, y_point))
+                
+                phi = math.radians(angle_point)
+                
+                # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
+                angle_total = phi - math.radians(angle_r) - math.radians(8) + math.radians(90)
+                
+                x_point = x_r + distance * math.cos(angle_total)
+                y_point = y_r - distance * math.sin(angle_total)
+                
+                x_point = max(0, min(X_PISTE, int(x_point)))
+                y_point = max(0, min(Y_PISTE, int(y_point)))
+                
+                if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
+                MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y:
+                    buffer_points.append((x_point, y_point))
                 
                 if buffer_points:
                     xs, ys = zip(*buffer_points)
@@ -590,10 +595,10 @@ def calcul_points(stop_event):
         except Exception as e:
             print("Erreur dans le thread Lidar:", e)
             
-    print("Arrêt du Lidar...")
-    lidar.stop()
-    lidar.stop_motor()
-    lidar.disconnect()
+        print("Arrêt du Lidar...")
+        lidar.stop()
+        lidar.stop_motor()
+        lidar.disconnect()
 
 def LectureCAN(stop_event):
     """
@@ -960,7 +965,7 @@ if __name__ == '__main__':
     
     temps_demarage = time.time()
     try:
-        if Reel and Lidar_on: 
+        if Lidar_on: 
             tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
             tache_lidar.start()
         """if Astars:
@@ -1992,9 +1997,11 @@ if __name__ == '__main__':
         print("Arrêt demandé par l'utilisateur.")
         stop_event.set()  # signal aux threads de s'arrêter
         # Attente que chaque thread termine proprement
+        
+        if Lidar_on:
+            tache_lidar.join()
+
         if Reel :
-            if Lidar_on:
-                tache_lidar.join()
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
         """if Astars:
@@ -2008,9 +2015,10 @@ if __name__ == '__main__':
     finally:
         print("Programme terminé proprement.")
     
+        if Lidar_on:
+            tache_lidar.join()
+        
         if Reel :
-            if Lidar_on:
-                tache_lidar.join()
             tache_LectureCAN.join()
             etat_RPI = 2
             data_etat_RPI = struct.pack('<i',etat_RPI)
