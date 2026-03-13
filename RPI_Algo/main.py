@@ -332,7 +332,7 @@ MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 if couleur == "B":
     x_robot_depart = int(2400+LARGEUR_ROBOT/2)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
-    angle_robot_depart = 90
+    angle_robot_depart = -90
     
     #Liste_actions = [["Avancer",2400+LARGEUR_ROBOT/2,1350]]
 
@@ -863,6 +863,7 @@ if __name__ == '__main__':
     if Reel :
         GPIO.setmode(GPIO.BCM)  # Utilisation de la numérotation BCM
         GPIO.setup(26, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Activation de la résistance de pull-up interne
+        
         tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
         tache_LectureCAN.start()
 
@@ -962,16 +963,16 @@ if __name__ == '__main__':
         if Reel and Lidar_on: 
             tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
             tache_lidar.start()
-        if Astars:
+        """if Astars:
             tache_Astar = threading.Thread(target=calcul_traj, args=(stop_event,), daemon=False)
-            tache_Astar.start()
+            tache_Astar.start()"""
         if Reel: 
             dico_envoi[0x200]=x_robot_depart
             dico_envoi[0x201]=y_robot_depart
             dico_envoi[0x202]=angle_robot_depart
-            bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<i',dico_envoi[0x200]), is_extended_id=False))
-            bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<i',dico_envoi[0x201]), is_extended_id=False))
-            bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<i',dico_envoi[0x202]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
 
         Liste_actions_ennemi = [[1500,1000]]
         n_init = len(Liste_actions_ennemi)
@@ -1427,8 +1428,8 @@ if __name__ == '__main__':
             # ==================================================================== #
 
             # ==== Envoi des Ordres de Consigne de Rotation à la Carte Asserv ==== #
-            dico_envoi[0x20A] = int(x_robot_voulu)
-            dico_envoi[0x20B] = int(y_robot_voulu)
+            dico_envoi[0x203] = x_robot_voulu
+            dico_envoi[0x204] = y_robot_voulu
             dico_envoi[0x205] = angle_robot_voulu+360
             dico_envoi[0x206]= ordre_mouvement
             # ==================================================================== #
@@ -1857,29 +1858,13 @@ if __name__ == '__main__':
             # ================= Envoi des accusés de réception ======================== #
             if verif_mouv == 1:
                 dico_envoi[0x207]=2
-                if Reel:
-                    format_value = struct.pack('<i',dico_envoi[0x207])
-                    msg = can.Message(arbitration_id=0x207, data=format_value, is_extended_id=False)
-                    bus.send(msg)
             else :
                 dico_envoi[0x207]=1
-                if Reel:
-                    format_value = struct.pack('<i',dico_envoi[0x207])
-                    msg = can.Message(arbitration_id=0x207, data=format_value, is_extended_id=False)
-                    bus.send(msg)
 
             if verif_angle == 1:
                 dico_envoi[0x208]=2
-                if Reel:
-                    format_value = struct.pack('<i',dico_envoi[0x208])
-                    msg = can.Message(arbitration_id=0x208, data=format_value, is_extended_id=False)
-                    bus.send(msg)
             else :
                 dico_envoi[0x208]=1
-                if Reel:
-                    format_value = struct.pack('<i',dico_envoi[0x208])
-                    msg = can.Message(arbitration_id=0x208, data=format_value, is_extended_id=False)
-                    bus.send(msg)
 
             
             if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
@@ -1938,7 +1923,7 @@ if __name__ == '__main__':
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
-                        if key in [0x01,0x200,0x201,0x202,0x206,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
+                        if key in [0x01,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
                             format_value = struct.pack('<i',dico_envoi[key])
                         else:
                             format_value = struct.pack('<f',dico_envoi[key])
@@ -2012,8 +1997,8 @@ if __name__ == '__main__':
                 tache_lidar.join()
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
-        if Astars:
-            tache_Astar.join()
+        """if Astars:
+            tache_Astar.join()"""
         if Wifi:
             tache_Wifi.join()
             
@@ -2031,8 +2016,8 @@ if __name__ == '__main__':
             data_etat_RPI = struct.pack('<i',etat_RPI)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat_RPI, is_extended_id=False))
         
-        if Astars:
-            tache_Astar.join()
+        """if Astars:
+            tache_Astar.join()"""
         if Wifi:
             tache_Wifi.join()
             
