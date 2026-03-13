@@ -13,7 +13,7 @@ Debug_Mouv = True
 Simul_action = True
 Debug_Action = True
 
-Lidar_on = False
+Lidar_on = True
 Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
@@ -332,7 +332,7 @@ MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 if couleur == "B":
     x_robot_depart = int(2400+LARGEUR_ROBOT/2)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
-    angle_robot_depart = -90
+    angle_robot_depart = 90
     
     #Liste_actions = [["Avancer",2400+LARGEUR_ROBOT/2,1350]]
 
@@ -590,10 +590,10 @@ def calcul_points(stop_event):
         except Exception as e:
             print("Erreur dans le thread Lidar:", e)
             
-        print("Arrêt du Lidar...")
-        lidar.stop()
-        lidar.stop_motor()
-        lidar.disconnect()
+    print("Arrêt du Lidar...")
+    lidar.stop()
+    lidar.stop_motor()
+    lidar.disconnect()
 
 def LectureCAN(stop_event):
     """
