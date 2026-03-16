@@ -586,7 +586,7 @@ def calcul_points(stop_event):
                 y_point = max(0, min(Y_PISTE, int(y_point)))
                 distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
                 if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
-                MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 40:
+                MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 50 and 5 < quality < 25:
                     buffer_points.append((x_point, y_point))
                 
                 if buffer_points:

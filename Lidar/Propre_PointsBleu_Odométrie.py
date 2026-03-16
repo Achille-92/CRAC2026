@@ -100,8 +100,9 @@ def calcul_points(stop_event):
                 x_point = max(0, min(3000, int(x_point)))
                 y_point = max(0, min(2000, int(y_point)))
                 distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
-                if 120 <= x_point <= 3000-120 and 80 <= y_point <= 2000-80 and distance_robot_point > 40:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                if 120 <= x_point <= 3000-120 and 80 <= y_point <= 2000-80 and distance_robot_point > 50 and 5 < quality < 25:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
                     pile_points.put((x_point, y_point))
+                    print(quality)
 
         except Exception as e:                                                      # En cas d'exception on affiche l'erreur
             print("Erreur dans le thread Lidar:", e)
@@ -142,7 +143,7 @@ def affichage(stop_event):
     ax.set_ylim(0, 2000)
     ax.set_aspect('equal')
 
-    buffer_points = deque(maxlen=500)
+    buffer_points = deque(maxlen=100)
 
     while not stop_event.is_set():
         try:
