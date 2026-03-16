@@ -4,7 +4,7 @@ Wifi = False
 
 Strategie = True
 Debug_strategie = True
-Astars = True
+Astars = False
 
 Simul_mvt = False
 Simul_mvt_ennemi = False
@@ -13,7 +13,7 @@ Debug_Mouv = True
 Simul_action = True
 Debug_Action = True
 
-Lidar_on = False
+Lidar_on = True
 Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
@@ -334,7 +334,7 @@ MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 if couleur == "B":
     x_robot_depart = int(2400+LARGEUR_ROBOT/2)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
-    angle_robot_depart = -90
+    angle_robot_depart = 90
     
     #Liste_actions = [["Avancer",2400+LARGEUR_ROBOT/2,1350]]
 
@@ -577,16 +577,16 @@ def calcul_points(stop_event):
                 phi = math.radians(angle_point)
                 
                 # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
-                angle_total = phi - math.radians(angle_r) - math.radians(8) + math.radians(90)
+                angle_total = phi - math.radians(angle_r) - math.radians(1)
                 
                 x_point = x_r + distance * math.cos(angle_total)
                 y_point = y_r - distance * math.sin(angle_total)
                 
                 x_point = max(0, min(X_PISTE, int(x_point)))
                 y_point = max(0, min(Y_PISTE, int(y_point)))
-                
+                distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
                 if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
-                MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y:
+                MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 40:
                     buffer_points.append((x_point, y_point))
                 
                 if buffer_points:
@@ -599,7 +599,6 @@ def calcul_points(stop_event):
             
         print("Arrêt du Lidar...")
         lidar.stop()
-        lidar.stop_motor()
         lidar.disconnect()
 
 def LectureCAN(stop_event):

@@ -1,5 +1,6 @@
 ################## Librairies ##########################################
 from rplidar import RPLidar
+from pyrplidar import PyRPlidar
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,32 +11,36 @@ import os
 import can
 import struct
 ########################################################################
-
+Can = False
 # config CAN
-os.system('sudo ip link set can0 type can bitrate 500000')  # adapte le bitrate
-os.system('sudo ifconfig can0 up')
-bus = can.interface.Bus(
-    channel='can0',
-    bustype='socketcan',
-    bitrate=500000,
-    can_filters=[{"can_id": 0x10, "can_mask": 0x7FF, "extended": False},
-                 {"can_id": 0x11, "can_mask": 0x7FF, "extended": False},
-                 {"can_id": 0x12, "can_mask": 0x7FF, "extended": False}]
-)
+if Can:
+    os.system('sudo ip link set can0 type can bitrate 500000')  # adapte le bitrate
+    os.system('sudo ifconfig can0 up')
+    bus = can.interface.Bus(
+        channel='can0',
+        bustype='socketcan',
+        bitrate=500000,
+        can_filters=[{"can_id": 0x10, "can_mask": 0x7FF, "extended": False},
+                    {"can_id": 0x11, "can_mask": 0x7FF, "extended": False},
+                    {"can_id": 0x12, "can_mask": 0x7FF, "extended": False}]
+    )
 
 
 # Port série et Baudrate du lidar
 PORT_NAME = '/dev/ttyUSB0'
-BAUDRATE = 256000
+PORT_NAME = 'COM14'
+BAUDRATE = 1000000
 
 # Création de l'objet Lidar, et de la Pile pile_points
 lidar = None
-pile_points = queue.Queue(maxsize=2000)
+pile_points = queue.Queue(maxsize=50)
 
+LARGEUR_ROBOT = 250
+LONGUEUR_ROBOT = 130
 # Coordonnées et angle de notre robot
-x_robot = 145
-y_robot = 120
-angle_robot = 0
+x_robot = int(2400+LARGEUR_ROBOT/2)
+y_robot = int(1550+LONGUEUR_ROBOT/2+100)
+angle_robot = 90
 
 # Coordonnées, angle et vitesse du robot ennemi
 x_ennemi = 0
@@ -61,44 +66,52 @@ def calcul_points(stop_event):
     Saturation des valeurs pour les limites de l'aire de jeu, puis pour oublier les bords
     """
 
-    lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE)                       # connexion au Lidar
-    
-    print("INFO:", lidar.get_info())                                    # Affichage d'informations propres au Lidar
-    print("HEALTH:", lidar.get_health())
+    lidar = PyRPlidar()
 
-    lidar.start_motor()                                                 # Démarrage du moteur du Lidar
     global  x_robot, y_robot, angle_robot
     x_point = 0
     y_point = 0
 
-    try:
-        # On lit les scans tant que le stop_event n’est pas activé
-        for scan in lidar.iter_scans(scan_type='express', max_buf_meas=4096):
-            if stop_event.is_set():   # si on demande l’arrêt → on sort
-                break
-
-            for (quality, angle_point, distance) in scan:                       # Pour chaque points dans le scan
+    while not stop_event.is_set():
+        try:
+            lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
+            lidar.set_motor_pwm(500)
+            time.sleep(1)
+            
+            scan_generator = lidar.start_scan()
+            print("Lidar démarré, lecture des points...")
+            for scan in scan_generator():
+                angle_point = scan.angle
+                distance = scan.distance
+                quality = scan.quality
+                if stop_event.is_set():
+                    break
+                x_r = x_robot
+                y_r = y_robot
+                angle_r = angle_robot
+                
                 phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
-                angle_total = phi - math.radians(angle_robot) - math.radians(11)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+                angle_total = phi - math.radians(angle_r) - math.radians(1)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
 
-                x_point = x_robot + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
-                y_point = y_robot - distance * math.sin(angle_total)
+                x_point = x_r + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
+                y_point = y_r - distance * math.sin(angle_total)
 
                 # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
                 x_point = max(0, min(3000, int(x_point)))
                 y_point = max(0, min(2000, int(y_point)))
-
-                if 10 <= x_point <= 2990 and 10 <= y_point <= 1990:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
+                if 120 <= x_point <= 3000-120 and 80 <= y_point <= 2000-80 and distance_robot_point > 40:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
                     pile_points.put((x_point, y_point))
 
-    except Exception as e:                                                      # En cas d'exception on affiche l'erreur
-        print("Erreur dans le thread Lidar:", e)
-    finally:                                                                    # Et on arrête le Lidar
-        # Nettoyage du Lidar
-        print("Arrêt du Lidar...")
-        lidar.stop()
-        lidar.stop_motor()
-        lidar.disconnect()
+        except Exception as e:                                                      # En cas d'exception on affiche l'erreur
+            print("Erreur dans le thread Lidar:", e)
+        finally:                                                                    # Et on arrête le Lidar
+            # Nettoyage du Lidar
+            print("Arrêt du Lidar...")
+            lidar.set_motor_pwm(0)
+            time.sleep(1)
+            lidar.stop()
+            lidar.disconnect()
 
 
 def affichage(stop_event):
@@ -129,7 +142,7 @@ def affichage(stop_event):
     ax.set_ylim(0, 2000)
     ax.set_aspect('equal')
 
-    buffer_points = deque(maxlen=50)
+    buffer_points = deque(maxlen=500)
 
     while not stop_event.is_set():
         try:
@@ -163,16 +176,16 @@ def CAN_Odometrie(stop_event):
             continue  # pas de message, on repart
 
         # Vérifie qu'on a bien reçu 4 octets avant de décoder
-        if msg.arbitration_id not in (0x10, 0x11, 0x12):
+        if msg.arbitration_id not in (0x100, 0x101, 0x102):
             continue  # on saute les autres trames
 
-        if msg.arbitration_id == 0x10:
+        if msg.arbitration_id == 0x100:
             x_robot = struct.unpack('f', bytes(msg.data))[0]
 
-        elif msg.arbitration_id == 0x11:
+        elif msg.arbitration_id == 0x101:
             y_robot = struct.unpack('f', bytes(msg.data))[0]
 
-        elif msg.arbitration_id == 0x12:
+        elif msg.arbitration_id == 0x102:
             angle_robot = struct.unpack('f', bytes(msg.data))[0]
 
 ########################################################################
@@ -187,11 +200,13 @@ if __name__ == '__main__':
     tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
     # Thread affichage
     tache_affichage = threading.Thread(target=affichage, args=(stop_event,), daemon=False)
-    tache_odometrie = threading.Thread(target=CAN_Odometrie, args=(stop_event,), daemon=True)
+    if Can:
+        tache_odometrie = threading.Thread(target=CAN_Odometrie, args=(stop_event,), daemon=True)
 
     tache_lidar.start()
     tache_affichage.start()
-    tache_odometrie.start()
+    if Can:
+        tache_odometrie.start()
 
 
     try:
@@ -203,7 +218,8 @@ if __name__ == '__main__':
         # Attente que chaque thread termine proprement
         tache_lidar.join()
         tache_affichage.join()
-        tache_odometrie.join()
+        if Can:
+            tache_odometrie.join()
         print("Programme terminé proprement.")
 
 
