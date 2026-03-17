@@ -487,6 +487,7 @@ reset_fin = False
 verif_mouv = 0
 old_verif_mouv = verif_mouv
 verif_angle = 0
+verif_action = 0
 verif_action1 = 0
 verif_action2 = 0
 action_est_supprime = False 
@@ -807,12 +808,14 @@ def bouton_attraper_callback(event):
     """
     Callback pour le bouton Attraper.
     """
-    global verif_action1,verif_action2, action_voulu
+    global verif_action1,verif_action2,verif_action, action_voulu
     
     # Vérifier qu il y a une action en cours
-    if len(Liste_actions) > 0 and action_voulu in ["Attraper","Retourner","Relacher","Attente_test"]:
+    if len(Liste_actions) > 0 and action_voulu in ["Attraper","Retourner","Relacher"]:
         verif_action1 = 1
         verif_action2 = 1
+    if len(Liste_actions) > 0 and action_voulu in ["Attente_test"]:
+        verif_action = 1
 
 
 def update_display(background):
@@ -1926,7 +1929,8 @@ if __name__ == '__main__':
             if not action_est_supprime:
                 if (action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"] and verif_mouv == 1) or \
                 (action_voulu in ["Rotation"] and verif_angle == 1) or \
-                (action_voulu in ["Attraper","Retourner","Relacher","Attente_test"] and ((verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1))):
+                (action_voulu in ["Attente_test"] and verif_action == 1) or \
+                (action_voulu in ["Attraper","Retourner","Relacher"] and ((verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1))):
                     
                     # Retirer l'action de la liste 
                     Liste_actions.pop(0) 
@@ -1934,6 +1938,8 @@ if __name__ == '__main__':
                     verif_angle = 0
                     angle_robot_voulu = -181
                     verif_action = 0
+                    verif_action1 = 0
+                    verif_action2 = 0
                     action_est_supprime = True
                     action_precedente = action_voulu
                     sortir_ennemi = False
