@@ -984,9 +984,6 @@ if __name__ == '__main__':
             etat_jack = GPIO.input(26)
 
         dico_envoi[0x01]=1
-        dico_envoi[0x200]=x_robot_depart
-        dico_envoi[0x201]=y_robot_depart
-        dico_envoi[0x202]=angle_robot_depart
         if not Bat_Compet:                      # Si on est en mode Test
             if Batteries_alert[0]==0:           #   Si il n'y a pas de message d'alerte pour la batterie
                 Batteries_interrupteur[0]=2     #     On met l'interrupteur à 1
@@ -1042,6 +1039,13 @@ if __name__ == '__main__':
         if Astars:
             tache_Astar = threading.Thread(target=calcul_traj, args=(stop_event,), daemon=False)
             tache_Astar.start()
+        if Reel: 
+            dico_envoi[0x200]=x_robot_depart
+            dico_envoi[0x201]=y_robot_depart
+            dico_envoi[0x202]=angle_robot_depart
+            bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
 
         Liste_actions_ennemi = [[1500,1000]]
         n_init = len(Liste_actions_ennemi)
