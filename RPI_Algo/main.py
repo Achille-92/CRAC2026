@@ -1,5 +1,5 @@
 couleur = "B"
-Reel = False
+Reel = True
 Wifi = False
 
 Strategie = False
@@ -979,7 +979,7 @@ if __name__ == '__main__':
         while(etat_bau == 1):
             print(f"Attente BAU")
 
-    while(lancement_strategie==False and not etat_jack and not stop_event.is_set() and etat_bau == 0 ):
+    while(lancement_strategie==False and not etat_jack and not stop_event.is_set()):
         if current_os == "Linux" and Reel:
             etat_jack = GPIO.input(26)
 
@@ -1018,18 +1018,14 @@ if __name__ == '__main__':
             dico_envoi[0x303]=2
 
         if Reel :
-            for key, value in dico_envoi.items() :
-                if value != 0:
-                    if key in [0x01,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
-                        format_value = struct.pack('<i',dico_envoi[key])
-                    else:
-                        format_value = struct.pack('<f',dico_envoi[key])
-                    msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
-                    bus.send(msg)
-                    dico_envoi[key]=0
-                    time.sleep(0.0006)
-        if etat_bau == 0:
-            stop_event.set()
+            bus.send(can.Message(arbitration_id=0x001, data=struct.pack('<i',dico_envoi[0x001]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x300, data=struct.pack('<i',dico_envoi[0x300]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x301, data=struct.pack('<i',dico_envoi[0x301]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x302, data=struct.pack('<i',dico_envoi[0x302]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x303, data=struct.pack('<i',dico_envoi[0x303]), is_extended_id=False))
+
+            if etat_bau == 1:
+                stop_event.set()
         print("Attente du Jack")
         plt.pause(0.1)
     
