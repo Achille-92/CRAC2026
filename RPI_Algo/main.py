@@ -1,5 +1,5 @@
 couleur = "B"
-Reel = True
+Reel = False
 Wifi = False
 
 Strategie = False
@@ -978,8 +978,9 @@ if __name__ == '__main__':
     if Reel:
         while(etat_bau == 1):
             print(f"Attente BAU")
+            plt.pause(0.1)
 
-    while(lancement_strategie==False and not etat_jack):
+    while(lancement_strategie==False and not etat_jack and not stop_event.is_set()):
         if current_os == "Linux" and Reel:
             etat_jack = GPIO.input(26)
 
