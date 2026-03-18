@@ -1,5 +1,5 @@
 couleur = "B"
-Reel = False
+Reel = True
 Wifi = False
 
 Strategie = False
@@ -74,7 +74,6 @@ TOL_CAM_NOISETTE = 30
 
 # Listes pour la Stratégie
 Liste_strategie = [
-    [175,1150],
     [2825,450],
     [2825,350],
     [2150,800],
@@ -339,9 +338,9 @@ if couleur == "B":
     
     #Liste_actions = [["Avancer",2400+LARGEUR_ROBOT/2,1350]]
 
-    x_robot_depart = 2825
+    """x_robot_depart = 2825
     y_robot_depart = int(1100-LONGUEUR_ROBOT/2)
-    angle_robot_depart = -90
+    angle_robot_depart = -90"""
 
     x_robot_retour = 3000-LARGEUR_ROBOT/2-30
     y_robot_retour = 1750
@@ -983,6 +982,52 @@ if __name__ == '__main__':
     while(lancement_strategie==False and not etat_jack):
         if current_os == "Linux" and Reel:
             etat_jack = GPIO.input(26)
+
+        dico_envoi[0x01]=1
+        if not Bat_Compet:                      # Si on est en mode Test
+            if Batteries_alert[0]==0:           #   Si il n'y a pas de message d'alerte pour la batterie
+                Batteries_interrupteur[0]=2     #     On met l'interrupteur à 1
+            else :                              #   Sinon   
+                Batteries_interrupteur[0]=1     #     On met l'interrupteur à 2
+
+            if Batteries_alert[1]==0:
+                Batteries_interrupteur[1]=2
+            else :
+                Batteries_interrupteur[1]=1
+            if Batteries_alert[2]==0:
+                Batteries_interrupteur[2]=2
+            else :
+                Batteries_interrupteur[2]=1
+        else :                                  # Sinon
+            Batteries_interrupteur[0]=2         #  On met tous les interrupteurs à 1
+            Batteries_interrupteur[1]=2
+            Batteries_interrupteur[2]=2  
+
+        if Batteries_alert[3]==1 and Bat_Compet == False:
+            RPI_decharge = True
+        else :
+            RPI_decharge = False
+            
+        dico_envoi[0x300]=Batteries_interrupteur[0]
+        dico_envoi[0x301]=Batteries_interrupteur[1]
+        dico_envoi[0x302]=Batteries_interrupteur[2]
+
+        if Bat_Compet:
+            dico_envoi[0x303]=1
+        else:
+            dico_envoi[0x303]=2
+
+        if Reel :
+            for key, value in dico_envoi.items() :
+                if value != 0:
+                    if key in [0x01,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
+                        format_value = struct.pack('<i',dico_envoi[key])
+                    else:
+                        format_value = struct.pack('<f',dico_envoi[key])
+                    msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
+                    bus.send(msg)
+                    dico_envoi[key]=0
+                    time.sleep(0.0006)
         print("Attente du Jack")
         plt.pause(0.1)
     
