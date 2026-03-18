@@ -2,7 +2,7 @@ couleur = "B"
 Reel = False
 Wifi = False
 
-Strategie = True
+Strategie = False
 Debug_strategie = True
 Astars = False
 
@@ -13,7 +13,7 @@ Debug_Mouv = True
 Simul_action = True
 Debug_Action = True
 
-Lidar_on = True
+Lidar_on = False
 Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
@@ -218,12 +218,13 @@ else :
         ["Rotation",-90]
 ]
 
-"""Liste_actions = [
+Liste_actions = [
+    ["Attente_test"],
     ["Attraper",1,12],
     ["Retourner",1,12],
-    ["Relacher",1,12],
+    #["Relacher",1,12],
     ["Attente"]
-]"""
+]
 
 
 Liste_actions_ennemi = []
@@ -310,7 +311,7 @@ Liste_zones_Noisette_depart = [
 
 # Lidar
 PORT_NAME = '/dev/ttyUSB0'
-PORT_NAME = 'COM14'
+#PORT_NAME = 'COM14'
 BAUDRATE = 1000000
 lidar = None
 ####################################
@@ -338,9 +339,9 @@ if couleur == "B":
     
     #Liste_actions = [["Avancer",2400+LARGEUR_ROBOT/2,1350]]
 
-    """x_robot_depart = 2825
+    x_robot_depart = 2825
     y_robot_depart = int(1100-LONGUEUR_ROBOT/2)
-    angle_robot_depart = -90"""
+    angle_robot_depart = -90
 
     x_robot_retour = 3000-LARGEUR_ROBOT/2-30
     y_robot_retour = 1750
@@ -437,7 +438,7 @@ marge_texte = 20  # espace horizontal entre texte et rectangle
 texte_offset_y = 50  # décalage vertical du texte par rapport aux rectangles
 longueur_trait = 100  # longueur trait de direction
 compteur_affichage = 0
-FREQUENCE_AFFICHAGE = 8
+FREQUENCE_AFFICHAGE = 12
 ##########################
 
 # Objets et variables pour la fenêtre graphique
@@ -486,6 +487,7 @@ reset_fin = False
 verif_mouv = 0
 old_verif_mouv = verif_mouv
 verif_angle = 0
+verif_action = 0
 verif_action1 = 0
 verif_action2 = 0
 action_est_supprime = False 
@@ -586,7 +588,7 @@ def calcul_points(stop_event):
                 y_point = max(0, min(Y_PISTE, int(y_point)))
                 distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
                 if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
-                MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 50 and 5 < quality < 25:
+                MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 40:
                     buffer_points.append((x_point, y_point))
                 
                 if buffer_points:
@@ -806,12 +808,14 @@ def bouton_attraper_callback(event):
     """
     Callback pour le bouton Attraper.
     """
-    global verif_action1,verif_action2, action_voulu
+    global verif_action1,verif_action2,verif_action, action_voulu
     
     # Vérifier qu il y a une action en cours
     if len(Liste_actions) > 0 and action_voulu in ["Attraper","Retourner","Relacher"]:
         verif_action1 = 1
         verif_action2 = 1
+    if len(Liste_actions) > 0 and action_voulu in ["Attente_test"]:
+        verif_action = 1
 
 
 def update_display(background):
@@ -1187,7 +1191,7 @@ if __name__ == '__main__':
                 y_robot_voulu = Liste_actions[0][2]
                 angle_robot_voulu = -181
 
-            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Attente"]:
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Attente","Attente_test"]:
                 action_voulu = Liste_actions[0][0]
                 
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
@@ -1363,7 +1367,7 @@ if __name__ == '__main__':
                 y_robot_voulu = Liste_actions[0][2]
                 angle_robot_voulu = -181
 
-            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Attente"]:
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Attente","Attente_test"]:
                 action_voulu = Liste_actions[0][0]
                 
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
@@ -1925,6 +1929,7 @@ if __name__ == '__main__':
             if not action_est_supprime:
                 if (action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"] and verif_mouv == 1) or \
                 (action_voulu in ["Rotation"] and verif_angle == 1) or \
+                (action_voulu in ["Attente_test"] and verif_action == 1) or \
                 (action_voulu in ["Attraper","Retourner","Relacher"] and ((verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1))):
                     
                     # Retirer l'action de la liste 
@@ -1933,6 +1938,8 @@ if __name__ == '__main__':
                     verif_angle = 0
                     angle_robot_voulu = -181
                     verif_action = 0
+                    verif_action1 = 0
+                    verif_action2 = 0
                     action_est_supprime = True
                     action_precedente = action_voulu
                     sortir_ennemi = False
