@@ -978,9 +978,8 @@ if __name__ == '__main__':
     if Reel:
         while(etat_bau == 1):
             print(f"Attente BAU")
-            plt.pause(0.1)
 
-    while(lancement_strategie==False and not etat_jack and not stop_event.is_set()):
+    while(lancement_strategie==False and not etat_jack and not stop_event.is_set() and etat_bau == 0 ):
         if current_os == "Linux" and Reel:
             etat_jack = GPIO.input(26)
 
@@ -1029,6 +1028,8 @@ if __name__ == '__main__':
                     bus.send(msg)
                     dico_envoi[key]=0
                     time.sleep(0.0006)
+        if etat_bau == 0:
+            stop_event.set()
         print("Attente du Jack")
         plt.pause(0.1)
     
