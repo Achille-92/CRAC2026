@@ -337,8 +337,6 @@ if couleur == "B":
     x_robot_depart = int(2400+LARGEUR_ROBOT/2)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
-    
-    #Liste_actions = [["Avancer",2400+LARGEUR_ROBOT/2,1350]]
 
     """x_robot_depart = 2825
     y_robot_depart = int(1100-LONGUEUR_ROBOT/2)
@@ -381,7 +379,7 @@ y_ennemi_old = y_ennemi
 CASE_MM = 10
 width = X_PISTE//CASE_MM
 height = Y_PISTE//CASE_MM
-rayon_total_case = (R_ROBOT + MARGE_GM) // CASE_MM  # = 20 cases = 200mm
+rayon_total_case = (R_ROBOT + MARGE_TRAJECTOIRE) // CASE_MM 
 ####################
 
 # === CRÉATION DES OBSTACLES avec la classe Obstacles === #
@@ -505,7 +503,6 @@ Pince_Ar_2 = True
 
 demande_recalcul_traj = False
 sortir_ennemi = False
-sortir_depart = True
 Astars_a_fail = False
 calcul_astar = False
 calcul_fait = False
@@ -1002,9 +999,8 @@ if __name__ == '__main__':
         # Forcer le recalcul de trajectoire
         demande_recalcul_traj = True
 
-    if Strategie and sortir_depart:
-        Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
-        print(Liste_actions)
+    if Strategie:
+        Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
 
     
     if Reel and lancement_cartes:
@@ -1013,7 +1009,7 @@ if __name__ == '__main__':
             print(f"Etat Carte Actionneur 0 : {carte_actionneur0_active}")
             print(f"Etat Carte Actionneur 1 : {carte_actionneur1_active}")
             print(f"Etat Carte Batteries : {carte_batteries_active}")
-            plt.pause(0.1)
+            
     if Reel:
         while(etat_bau == 1):
             print(f"Attente BAU")
@@ -1073,9 +1069,9 @@ if __name__ == '__main__':
         if Lidar_on: 
             tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
             tache_lidar.start()
-        """if Astars:
+        if Astars:
             tache_Astar = threading.Thread(target=calcul_traj, args=(stop_event,), daemon=False)
-            tache_Astar.start()"""
+            tache_Astar.start()
         if Reel: 
             dico_envoi[0x200]=x_robot_depart
             dico_envoi[0x201]=y_robot_depart
@@ -1240,19 +1236,11 @@ if __name__ == '__main__':
                         break  # Sortir dès qu'une zone est trouvée    
             # ================================================================================================= #
 
-            if not sortir_depart:
-                if couleur == "B":
-                    distance_robot_pointdepart = distance((x_robot_actuel,y_robot_actuel),(2400+LARGEUR_ROBOT/2,1350))
-                if couleur == "J":
-                    distance_robot_pointdepart = distance((x_robot_actuel,y_robot_actuel),(600-LARGEUR_ROBOT/2,1350))
-                if distance_robot_pointdepart < 50:
-                    sortir_depart = True
-                    demande_nouvelle_strat = True
             # ============ Prise de décision ========== #
 
             if Strategie:
                 print("Liste_strategie : ",Liste_strategie)
-            if demande_nouvelle_strat and sortir_depart:
+            if demande_nouvelle_strat :
                 demande_nouvelle_strat = False
                 """x_strategie = Liste_strategie[0][0]
                 y_strategie = Liste_strategie[0][1]"""
@@ -1266,7 +1254,7 @@ if __name__ == '__main__':
                     aller_Noisette = False
                     aller_GM = False
 
-                Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
+                Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
                 demande_recalcul_traj = True
                 
             # ========================================= #
@@ -1337,7 +1325,7 @@ if __name__ == '__main__':
             # ======================== CALCUL DE LA TRAJECTOIRE A* =================== #
             if Astars: 
                 # === CALCUL DE LA TRAJECTOIRE A* ===
-                if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper and not sortir_ennemi and sortir_depart:
+                if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper and not sortir_ennemi:
                     grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
 
                     if Debug_Mouv:
@@ -1348,19 +1336,16 @@ if __name__ == '__main__':
                         print("Point dans zone interdite autour de l'ennemi")
                         demande_nouvelle_strat = True
                     else:
-                        points_bruts = calculer_trajectoire_complete(
+                        queue_demande_astar.put((
                             x_robot_actuel, y_robot_actuel,
-                            x_robot_voulu, y_robot_voulu,
-                            obs_manager, obs_manager_noisettes,
-                            x_ennemi, y_ennemi, R_securite,
-                            CASE_MM, X_PISTE, Y_PISTE,
-                            SAFETY_WEIGHT,
-                            MIN_CLEARANCE,
-                            SMOOTHNESS,
-                            DISTANCE_AJUSTABLE,
-                            affichage_ax=ax
-                        )
-                    
+                            x_robot_voulu, y_robot_voulu
+                        ))
+                        
+                    try:
+                        # Vérifier si un résultat est disponible (non-bloquant)
+                        points_bruts = None
+                        points_bruts = queue_resultat_astar.get_nowait()  
+                        
                         if points_bruts is not None:
                             # 10. AFFICHER (OPTIONNEL)
                             if ax is not None:
@@ -1417,7 +1402,7 @@ if __name__ == '__main__':
                                 x_case_robot = max(0, min(width - 1, int(x_robot_actuel // CASE_MM)))
                                 y_case_robot = max(0, min(height - 1, int(y_robot_actuel // CASE_MM)))
 
-                                if grid_expanded[x_case_robot, y_case_robot] and sortir_depart:
+                                if grid_expanded[x_case_robot, y_case_robot]:
                                     print("⚠️ Robot dans zone interdite — recherche case libre proche")
                                     x_libre, y_libre = trouver_case_libre_proche(
                                         x_robot_actuel, y_robot_actuel,
@@ -1446,8 +1431,12 @@ if __name__ == '__main__':
                                     Astars_a_fail = True
 
                                 if Debug_Mouv:
-                                    print("CHEMIN INACCESSIBLE")
-                                                
+                                    print("CHEMIN INACCESSIBLE") 
+
+                    except queue.Empty:
+                        # Pas de résultat disponible, on continue
+                        Astars_a_fail = True
+                        pass                            
             # ======================================================================== #
             
             # ========== Lire l'action courante =============== #
@@ -2104,9 +2093,9 @@ if __name__ == '__main__':
         if Reel :
             tache_LectureCAN.join()
             os.system("sudo ifconfig can0 down")
-        """if Astars:
+        if Astars:
             queue_demande_astar.put(None)  # Signal d'arrêt au thread
-            tache_Astar.join(timeout=2)"""
+            tache_Astar.join(timeout=2)
         if Wifi:
             tache_Wifi.join()
             
@@ -2125,9 +2114,9 @@ if __name__ == '__main__':
             data_etat_RPI = struct.pack('<i',etat_RPI)
             bus.send(can.Message(arbitration_id=0x01, data=data_etat_RPI, is_extended_id=False))
         
-        """if Astars:
+        if Astars:
             queue_demande_astar.put(None)  # Signal d'arrêt au thread
-            tache_Astar.join(timeout=2)"""
+            tache_Astar.join(timeout=2)
         if Wifi:
             tache_Wifi.join()
             

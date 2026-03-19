@@ -92,7 +92,7 @@ def regrouper_par_quatre(groupe_indices, noisettes):
     return groupes_de_quatre
 
 
-def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded):
+def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded):
 
     Liste_actions.clear()
     chercher_Noisette = None
@@ -487,12 +487,12 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                         y_cote = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(angle_Noisette_centre)
                         if sous_pince == 12 or sous_pince == 2:
                             print("111111111111")
-                            distance = 100 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
-                            distanceA = 100 + 25 + MARGE_NOISETTE+LONGUEUR_ROBOT/2 + 150
+                            distance = 100 + MARGE_GM + LONGUEUR_ROBOT/2
+                            distanceA = 100 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 150
                         elif sous_pince == 1:
                             print("22222222222222")
-                            distance = 50 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
-                            distanceA = 50 + 25 + MARGE_NOISETTE+LONGUEUR_ROBOT/2 + 150
+                            distance = 50 + MARGE_GM + LONGUEUR_ROBOT/2
+                            distanceA = 50 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 150
                         x_arrivee_1 = int(x_cote + distance*math.cos(angle_Noisette_centre))
                         y_arrivee_1 = int(y_cote + distance*math.sin(angle_Noisette_centre))
                         x_arrivee_Astar = int(x_cote + distanceA*math.cos(angle_Noisette_centre))
@@ -522,11 +522,11 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                             y_cote = y_cote1
 
                         if sous_pince == 12 or sous_pince == 2:
-                            distance = 100 + MARGE_NOISETTE + LONGUEUR_ROBOT/2 + 10
-                            distanceA = 100 + 25 + MARGE_NOISETTE+LONGUEUR_ROBOT/2 + 10 + 120
+                            distance = 100 + MARGE_GM + LONGUEUR_ROBOT/2 + 10
+                            distanceA = 100 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 10 + 120
                         elif sous_pince == 1: 
-                            distance = 50 + MARGE_NOISETTE + LONGUEUR_ROBOT/2 + 10
-                            distanceA = 50 + 25 + MARGE_NOISETTE+LONGUEUR_ROBOT/2 + 10 + 120
+                            distance = 50 + MARGE_GM + LONGUEUR_ROBOT/2 + 10
+                            distanceA = 50 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 10 + 120
                         x_arrivee_1 = x_cote + distance*math.cos(angle_Noisette_centre)
                         y_arrivee_1 = y_cote + distance*math.sin(angle_Noisette_centre)
                         x_arrivee_Astar = x_cote + distanceA*math.cos(angle_Noisette_centre)
@@ -568,12 +568,12 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
 
                 if sous_pince == 12 or sous_pince == 2:
                     print("33333333333333")
-                    distance = 100 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
-                    distanceA = 100 + 25 + MARGE_NOISETTE+LONGUEUR_ROBOT/2 + 200
+                    distance = 100 + MARGE_GM + LONGUEUR_ROBOT/2
+                    distanceA = 100 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 200
                 elif sous_pince == 1:
                     print("4444444444444")
-                    distance = 50 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
-                    distanceA = 50 + 25 + MARGE_NOISETTE+LONGUEUR_ROBOT/2 + 200
+                    distance = 50 + MARGE_GM + LONGUEUR_ROBOT/2
+                    distanceA = 50 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 200
                 angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
                 print("angle_centre_cote : ",np.degrees(angle_centre_cote))
                 x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
@@ -751,11 +751,11 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
         print("Strat_Noisettes_dans_GM : ",Strat_Noisettes_dans_GM)
 
         if sous_pince == 12 or sous_pince == 2:
-            distance = 100 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
-            distanceA = 100 + 25 + MARGE_NOISETTE+LONGUEUR_ROBOT/2 + 120
+            distance = 100 + MARGE_GM + LONGUEUR_ROBOT/2
+            distanceA = 100 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 120
         elif sous_pince == 1:
-            distance = 50 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
-            distanceA = 50 + 25 + MARGE_NOISETTE+LONGUEUR_ROBOT/2 + 120
+            distance = 50 + MARGE_GM + LONGUEUR_ROBOT/2
+            distanceA = 50 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 120
         
         if couleur == "B":
             x_cote = 2400+LARGEUR_ROBOT/2+30
