@@ -1157,6 +1157,15 @@ if __name__ == '__main__':
                     obstacle_scatter, expanded_scatter, distance_map,
                     ax, width, height, CASE_MM
                 )
+
+                # ⭐ ÉTAPE 5 : Redessiner les noisettes
+                for patch in patches_noisettes:
+                    patch.remove()
+                patches_noisettes = dessiner_noisettes(
+                    ax, Liste_noisette_xya, 
+                    longueur=150, largeur=50,
+                    alpha=0.7, linewidth=2
+                )
                 
                 # Forcer le recalcul de trajectoire
                 demande_recalcul_traj = True
