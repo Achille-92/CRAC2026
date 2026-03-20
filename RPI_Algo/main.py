@@ -70,6 +70,13 @@ MARGE_GM = 10
 MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 TOL_CAM_NOISETTE = 30
+TOLERANCE_STRATEGIE_NOISETTE = 50
+FREQUENCE_AFFICHAGE = 12
+
+X_PISTE = 3000
+Y_PISTE = 2000
+MARGE_BORDUREPISTE_X = 120 # Détection Lidar
+MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 ############################
 
 # Listes pour la Stratégie
@@ -80,142 +87,6 @@ Liste_strategie = [
     [2250,800],
 ]
 
-if not Astars:
-    if not Mode_pince:
-        Liste_actions = [
-            ["Avancer",2550,1400],
-            ["Avancer",2550,1000],
-            ["Avancer",2800,890],
-
-            ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
-            ["Rotation",90],
-            ["Attraper",0,1234],
-            ["Consigne",2725,1550],
-            ["Relacher",1,1234],
-            ["Reculer",2725,1450],
-
-            ["Avancer",1920,1170],
-            ["Avancer",1490,1000],
-            ["Avancer",1500,800],
-            ["Consigne",1750-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
-            ["Rotation",0],
-            ["Attraper",0,1234],
-            ["Consigne",2100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
-            ["Relacher",0,1234],
-            ["Reculer",2100-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
-            
-            ["Avancer",1500,800],
-            ["Consigne",1250+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
-            ["Rotation",180],
-            ["Attraper",0,1234],
-            ["Consigne",900+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
-            ["Relacher",0,1234],
-            ["Reculer",900+100+MARGE_NOISETTE+LONGUEUR_ROBOT/2,800],
-            
-            ["Avancer",1500,450],
-            ["Avancer",1500,210],
-            ["Consigne",1800-MARGE_NOISETTE-LONGUEUR_ROBOT/2,210],
-            ["Rotation",0],
-            ["Attraper",0,1234],
-            ["Consigne",2200-MARGE_NOISETTE-LONGUEUR_ROBOT/2,210],
-            ["Relacher",0,1234],
-            ["Reculer",2200-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,210],
-
-            ["Avancer",1500,210],
-            ["Consigne",1200+MARGE_NOISETTE+LONGUEUR_ROBOT/2,210],
-            ["Rotation",180],
-            ["Attraper",0,1234],
-            ["Consigne",800+MARGE_NOISETTE+LONGUEUR_ROBOT/2,210],
-            ["Relacher",0,1234],
-            ["Reculer",800+100+MARGE_NOISETTE+LONGUEUR_ROBOT/2,210],
-
-            ["Avancer",1500,1000],
-            ["Avancer",2550,1400],
-            ["Consigne",2725,1670],
-            ["Rotation",-90]
-        ]
-    else :
-        Liste_actions = [
-            ["Avancer",2550,1400],
-            ["Avancer",2550,1000],
-            ["Avancer",2800,890],
-
-            ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
-            ["Rotation",90],
-            ["Attraper",0,12],
-            ["Rotation",-90],
-            ["Reculer",2825,1250-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
-            ["Attraper",1,12],
-            ["Retourner",0,12],
-            ["Reculer",2725,1750],
-            ["Relacher",1,12],
-            ["Consigne",2725,1600],
-            ["Rotation",90],
-            ["Relacher",0,12],
-            ["Reculer",2725,1450],
-
-            ["Avancer",1920,1170],
-            ["Avancer",1490,1000],
-            ["Avancer",1500,800],
-            ["Consigne",1750-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
-            ["Rotation",0],
-            ["Attraper",0,12],
-            ["Rotation",180],
-            ["Reculer",1850-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
-            ["Attraper",1,12],
-            ["Retourner",0,1],
-            ["Retourner",1,2],
-            ["Reculer",2200-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
-            ["Relacher",1,12],
-            ["Consigne",2075-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],
-            ["Rotation",0],
-            ["Relacher",0,12],
-            ["Reculer",2100-100-MARGE_NOISETTE-LONGUEUR_ROBOT/2,800],   
-
-            ["Avancer",1900,1160], 
-            ["Avancer",2550,1400],  
-            ["Avancer",2725,1670]
-
-        ]
-else :
-    # Se positionner devant la Noisette en dehors de la zone interdite
-    # Rotation pour s'axer avec la Noisette
-    # Désactiver Astar
-    # Se positionner devant la Noisette de manière précise
-    # Rotation devant la Noisette
-    # Appeler Carte Actionneur
-    # Reculer si trop proche d'autres Noisettes
-    # Activer Astar
-    # Aller devant GM
-    # Desactiver Astar
-    # Retourner
-    # Relacher
-    # Reculer 
-    # Activer Astar
-    # Prendre Decision
-    Liste_actions = [
-        ["Consigne",2825,1100-3.7*MARGE_NOISETTE-LONGUEUR_ROBOT/2],
-        ["Rotation",90],
-        ["Consigne",2825,1100-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
-        ["Rotation",90],
-        ["Attraper",0,12],
-        ["Retourner",0,12],
-        ["Rotation",-90],
-        ["ReculerPrecis",2825,1200-MARGE_NOISETTE-LONGUEUR_ROBOT/2],
-        ["Attraper",1,12],
-
-        ["ReculerPrecis",2725,1750],
-        ["Relacher",1,12],
-        ["Consigne",2725,1600],
-        ["Rotation",90],
-        ["Relacher",0,12],
-        ["ReculerPrecis",2725,1450],
-        
-        ["ReculerPrecis",1500,1300],
-
-        ["Consigne",2725,1550],
-        ["Rotation",-90]
-]
 
 Liste_actions = [
     ["Consigne",int(2400+LARGEUR_ROBOT/2)-100,1000],
@@ -229,21 +100,6 @@ Liste_actions = [
 
 Liste_actions_ennemi = []
 
-"""Liste_noisette_xya = [
-    [175,1125,0,"B"],[175,1175,0,"J"],[175,1225,0,"B"],[175,1275,0,"J"],
-    [175,325,0,"B"],[175,375,0,"B"],[175,425,0,"J"],[175,475,0,"J"],
-
-    [2825,1125,0,"J"],[2825,1175,0,"J"],[2825,1275,0,"B"],[2825,1225,0,"B"],
-    [2825,325,0,"B"],[2825,375,0,"J"],[2825,425,0,"J"],[2825,475,0,"B"],
-
-    [1075,800,90,"J"],[1125,800,90,"J"],[1175,800,90,"B"],[1225,800,90,"B"],
-    [1775,800,90,"J"],[1825,800,90,"B"],[1875,800,90,"B"],[1925,800,90,"J"],
-
-    [1025,175,90,"B"],[1075,175,90,"B"],[1125,175,90,"J"],[1175,175,90,"J"],
-    [1825,175,90,"B"],[1875,175,90,"J"],[1925,175,90,"B"],[1975,175,90,"J"],
-
-    [2725,1550,0,"J"],[2725,1500,0,"J"],
-] """
 
 Liste_noisette_xya = [
     [175,1125,0,"R"],[175,1175,0,"R"],[175,1225,0,"R"],[175,1275,0,"R"],
@@ -261,6 +117,8 @@ Liste_noisette_xya = [
     #[2400+LARGEUR_ROBOT/2+30,2000-25-25,0,"J"],[2400+LARGEUR_ROBOT/2+30,2000-25-25-50,0,"J"],
     #[2125,800,90,"B"],[2175,800,90,"B"],
 ] 
+Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
+Liste_noisette_xya_cam = []
 if not Wifi:
     Liste_noisette_xya_cam = [
         [175-20,1125+20,0+2,"B"],[175-20,1175+20,0+2,"J"],[175-20,1225+20,0+2,"B"],[175-20,1275+20,0+2,"J"],
@@ -276,12 +134,9 @@ if not Wifi:
         [1825+30,175-20,90-2,"B"],[1875+30,175-20,90+2,"J"],[1925+30,175-20,90-2,"J"],[1975+30,175-20,90+2,"B"],
 
     ] 
-else :
-    Liste_noisette_xya_cam = []
+    
 
-Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
 Noisette_init = False
-
 
 Liste_zones_gm_coins = [
     [[1150,1350],[1350,1550]],
@@ -324,13 +179,6 @@ PORT_RECEPTION = 5001
 # Configuration pour l'envoi vers la BC
 IP_BC = "192.168.0.100"  # IP de la BC
 PORT_ENVOI = 5000
-
-# Piste
-X_PISTE = 3000
-Y_PISTE = 2000
-MARGE_BORDUREPISTE_X = 120 # Détection Lidar
-MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
-#############################################
 
 # Coordonnées et angle de notre robot (coordonnées initiales en haut)
 if couleur == "B":
@@ -421,9 +269,7 @@ Batteries = [100,100,100,100] # V décharge, V charge, V actuel, % de charge
 Batteries_interrupteur = [1,1,1]
 Batteries_alert = [0,0,0,0]
 RPI_decharge = False
-############################
 
-# Variables pour l'affichage des rectangles de batteries et des textes
 battery_patches = []
 battery_texts = [] 
 couleurs = ['red', 'orange', 'yellow', 'lime', 'green']
@@ -437,7 +283,6 @@ marge_texte = 20  # espace horizontal entre texte et rectangle
 texte_offset_y = 50  # décalage vertical du texte par rapport aux rectangles
 longueur_trait = 100  # longueur trait de direction
 compteur_affichage = 0
-FREQUENCE_AFFICHAGE = 12
 ##########################
 
 # Objets et variables pour la fenêtre graphique
@@ -469,7 +314,7 @@ demande_nouvelle_strat = False
 x_strategie = Liste_strategie[0][0]
 y_strategie = Liste_strategie[0][1]
 strategie_en_cours = [] 
-TOLERANCE_STRATEGIE_NOISETTE = 50
+
 action_precedente = None
 aller_Noisette = False
 aller_GM = False
