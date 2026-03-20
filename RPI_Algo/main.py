@@ -1362,7 +1362,7 @@ if __name__ == '__main__':
                 ordre_mouvement=1
             elif action_voulu in ["Reculer"]:
                 ordre_mouvement=2
-            elif action_voulu in ["Attraper","Retourner","Relacher"] or Astars_a_fail:
+            elif action_voulu in ["Attraper","Retourner","Relacher","Attente","Attente_test"] or Astars_a_fail:
                 ordre_mouvement=3
             elif action_voulu in ["Rotation"]:
                 ordre_mouvement=4
