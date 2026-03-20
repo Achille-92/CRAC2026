@@ -2,9 +2,9 @@ couleur = "B"
 Reel = False
 Wifi = False
 
-Strategie = True
+Strategie = False
 Debug_strategie = True
-Astars = True
+Astars = False
 
 Simul_mvt = True
 Simul_mvt_ennemi = False
@@ -13,7 +13,7 @@ Debug_Mouv = True
 Simul_action = True
 Debug_Action = True
 
-Lidar_on = False
+Lidar_on = True
 Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
@@ -89,7 +89,7 @@ Liste_strategie = [
 
 
 Liste_actions = [
-    ["Consigne",int(2400+LARGEUR_ROBOT/2)-100,1000],
+    #["Consigne",int(2400+LARGEUR_ROBOT/2)-100,1000],
     ["Attente_test"],
     ["Attraper",1,12],
     ["Retourner",1,12],
@@ -167,7 +167,7 @@ Liste_zones_Noisette_depart = [
 
 # Lidar
 PORT_NAME = '/dev/ttyUSB0'
-#PORT_NAME = 'COM14'
+PORT_NAME = 'COM14'
 BAUDRATE = 1000000
 lidar = None
 ####################################
@@ -184,7 +184,7 @@ PORT_ENVOI = 5000
 if couleur == "B":
     x_robot_depart = int(2400+LARGEUR_ROBOT/2)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
-    angle_robot_depart = -90
+    angle_robot_depart = 90
 
     """x_robot_depart = 2825
     y_robot_depart = int(1100-LONGUEUR_ROBOT/2)
@@ -434,7 +434,7 @@ def calcul_points(stop_event):
                 y_point = max(0, min(Y_PISTE, int(y_point)))
                 distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
                 if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
-                MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 40:
+                MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 50 and 5 < quality < 20:
                     buffer_points.append((x_point, y_point))
                 
                 if buffer_points:

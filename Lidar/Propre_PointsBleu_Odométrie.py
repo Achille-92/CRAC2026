@@ -20,9 +20,9 @@ if Can:
         channel='can0',
         bustype='socketcan',
         bitrate=500000,
-        can_filters=[{"can_id": 0x10, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x11, "can_mask": 0x7FF, "extended": False},
-                    {"can_id": 0x12, "can_mask": 0x7FF, "extended": False}]
+        can_filters=[{"can_id": 0x100, "can_mask": 0x7FF, "extended": False},
+                    {"can_id": 0x101, "can_mask": 0x7FF, "extended": False},
+                    {"can_id": 0x102, "can_mask": 0x7FF, "extended": False}]
     )
 
 
@@ -33,7 +33,7 @@ BAUDRATE = 1000000
 
 # Création de l'objet Lidar, et de la Pile pile_points
 lidar = None
-pile_points = queue.Queue(maxsize=50)
+pile_points = queue.Queue(maxsize=1000)
 
 LARGEUR_ROBOT = 250
 LONGUEUR_ROBOT = 130
@@ -74,13 +74,16 @@ def calcul_points(stop_event):
 
     while not stop_event.is_set():
         try:
+
             lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
+            lidar.reset()
             lidar.set_motor_pwm(500)
             time.sleep(1)
             
             scan_generator = lidar.start_scan()
             print("Lidar démarré, lecture des points...")
             for scan in scan_generator():
+                
                 angle_point = scan.angle
                 distance = scan.distance
                 quality = scan.quality
@@ -91,7 +94,7 @@ def calcul_points(stop_event):
                 angle_r = angle_robot
                 
                 phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
-                angle_total = phi - math.radians(angle_r) - math.radians(1)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+                angle_total = phi - math.radians(angle_r) - math.radians(-2)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
 
                 x_point = x_r + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
                 y_point = y_r - distance * math.sin(angle_total)
@@ -100,7 +103,7 @@ def calcul_points(stop_event):
                 x_point = max(0, min(3000, int(x_point)))
                 y_point = max(0, min(2000, int(y_point)))
                 distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
-                if 120 <= x_point <= 3000-120 and 80 <= y_point <= 2000-80 and distance_robot_point > 50 and 5 < quality < 25:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
+                if 10 <= x_point <= 3000-10 and 10 <= y_point <= 2000-10 and distance_robot_point > 50 and 10 < quality < 15:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
                     pile_points.put((x_point, y_point))
                     print(quality)
 
@@ -116,54 +119,35 @@ def calcul_points(stop_event):
 
 
 def affichage(stop_event):
-    """
-    Arguments : x_robot, y_robot, flag stop_event
-    Modifications : robot_plot, ennemi_plot, ennemi_vecteur, fig, ax
+    global fig, ax, scat, robot_plot, x_robot, y_robot
+    buffer_points = deque(maxlen=300)
 
-    Utilisation :
-    Créée la fenêtre graphique avec les légendes, et affiche notre robot
-    Affiche le robot, et le robot ennemi
-    Calcule puis affiche le vecteur direction
-    Refresh toutes les 10ms
-    """
-    global x_ennemi, y_ennemi, angle_ennemi
-    global robot_plot, ennemi_plot, ennemi_vecteur
-
+    # Initialisation de la figure et des objets graphiques
     fig, ax = plt.subplots()
     plt.ion()
     plt.show()
-
-    # Scatter pour les objets
     robot_plot = ax.scatter([x_robot], [y_robot], s=50, c='red', marker='x')
-    ennemi_plot = ax.scatter([], [], s=50, c='green', marker='o')
-    ennemi_vecteur, = ax.plot([], [], c='orange', linewidth=2)
     scat = ax.scatter([], [], s=5, c='blue', alpha=0.5)
-
     ax.set_xlim(0, 3000)
     ax.set_ylim(0, 2000)
     ax.set_aspect('equal')
 
-    buffer_points = deque(maxlen=100)
-
     while not stop_event.is_set():
-        try:
-            p = pile_points.get(timeout=0.1)
-            buffer_points.append(p)
-        except queue.Empty:
-            pass
-
+        points_frais = []
         while not pile_points.empty():
-            buffer_points.append(pile_points.get_nowait())
-
-        if buffer_points:
+            try:
+                points_frais.append(pile_points.get_nowait())
+            except queue.Empty:
+                break
+        if points_frais:
+            buffer_points.extend(points_frais)
             xs, ys = zip(*buffer_points)
             scat.set_offsets(np.c_[xs, ys])
-
-            # met à jour la position du robot (fixe dans ton cas)
             robot_plot.set_offsets([[x_robot, y_robot]])
-
             fig.canvas.draw()
             fig.canvas.flush_events()
+        time.sleep(0.01)
+
 
 def CAN_Odometrie(stop_event):
     """
