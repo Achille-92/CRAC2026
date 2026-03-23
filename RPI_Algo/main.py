@@ -23,6 +23,7 @@ Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 import matplotlib
 matplotlib.use('Qt5Agg')
 from pyrplidar import PyRPlidar
+from rplidar import RPLidar
 import math,time,os,can,struct,random,platform,sys, json, socket
 current_os = platform.system()
 if current_os == "Linux":

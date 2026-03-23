@@ -14,7 +14,7 @@ import struct
 Can = False
 # config CAN
 if Can:
-    os.system('sudo ip link set can0 type can bitrate 500000')  # adapte le bitrate
+    os.system('sudo ip link set can0 type can bitrate 500000')
     os.system('sudo ifconfig can0 up')
     bus = can.interface.Bus(
         channel='can0',
@@ -33,18 +33,20 @@ BAUDRATE = 1000000
 
 # Création de l'objet Lidar, et de la Pile pile_points
 lidar = None
-pile_points = queue.Queue(maxsize=1000)
+pile_points = queue.Queue(maxsize=5)  # ← RÉDUIT de 1000 à 100
 
 LARGEUR_ROBOT = 250
 LONGUEUR_ROBOT = 130
 # Coordonnées et angle de notre robot
 x_robot = int(2400+LARGEUR_ROBOT/2)
 y_robot = int(1550+LONGUEUR_ROBOT/2+100)
+x_robot = 280-15
+y_robot = 220
 angle_robot = 90
 
 # Coordonnées, angle et vitesse du robot ennemi
-x_ennemi = 0
-y_ennemi = 0
+x_ennemi = 1400
+y_ennemi = 500
 angle_ennemi = 0
 v_ennemi = 0
 
@@ -52,6 +54,7 @@ v_ennemi = 0
 fig = None 
 ax = None
 robot_plot = None
+ennemi_plot = None
 scat = None
 
 ################## Fonction  ###########################################
@@ -64,105 +67,357 @@ def calcul_points(stop_event):
     Création de l'objet "lidar"
     Calcul de l'angle total et des coordonnées des points
     Saturation des valeurs pour les limites de l'aire de jeu, puis pour oublier les bords
+    
+    Version OPTIMISÉE avec :
+    - Resynchronisation automatique des trames
+    - Sous-échantillonnage pour réduire le retard
+    - Vidage automatique de la queue si pleine
     """
-
-    lidar = PyRPlidar()
-
-    global  x_robot, y_robot, angle_robot
+    
+    from rplidar import RPLidar
+    import math
+    import time
+    
+    lidar = None
+    
+    global x_robot, y_robot, angle_robot,x_ennemi,y_ennemi
     x_point = 0
     y_point = 0
-
-    while not stop_event.is_set():
-        try:
-
-            lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
-            lidar.reset()
-            lidar.set_motor_pwm(500)
-            time.sleep(1)
+    
+    # Statistiques de monitoring
+    total_measurements = 0
+    valid_points = 0
+    sent_points = 0  # Points effectivement envoyés à l'affichage
+    dropped_points = 0  # Points abandonnés (queue pleine)
+    resync_count = 0
+    error_count = 0
+    
+    # OPTIMISATION 1 : Sous-échantillonnage
+    decimation_counter = 0
+    DECIMATION_FACTOR = 1  # On garde 1 point sur 5 → réduit de 16k/s à 3.2k/s
+    
+    try:
+        # Initialisation du Lidar
+        lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE, timeout=3)
+        print("✓ Lidar connecté")
+        
+        # Configuration du moteur
+        lidar.set_pwm(660)
+        time.sleep(2)
+        print("✓ Moteur démarré (PWM=660)")
+        
+        # Préparation pour l'acquisition
+        lidar.stop()
+        time.sleep(0.2)
+        lidar.clear_input()
+        time.sleep(0.1)
+        
+        # Envoyer la commande SCAN
+        SYNC_BYTE = b'\xA5'
+        SCAN_BYTE = b'\x20'
+        lidar._serial_port.write(SYNC_BYTE + SCAN_BYTE)
+        time.sleep(0.1)
+        
+        # Lire et ignorer le descripteur
+        descriptor = lidar._serial_port.read(7)
+        if len(descriptor) != 7:
+            raise Exception("Descripteur invalide lors de l'initialisation")
+        
+        # RESYNCHRONISATION INITIALE
+        print("🔄 Recherche de synchronisation initiale...")
+        if not find_sync_pattern(lidar._serial_port, timeout=3.0):
+            raise Exception("Impossible de se synchroniser avec le Lidar")
+        print("✓ Synchronisation établie - Démarrage de l'acquisition")
+        
+        data_size = 5
+        
+        # Boucle principale d'acquisition
+        while not stop_event.is_set():
             
-            scan_generator = lidar.start_scan()
-            print("Lidar démarré, lecture des points...")
-            for scan in scan_generator():
+            # Lire un paquet de données
+            raw_data = lidar._serial_port.read(data_size)
+            
+            if len(raw_data) != data_size:
+                continue
+            
+            # Décoder la mesure avec validation stricte
+            measurement = decode_measurement_safe(raw_data)
+            
+            # DÉTECTION DE DÉSYNCHRONISATION
+            if measurement is None:
+                error_count += 1
                 
-                angle_point = scan.angle
-                distance = scan.distance
-                quality = scan.quality
-                if stop_event.is_set():
-                    break
-                x_r = x_robot
-                y_r = y_robot
-                angle_r = angle_robot
+                if error_count > 10:
+                    print(f"\n⚠ Désynchronisation détectée après {total_measurements} mesures")
+                    print("🔄 Resynchronisation en cours...")
+                    
+                    if find_sync_pattern(lidar._serial_port, timeout=2.0):
+                        print("✓ Resynchronisation réussie\n")
+                        resync_count += 1
+                        error_count = 0
+                    else:
+                        print("✗ Échec de resynchronisation - Redémarrage du scan...")
+                        lidar.stop()
+                        time.sleep(0.2)
+                        lidar.clear_input()
+                        lidar._serial_port.write(SYNC_BYTE + SCAN_BYTE)
+                        time.sleep(0.1)
+                        descriptor = lidar._serial_port.read(7)
+                        if find_sync_pattern(lidar._serial_port, timeout=3.0):
+                            print("✓ Scan redémarré avec succès\n")
+                            resync_count += 1
+                            error_count = 0
+                        else:
+                            raise Exception("Impossible de resynchroniser le Lidar")
                 
-                phi = math.radians(angle_point)                                 # On converti l'angle de la mesure en radian
-                angle_total = phi - math.radians(angle_r) - math.radians(-2)    # On calcule l'angle total à partir de l'orientation du Lidar et du robot
+                continue
+            
+            # Mesure valide → reset compteur d'erreurs
+            error_count = 0
+            total_measurements += 1
+            
+            # Extraction des données
+            angle_point = measurement['angle']
+            distance = measurement['distance']
+            quality = measurement['quality']
+            
+            # Récupération de la position et orientation du robot
+            x_r = x_robot
+            y_r = y_robot
+            angle_r = angle_robot
+            
+            # Calcul de l'angle total
+            phi = math.radians(angle_point)
+            angle_total = phi - math.radians(angle_r) - math.radians(-2)
+            
+            # Calcul des coordonnées du point
+            x_point = x_r + distance * math.cos(angle_total)
+            y_point = y_r - distance * math.sin(angle_total)
+            
+            # Saturation dans le repère (0 ≤ x ≤ 1500, 0 ≤ y ≤ 600)
+            x_point = max(0, min(1500, int(x_point)))
+            y_point = max(0, min(600, int(y_point)))
+            
+            # Distance entre le robot et le point détecté
+            distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
+            
+            # Filtrage des points valides
+            if (10 <= x_point <= 1500-10 and 
+                10 <= y_point <= 600-10 and 
+                distance_robot_point > 50):
+                
+                valid_points += 1
+                
+                # OPTIMISATION 2 : Sous-échantillonnage (garder 1 point sur N)
+                decimation_counter += 1
+                if decimation_counter >= DECIMATION_FACTOR:
+                    decimation_counter = 0
+                    
+                    # OPTIMISATION 3 : Vidage si queue pleine (éviter le blocage)
+                    if pile_points.full():
+                        # Vider la moitié de la queue pour faire de la place
+                        dropped_in_batch = 0
+                        while not pile_points.empty() and dropped_in_batch < 50:
+                            try:
+                                pile_points.get_nowait()
+                                dropped_points += 1
+                                dropped_in_batch += 1
+                            except queue.Empty:
+                                break
+                    
+                    # Tenter d'ajouter le point (non-bloquant)
+                    try:
+                        x_ennemi = (x_ennemi + x_point)/2
+                        y_ennemi = (y_ennemi + y_point)/2
+                        pile_points.put_nowait((x_point, y_point))
+                        sent_points += 1
+                    except queue.Full:
+                        dropped_points += 1
+                
+                # Affichage périodique des statistiques
+                if valid_points % 5000 == 0:
+                    queue_size = pile_points.qsize()
+                    print(f"📊 Valides: {valid_points} | Envoyés: {sent_points} | "
+                          f"Perdus: {dropped_points} | Queue: {queue_size}/100 | Resync: {resync_count}")
+                  
+    except KeyboardInterrupt:
+        print("\n⚠ Arrêt du Lidar demandé par l'utilisateur")
+    
+    except Exception as e:
+        print(f"✗ Erreur dans le thread Lidar: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    finally:
+        # Nettoyage propre du Lidar
+        print("\n🔄 Arrêt du Lidar...")
+        if lidar is not None:
+            try:
+                lidar.stop()
+                time.sleep(0.2)
+                lidar.clear_input()
+                lidar.stop_motor()
+                time.sleep(0.5)
+                lidar.disconnect()
+                print("✓ Lidar arrêté proprement")
+            except:
+                print("⚠ Erreur lors de l'arrêt du Lidar")
+        
+        # Affichage des statistiques finales
+        print(f"\n📊 Statistiques finales:")
+        print(f"   Mesures totales    : {total_measurements}")
+        print(f"   Points valides     : {valid_points}")
+        print(f"   Points envoyés     : {sent_points}")
+        print(f"   Points perdus      : {dropped_points}")
+        if valid_points > 0:
+            print(f"   Taux envoi/valide  : {100*sent_points//valid_points}%")
+        if total_measurements > 0:
+            print(f"   Taux de validité   : {100*valid_points//total_measurements}%")
+        print(f"   Resynchronisations : {resync_count}")
 
-                x_point = x_r + distance * math.cos(angle_total)                # On calcule les coordonnées x et y du point à partir de la position et de l'orientation du robot
-                y_point = y_r - distance * math.sin(angle_total)
 
-                # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
-                x_point = max(0, min(3000, int(x_point)))
-                y_point = max(0, min(2000, int(y_point)))
-                distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
-                if 10 <= x_point <= 3000-10 and 10 <= y_point <= 2000-10 and distance_robot_point > 50 and 10 < quality < 15:                 # Si ce ne sont pas les murs, on ajoute le point dans la pile sous forme de tuple (x,y)
-                    pile_points.put((x_point, y_point))
-                    print(quality)
+# ============================================================================
+# FONCTIONS UTILITAIRES
+# ============================================================================
 
-        except Exception as e:                                                      # En cas d'exception on affiche l'erreur
-            print("Erreur dans le thread Lidar:", e)
-        finally:                                                                    # Et on arrête le Lidar
-            # Nettoyage du Lidar
-            print("Arrêt du Lidar...")
-            lidar.set_motor_pwm(0)
-            time.sleep(1)
-            lidar.stop()
-            lidar.disconnect()
+def find_sync_pattern(serial_port, timeout=2.0):
+    """Recherche le pattern de synchronisation dans le flux de données"""
+    start_time = time.time()
+    buffer = bytearray()
+    
+    while time.time() - start_time < timeout:
+        byte = serial_port.read(1)
+        if len(byte) == 0:
+            continue
+        
+        buffer.append(byte[0])
+        
+        if len(buffer) > 10:
+            buffer.pop(0)
+        
+        if len(buffer) >= 5:
+            potential_measurement = bytes(buffer[-5:])
+            
+            check_bit = potential_measurement[1] & 0b1
+            if check_bit != 1:
+                continue
+            
+            new_scan = bool(potential_measurement[0] & 0b1)
+            inversed = bool((potential_measurement[0] >> 1) & 0b1)
+            
+            if new_scan != inversed:
+                angle = ((potential_measurement[1] >> 1) + (potential_measurement[2] << 7)) / 64.0
+                if 0 <= angle < 360:
+                    return True
+    
+    return False
+
+
+def decode_measurement_safe(raw_data):
+    """Décode un paquet avec validation stricte"""
+    if len(raw_data) != 5:
+        return None
+    
+    check_bit = raw_data[1] & 0b1
+    if check_bit != 1:
+        return None
+    
+    new_scan = bool(raw_data[0] & 0b1)
+    inversed_new_scan = bool((raw_data[0] >> 1) & 0b1)
+    
+    if new_scan == inversed_new_scan:
+        return None
+    
+    quality = raw_data[0] >> 2
+    angle = ((raw_data[1] >> 1) + (raw_data[2] << 7)) / 64.0
+    distance = (raw_data[3] + (raw_data[4] << 8)) / 4.0
+    
+    if angle < 0 or angle >= 360:
+        return None
+    
+    if distance < 0 or distance > 20000:
+        return None
+    
+    return {
+        'new_scan': new_scan,
+        'quality': quality,
+        'angle': angle,
+        'distance': distance
+    }
 
 
 def affichage(stop_event):
-    global fig, ax, scat, robot_plot, x_robot, y_robot
-    buffer_points = deque(maxlen=300)
+    """Affichage graphique OPTIMISÉ avec batch processing"""
+    global fig, ax, scat, robot_plot,ennemi_plot, x_robot, y_robot, x_ennemi, y_ennemi
+    buffer_points = deque(maxlen=10)  # ← AUGMENTÉ de 300 à 1000 pour plus d'historique
 
-    # Initialisation de la figure et des objets graphiques
+    # Initialisation de la figure
     fig, ax = plt.subplots()
     plt.ion()
     plt.show()
-    robot_plot = ax.scatter([x_robot], [y_robot], s=50, c='red', marker='x')
+    robot_plot = ax.scatter([x_robot], [y_robot], s=50, c='green', marker='o')
+    ennemi_plot = ax.scatter([x_ennemi], [y_ennemi], s=50, c='red', marker='x')
     scat = ax.scatter([], [], s=5, c='blue', alpha=0.5)
-    ax.set_xlim(0, 3000)
-    ax.set_ylim(0, 2000)
+    ax.set_xlim(0, 1500)
+    ax.set_ylim(0, 600)
     ax.set_aspect('equal')
+    ax.set_title("Lidar - Affichage temps réel")
+    ax.set_xlabel("X (mm)")
+    ax.set_ylabel("Y (mm)")
+
+    frame_count = 0
+    last_fps_time = time.time()
 
     while not stop_event.is_set():
+        # OPTIMISATION : Vider toute la queue d'un coup (batch processing)
         points_frais = []
-        while not pile_points.empty():
+        max_batch = 200  # Limiter le nombre de points par frame
+        count = 0
+        
+        while not pile_points.empty() and count < max_batch:
             try:
                 points_frais.append(pile_points.get_nowait())
+                count += 1
             except queue.Empty:
                 break
+        
         if points_frais:
             buffer_points.extend(points_frais)
-            xs, ys = zip(*buffer_points)
-            scat.set_offsets(np.c_[xs, ys])
+            
+            # Mise à jour de l'affichage
+            if buffer_points:
+                xs, ys = zip(*buffer_points)
+                scat.set_offsets(np.c_[xs, ys])
+            
             robot_plot.set_offsets([[x_robot, y_robot]])
+            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
+            
+            # Calcul et affichage du FPS
+            frame_count += 1
+            if frame_count % 30 == 0:
+                current_time = time.time()
+                fps = 30 / (current_time - last_fps_time)
+                ax.set_title(f"Lidar - Affichage temps réel ({fps:.1f} FPS)")
+                last_fps_time = current_time
+            
             fig.canvas.draw()
             fig.canvas.flush_events()
-        time.sleep(0.01)
+        
+        # OPTIMISATION : Sleep plus court pour réduire la latence
+        time.sleep(0.005)  # ← RÉDUIT de 0.01s à 0.005s (200 FPS max au lieu de 100)
 
 
 def CAN_Odometrie(stop_event):
-    """
-    Réception CAN pour mettre à jour x_robot, y_robot et angle_robot
-    """
+    """Réception CAN pour mettre à jour x_robot, y_robot et angle_robot"""
     global x_robot, y_robot, angle_robot
 
     while not stop_event.is_set():
-        msg = bus.recv(0.01)  # attend 10 ms max
+        msg = bus.recv(0.01)
         if msg is None:
-            continue  # pas de message, on repart
+            continue
 
-        # Vérifie qu'on a bien reçu 4 octets avant de décoder
         if msg.arbitration_id not in (0x100, 0x101, 0x102):
-            continue  # on saute les autres trames
+            continue
 
         if msg.arbitration_id == 0x100:
             x_robot = struct.unpack('f', bytes(msg.data))[0]
@@ -193,19 +448,16 @@ if __name__ == '__main__':
     if Can:
         tache_odometrie.start()
 
-
     try:
         while True:
             time.sleep(0.1)
     except KeyboardInterrupt:
         print("Arrêt demandé par l'utilisateur.")
-        stop_event.set()  # signal aux threads de s'arrêter
-        # Attente que chaque thread termine proprement
+        stop_event.set()
         tache_lidar.join()
         tache_affichage.join()
         if Can:
             tache_odometrie.join()
         print("Programme terminé proprement.")
-
 
 ########################################################################
