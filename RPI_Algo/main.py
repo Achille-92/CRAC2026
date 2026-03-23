@@ -13,7 +13,7 @@ Debug_Mouv = True
 Simul_action = True
 Debug_Action = True
 
-Lidar_on = True
+Lidar_on = False
 Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
@@ -91,6 +91,10 @@ Liste_strategie = [
 
 Liste_actions = [
     #["Consigne",int(2400+LARGEUR_ROBOT/2)-100,1000],
+    ["Attente_test"],
+    ["Attraper",0,12],
+    ["Retourner",0,12],
+    ["Relacher",0,12],
     ["Attente_test"],
     ["Attraper",1,12],
     ["Retourner",1,12],
@@ -187,9 +191,9 @@ if couleur == "B":
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = 90
 
-    """x_robot_depart = 2825
+    x_robot_depart = 2825
     y_robot_depart = int(1100-LONGUEUR_ROBOT/2)
-    angle_robot_depart = -90"""
+    angle_robot_depart = -90
 
     x_robot_retour = 3000-LARGEUR_ROBOT/2-30
     y_robot_retour = 1750
