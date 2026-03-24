@@ -1,6 +1,6 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 
 Strategie = False
 Debug_strategie = True
@@ -90,7 +90,7 @@ Liste_strategie = [
 
 
 Liste_actions = [
-    #["Consigne",int(2400+LARGEUR_ROBOT/2)-100,1000],
+    ["Consigne",int(2400+LARGEUR_ROBOT/2)-100,1000],
     ["Attente_test"],
     ["Attraper",0,12],
     ["Retourner",0,12],
@@ -189,11 +189,11 @@ PORT_ENVOI = 5000
 if couleur == "B":
     x_robot_depart = int(2400+LARGEUR_ROBOT/2)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
-    angle_robot_depart = 90
-
-    x_robot_depart = 2825
-    y_robot_depart = int(1100-LONGUEUR_ROBOT/2)
     angle_robot_depart = -90
+
+    """x_robot_depart = 2825
+    y_robot_depart = int(1100-LONGUEUR_ROBOT/2)
+    angle_robot_depart = -90"""
 
     x_robot_retour = 3000-LARGEUR_ROBOT/2-30
     y_robot_retour = 1750
@@ -270,7 +270,7 @@ expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes]) if 
 # ======================================================= #
 
 # Variables fonctionnelles des Batteries
-Batteries = [100,100,100,100] # V décharge, V charge, V actuel, % de charge
+Batteries = [95,70,80,22] # V décharge, V charge, V actuel, % de charge
 Batteries_interrupteur = [1,1,1]
 Batteries_alert = [0,0,0,0]
 RPI_decharge = False
@@ -952,16 +952,16 @@ if __name__ == '__main__':
                     if Noisette_posconnue[3]=="R":
                         for Noisette_couleurconnue in Liste_noisette_xya_cam_copie:
                             distance_NN = math.sqrt((Noisette_posconnue[0] - Noisette_couleurconnue[0])**2 + (Noisette_posconnue[1] - Noisette_couleurconnue[1])**2)
-                            if Reel and (0 <= Noisette_posconnue[0] <= 300 and 0 <= Noisette_posconnue[1] <= 500 and couleur == "B")or(2700 <= Noisette_posconnue[0] <= 3000 and 0 <= Noisette_posconnue[1] <= 500 and couleur == "J"):
+                            """if Reel and (0 <= Noisette_posconnue[0] <= 300 and 0 <= Noisette_posconnue[1] <= 500 and couleur == "B")or(2700 <= Noisette_posconnue[0] <= 3000 and 0 <= Noisette_posconnue[1] <= 500 and couleur == "J"):
                                 if distance_NN <= TOL_CAM_NOISETTE-10:
                                     Noisette_posconnue[3]=Noisette_couleurconnue[3]
                                     Liste_noisette_xya_cam_copie.remove(Noisette_couleurconnue)
                                     break
-                            else :
-                                if distance_NN <= TOL_CAM_NOISETTE:
-                                    Noisette_posconnue[3]=Noisette_couleurconnue[3]
-                                    Liste_noisette_xya_cam_copie.remove(Noisette_couleurconnue)
-                                    break
+                            else :"""
+                            if distance_NN <= TOL_CAM_NOISETTE:
+                                Noisette_posconnue[3]=Noisette_couleurconnue[3]
+                                Liste_noisette_xya_cam_copie.remove(Noisette_couleurconnue)
+                                break
                 Liste_noisettes_restantes = [n for n in Liste_noisette_xya if n[3] == "R"]
                 if len(Liste_noisettes_restantes) != 0 :
                     print("Il reste encore des Noisettes dont les couleurs sont inconnues")
