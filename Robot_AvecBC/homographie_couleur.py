@@ -1669,15 +1669,11 @@ class ColorDetector:
                     j_lower = np.array([cv2.getTrackbarPos('Jaune H min', 'Calibration HSV'),
                                         cv2.getTrackbarPos('Jaune S min', 'Calibration HSV'),
                                         cv2.getTrackbarPos('Jaune V min', 'Calibration HSV')])
-                    j_upper = np.array([cv2.getTrackbarPos('Jaune H max', 'Calibration HSV'),
-                                        cv2.getTrackbarPos('Jaune S max', 'Calibration HSV'),
-                                        cv2.getTrackbarPos('Jaune V max', 'Calibration HSV')])
+                    j_upper = self.jaune_upper
                     b_lower = np.array([cv2.getTrackbarPos('Bleu H min', 'Calibration HSV'),
                                         cv2.getTrackbarPos('Bleu S min', 'Calibration HSV'),
                                         cv2.getTrackbarPos('Bleu V min', 'Calibration HSV')])
-                    b_upper = np.array([cv2.getTrackbarPos('Bleu H max', 'Calibration HSV'),
-                                        cv2.getTrackbarPos('Bleu S max', 'Calibration HSV'),
-                                        cv2.getTrackbarPos('Bleu V max', 'Calibration HSV')])
+                    b_upper = self.bleu_upper
 
                     self.jaune_lower, self.jaune_upper = j_lower, j_upper
                     self.bleu_lower,  self.bleu_upper  = b_lower, b_upper
