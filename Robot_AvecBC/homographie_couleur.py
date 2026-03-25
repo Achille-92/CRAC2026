@@ -1694,12 +1694,12 @@ class ColorDetector:
 
         # Créer les sliders
         for label, val, maxval in [
-            ('Jaune H min', self.jaune_lower[0], 180), ('Jaune H max', self.jaune_upper[0], 180),
-            ('Jaune S min', self.jaune_lower[1], 255), ('Jaune S max', self.jaune_upper[1], 255),
-            ('Jaune V min', self.jaune_lower[2], 255), ('Jaune V max', self.jaune_upper[2], 255),
-            ('Bleu H min',  self.bleu_lower[0],  180), ('Bleu H max',  self.bleu_upper[0],  180),
-            ('Bleu S min',  self.bleu_lower[1],  255), ('Bleu S max',  self.bleu_upper[1],  255),
-            ('Bleu V min',  self.bleu_lower[2],  255), ('Bleu V max',  self.bleu_upper[2],  255),
+            ('Jaune H min', self.jaune_lower[0], 180),
+            ('Jaune S min', self.jaune_lower[1], 255), 
+            ('Jaune V min', self.jaune_lower[2], 255), 
+            ('Bleu H min',  self.bleu_lower[0],  180), 
+            ('Bleu S min',  self.bleu_lower[1],  255), 
+            ('Bleu V min',  self.bleu_lower[2],  255), 
         ]:
             cv2.createTrackbar(label, 'Calibration HSV', val, maxval, lambda x: None)
 
@@ -1715,16 +1715,11 @@ class ColorDetector:
             j_lower = np.array([cv2.getTrackbarPos('Jaune H min', 'Calibration HSV'),
                                 cv2.getTrackbarPos('Jaune S min', 'Calibration HSV'),
                                 cv2.getTrackbarPos('Jaune V min', 'Calibration HSV')])
-            j_upper = np.array([cv2.getTrackbarPos('Jaune H max', 'Calibration HSV'),
-                                cv2.getTrackbarPos('Jaune S max', 'Calibration HSV'),
-                                cv2.getTrackbarPos('Jaune V max', 'Calibration HSV')])
+            j_upper = self.jaune_upper
             b_lower = np.array([cv2.getTrackbarPos('Bleu H min', 'Calibration HSV'),
                                 cv2.getTrackbarPos('Bleu S min', 'Calibration HSV'),
                                 cv2.getTrackbarPos('Bleu V min', 'Calibration HSV')])
-            b_upper = np.array([cv2.getTrackbarPos('Bleu H max', 'Calibration HSV'),
-                                cv2.getTrackbarPos('Bleu S max', 'Calibration HSV'),
-                                cv2.getTrackbarPos('Bleu V max', 'Calibration HSV')])
-
+            b_upper = self.bleu_upper
             # Créer une image noire pour afficher les masques et le bouton
             combined = np.zeros_like(image_display)
             combined[:, :, 2] = cv2.inRange(hsv, j_lower, j_upper)  # Jaune en rouge (canal R)
