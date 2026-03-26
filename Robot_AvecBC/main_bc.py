@@ -215,6 +215,7 @@ temps_ecoules = 0
 temps_restant = 100
 temps_retour = 15 # Temps restant pour revenir au départ en fin de match
 temps_max = 3600
+temps_precedent = 0
 reset_fin = False
 
 action_voulu = None
@@ -747,7 +748,10 @@ if __name__ == '__main__':
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             # ==================================================================== #
             
-
+            if temps_precedent == temps_restant:
+                print("Robot principal déconnecté")
+            else:
+                print("Robot principal connecté")
             # MAJ de l'affichage et des Variables de Bouncing
             update_display(background)
             fig.canvas.flush_events()
@@ -756,6 +760,7 @@ if __name__ == '__main__':
             x_ennemi_old = x_ennemi
             y_ennemi_old = y_ennemi
             old_verif_mouv = verif_mouv
+            temps_precedent = temps_restant
             Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
             print("")
 
