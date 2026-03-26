@@ -931,116 +931,7 @@ if __name__ == '__main__':
 
             # =============== Association Couleur CAM à Noisette Aveugle ==================== #
 
-            """if not Noisette_init:
-                Liste_noisette_xya_cam_copie = Liste_noisette_xya_cam.copy()
-                
-                for Noisette_couleurconnue in Liste_noisette_xya_cam_copie:
-                    for num_zonedepart in range(8):
-                        # Vérifier si la noisette est dans cette zone
-                        if (Liste_zones_Noisette_depart[num_zonedepart][0][0] < Noisette_couleurconnue[0] < Liste_zones_Noisette_depart[num_zonedepart][1][0] and 
-                            Liste_zones_Noisette_depart[num_zonedepart][0][1] < Noisette_couleurconnue[1] < Liste_zones_Noisette_depart[num_zonedepart][1][1]):
-                            
-                            
-                            # Vérifier si cette noisette n'est pas déjà enregistrée (doublon)
-                            est_doublon = False
-                            
-                            if len(Liste_association_Noisette_zone_cam[num_zonedepart]) != 0:
-                                for Noisette_enregistree in Liste_association_Noisette_zone_cam[num_zonedepart]:
-                                    distance_NN = math.sqrt(
-                                        (Noisette_couleurconnue[0] - Noisette_enregistree[0])**2 + 
-                                        (Noisette_couleurconnue[1] - Noisette_enregistree[1])**2
-                                    )
-                                    # Si une noisette très proche existe déjà, c'est un doublon
-                                    if distance_NN < 15:
-                                        est_doublon = True
-                                        #print(f"  → Doublon détecté (distance = {distance_NN:.1f}mm)")
-                                        break  # Pas besoin de continuer à chercher
-                            
-                            # Ajouter seulement si ce n'est pas un doublon
-                            if not est_doublon:
-                                Liste_association_Noisette_zone_cam[num_zonedepart].append(Noisette_couleurconnue)
-                                #print(f"  → Noisette ajoutée (total dans zone : {len(Liste_association_Noisette_zone_cam[num_zonedepart])})")
-                            
-                            break  # On a trouvé la zone, pas besoin de chercher les autres
-                
-
-                for num_zonedepart in range(8):
-                    if num_zonedepart < 4:  # Zones verticales (0-3) : tri par Y
-                        Liste_association_Noisette_zone_cam[num_zonedepart].sort(key=lambda n: n[1])
-                    else:  # Zones horizontales (4-7) : tri par X
-                        Liste_association_Noisette_zone_cam[num_zonedepart].sort(key=lambda n: n[0])
-
-                    nbr_Noisette = len(Liste_association_Noisette_zone_cam[num_zonedepart])
-                    
-                    if nbr_Noisette == 4:
-                        for j in range(4):
-                            Liste_association_Noisette_zone[num_zonedepart][j][3] = Liste_association_Noisette_zone_cam[num_zonedepart][j][3]
-      
-                    elif nbr_Noisette == 3:
-                        
-                        # Étape 1 : Identifier la couleur manquante
-                        couleurs_detectees = [n[3] for n in Liste_association_Noisette_zone_cam[num_zonedepart]]
-                        nbr_bleu_detecte = couleurs_detectees.count("B")
-                        nbr_jaune_detecte = couleurs_detectees.count("J")
-                        
-                        # Déterminer la couleur manquante (sachant qu'il y a 2 de chaque dans chaque zone)
-                        if nbr_bleu_detecte == 2 and nbr_jaune_detecte == 1:
-                            couleur_manquante = "J"
-                        elif nbr_jaune_detecte == 2 and nbr_bleu_detecte == 1:
-                            couleur_manquante = "B"
-                        else:
-                            # Cas ambigu (1B + 1J détectées ou autre) → on ne peut pas déduire
-                            print(f"    ❌ Impossible de déduire la couleur manquante (détecté : {nbr_bleu_detecte}B, {nbr_jaune_detecte}J)")
-                            continue
-                        
-                        print(f"    → Couleur manquante : {couleur_manquante}")
-                        
-                        indice_noisette_manquante = None
-                        print(Liste_association_Noisette_zone_cam[num_zonedepart][0])
-                        print(Liste_association_Noisette_zone_cam[num_zonedepart][1])
-                        print(Liste_association_Noisette_zone_cam[num_zonedepart][2])
-                        if num_zonedepart<4:
-                            bord1 = (Liste_zones_Noisette_depart[num_zonedepart][0][0]+75,Liste_zones_Noisette_depart[num_zonedepart][0][1])
-                            bord2 = (Liste_zones_Noisette_depart[num_zonedepart][1][0]-75,Liste_zones_Noisette_depart[num_zonedepart][1][1])
-                        else:
-                            bord1 = (Liste_zones_Noisette_depart[num_zonedepart][0][0],Liste_zones_Noisette_depart[num_zonedepart][0][1]+75)
-                            bord2 = (Liste_zones_Noisette_depart[num_zonedepart][1][0],Liste_zones_Noisette_depart[num_zonedepart][1][1]-75)
-                        print("bord1 : ",bord1, "  bord2 : ",bord2)
-                        distance_bord1_N0 = math.sqrt((bord1[0] - Liste_association_Noisette_zone_cam[num_zonedepart][0][0])**2 + (bord1[1] - Liste_association_Noisette_zone_cam[num_zonedepart][0][1])**2)
-                        print(distance_bord1_N0)
-                        if distance_bord1_N0>60:
-                            indice_noisette_manquante = 0
-                        else:
-                            distance_N0_N1 =  math.sqrt((Liste_association_Noisette_zone_cam[num_zonedepart][0][0] - Liste_association_Noisette_zone_cam[num_zonedepart][1][0])**2 + (Liste_association_Noisette_zone_cam[num_zonedepart][0][1] - Liste_association_Noisette_zone_cam[num_zonedepart][1][1])**2)
-                            print(distance_N0_N1)
-                            if distance_N0_N1>60:
-                                indice_noisette_manquante = 1
-                            else:
-                                distance_N1_N2 =  math.sqrt((Liste_association_Noisette_zone_cam[num_zonedepart][1][0] - Liste_association_Noisette_zone_cam[num_zonedepart][2][0])**2 + (Liste_association_Noisette_zone_cam[num_zonedepart][1][1] - Liste_association_Noisette_zone_cam[num_zonedepart][2][1])**2)
-                                print(distance_N1_N2)
-                                if distance_N1_N2>60:
-                                    indice_noisette_manquante = 2
-                                else :
-                                    distance_N2_bord2 = math.sqrt((Liste_association_Noisette_zone_cam[num_zonedepart][2][0] - bord2[0])**2 + (Liste_association_Noisette_zone_cam[num_zonedepart][2][1] - bord2[1])**2)
-                                    print(distance_N2_bord2)
-                                    if distance_N2_bord2>60:
-                                        indice_noisette_manquante = 3
-                        print("indice_noisette_manquante : ",indice_noisette_manquante)
-                        if indice_noisette_manquante is not None:
-                            print(Liste_association_Noisette_zone[num_zonedepart][indice_noisette_manquante])
-                            Liste_association_Noisette_zone[num_zonedepart][indice_noisette_manquante][3]=couleur_manquante
-                
-                # Affichage du résultat 
-                for num_zonedepart in range(8):
-                    for Noisettecouleur in Liste_association_Noisette_zone[num_zonedepart]:
-                        for Noisette in Liste_noisette_xya:
-                            if Noisettecouleur[0]==Noisette[0] and Noisettecouleur[1]==Noisette[1]:
-                                Noisette[3]=Noisettecouleur[3]
-
-                Liste_noisettes_restantes = [n for n in Liste_noisette_xya if n[3] == "R"]
-                print("Liste_noisettes_restantes : ",Liste_noisettes_restantes)
-                if len(Liste_noisettes_restantes)==0:
-                    Noisette_init = True"""
+            
 
 
             if not Noisette_init:
@@ -1088,12 +979,12 @@ if __name__ == '__main__':
                         
                         # ⭐ MODIFICATION EFFECTIVE ⭐
                         # Cas Caméra côté jaune
-                        if 0<Noisette_cam[0]<300 and 0<Noisette_cam[1]<500:
-                            Noisette_cam[0] = x_corrige
+                        """if 0<Noisette_cam[0]<300 and 0<Noisette_cam[1]<500:
+                            #Noisette_cam[0] = x_corrige
                             Noisette_cam[1] +=25
                         if 0<Noisette_cam[0]<300 and 800<Noisette_cam[1]<1500:
-                            Noisette_cam[0] = x_corrige
-                            Noisette_cam[1] +=20
+                            #Noisette_cam[0] = x_corrige
+                            Noisette_cam[1] +=20"""
                 
                 """for i in Liste_noisette_xya_cam:
                     Liste_noisette_xya.append(i)"""

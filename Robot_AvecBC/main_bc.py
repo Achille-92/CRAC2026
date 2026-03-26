@@ -106,22 +106,15 @@ MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 #############################################
 
 # Coordonnées et angle de notre robot (coordonnées initiales en haut)
-if couleur == "B":
-    x_robot_depart = 2725 
-    y_robot_depart = 1670
-    angle_robot_depart = -90
 
-    x_robot_retour = 2725
-    y_robot_retour = 1670
-    angle_robot_retour = -90
-else:
-    x_robot_depart = 275 
-    y_robot_depart = 1670
-    angle_robot_depart = -90
 
-    x_robot_retour = 275
-    y_robot_retour = 1670
-    angle_robot_retour = -90
+x_robot_depart = 0 
+y_robot_depart = 0
+angle_robot_depart = 0
+
+x_robot_retour = 0
+y_robot_retour = 0
+angle_robot_retour = 0
 
 x_robot_actuel = x_robot_depart
 y_robot_actuel = y_robot_depart
@@ -293,7 +286,6 @@ def comm_robot(stop_event):
                 action_precedente = donnees_recues["action_precedente"]
                 temps_restant = donnees_recues["temps_restant"]
 
-                print("aaaaaaaaaaaaaaaaaa")
                 
             except json.JSONDecodeError:
                 print("[Récepteur] Erreur : données JSON invalides")
@@ -532,11 +524,6 @@ if __name__ == '__main__':
                         y_ennemi_cam = robot[2]
                         angle_ennemi_cam = robot[3]
 
-                x_robot_actuel = x_robot_actuel_cam
-                y_robot_actuel = y_robot_actuel_cam
-                angle_robot_actuel = angle_robot_actuel_cam
-                x_ennemi = x_ennemi_cam
-                y_ennemi = y_ennemi_cam
 
                 if hasattr(system, 'show_debug') and system.show_debug:
                     system.color_detector.show_debug_masks(frame)
@@ -729,8 +716,8 @@ if __name__ == '__main__':
             # ============== MISE À JOUR AFFICHAGE ==================== #
 
             # Mettre à jour robot, ennemi et consigne sur affichage
-            robot_plot.set_offsets([[x_robot_actuel, y_robot_actuel]])
-            cercle_robot_patch.center = (x_robot_actuel, y_robot_actuel)
+            robot_plot.set_offsets([[x_robot_actuel_cam, y_robot_actuel_cam]])
+            cercle_robot_patch.center = (x_robot_actuel_cam, y_robot_actuel_cam)
             
             # Mettre à jour la zone de sécurité dynamique de l'ennemi
             zone_ennemi_scatter, cercle_ennemi_patch = mettre_a_jour_zone_ennemi(
@@ -741,16 +728,16 @@ if __name__ == '__main__':
             )
             ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
             
-            x0, y0 = x_robot_actuel, y_robot_actuel
-            x1 = x0 + longueur_trait * math.cos(math.radians(angle_robot_actuel))
-            y1 = y0 + longueur_trait * math.sin(math.radians(angle_robot_actuel))
+            x0, y0 = x_robot_actuel_cam, y_robot_actuel_cam
+            x1 = x0 + longueur_trait * math.cos(math.radians(angle_robot_actuel_cam))
+            y1 = y0 + longueur_trait * math.sin(math.radians(angle_robot_actuel_cam))
             robot_angle_line.set_data([x0, x1], [y0, y1])
             
             # Affichage texte Coordonées
             noisette_text.set_text(f"Avant : {Noisettes_stockees_dans_robot[0]} \nArrière : {Noisettes_stockees_dans_robot[1]}")
             chronometre_text.set_text(f"Temps : {int(temps_restant)} s\nAction : {action_voulu}")
 
-            robot_info_text.set_text(f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°")
+            robot_info_text.set_text(f"X = {x_robot_actuel_cam:.1f} Y = {y_robot_actuel_cam:.1f} A = {angle_robot_actuel_cam:.1f}°")
 
             # ==================================================================== #
             
