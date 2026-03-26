@@ -480,7 +480,7 @@ if __name__ == '__main__':
         button_manager = ButtonManager(window_name)
         
         # Ajouter les boutons (position en bas de l'écran redimensionné)
-        btn_y = 1000  # Position Y des boutons
+        btn_y = 800  # Position Y des boutons
         btn_h = 50   # Hauteur des boutons
         btn_spacing = 5
         
