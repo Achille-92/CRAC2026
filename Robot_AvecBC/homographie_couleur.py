@@ -808,7 +808,7 @@ class ArUcoTrackingSystem:
                 else:
                     results['tag_ennemi_detectes'].append(entry)
 
-                print(f"{label} Tag {tag_id}: X={pos_robot[0]:.1f}mm, Y={pos_robot[1]:.1f}mm, Angle={angle_deg:.1f}°")
+                #print(f"{label} Tag {tag_id}: X={pos_robot[0]:.1f}mm, Y={pos_robot[1]:.1f}mm, Angle={angle_deg:.1f}°")
 
             # Construction de Liste_robots_xy
             # Format : [tag_id, X_mm, Y_mm, angle_deg, 'R' ou 'E']
@@ -962,7 +962,7 @@ class ArUcoTrackingSystem:
         # Filtrer les objets détectés pour ne garder que ceux avec pos_elevated valide
         valid_detected = [obj for obj in detected_objects if obj.get('pos_elevated') is not None]
         
-        print(f"[{color_name}] Frame {current_frame}: {len(valid_detected)} objets détectés, {len(color_memory)} en mémoire")
+        #print(f"[{color_name}] Frame {current_frame}: {len(valid_detected)} objets détectés, {len(color_memory)} en mémoire")
         
         # 1. Associer les objets détectés aux objets en mémoire
         for obj in valid_detected:
@@ -990,7 +990,7 @@ class ArUcoTrackingSystem:
                 color_memory[best_match_id]['last_seen'] = current_frame
                 matched_ids.add(best_match_id)
                 result_objects.append(obj)
-                print(f"  - Objet ID={best_match_id} mis à jour (distance={best_distance:.1f}mm)")
+                #print(f"  - Objet ID={best_match_id} mis à jour (distance={best_distance:.1f}mm)")
             else:
                 # Nouvel objet : ajouter à la mémoire
                 new_id = self.color_object_id_counter
@@ -1002,7 +1002,7 @@ class ArUcoTrackingSystem:
                 }
                 matched_ids.add(new_id)
                 result_objects.append(obj)
-                print(f"  - Nouvel objet ID={new_id} créé à [{pos_current[0]:.0f}, {pos_current[1]:.0f}]mm")
+                #print(f"  - Nouvel objet ID={new_id} créé à [{pos_current[0]:.0f}, {pos_current[1]:.0f}]mm")
         
         # 2. Incrémenter le compteur de frames manquantes pour les objets non détectés
         ids_to_remove = []
@@ -1013,17 +1013,17 @@ class ArUcoTrackingSystem:
                 # Si l'objet n'a pas été vu depuis trop longtemps, le supprimer
                 if mem_data['frames_missing'] > self.max_frames_missing:
                     ids_to_remove.append(obj_id)
-                    print(f"  - Objet ID={obj_id} supprimé (absent depuis {mem_data['frames_missing']} frames)")
+                    #print(f"  - Objet ID={obj_id} supprimé (absent depuis {mem_data['frames_missing']} frames)")
                 else:
                     # Conserver l'objet en mémoire
                     result_objects.append(mem_data['obj'])
-                    print(f"  - Objet ID={obj_id} conservé en mémoire (absent {mem_data['frames_missing']}/{self.max_frames_missing})")
+                    #print(f"  - Objet ID={obj_id} conservé en mémoire (absent {mem_data['frames_missing']}/{self.max_frames_missing})")
         
         # 3. Supprimer les objets trop anciens
         for obj_id in ids_to_remove:
             del color_memory[obj_id]
         
-        print(f"  → Total objets affichés: {len(result_objects)}")
+        #print(f"  → Total objets affichés: {len(result_objects)}")
         return result_objects
 
     def _update_pair_memory(self, detected_pairs: List[Dict], pair_memory: Dict, color_name: str) -> List[Dict]:
@@ -1043,7 +1043,7 @@ class ArUcoTrackingSystem:
         matched_ids = set()
         result_pairs = []
         
-        print(f"[{color_name} PAIRES] Frame {current_frame}: {len(detected_pairs)} paires détectées, {len(pair_memory)} en mémoire")
+        #print(f"[{color_name} PAIRES] Frame {current_frame}: {len(detected_pairs)} paires détectées, {len(pair_memory)} en mémoire")
         
         # 1. Associer les paires détectées aux paires en mémoire
         for pair in detected_pairs:
@@ -1068,7 +1068,7 @@ class ArUcoTrackingSystem:
                 pair_memory[best_match_id]['last_seen'] = current_frame
                 matched_ids.add(best_match_id)
                 result_pairs.append(pair)
-                print(f"  - Paire ID={best_match_id} mise à jour (distance={best_distance:.1f}mm)")
+                #print(f"  - Paire ID={best_match_id} mise à jour (distance={best_distance:.1f}mm)")
             else:
                 # Nouvelle paire : ajouter à la mémoire
                 new_id = self.pair_id_counter
@@ -1080,7 +1080,7 @@ class ArUcoTrackingSystem:
                 }
                 matched_ids.add(new_id)
                 result_pairs.append(pair)
-                print(f"  - Nouvelle paire ID={new_id} créée à [{centre_current[0]:.0f}, {centre_current[1]:.0f}]mm")
+                #print(f"  - Nouvelle paire ID={new_id} créée à [{centre_current[0]:.0f}, {centre_current[1]:.0f}]mm")
         
         # 2. Incrémenter le compteur de frames manquantes pour les paires non détectées
         ids_to_remove = []
@@ -1091,17 +1091,17 @@ class ArUcoTrackingSystem:
                 # Si la paire n'a pas été vue depuis trop longtemps, la supprimer
                 if mem_data['frames_missing'] > self.max_frames_missing_pairs:
                     ids_to_remove.append(pair_id)
-                    print(f"  - Paire ID={pair_id} supprimée (absente depuis {mem_data['frames_missing']} frames)")
+                    #print(f"  - Paire ID={pair_id} supprimée (absente depuis {mem_data['frames_missing']} frames)")
                 else:
                     # Conserver la paire en mémoire
                     result_pairs.append(mem_data['pair'])
-                    print(f"  - Paire ID={pair_id} conservée en mémoire (absente {mem_data['frames_missing']}/{self.max_frames_missing_pairs})")
+                    #print(f"  - Paire ID={pair_id} conservée en mémoire (absente {mem_data['frames_missing']}/{self.max_frames_missing_pairs})")
         
         # 3. Supprimer les paires trop anciennes
         for pair_id in ids_to_remove:
             del pair_memory[pair_id]
         
-        print(f"  → Total paires affichées: {len(result_pairs)}")
+        #print(f"  → Total paires affichées: {len(result_pairs)}")
         return result_pairs
 
     def _split_large_objects(self, objects: List[Dict]) -> List[Dict]:
@@ -1143,13 +1143,13 @@ class ArUcoTrackingSystem:
             if 30 < hauteur_mm < 70:  # Hauteur cohérente avec des noisettes
                 if 70 < largeur_mm < 130:  # Environ 100mm = 2 noisettes
                     nb_noisettes = 2
-                    print(f"  → Détecté : Groupe de 2 noisettes (largeur={largeur_mm:.1f}mm)")
+                    #print(f"  → Détecté : Groupe de 2 noisettes (largeur={largeur_mm:.1f}mm)")
                 elif 130 < largeur_mm < 180:  # Environ 150mm = 3 noisettes
                     nb_noisettes = 3
-                    print(f"  → Détecté : Groupe de 3 noisettes (largeur={largeur_mm:.1f}mm)")
+                    #print(f"  → Détecté : Groupe de 3 noisettes (largeur={largeur_mm:.1f}mm)")
                 elif 180 < largeur_mm < 230:  # Environ 200mm = 4 noisettes
                     nb_noisettes = 4
-                    print(f"  → Détecté : Groupe de 4 noisettes (largeur={largeur_mm:.1f}mm)")
+                    #print(f"  → Détecté : Groupe de 4 noisettes (largeur={largeur_mm:.1f}mm)")
             
             # Si ce n'est pas un groupe de noisettes collées, garder tel quel
             if nb_noisettes == 0:
@@ -1321,7 +1321,7 @@ class ArUcoTrackingSystem:
                             'partial': True,  # Marqueur pour indiquer que c'est une configuration partielle
                             'missing': 'obj4'
                         })
-                        print(f"  ✓ [{color_name}] Configuration partielle détectée (CAS A - manque obj4)")
+                        #print(f"  ✓ [{color_name}] Configuration partielle détectée (CAS A - manque obj4)")
                         return partial_pairs
                     
                     # CAS B : Configuration ●─100─●─50─● (manque obj3 au milieu-droite)
@@ -1345,7 +1345,7 @@ class ArUcoTrackingSystem:
                             'partial': True,
                             'missing': 'obj3'
                         })
-                        print(f"  ✓ [{color_name}] Configuration partielle détectée (CAS B - manque obj3)")
+                        #print(f"  ✓ [{color_name}] Configuration partielle détectée (CAS B - manque obj3)")
                         return partial_pairs
                     
                     # CAS C/D : Configuration ●─150─● (manque obj2 ou obj4)
@@ -1398,7 +1398,7 @@ class ArUcoTrackingSystem:
                             'partial': True,
                             'missing': 'obj2_and_obj3'
                         })
-                        print(f"  ✓ [{color_name}] Configuration partielle détectée (CAS C/D - manque 2 zones centrales)")
+                        #print(f"  ✓ [{color_name}] Configuration partielle détectée (CAS C/D - manque 2 zones centrales)")
                         return partial_pairs
         
         return partial_pairs
@@ -1486,8 +1486,8 @@ class ArUcoTrackingSystem:
             
             # Si l'objet est proche de l'axe (< margin_mm), il est "entre" les deux
             if perpendicular_distance < margin_mm:
-                print(f"  ⚠️ [{color_name}] Objet intermédiaire détecté entre objets {idx1} et {idx2} "
-                      f"(projection={projection_length:.1f}mm, distance_perp={perpendicular_distance:.1f}mm)")
+                #print(f"  ⚠️ [{color_name}] Objet intermédiaire détecté entre objets {idx1} et {idx2} "
+                      #f"(projection={projection_length:.1f}mm, distance_perp={perpendicular_distance:.1f}mm)")
                 return True
         
         return False
