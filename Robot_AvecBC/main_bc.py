@@ -206,7 +206,6 @@ demande_nouvelle_strat = False
 x_strategie = 2825
 y_strategie = 1150
 strategie_en_cours = [] 
-TOLERANCE_STRATEGIE_NOISETTE = 50
 
 step = 0
 
@@ -214,9 +213,7 @@ temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
 temps_retour = 15 # Temps restant pour revenir au départ en fin de match
-temps_max = 3600
-temps_precedent = 0
-reset_fin = False
+temps_max = 100
 
 action_voulu = None
 action_en_cours = None
@@ -240,6 +237,12 @@ ordre_mouvement = 0
 old_ordre_mouvement = 0
 
 PAMI_debut_match = False
+match_demarre = False
+old_match_demarre = False
+match_id = None
+old_match_id = None
+step_robot = 0
+old_step_robot = step_robot
 # ==================================================
 
 TOL_POS_X = 16 
@@ -250,7 +253,7 @@ TOL_POS_A = 5
 def comm_robot(stop_event):
     print(f"[Récepteur] Serveur en attente sur le port {PORT_RECEPTION}...")
     
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi, Batteries, Batteries_alert,Noisettes_stockees_dans_robot, action_voulu, action_precedente, temps_restant
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi, Batteries, Batteries_alert,Noisettes_stockees_dans_robot, action_voulu, action_precedente,step_robot,match_demarre,match_id,old_match_demarre,temps_demarage,old_match_id,temps_ecoules,temps_restant,temps_retour,temps_max
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -287,9 +290,19 @@ def comm_robot(stop_event):
                 Noisettes_stockees_dans_robot = donnees_recues["Noisettes_stockees_dans_robot"]
                 action_voulu = donnees_recues["action_voulu"]
                 action_precedente = donnees_recues["action_precedente"]
-                temps_restant = donnees_recues["temps_restant"]
-
+                step_robot = donnees_recues["step_robot"]
+                match_demarre = donnees_recues["match_demarre"]
+                match_id = donnees_recues["match_id"]
                 
+                if match_demarre == True and old_match_demarre == False:
+                    temps_demarage = time.time()
+                if match_id != old_match_id:
+                    temps_ecoules = 0
+                    temps_restant = 100
+                    temps_retour = 15 # Temps restant pour revenir au départ en fin de match
+                    temps_max = 100
+                old_match_demarre = match_demarre
+                old_match_id = match_id
             except json.JSONDecodeError:
                 print("[Récepteur] Erreur : données JSON invalides")
             
@@ -502,9 +515,13 @@ if __name__ == '__main__':
         print("Attente du Jack")
         plt.pause(0.1)
     
-    temps_demarage = time.time()
+    
     try:
         while (not stop_event.is_set()): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
+            if temps_restant>0:
+                temps_ecoules = time.time() - temps_demarage
+                temps_restant = temps_max - temps_ecoules
+
             if Camera:
                 cv2.namedWindow("Systeme de Tracking ArUco", cv2.WINDOW_NORMAL)
                 cv2.resizeWindow("Systeme de Tracking ArUco", 1280, 720)
@@ -750,13 +767,11 @@ if __name__ == '__main__':
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             # ==================================================================== #
             
-            if temps_precedent == temps_restant:
-                print("Robot principal déconnecté")
-                PAMI_debut_match = False
-            else:
-                print("Robot principal connecté")
+            if temps_restant<=temps_retour:
                 PAMI_debut_match = True
-            print("PAMI_debut_match : ",PAMI_debut_match)
+            else:
+                PAMI_debut_match = False
+
             # MAJ de l'affichage et des Variables de Bouncing
             update_display(background)
             fig.canvas.flush_events()
@@ -765,7 +780,6 @@ if __name__ == '__main__':
             x_ennemi_old = x_ennemi
             y_ennemi_old = y_ennemi
             old_verif_mouv = verif_mouv
-            temps_precedent = temps_restant
             Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
             print("")
 

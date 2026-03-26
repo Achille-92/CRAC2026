@@ -1,6 +1,6 @@
 couleur = "B"
 Reel = False
-Wifi = True
+Wifi = False
 
 Strategie = False
 Debug_strategie = True
@@ -24,7 +24,7 @@ import matplotlib
 matplotlib.use('Qt5Agg')
 from pyrplidar import PyRPlidar
 from rplidar import RPLidar
-import math,time,os,can,struct,random,platform,sys, json, socket
+import math,time,os,can,struct,random,platform,sys, json, socket,uuid
 current_os = platform.system()
 if current_os == "Linux":
     import RPi.GPIO as GPIO
@@ -90,7 +90,7 @@ Liste_strategie = [
 
 
 Liste_actions = [
-    ["Consigne",int(2400+LARGEUR_ROBOT/2)-100,1000],
+    #["Consigne",int(2400+LARGEUR_ROBOT/2)-100,1000],
     ["Attente_test"],
     ["Attraper",0,12],
     ["Retourner",0,12],
@@ -197,9 +197,9 @@ if couleur == "B":
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
 
-    """x_robot_depart = 2825
+    x_robot_depart = 2825
     y_robot_depart = int(1100-LONGUEUR_ROBOT/2)
-    angle_robot_depart = -90"""
+    angle_robot_depart = -90
 
     x_robot_retour = 3000-LARGEUR_ROBOT/2-30
     y_robot_retour = 1750
@@ -319,7 +319,7 @@ carte_actionneur0_active = 0
 carte_actionneur1_active = 0
 carte_batteries_active = 0
 etat_bau = 0
-etat_jack = False
+etat_jack = 1
 
 demande_nouvelle_strat = False
 x_strategie = Liste_strategie[0][0]
@@ -399,6 +399,14 @@ angle_robot_actuel_cam = angle_robot_depart
 x_ennemi_cam = x_ennemi
 y_ennemi_cam = y_ennemi
 angle_ennemi_cam = 0
+
+# Identifiant unique de match (généré au démarrage)
+match_id = str(uuid.uuid4())[:8]  # Ex: "a3f2b891"
+match_demarre = False
+dernier_envoi_debut_match = 0
+INTERVALLE_ENVOI_DEBUT = 0.5  # Envoyer signal toutes les 0.5s pendant 5s
+
+print(f"🎲 Match ID généré : {match_id}")
 
 queue_demande_astar = queue.Queue()  # Pour envoyer des demandes
 queue_resultat_astar = queue.Queue()  # Pour recevoir les résultats
@@ -848,10 +856,10 @@ if __name__ == '__main__':
         while(etat_bau == 1):
             print(f"Attente BAU")
 
-    while(lancement_strategie==False and not etat_jack and not stop_event.is_set()):
+    while(lancement_strategie==False and etat_jack == 1 and not stop_event.is_set()):
         if current_os == "Linux" and Reel:
             etat_jack = GPIO.input(26)
-
+            print("etat_jack : ",etat_jack)
         dico_envoi[0x01]=1
         if not Bat_Compet:                      # Si on est en mode Test
             if Batteries_alert[0]==0:           #   Si il n'y a pas de message d'alerte pour la batterie
@@ -896,9 +904,35 @@ if __name__ == '__main__':
             if etat_bau == 1:
                 stop_event.set()
         print("Attente du Jack")
+        if Wifi:
+            donnees_vers_bc = {
+                "match_id": match_id,
+                "match_demarre": False,  # ⚠️ Match pas encore lancé
+                "x_robot_actuel": x_robot_actuel,
+                "y_robot_actuel": y_robot_actuel,
+                "angle_robot_actuel": angle_robot_actuel,
+                "x_ennemi": x_ennemi,
+                "y_ennemi": y_ennemi,
+                "Batteries": Batteries,
+                "Batteries_alert": Batteries_alert,
+                "Noisettes_stockees_dans_robot": Noisettes_stockees_dans_robot,
+                "action_voulu" : action_voulu,
+                "action_precedente" : action_precedente,
+                "step_robot" : step,
+            }
+            try:
+                message = json.dumps(donnees_vers_bc)
+                client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                client_socket.settimeout(0.1)
+                client_socket.connect((IP_BC, PORT_ENVOI))
+                client_socket.sendall(message.encode())
+                client_socket.close()
+            except (socket.timeout, ConnectionRefusedError, OSError) as e:
+                print(f"WiFi Envoi échoué : {e}")
         plt.pause(0.1)
     
     temps_demarage = time.time()
+    match_demarre = True
     try:
         if Lidar_on: 
             tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
@@ -931,7 +965,7 @@ if __name__ == '__main__':
 
             # =============== Association Couleur CAM à Noisette Aveugle ==================== #
 
-
+            
             if not Noisette_init:
                 Liste_noisette_xya_cam_copie = Liste_noisette_xya_cam.copy()
                 distance_N_centre = math.sqrt(
@@ -1931,6 +1965,8 @@ if __name__ == '__main__':
 
             if Wifi:
                 donnees_vers_bc = {
+                    "match_id": match_id,
+                    "match_demarre": match_demarre,
                     "x_robot_actuel": x_robot_actuel,
                     "y_robot_actuel": y_robot_actuel,
                     "angle_robot_actuel": angle_robot_actuel,
@@ -1941,7 +1977,7 @@ if __name__ == '__main__':
                     "Noisettes_stockees_dans_robot": Noisettes_stockees_dans_robot,
                     "action_voulu" : action_voulu,
                     "action_precedente" : action_precedente,
-                    "temps_restant" : temps_restant,
+                    "step_robot" : step,
                 }
                 try:
                     message = json.dumps(donnees_vers_bc)
