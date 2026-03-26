@@ -37,7 +37,7 @@ from fonction import associer_noisette_a_emplacement,detecter_changements_noiset
 from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper_par_quatre
 from homographie_couleur import Config,ArUcoTrackingSystem,ButtonManager,Button_A
 ########################################################################
-#couleur = fenetre_selection_couleur()
+couleur = fenetre_selection_couleur()
 # Config Wi-Fi 
 # Configuration pour l'envoi
 IP_ROBOT = "192.168.0.101"
@@ -238,6 +238,8 @@ demande_recalcul_traj = False
 Astars_a_fail = False
 ordre_mouvement = 0
 old_ordre_mouvement = 0
+
+PAMI_debut_match = False
 # ==================================================
 
 TOL_POS_X = 16 
@@ -750,8 +752,11 @@ if __name__ == '__main__':
             
             if temps_precedent == temps_restant:
                 print("Robot principal déconnecté")
+                PAMI_debut_match = False
             else:
                 print("Robot principal connecté")
+                PAMI_debut_match = True
+            print("PAMI_debut_match : ",PAMI_debut_match)
             # MAJ de l'affichage et des Variables de Bouncing
             update_display(background)
             fig.canvas.flush_events()

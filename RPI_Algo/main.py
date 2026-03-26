@@ -931,8 +931,6 @@ if __name__ == '__main__':
 
             # =============== Association Couleur CAM à Noisette Aveugle ==================== #
 
-            
-
 
             if not Noisette_init:
                 Liste_noisette_xya_cam_copie = Liste_noisette_xya_cam.copy()
