@@ -515,10 +515,6 @@ if __name__ == '__main__':
         
         for btn_x, btn_text, btn_color in buttons_config:
             button_manager.add_button(Button_A(btn_x, btn_y, 130, btn_h, btn_text, btn_color))
-
-    while(lancement_strategie==False):
-        print("Attente du Jack")
-        plt.pause(0.1)
     
     
     try:
