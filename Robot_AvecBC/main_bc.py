@@ -1,7 +1,7 @@
 couleur = "B"
 Camera = True
 WiFi = True
-
+Pami = True
 Strategie = False
 Debug_strategie = False
 Astars = False
@@ -46,6 +46,9 @@ PORT_ENVOI = 5001
 # Configuration pour la réception
 IP_RECEPTION = '0.0.0.0'  
 PORT_RECEPTION = 5000
+
+IP_PAMI = "192.168.0.110"
+PORT_PAMI = 5002
 #################################################
 
 # Perimètre de sécurité
@@ -253,7 +256,7 @@ TOL_POS_A = 5
 def comm_robot(stop_event):
     print(f"[Récepteur] Serveur en attente sur le port {PORT_RECEPTION}...")
     
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi, Batteries, Batteries_alert,Noisettes_stockees_dans_robot, action_voulu, action_precedente,step_robot,match_demarre,match_id,old_match_demarre,temps_demarage,old_match_id,temps_ecoules,temps_restant,temps_retour,temps_max
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi, Batteries, Batteries_alert,Noisettes_stockees_dans_robot, action_voulu, action_precedente,step_robot,match_demarre,match_id,old_match_demarre,temps_demarage,old_match_id,temps_ecoules,temps_restant,temps_retour,temps_max,PAMI_debut_match
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -294,13 +297,15 @@ def comm_robot(stop_event):
                 match_demarre = donnees_recues["match_demarre"]
                 match_id = donnees_recues["match_id"]
                 
-                if match_demarre == True and old_match_demarre == False:
-                    temps_demarage = time.time()
                 if match_id != old_match_id:
                     temps_ecoules = 0
                     temps_restant = 100
                     temps_retour = 15 # Temps restant pour revenir au départ en fin de match
                     temps_max = 100
+                    PAMI_debut_match = False
+                if match_demarre == True and old_match_demarre == False:
+                    temps_demarage = time.time()
+                    PAMI_debut_match = True
                 old_match_demarre = match_demarre
                 old_match_id = match_id
             except json.JSONDecodeError:
@@ -767,11 +772,20 @@ if __name__ == '__main__':
                 battery_patches, battery_texts = afficher_batteries(ax, Batteries_alert,Bat_Compet,Batteries,battery_patches, battery_texts,couleurs, seuils,largeur_rect, hauteur_rect, espacement, espacement_salves,y_base, texte_offset_y)
             # ==================================================================== #
             
-            if temps_restant<=temps_retour:
-                PAMI_debut_match = True
-            else:
-                PAMI_debut_match = False
-
+            if WiFi and Pami:
+                donnees_pour_PAMI = {
+                    "couleur": 1 if couleur == "B" else 2,
+                    "PAMI_debut_match": PAMI_debut_match,
+                }
+                try:
+                    message_second = json.dumps(donnees_pour_PAMI)
+                    client_socket_second = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    client_socket_second.settimeout(0.1)
+                    client_socket_second.connect((IP_PAMI, PORT_PAMI))
+                    client_socket_second.sendall(message_second.encode())
+                    client_socket_second.close()
+                except (socket.timeout, ConnectionRefusedError, OSError) as e:
+                    print(f"WiFi Envoi échoué (second robot) : {e}")
             # MAJ de l'affichage et des Variables de Bouncing
             update_display(background)
             fig.canvas.flush_events()
