@@ -80,8 +80,6 @@ MARGE_BORDUREPISTE_X = 120 # Détection Lidar
 MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 ############################
 
-
-
 Liste_actions = [
     #["Consigne",int(2400+LARGEUR_ROBOT/2)-100,1000],
     ["Attente_test"],
@@ -335,14 +333,12 @@ action_precedente = None
 aller_Noisette = False
 aller_GM = False
 
-
 temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
 temps_retour = 100 # Temps restant pour revenir au départ en fin de match
 temps_max = 3600
 reset_fin = False
-
 
 verif_mouv = 0
 old_verif_mouv = verif_mouv
@@ -410,7 +406,6 @@ match_id = str(uuid.uuid4())[:8]  # Ex: "a3f2b891"
 match_demarre = False
 dernier_envoi_debut_match = 0
 INTERVALLE_ENVOI_DEBUT = 0.5  # Envoyer signal toutes les 0.5s pendant 5s
-
 print(f"🎲 Match ID généré : {match_id}")
 
 queue_demande_astar = queue.Queue()  # Pour envoyer des demandes
