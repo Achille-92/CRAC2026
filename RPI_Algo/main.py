@@ -2,11 +2,11 @@ couleur = "B"
 Reel = False
 Wifi = False
 
-Strategie = True
+Strategie = False
 Debug_strategie = True
-Astars = True
+Astars = False
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Debug_Mouv = False
 
@@ -81,7 +81,7 @@ MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 ############################
 
 Liste_actions = [
-    #["Consigne",int(2400+LARGEUR_ROBOT/2)-100,1000],
+    ["Consigne",int(2400+LARGEUR_ROBOT/2)-100,1000],
     ["Attente_test"],
     ["Attraper",0,12],
     ["Retourner",0,12],
@@ -224,7 +224,8 @@ else:
         [850,800],
         [750,800],
     ]
-
+print("x_robot_depart : ",x_robot_depart)
+print("y_robot_depart : ",y_robot_depart)
 x_robot_actuel = x_robot_depart
 y_robot_actuel = y_robot_depart
 angle_robot_actuel = angle_robot_depart
@@ -329,6 +330,7 @@ x_strategie = Liste_strategie[0][0]
 y_strategie = Liste_strategie[0][1]
 strategie_en_cours = [] 
 
+action_voulu = None
 action_precedente = None
 aller_Noisette = False
 aller_GM = False
@@ -706,6 +708,7 @@ def update_display(background):
     ax.draw_artist(robot_info_text)
     ax.draw_artist(info_alim_rpi)
     ax.draw_artist(chronometre_text)
+    ax.draw_artist(match_text)
     ax.draw_artist(noisette_text)
     ax.draw_artist(x_voulu_text)
     ax.draw_artist(y_voulu_text)
@@ -776,7 +779,7 @@ if __name__ == '__main__':
         tache_Wifi = threading.Thread(target=comm_bc, args=(stop_event,),daemon=True)
         tache_Wifi.start()
 
-    fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,noisette_text = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
+    fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,noisette_text,match_text = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
     
     cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
     bouton_stop.on_clicked(partial(arret_programme, stop_event=stop_event))
@@ -907,7 +910,7 @@ if __name__ == '__main__':
         if Wifi:
             donnees_vers_bc = {
                 "match_id": match_id,
-                "match_demarre": False,  # ⚠️ Match pas encore lancé
+                "match_demarre": match_demarre,  # ⚠️ Match pas encore lancé
                 "x_robot_actuel": x_robot_actuel,
                 "y_robot_actuel": y_robot_actuel,
                 "angle_robot_actuel": angle_robot_actuel,
@@ -929,6 +932,9 @@ if __name__ == '__main__':
                 client_socket.close()
             except (socket.timeout, ConnectionRefusedError, OSError) as e:
                 print(f"WiFi Envoi échoué : {e}")
+            
+        print("match_id : ",match_id)
+        print("match_demarre : ",match_demarre)
         plt.pause(0.1)
     
     temps_demarage = time.time()
@@ -962,10 +968,10 @@ if __name__ == '__main__':
 
             step +=1
             print("step :",step)
-
+            print("match_id : ",match_id)
+            print("match_demarre : ",match_demarre)
             # =============== Association Couleur CAM à Noisette Aveugle ==================== #
 
-            
             if not Noisette_init:
                 Liste_noisette_xya_cam_copie = Liste_noisette_xya_cam.copy()
                 distance_N_centre = math.sqrt(
@@ -980,7 +986,7 @@ if __name__ == '__main__':
                             ) 
                     if distance_N_centre >= plus_loin[1]:
                         plus_loin = Noisette,distance_N_centre
-                print("plus loin : ",plus_loin)
+                        
                 if plus_loin[0][0]<400:
                     plus_loin_reel = (175,400)
                 else:
@@ -991,14 +997,6 @@ if __name__ == '__main__':
                 if abs(distance_centre) > 500:  # Au moins 500mm du centre
                     K_CORRECTION_X = erreur / distance_centre
                     
-                    print(f"📐 Calibration caméra X :")
-                    print(f"   Noisette réelle : X={plus_loin_reel[0]}")
-                    print(f"   Noisette caméra : X={plus_loin[0][0]}")
-                    print(f"   Erreur : {erreur:.1f} mm")
-                    print(f"   Distance centre : {distance_centre:.1f} mm")
-                    print(f"   ✅ Coefficient K = {K_CORRECTION_X:.6f}")
-
-                    print("\n🔧 Application de la correction :")
                     for Noisette_cam in Liste_noisette_xya_cam_copie:  # ⚠️ Modifier directement Liste_noisette_xya_cam
                         x_brut = Noisette_cam[0]
                         distance_centre_cam = x_brut - 1500
@@ -1547,8 +1545,8 @@ if __name__ == '__main__':
             
             # Affichage texte Coordonées
             noisette_text.set_text(f"Avant : {Noisettes_stockees_dans_robot[0]} \nArrière : {Noisettes_stockees_dans_robot[1]}")
-            chronometre_text.set_text(f"Temps : {int(temps_restant)} s\nAction : {action_voulu}")
-
+            chronometre_text.set_text(f"Temps : {int(temps_restant)} \nAction : {action_voulu}")
+            match_text.set_text(f"Id : {match_id} s\nDemarre : {match_demarre}")
             robot_info_text.set_text(f"X = {x_robot_actuel:.1f} Y = {y_robot_actuel:.1f} A = {angle_robot_actuel:.1f}°")
             x_voulu_text.set_text(f"X = {x_strategie:.1f}")
             y_voulu_text.set_text(f"Y = {y_strategie:.1f}")

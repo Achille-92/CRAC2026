@@ -40,7 +40,7 @@ from homographie_couleur import Config,ArUcoTrackingSystem,ButtonManager,Button_
 couleur = fenetre_selection_couleur()
 # Config Wi-Fi 
 # Configuration pour l'envoi
-IP_ROBOT = "192.168.0.101"
+IP_ROBOT = "192.168.0.102"
 PORT_ENVOI = 5001
 
 # Configuration pour la réception
@@ -395,6 +395,7 @@ def update_display(background):
     ax.draw_artist(robot_info_text)
     ax.draw_artist(info_alim_rpi)
     ax.draw_artist(chronometre_text)
+    ax.draw_artist(match_text)
     ax.draw_artist(noisette_text)
     ax.draw_artist(x_voulu_text)
     ax.draw_artist(y_voulu_text)
@@ -435,7 +436,7 @@ if __name__ == '__main__':
         thread_reception = threading.Thread(target=comm_robot, args=(stop_event,), daemon=True)
         thread_reception.start()
 
-    fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,noisette_text = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
+    fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,noisette_text,match_text = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
 
     cid = fig.canvas.mpl_connect('button_press_event', on_click) # Choix des coordonnées voulues avec la souris
     bouton_stop.on_clicked(partial(arret_programme, stop_event=stop_event))
@@ -519,9 +520,9 @@ if __name__ == '__main__':
     
     try:
         while (not stop_event.is_set()): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
-            if temps_restant>0:
+            if temps_demarage != 0:
                 temps_ecoules = time.time() - temps_demarage
-                temps_restant = temps_max - temps_ecoules
+            temps_restant = temps_max - temps_ecoules
 
             if Camera:
                 cv2.namedWindow("Systeme de Tracking ArUco", cv2.WINDOW_NORMAL)
@@ -757,6 +758,7 @@ if __name__ == '__main__':
             # Affichage texte Coordonées
             noisette_text.set_text(f"Avant : {Noisettes_stockees_dans_robot[0]} \nArrière : {Noisettes_stockees_dans_robot[1]}")
             chronometre_text.set_text(f"Temps : {int(temps_restant)} s\nAction : {action_voulu}")
+            match_text.set_text(f"Id : {match_id} s\nDemarre : {match_demarre}")
 
             robot_info_text.set_text(f"X = {x_robot_actuel_cam:.1f} Y = {y_robot_actuel_cam:.1f} A = {angle_robot_actuel_cam:.1f}°")
 
