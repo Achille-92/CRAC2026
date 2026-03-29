@@ -441,7 +441,7 @@ def verifier_segments_trajectoire_ennemi(Liste_actions, x_ennemi, y_ennemi, R_se
         distance_min = distance_segment_point(x1, y1, x2, y2, x_ennemi, y_ennemi)
 
         # Si la distance est inférieure à la marge de sécurité, demander un recalcul
-        if distance_min <= (R_securite):
+        if distance_min <= (R_securite-10):
             print(f"⚠️ Segment {i} ({x1},{y1})→({x2},{y2}) trop proche de l'ennemi (distance={distance_min:.1f} < {R_securite + MARGE_TRAJECTOIRE})")
             return True
 
