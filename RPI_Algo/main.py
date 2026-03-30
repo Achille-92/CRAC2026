@@ -1,6 +1,6 @@
 couleur = "B"
-Reel = True
-Wifi = True
+Reel = False
+Wifi = False
 
 Strategie = True
 Debug_strategie = True
@@ -11,7 +11,7 @@ Simul_mvt_ennemi = False
 Debug_Mouv = True
 
 Simul_action = True
-Debug_Action = False
+Debug_Action = True
 
 Lidar_on = False
 Bat_Compet = False
@@ -69,7 +69,7 @@ MARGE_NOISETTE = 0
 MARGE_GM = 0
 MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
-TOL_CAM_NOISETTE = 37
+TOL_CAM_NOISETTE = 36
 TOLERANCE_STRATEGIE_NOISETTE = 20
 FREQUENCE_AFFICHAGE = 12
 
@@ -191,9 +191,6 @@ if couleur == "B":
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
     Liste_actions = [["Consigne",x_robot_depart,1350]]
-    """x_robot_depart = 2825
-    y_robot_depart = int(1100-LONGUEUR_ROBOT/2)
-    angle_robot_depart = -90"""
 
     x_robot_retour = 3000-LARGEUR_ROBOT/2-30
     y_robot_retour = 1750
@@ -203,7 +200,6 @@ if couleur == "B":
     y_ennemi = 1650
     
     Liste_strategie = [
-        #[175,1150],
         [2825,450],
         [2825,350],
         [2150,800],
@@ -1172,12 +1168,14 @@ if __name__ == '__main__':
                 if distance_robot_pointdepart < 50:
                     sortir_depart = True
                     demande_nouvelle_strat = True
+
             if Strategie:
                 print("Liste_strategie : ",Liste_strategie)
-            if demande_nouvelle_strat  and sortir_depart:
+
+            if demande_nouvelle_strat and sortir_depart:
                 demande_nouvelle_strat = False
-                """x_strategie = Liste_strategie[0][0]
-                y_strategie = Liste_strategie[0][1]"""
+                x_strategie = Liste_strategie[0][0]
+                y_strategie = Liste_strategie[0][1]
                 if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
                     aller_Noisette = True
                     aller_GM = False
@@ -1224,7 +1222,11 @@ if __name__ == '__main__':
                 if (action_voulu in ["Attraper","Retourner","Relacher"]) or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Attraper","Relacher"]) or (action_voulu in ["Consigne","ReculerPrecis"] and Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper","Relacher"])  or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Consigne","ReculerPrecis"] and Liste_actions[2][0] in ["Rotation"] and Liste_actions[3][0] in ["Attraper","Relacher"]) or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]):
                     mode_attraper = True
                 else : 
+                    print("abcd")
                     mode_attraper = False
+                    if action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]:
+                        print("efgh")
+                        mode_attraper = True
             else :
                 mode_attraper = False
             if Debug_Action:
@@ -1344,11 +1346,11 @@ if __name__ == '__main__':
                                     if x_libre is not None:
                                         print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
                                         # Insérer un Avancer prioritaire vers ce point
-                                        if action_precedente not in ["Relacher"]:
+                                        """if action_precedente not in ["Relacher"]:
                                             if action_voulu in ["Consigne", "Avancer"]:
                                                 Liste_actions.insert(0, ["Avancer", int(x_libre), int(y_libre)])
                                             elif action_voulu in ["ReculerPrecis", "Reculer"]:
-                                                Liste_actions.insert(0, ["Reculer", int(x_libre), int(y_libre)])
+                                                Liste_actions.insert(0, ["Reculer", int(x_libre), int(y_libre)])"""
                                         demande_recalcul_traj = True
                                         Astars_a_fail = False
                                     else:
@@ -1889,10 +1891,10 @@ if __name__ == '__main__':
                     sortir_ennemi = False
                     x_sortie_fixe = None
                     y_sortie_fixe = None
-                    """if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
+                    if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
                         Liste_strategie.pop(0)
                         demande_nouvelle_strat = True
-                        demande_recalcul_traj = True"""
+                        demande_recalcul_traj = True
             else :
                 action_est_supprime = False
             

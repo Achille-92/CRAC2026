@@ -299,7 +299,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
             x_arrivee_2 = strategie_en_cours[1][0]+distance*math.cos(angle_rad2)
             y_arrivee_2 = strategie_en_cours[1][1]+distance*math.sin(angle_rad2)
 
-            distance = 50 + 25 + MARGE_NOISETTE+LONGUEUR_ROBOT/2 + 120
+            distance = 50 + 25 + MARGE_NOISETTE+LONGUEUR_ROBOT/2 + 100
             x_arrivee_Astar1 = strategie_en_cours[0][0]+distance*math.cos(angle_rad1)
             y_arrivee_Astar1 = strategie_en_cours[0][1]+distance*math.sin(angle_rad1)
             x_arrivee_Astar2 = strategie_en_cours[1][0]+distance*math.cos(angle_rad2)
@@ -321,17 +321,17 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                     print("aaaaaaaaa")
                     angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[0][1] - y_arrivee_1, strategie_en_cours[0][0] - x_arrivee_1)))
                     if pince_a_utilise == 0:
-                        Liste_actions = [["Consigne",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]
+                        Liste_actions = [["Consigne",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1]]
                     else:
-                        Liste_actions = [["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]
+                        Liste_actions = [["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette],["Consigne",x_arrivee_Astar1,y_arrivee_Astar1]]
                     
                 elif point_1_bloquee:
                     print("bbbbbbbbb")
                     angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[1][1] - y_arrivee_2, strategie_en_cours[1][0] - x_arrivee_2)))
                     if pince_a_utilise == 0:
-                        Liste_actions = [["Consigne",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]
+                        Liste_actions = [["Consigne",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2]]
                     else:
-                        Liste_actions = [["ReculerPrecis",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]
+                        Liste_actions = [["ReculerPrecis",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette],["Consigne",x_arrivee_Astar2,y_arrivee_Astar2]]
                     
                 else:
                     distance_robot_point1 = math.sqrt((x_arrivee_1 - x_robot_actuel)**2 + (y_arrivee_1 - y_robot_actuel)**2)
@@ -340,52 +340,52 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                         print("cccccccccc")
                         angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[0][1] - y_arrivee_1, strategie_en_cours[0][0] - x_arrivee_1)))
                         if pince_a_utilise == 0:
-                            Liste_actions = [["Consigne",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]
+                            Liste_actions = [["Consigne",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1]]
                         else:
-                            Liste_actions = [["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]
+                            Liste_actions = [["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette],["Consigne",x_arrivee_Astar1,y_arrivee_Astar1]]
                     else:
                         print("dddddddd")
                         angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[1][1] - y_arrivee_2, strategie_en_cours[1][0] - x_arrivee_2)))
                         if pince_a_utilise == 0:
-                            Liste_actions = [["Consigne",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]
+                            Liste_actions = [["Consigne",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_Astar2,y_arrivee_Astar2]]
                         else:
-                            Liste_actions = [["ReculerPrecis",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]
-                Liste_actions.append(["Attraper",pince_a_utilise,sous_pince])
+                            Liste_actions = [["ReculerPrecis",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette],["Consigne",x_arrivee_Astar2,y_arrivee_Astar2]]
+                Liste_actions.insert(-1,["Attraper",pince_a_utilise,sous_pince])
                 if (pince_a_utilise == 0 and Pince_Avant) or (pince_a_utilise == 1 and Pince_Arriere):
                     if strategie_en_cours[0][3] != "R" and strategie_en_cours[1][3] != "R":
                         if point_1_bloquee:
                             print("eeeeee")
                             if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
-                                Liste_actions.append(["Retourner",pince_a_utilise,12])
+                                Liste_actions.insert(-1,["Retourner",pince_a_utilise,12])
                             elif strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
-                                Liste_actions.append(["Retourner",pince_a_utilise,2])
+                                Liste_actions.insert(-1,["Retourner",pince_a_utilise,2])
                             elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
-                                Liste_actions.append(["Retourner",pince_a_utilise,1])
+                                Liste_actions.insert(-1,["Retourner",pince_a_utilise,1])
                         elif point_2_bloquee:
                             print("ffffffff")
                             if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
-                                Liste_actions.append(["Retourner",pince_a_utilise,12])
+                                Liste_actions.insert(-1,["Retourner",pince_a_utilise,12])
                             elif strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
-                                Liste_actions.append(["Retourner",pince_a_utilise,1])
+                                Liste_actions.insert(-1,["Retourner",pince_a_utilise,1])
                             elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
-                                Liste_actions.append(["Retourner",pince_a_utilise,2])
+                                Liste_actions.insert(-1,["Retourner",pince_a_utilise,2])
                         else:
                             if distance_robot_point1 <= distance_robot_point2:
                                 print("gggggggg")
                                 if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
-                                    Liste_actions.append(["Retourner",pince_a_utilise,12])
+                                    Liste_actions.insert(-1,["Retourner",pince_a_utilise,12])
                                 elif strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
-                                    Liste_actions.append(["Retourner",pince_a_utilise,1])
+                                    Liste_actions.insert(-1,["Retourner",pince_a_utilise,1])
                                 elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
-                                    Liste_actions.append(["Retourner",pince_a_utilise,2])
+                                    Liste_actions.insert(-1,["Retourner",pince_a_utilise,2])
                             else:
                                 print("hhhhhhhhhh")
                                 if strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] != couleur:
-                                    Liste_actions.append(["Retourner",pince_a_utilise,12])
+                                    Liste_actions.insert(-1,["Retourner",pince_a_utilise,12])
                                 elif strategie_en_cours[0][3] != couleur and strategie_en_cours[1][3] == couleur:
-                                    Liste_actions.append(["Retourner",pince_a_utilise,2])
+                                    Liste_actions.insert(-1,["Retourner",pince_a_utilise,2])
                                 elif strategie_en_cours[0][3] == couleur and strategie_en_cours[1][3] != couleur:
-                                    Liste_actions.append(["Retourner",pince_a_utilise,1])
+                                    Liste_actions.insert(-1,["Retourner",pince_a_utilise,1])
                         
                     else:
                         demande_nouvelle_strat = True
@@ -488,11 +488,11 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                         if sous_pince == 12 or sous_pince == 2:
                             print("111111111111")
                             distance = 100 + MARGE_GM + LONGUEUR_ROBOT/2
-                            distanceA = 100 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 150
+                            distanceA = 100 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 170
                         elif sous_pince == 1:
                             print("22222222222222")
                             distance = 50 + MARGE_GM + LONGUEUR_ROBOT/2
-                            distanceA = 50 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 150
+                            distanceA = 50 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 170
                         x_arrivee_1 = int(x_cote + distance*math.cos(angle_Noisette_centre))
                         y_arrivee_1 = int(y_cote + distance*math.sin(angle_Noisette_centre))
                         x_arrivee_Astar = int(x_cote + distanceA*math.cos(angle_Noisette_centre))
@@ -569,11 +569,11 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                 if sous_pince == 12 or sous_pince == 2:
                     print("33333333333333")
                     distance = 100 + 25 + MARGE_GM + LONGUEUR_ROBOT/2
-                    distanceA = 100 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 150
+                    distanceA = 100 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 170
                 elif sous_pince == 1:
                     print("4444444444444")
                     distance = 50 + 25 + MARGE_GM + LONGUEUR_ROBOT/2
-                    distanceA = 50 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 150
+                    distanceA = 50 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 170
                 angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
                 print("angle_centre_cote : ",np.degrees(angle_centre_cote))
                 x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
