@@ -1161,6 +1161,7 @@ if __name__ == '__main__':
             # ================================================================================================= #
 
             # ============ Prise de décision ========== #
+            print("sortir_depart : ",sortir_depart)
             if not sortir_depart:
                 if couleur == "B":
                     distance_robot_pointdepart = distance((x_robot_actuel,y_robot_actuel),(2400+LARGEUR_ROBOT/2,1350))
@@ -1256,7 +1257,7 @@ if __name__ == '__main__':
             # ======================================================================== #
             
             # ======================== CALCUL DE LA TRAJECTOIRE A* =================== #
-            if Astars: 
+            if Astars and sortir_depart: 
                 # === CALCUL DE LA TRAJECTOIRE A* ===
                 if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper and not sortir_ennemi:
                     grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
