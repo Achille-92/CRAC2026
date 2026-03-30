@@ -56,9 +56,10 @@ def calcul_points(stop_event):
     try:
         lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE, timeout=3)
         print("INFO:", lidar.get_health())
+        lidar.clear_input()
         lidar.start_motor()
 
-        for scan in lidar.iter_scans(max_buf_meas=2048):  # Retiré l'argument scan_type
+        for scan in lidar.iter_scans(max_buf_meas=4096):  # Retiré l'argument scan_type
             if stop_event.is_set():
                 break
 

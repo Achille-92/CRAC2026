@@ -1,19 +1,19 @@
 couleur = "B"
 Reel = False
-Wifi = True
+Wifi = False
 
 Strategie = True
 Debug_strategie = True
 Astars = True
 
-Simul_mvt = False
+Simul_mvt = True
 Simul_mvt_ennemi = False
-Debug_Mouv = False
+Debug_Mouv = True
 
 Simul_action = True
 Debug_Action = False
 
-Lidar_on = True
+Lidar_on = False
 Bat_Compet = False
 lancement_cartes = False
 
@@ -69,7 +69,7 @@ MARGE_NOISETTE = 0
 MARGE_GM = 0
 MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
-TOL_CAM_NOISETTE = 38
+TOL_CAM_NOISETTE = 37
 TOLERANCE_STRATEGIE_NOISETTE = 20
 FREQUENCE_AFFICHAGE = 12
 
@@ -80,8 +80,8 @@ MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 ############################
 
 Liste_actions = [
-    ["Consigne",int(2400+LARGEUR_ROBOT/2),1300],
-    ["Consigne",1500,800],
+    #["Reculer",int(2400+LARGEUR_ROBOT/2),1300],
+    ["ReculerPrecis",1500,800],
     ["Rotation",90],
     ["Attente_test"],
     ["Attraper",0,12],
@@ -190,7 +190,7 @@ if couleur == "B":
     x_robot_depart = int(2400+LARGEUR_ROBOT/2)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
-
+    Liste_actions = [["Consigne",x_robot_depart,1350]]
     """x_robot_depart = 2825
     y_robot_depart = int(1100-LONGUEUR_ROBOT/2)
     angle_robot_depart = -90"""
@@ -203,7 +203,7 @@ if couleur == "B":
     y_ennemi = 1650
     
     Liste_strategie = [
-        [175,1150],
+        #[175,1150],
         [2825,450],
         [2825,350],
         [2150,800],
@@ -214,6 +214,8 @@ else:
     x_robot_depart = int(600-LARGEUR_ROBOT/2)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = 90
+
+    Liste_actions = [["Consigne",x_robot_depart,1350]]
     
     x_robot_retour = LARGEUR_ROBOT/2+30
     y_robot_retour = 1750
@@ -365,6 +367,7 @@ Pince_Ar_2 = True
 
 demande_recalcul_traj = False
 sortir_ennemi = False
+sortir_depart = False
 Astars_a_fail = False
 calcul_astar = False
 calcul_fait = False
@@ -378,7 +381,7 @@ y_sortie_fixe = None
 # ==================== PARAMÈTRES DE L'ALGORITHME ====================
 
 SAFETY_WEIGHT = 2.0  # Poids de sécurité pour A*
-MIN_CLEARANCE = 1.0
+MIN_CLEARANCE = 3.0
 SMOOTHNESS = 1.0
 DISTANCE_AJUSTABLE = 5  # Distance seuil pour pénalité sécurité (en cases)
 
@@ -848,7 +851,7 @@ if __name__ == '__main__':
         # Forcer le recalcul de trajectoire
         demande_recalcul_traj = True
 
-    if Strategie:
+    if Strategie and sortir_depart:
         Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
 
     
@@ -1158,10 +1161,19 @@ if __name__ == '__main__':
             # ================================================================================================= #
 
             # ============ Prise de décision ========== #
-
+            if not sortir_depart:
+                if couleur == "B":
+                    distance_robot_pointdepart = distance((x_robot_actuel,y_robot_actuel),(2400+LARGEUR_ROBOT/2,1350))
+                
+                if couleur == "J":
+                    distance_robot_pointdepart = distance((x_robot_actuel,y_robot_actuel),(600-LARGEUR_ROBOT/2,1350))
+                    
+                if distance_robot_pointdepart < 50:
+                    sortir_depart = True
+                    demande_nouvelle_strat = True
             if Strategie:
                 print("Liste_strategie : ",Liste_strategie)
-            if demande_nouvelle_strat :
+            if demande_nouvelle_strat  and sortir_depart:
                 demande_nouvelle_strat = False
                 """x_strategie = Liste_strategie[0][0]
                 y_strategie = Liste_strategie[0][1]"""
@@ -1306,18 +1318,6 @@ if __name__ == '__main__':
                                             Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
                                         elif action_voulu in ["ReculerPrecis"]:
                                             Liste_actions.insert(0, ["Reculer", x_cible, y_cible])
-                            else :
-                                distance_robot_consigne = math.sqrt((x_robot_actuel - points_bruts[1][0])**2 + (y_robot_actuel - points_bruts[1][1])**2)
-                                angle_robot_consigne = math.atan2(y_robot_actuel - points_bruts[1][1],x_robot_actuel - points_bruts[1][0])
-                                if distance_robot_consigne > 120:
-                                    if Debug_Mouv:
-                                        print("Point trop loin")
-                                    x_nouveau = points_bruts[1][0] + 100*math.cos(angle_robot_consigne)
-                                    y_nouveau = points_bruts[1][1] + 100*math.sin(angle_robot_consigne)
-                                    if action_voulu in ["Consigne"]:
-                                        Liste_actions.insert(0, ["Avancer", int(x_nouveau), int(y_nouveau)])
-                                    elif action_voulu in ["ReculerPrecis"]:
-                                        Liste_actions.insert(0, ["Reculer", int(x_nouveau), int(y_nouveau)])
 
                             Astars_a_fail = False
                             
