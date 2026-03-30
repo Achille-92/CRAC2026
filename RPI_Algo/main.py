@@ -1,12 +1,12 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 
 Strategie = True
 Debug_strategie = True
 Astars = True
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Debug_Mouv = False
 
@@ -203,7 +203,7 @@ if couleur == "B":
     y_ennemi = 1650
     
     Liste_strategie = [
-        [1150,175],
+        [175,1150],
         [2825,450],
         [2825,350],
         [2150,800],
@@ -283,7 +283,7 @@ expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes]) if 
 # ======================================================= #
 
 # Variables fonctionnelles des Batteries
-Batteries = [100,100,100,100] # V décharge, V charge, V actuel, % de charge
+Batteries = [100,80,50,19] # V décharge, V charge, V actuel, % de charge
 Batteries_interrupteur = [1,1,1]
 Batteries_alert = [0,0,0,0]
 RPI_decharge = False
@@ -444,7 +444,7 @@ def calcul_points(stop_event):
                     phi = math.radians(angle_point)
                     
                     # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
-                    angle_total = phi - math.radians(angle_r) - math.radians(1)
+                    angle_total = phi - math.radians(angle_r) - math.radians(-2)
                     
                     x_point = x_r + distance * math.cos(angle_total)
                     y_point = y_r - distance * math.sin(angle_total)
