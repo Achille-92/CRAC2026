@@ -1,6 +1,6 @@
 couleur = "B"
-Reel = False
-Wifi = False
+Reel = True
+Wifi = True
 
 Strategie = True
 Debug_strategie = True
