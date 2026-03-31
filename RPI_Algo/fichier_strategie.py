@@ -105,6 +105,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
     for num_gm in range(len(Liste_zones_gm_coins)):
         if Liste_zones_gm_coins[num_gm][0][0]<= x_strategie <= Liste_zones_gm_coins[num_gm][1][0] and Liste_zones_gm_coins[num_gm][0][1]<= y_strategie <= Liste_zones_gm_coins[num_gm][1][1]:
             strategie_en_cours = num_gm
+            #distance_Robot_strategie = math.sqrt((x_robot_actuel - x_centre)**2 + (y_robot_actuel - y_centre)**2)
             chercher_Noisette = False
             break
     
@@ -546,6 +547,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                         print("angle_Noisette_centre : ",math.degrees(angle_Noisette_centre))
                         x_cote = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(angle_Noisette_centre)
                         y_cote = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(angle_Noisette_centre)
+                        print("x_cote : ",x_cote," y_cote : ",y_cote)
                         if sous_pince == 12 or sous_pince == 2:
                             print("111111111111")
                             distance = 100 + MARGE_GM + LONGUEUR_ROBOT/2
@@ -558,9 +560,12 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                         y_arrivee_1 = int(y_cote + distance*math.sin(angle_Noisette_centre))
                         x_arrivee_Astar = int(x_cote + distanceA*math.cos(angle_Noisette_centre))
                         y_arrivee_Astar = int(y_cote + distanceA*math.sin(angle_Noisette_centre))
+                        print("x_arrivee_1 : ",x_arrivee_1)
+                        print("y_arrivee_1 : ",y_arrivee_1)
+                        print("x_arrivee_Astar : ",x_arrivee_Astar)
+                        print("y_arrivee_Astar : ",y_arrivee_Astar)
                         if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar // CASE_MM)))]:
                             demande_nouvelle_strat = True
-                            print("zesfhgezjhg")
                         else:
                             if pince_a_utilise == 0:
                                 Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_Noisette_centre)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_Noisette_centre)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]

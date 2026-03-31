@@ -200,8 +200,14 @@ if couleur == "B":
     y_ennemi = 1650
     
     Liste_strategie = [
+        #[2200,850],
+        #[2200,750],
         [2825,450],
         [2825,350],
+        [2900,800],
+        [2900,800],
+        [2825,1250],
+        [2825,1150],
         [2150,800],
         [2250,800],
     ]
@@ -1222,12 +1228,10 @@ if __name__ == '__main__':
                 if (action_voulu in ["Attraper","Retourner","Relacher"]) or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Attraper","Relacher"]) or (action_voulu in ["Consigne","ReculerPrecis"] and Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper","Relacher"])  or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Consigne","ReculerPrecis"] and Liste_actions[2][0] in ["Rotation"] and Liste_actions[3][0] in ["Attraper","Relacher"]) or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]):
                     mode_attraper = True
                 else : 
-                    print("abcd")
                     mode_attraper = False
             else :
                 mode_attraper = False
                 if action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]:
-                    print("efgh")
                     mode_attraper = True
             if Debug_Action:
                 print("mode_attraper : ",mode_attraper)
