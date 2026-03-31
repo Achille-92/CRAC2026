@@ -1224,11 +1224,11 @@ if __name__ == '__main__':
                 else : 
                     print("abcd")
                     mode_attraper = False
-                    if action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]:
-                        print("efgh")
-                        mode_attraper = True
             else :
                 mode_attraper = False
+                if action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]:
+                    print("efgh")
+                    mode_attraper = True
             if Debug_Action:
                 print("mode_attraper : ",mode_attraper)
             # ======================================================================== #
