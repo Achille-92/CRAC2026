@@ -1356,14 +1356,14 @@ if __name__ == '__main__':
                                     grid_expanded, CASE_MM, width, height,
                                     rayon_max_mm=500
                                 )
-                                if x_libre is not None:
+                                if x_libre is not None and y_libre is not None:
                                     print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
                                     # Insérer un Avancer prioritaire vers ce point
-                                    """if action_precedente not in ["Relacher"]:
+                                    if action_precedente not in ["Relacher"]:
                                         if action_voulu in ["Consigne", "Avancer"]:
-                                            Liste_actions.insert(0, ["Avancer", int(x_libre), int(y_libre)])
+                                            Liste_actions.insert(0, ["ReculerPrecis", int(x_libre), int(y_libre)])
                                         elif action_voulu in ["ReculerPrecis", "Reculer"]:
-                                            Liste_actions.insert(0, ["Reculer", int(x_libre), int(y_libre)])"""
+                                            Liste_actions.insert(0, ["Consigne", int(x_libre), int(y_libre)])
                                     demande_recalcul_traj = True
                                     Astars_a_fail = False
                                 else:
