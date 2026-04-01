@@ -970,7 +970,8 @@ if __name__ == '__main__':
             dico_envoi[0x201]=0
             dico_envoi[0x202]=0
 
-        n = random.randint(5, 15)
+        n = random.randint(8, 15)
+        Liste_actions_ennemi = [[1000,500],[1500,1000],[2700,500]]
         for i in range(n):
             Liste_actions_ennemi.append([random.randint(100, 2900),random.randint(100, 1900)])
         n_init = len(Liste_actions_ennemi)
@@ -1090,8 +1091,8 @@ if __name__ == '__main__':
 
                     angle_ennemi_consigne = np.degrees(math.atan2(y_ennemi_voulu - y_ennemi, x_ennemi_voulu - x_ennemi))
 
-                    x_ennemi += round(15*np.cos(math.radians(angle_ennemi_consigne)),0)
-                    y_ennemi += round(15*np.sin(math.radians(angle_ennemi_consigne)),0)
+                    x_ennemi += round(30*np.cos(math.radians(angle_ennemi_consigne)),0)
+                    y_ennemi += round(30*np.sin(math.radians(angle_ennemi_consigne)),0)
 
             ###
             
@@ -1325,7 +1326,7 @@ if __name__ == '__main__':
                             # ⭐ AJOUT DES POINTS DANS Liste_actions
                             verif_mouv = 0
                             verif_angle = 0
-                            if len(points_bruts) >2:
+                            if len(points_bruts) >1:
                                 for i in range(len(points_bruts)-1, 0, -1):
                                     x_cible, y_cible = points_bruts[i]
                                     if abs(x_cible - x_robot_voulu) > 20 or abs(y_cible - y_robot_voulu) > 20:
@@ -1337,47 +1338,44 @@ if __name__ == '__main__':
                             Astars_a_fail = False
                             
                         else:
+                            # Vérifier si le robot lui-même est dans une zone interdite
+                            x_case_robot = max(0, min(width - 1, int(x_robot_actuel // CASE_MM)))
+                            y_case_robot = max(0, min(height - 1, int(y_robot_actuel // CASE_MM)))
                             if Debug_Mouv:
                                 print("❌ Aucun chemin trouvé par A*")
-                            if distance_robot_ennemi < R_securite:
+
+                            if distance_robot_ennemi < R_securite: # Robot trop proche du robot adverse
                                 Astars_a_fail = True
                                 if Debug_Mouv:
                                     print("ENNEMI TROP PROCHE")
-                            else:
-                                # Vérifier si le robot lui-même est dans une zone interdite
-                                x_case_robot = max(0, min(width - 1, int(x_robot_actuel // CASE_MM)))
-                                y_case_robot = max(0, min(height - 1, int(y_robot_actuel // CASE_MM)))
 
-                                if grid_expanded[x_case_robot, y_case_robot]:
-                                    print("⚠️ Robot dans zone interdite — recherche case libre proche")
-                                    x_libre, y_libre = trouver_case_libre_proche(
-                                        x_robot_actuel, y_robot_actuel,
-                                        grid_expanded, CASE_MM, width, height,
-                                        rayon_max_mm=500
-                                    )
-                                    if x_libre is not None:
-                                        print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
-                                        # Insérer un Avancer prioritaire vers ce point
-                                        """if action_precedente not in ["Relacher"]:
-                                            if action_voulu in ["Consigne", "Avancer"]:
-                                                Liste_actions.insert(0, ["Avancer", int(x_libre), int(y_libre)])
-                                            elif action_voulu in ["ReculerPrecis", "Reculer"]:
-                                                Liste_actions.insert(0, ["Reculer", int(x_libre), int(y_libre)])"""
-                                        demande_recalcul_traj = True
-                                        Astars_a_fail = False
-                                    else:
-                                        print("❌ Aucune case libre trouvée dans le rayon de recherche")
-                                        demande_nouvelle_strat = True
-                                        Astars_a_fail = True
+                            elif grid_expanded[x_case_robot, y_case_robot]:
+                                print("⚠️ Robot dans zone interdite — recherche case libre proche")
+                                x_libre, y_libre = trouver_case_libre_proche(
+                                    x_robot_actuel, y_robot_actuel,
+                                    grid_expanded, CASE_MM, width, height,
+                                    rayon_max_mm=500
+                                )
+                                if x_libre is not None:
+                                    print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
+                                    # Insérer un Avancer prioritaire vers ce point
+                                    """if action_precedente not in ["Relacher"]:
+                                        if action_voulu in ["Consigne", "Avancer"]:
+                                            Liste_actions.insert(0, ["Avancer", int(x_libre), int(y_libre)])
+                                        elif action_voulu in ["ReculerPrecis", "Reculer"]:
+                                            Liste_actions.insert(0, ["Reculer", int(x_libre), int(y_libre)])"""
+                                    demande_recalcul_traj = True
+                                    Astars_a_fail = False
                                 else:
-                                    # Robot pas dans zone rouge mais chemin inaccessible
-                                    # → la destination est peut-être bloquée
-                                    print("⚠️ Chemin inaccessible — destination peut-être bloquée")
+                                    print("❌ Aucune case libre trouvée dans le rayon de recherche")
                                     demande_nouvelle_strat = True
                                     Astars_a_fail = True
-
-                                if Debug_Mouv:
-                                    print("CHEMIN INACCESSIBLE") 
+                            else:
+                                # Robot pas dans zone rouge mais chemin inaccessible
+                                # → la destination est peut-être bloquée
+                                print("⚠️ Chemin inaccessible — destination peut-être bloquée")
+                                demande_nouvelle_strat = True
+                                Astars_a_fail = True
 
                     """except queue.Empty:
                         # Pas de résultat disponible, on continue
@@ -1407,13 +1405,13 @@ if __name__ == '__main__':
             # ================================================= #
                 
             
-            if distance_robot_ennemi <= R_securite:
+            if Astars_a_fail:
                 ordre_mouvement=3
             elif action_voulu in ["Avancer"]:
                 ordre_mouvement=1
             elif action_voulu in ["Reculer"]:
                 ordre_mouvement=2
-            elif action_voulu in ["Attraper","Retourner","Relacher","Attente","Attente_test"] or Astars_a_fail:
+            elif action_voulu in ["Attraper","Retourner","Relacher","Attente","Attente_test"]:
                 ordre_mouvement=3
             elif action_voulu in ["Rotation"]:
                 ordre_mouvement=4
@@ -1425,7 +1423,7 @@ if __name__ == '__main__':
                 ordre_mouvement=100
             
             
-            print("Action en cours : "+action_voulu)
+            print("Action en cours : "+ action_voulu)
             if Debug_Mouv:
                 print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
                 print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
@@ -1592,7 +1590,7 @@ if __name__ == '__main__':
 
             if not Reel:
                 if Simul_mvt_ennemi:
-                    if(abs(x_ennemi-x_ennemi_voulu)<16 and abs(y_ennemi-y_ennemi_voulu)<16):
+                    if(abs(x_ennemi-x_ennemi_voulu)<31 and abs(y_ennemi-y_ennemi_voulu)<31):
                         if(len(Liste_actions_ennemi)!=1):
                             Liste_actions_ennemi.pop(0)
             
@@ -1894,6 +1892,7 @@ if __name__ == '__main__':
                             longueur=150, largeur=50,
                             alpha=0.7, linewidth=2
                         )
+                        
                     # Retirer l'action de la liste 
                     Liste_actions.pop(0) 
                     verif_mouv=0
