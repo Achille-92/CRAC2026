@@ -7,7 +7,7 @@ Debug_strategie = True
 Astars = True
 
 Simul_mvt = True
-Simul_mvt_ennemi = True
+Simul_mvt_ennemi = False
 Debug_Mouv = True
 
 Simul_action = True
@@ -728,17 +728,6 @@ def update_display(background):
 
 
 
-def point_sortie_valide(x, y, x_ennemi, y_ennemi, R_securite, R_ROBOT, X_PISTE, Y_PISTE, width, height, CASE_MM, grid_expanded):
-    if not (R_ROBOT <= x <= X_PISTE - R_ROBOT and R_ROBOT <= y <= Y_PISTE - R_ROBOT):
-        return False
-    x_case = max(0, min(width - 1, int(x // CASE_MM)))
-    y_case = max(0, min(height - 1, int(y // CASE_MM)))
-    if grid_expanded[x_case, y_case]:
-        return False
-    dist_ennemi = math.sqrt((x - x_ennemi)**2 + (y - y_ennemi)**2)
-    if dist_ennemi < R_securite:
-        return False
-    return True
 
 def trouver_case_libre_proche(x_robot, y_robot, grid_expanded, 
                                CASE_MM, width, height, rayon_max_mm=500):
@@ -984,6 +973,10 @@ if __name__ == '__main__':
 
             step +=1
             print("step :",step)
+
+            if step > 150:
+                x_ennemi = 2600
+                y_ennemi = 450
             # =============== Association Couleur CAM à Noisette Aveugle ==================== #
 
             if not Noisette_init:
@@ -1240,7 +1233,7 @@ if __name__ == '__main__':
                     mode_attraper = False
             else :
                 mode_attraper = False
-                if action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]:
+                if (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]) or action_voulu in ["Retourner"]:
                     mode_attraper = True
             if Debug_Action:
                 print("mode_attraper : ",mode_attraper)
@@ -1359,11 +1352,11 @@ if __name__ == '__main__':
                                 if x_libre is not None and y_libre is not None:
                                     print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
                                     # Insérer un Avancer prioritaire vers ce point
-                                    if action_precedente not in ["Relacher"]:
-                                        if action_voulu in ["Consigne", "Avancer"]:
-                                            Liste_actions.insert(0, ["ReculerPrecis", int(x_libre), int(y_libre)])
-                                        elif action_voulu in ["ReculerPrecis", "Reculer"]:
-                                            Liste_actions.insert(0, ["Consigne", int(x_libre), int(y_libre)])
+                                    #if action_precedente not in ["Relacher"]:
+                                    if action_voulu in ["Consigne", "Avancer"]:
+                                        Liste_actions.insert(0, ["ReculerPrecis", int(x_libre), int(y_libre)])
+                                    elif action_voulu in ["ReculerPrecis", "Reculer"]:
+                                        Liste_actions.insert(0, ["Consigne", int(x_libre), int(y_libre)])
                                     demande_recalcul_traj = True
                                     Astars_a_fail = False
                                 else:
