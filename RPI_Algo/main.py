@@ -7,7 +7,7 @@ Debug_strategie = True
 Astars = True
 
 Simul_mvt = True
-Simul_mvt_ennemi = False
+Simul_mvt_ennemi = True
 Debug_Mouv = True
 
 Simul_action = True
@@ -204,6 +204,10 @@ if couleur == "B":
         [2825,350],
         [2150,800],
         [2250,800],
+        [2825,1150],
+        [2825,1250],
+        [2900,750],
+        [2900,850],
     ]
 
 else:
@@ -966,7 +970,9 @@ if __name__ == '__main__':
             dico_envoi[0x201]=0
             dico_envoi[0x202]=0
 
-        Liste_actions_ennemi = [[1500,1000]]
+        n = random.randint(5, 15)
+        for i in range(n):
+            Liste_actions_ennemi.append([random.randint(100, 2900),random.randint(100, 1900)])
         n_init = len(Liste_actions_ennemi)
 
         while (not stop_event.is_set() and len(Liste_actions)!=0 and temps_restant >=0 and not RPI_decharge and not etat_bau): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
@@ -1581,7 +1587,8 @@ if __name__ == '__main__':
                         print("Bon Angle")
                     verif_angle = 1 
             else:
-                distance_robot_consigne = math.sqrt((x_robot_actuel - x_robot_voulu)**2 + (y_robot_actuel - y_robot_voulu)**2)
+                if (action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]):
+                    distance_robot_consigne = math.sqrt((x_robot_actuel - x_robot_voulu)**2 + (y_robot_actuel - y_robot_voulu)**2)
 
             if not Reel:
                 if Simul_mvt_ennemi:
