@@ -634,12 +634,12 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
 
                 if sous_pince == 12 or sous_pince == 2:
                     print("33333333333333")
-                    distance = 100 + 25 + MARGE_GM + LONGUEUR_ROBOT/2
-                    distanceA = 100 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 170
+                    distance = int(100 + MARGE_GM + LONGUEUR_ROBOT/2)
+                    distanceA = int(100 + MARGE_GM+LONGUEUR_ROBOT/2 + 170)
                 elif sous_pince == 1:
                     print("4444444444444")
-                    distance = 50 + 25 + MARGE_GM + LONGUEUR_ROBOT/2
-                    distanceA = 50 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 170
+                    distance = int(50 + MARGE_GM + LONGUEUR_ROBOT/2)
+                    distanceA = int(50 + MARGE_GM+LONGUEUR_ROBOT/2 + 170)
                 angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
                 print("angle_centre_cote : ",np.degrees(angle_centre_cote))
                 x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)

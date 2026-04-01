@@ -1,6 +1,6 @@
 couleur = "B"
-Reel = True
-Wifi = True
+Reel = False
+Wifi = False
 
 Strategie = True
 Debug_strategie = True
@@ -200,14 +200,8 @@ if couleur == "B":
     y_ennemi = 1650
     
     Liste_strategie = [
-        #[2200,850],
-        #[2200,750],
         [2825,450],
         [2825,350],
-        [2900,800],
-        [2900,800],
-        [2825,1250],
-        [2825,1150],
         [2150,800],
         [2250,800],
     ]
@@ -254,7 +248,7 @@ rayon_total_case = (R_ROBOT + MARGE_TRAJECTOIRE) // CASE_MM
 
 # === CRÉATION DES OBSTACLES avec la classe Obstacles === #
 obs_manager = Obstacles(X_PISTE,Y_PISTE,int(LARGEUR_ROBOT/2),0,CASE_MM)
-obs_manager_noisettes = Obstacles(X_PISTE,Y_PISTE,R_ROBOT,MARGE_NOISETTE,CASE_MM)
+obs_manager_noisettes = Obstacles(X_PISTE,Y_PISTE,R_ROBOT,0,CASE_MM)
 
 for i, noisette_data in enumerate(Liste_noisette_xya, 1):
     if len(noisette_data) >= 3:
@@ -378,6 +372,8 @@ old_ordre_mouvement = 0
 
 x_sortie_fixe = None
 y_sortie_fixe = None
+
+distance_robot_consigne = 3000
 # ==================================================
 
 # ==================== PARAMÈTRES DE L'ALGORITHME ====================
@@ -1186,8 +1182,8 @@ if __name__ == '__main__':
 
             if demande_nouvelle_strat and sortir_depart:
                 demande_nouvelle_strat = False
-                """x_strategie = Liste_strategie[0][0]
-                y_strategie = Liste_strategie[0][1]"""
+                x_strategie = Liste_strategie[0][0]
+                y_strategie = Liste_strategie[0][1]
                 if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
                     aller_Noisette = True
                     aller_GM = False
@@ -1579,10 +1575,13 @@ if __name__ == '__main__':
                     if Debug_Mouv:
                         print("Bonne position")
                     verif_mouv = 1
+                    distance_robot_consigne = 20
                 if(abs(angle_robot_actuel-angle_robot_voulu)<5) and action_voulu in ["Rotation"]:
                     if Debug_Mouv:
                         print("Bon Angle")
                     verif_angle = 1 
+            else:
+                distance_robot_consigne = math.sqrt((x_robot_actuel - x_robot_voulu)**2 + (y_robot_actuel - y_robot_voulu)**2)
 
             if not Reel:
                 if Simul_mvt_ennemi:
@@ -1621,7 +1620,7 @@ if __name__ == '__main__':
 
 
             if not action_est_supprime:
-                if (action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"] and verif_mouv == 1) or \
+                if (action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"] and verif_mouv == 1 and distance_robot_consigne<30) or \
                 (action_voulu in ["Rotation"] and verif_angle == 1) or \
                 (action_voulu in ["Attente_test"] and verif_action == 1) or \
                 (action_voulu in ["Attraper","Retourner","Relacher"] and ((verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1))):
@@ -1804,11 +1803,11 @@ if __name__ == '__main__':
                                             print("Pas de Noisette à déposer de la pince Arrière 1")
                                 else:
                                     if pince_a_utilise == 0:
-                                        x_noisette = x_robot_actuel + (10+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                                        y_noisette = y_robot_actuel + (10+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
+                                        x_noisette = x_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                        y_noisette = y_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
                                     else :
-                                        x_noisette = x_robot_actuel + (10+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
-                                        y_noisette = y_robot_actuel + (10+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
+                                        x_noisette = x_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
+                                        y_noisette = y_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
                                     angle_noisette = 90+angle_robot_actuel
                                     Liste_noisette_xya.append([int(x_noisette),int(y_noisette),int(angle_noisette),Noisettes_stockees_dans_robot[pince_a_utilise][0]])
                                     Noisettes_stockees_dans_robot[pince_a_utilise][0]="N"
@@ -1824,11 +1823,11 @@ if __name__ == '__main__':
                                             print("Pas de Noisette à déposer de la pince Arrière 2")
                                 else:
                                     if pince_a_utilise == 0:
-                                        x_noisette = x_robot_actuel + (10+50+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                                        y_noisette = y_robot_actuel + (10+50+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
+                                        x_noisette = x_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                        y_noisette = y_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
                                     else :
-                                        x_noisette = x_robot_actuel + (10+50+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
-                                        y_noisette = y_robot_actuel + (10+50+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
+                                        x_noisette = x_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
+                                        y_noisette = y_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
                                     angle_noisette = 90+angle_robot_actuel
                                     Liste_noisette_xya.append([int(x_noisette),int(y_noisette),int(angle_noisette),Noisettes_stockees_dans_robot[pince_a_utilise][1]])
                                     Noisettes_stockees_dans_robot[pince_a_utilise][1]="N"
@@ -1844,15 +1843,15 @@ if __name__ == '__main__':
                                             print("Pas de Noisette à déposer de la pince Arrière")
                                 else:
                                     if pince_a_utilise == 0:
-                                        x_noisette_1 = x_robot_actuel + (10+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                                        y_noisette_1 = y_robot_actuel + (10+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
-                                        x_noisette_2 = x_robot_actuel + (10+50+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
-                                        y_noisette_2 = y_robot_actuel + (10+50+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
+                                        x_noisette_1 = x_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                        y_noisette_1 = y_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
+                                        x_noisette_2 = x_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
+                                        y_noisette_2 = y_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(angle_robot_actuel))
                                     else :
-                                        x_noisette_1 = x_robot_actuel + (10+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
-                                        y_noisette_1 = y_robot_actuel + (10+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
-                                        x_noisette_2 = x_robot_actuel + (10+50+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
-                                        y_noisette_2 = y_robot_actuel + (10+50+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
+                                        x_noisette_1 = x_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
+                                        y_noisette_1 = y_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
+                                        x_noisette_2 = x_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(180+angle_robot_actuel))
+                                        y_noisette_2 = y_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.sin(math.radians(180+angle_robot_actuel))
 
                                     angle_noisette_1 = 90+angle_robot_actuel
                                     angle_noisette_2 = 90+angle_robot_actuel
@@ -1901,10 +1900,10 @@ if __name__ == '__main__':
                     sortir_ennemi = False
                     x_sortie_fixe = None
                     y_sortie_fixe = None
-                    """if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
+                    if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
                         Liste_strategie.pop(0)
                         demande_nouvelle_strat = True
-                        demande_recalcul_traj = True"""
+                        demande_recalcul_traj = True
             else :
                 action_est_supprime = False
             
