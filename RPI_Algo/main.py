@@ -974,9 +974,9 @@ if __name__ == '__main__':
             step +=1
             print("step :",step)
 
-            if step > 150:
+            if step > 30:
                 x_ennemi = 2600
-                y_ennemi = 450
+                y_ennemi = 800
             # =============== Association Couleur CAM à Noisette Aveugle ==================== #
 
             if not Noisette_init:
