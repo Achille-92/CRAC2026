@@ -1,6 +1,6 @@
 couleur = "B"
-Reel = False
-Wifi = False
+Reel = True
+Wifi = True
 
 Strategie = True
 Debug_strategie = True
@@ -15,7 +15,7 @@ Debug_Action = True
 
 Lidar_on = False
 Bat_Compet = False
-lancement_cartes = False
+lancement_cartes = True
 
 Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 ################## Librairies ##########################################
@@ -42,7 +42,7 @@ from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper
 ########################################################################
 #couleur = fenetre_selection_couleur()
 # Config CAN 
-Liste_ID_recoit = [0x03,0x04,0x05,0x06,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
+Liste_ID_recoit = [0x02,0x03,0x04,0x05,0x06,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
 Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x204,0x205,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
@@ -858,15 +858,21 @@ if __name__ == '__main__':
 
     
     if Reel and lancement_cartes:
-        while(carte_asserv_active == 0 and carte_actionneur0_active == 0 and carte_actionneur1_active == 0 and carte_batteries_active == 0):
-            print(f"Etat Carte Asserv : {carte_asserv_active}")
-            print(f"Etat Carte Actionneur 0 : {carte_actionneur0_active}")
-            print(f"Etat Carte Actionneur 1 : {carte_actionneur1_active}")
-            print(f"Etat Carte Batteries : {carte_batteries_active}")
+        while(carte_asserv_active == 0 or carte_actionneur0_active == 0 or carte_actionneur1_active == 0 or carte_batteries_active == 0):
+            if carte_asserv_active == 0:
+                print(f"Carte Asserv Manquante")
+            if carte_actionneur0_active == 0:
+                print(f"Carte Actionneur 0 Manquante")
+            if carte_actionneur1_active == 0:
+                print(f"Carte Actionneur 1 Manquante")
+            if carte_batteries_active == 0:
+                print(f"Carte Batteries Manquante")
+            time.sleep(0.1)
             
     if Reel:
         while(etat_bau == 1):
             print(f"Attente BAU")
+            time.sleep(0.1)
 
     while(lancement_strategie==False and etat_jack == 1 and not stop_event.is_set()):
         if current_os == "Linux" and Reel:
@@ -1180,8 +1186,8 @@ if __name__ == '__main__':
 
             if demande_nouvelle_strat and sortir_depart:
                 demande_nouvelle_strat = False
-                x_strategie = Liste_strategie[0][0]
-                y_strategie = Liste_strategie[0][1]
+                """x_strategie = Liste_strategie[0][0]
+                y_strategie = Liste_strategie[0][1]"""
                 if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
                     aller_Noisette = True
                     aller_GM = False
@@ -1895,10 +1901,10 @@ if __name__ == '__main__':
                     sortir_ennemi = False
                     x_sortie_fixe = None
                     y_sortie_fixe = None
-                    if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
+                    """if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
                         Liste_strategie.pop(0)
                         demande_nouvelle_strat = True
-                        demande_recalcul_traj = True
+                        demande_recalcul_traj = True"""
             else :
                 action_est_supprime = False
             
