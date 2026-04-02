@@ -543,7 +543,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                             Strat_Noisettes_dans_GM[1] = temp
                             distance_robot_n0, distance_robot_n1 = distance_robot_n1, distance_robot_n0
                         print("Strat_Noisettes_dans_GM après tri : ",Strat_Noisettes_dans_GM)
-                        angle_Noisette_centre = math.atan2(Strat_Noisettes_dans_GM[0][1] - y_centre_gm, Strat_Noisettes_dans_GM[0][0] - x_centre_gm)
+                        angle_Noisette_centre = math.atan2(y_centre_gm - Strat_Noisettes_dans_GM[0][1],x_centre_gm - Strat_Noisettes_dans_GM[0][0])
                         print("angle_Noisette_centre : ",math.degrees(angle_Noisette_centre))
                         x_cote = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(angle_Noisette_centre)
                         y_cote = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(angle_Noisette_centre)

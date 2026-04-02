@@ -66,7 +66,7 @@ R_ROBOT = 170
 R_ENNEMI = 150
 MARGE_ENNEMI = 100
 MARGE_NOISETTE = 0
-MARGE_GM = 0
+MARGE_GM = -35
 MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 TOL_CAM_NOISETTE = 36
@@ -192,7 +192,7 @@ if couleur == "B":
     angle_robot_depart = -90
     Liste_actions = [["Consigne",x_robot_depart,1350]]
 
-    x_robot_retour = 3000-LARGEUR_ROBOT/2-30
+    x_robot_retour = 3000-LARGEUR_ROBOT/2-200
     y_robot_retour = 1750
     angle_robot_retour = 90
     
@@ -203,6 +203,7 @@ if couleur == "B":
         [2825,450],
         [2825,350],
         [2150,800],
+        #[2300,1700],
         [2250,800],
         #[2825,1150],
         #[2825,1250],
@@ -217,7 +218,7 @@ else:
 
     Liste_actions = [["Consigne",x_robot_depart,1350]]
     
-    x_robot_retour = LARGEUR_ROBOT/2+30
+    x_robot_retour = LARGEUR_ROBOT/2+200
     y_robot_retour = 1750
     angle_robot_retour = 90
 
@@ -343,8 +344,8 @@ aller_GM = False
 temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
-temps_retour = 100 # Temps restant pour revenir au départ en fin de match
-temps_max = 3600
+temps_retour = 40 # Temps restant pour revenir au départ en fin de match
+temps_max = 100
 reset_fin = False
 
 verif_mouv = 0
@@ -1342,27 +1343,27 @@ if __name__ == '__main__':
                                 if Debug_Mouv:
                                     print("ENNEMI TROP PROCHE")
 
-                            elif grid_expanded[x_case_robot, y_case_robot]:
-                                print("⚠️ Robot dans zone interdite — recherche case libre proche")
-                                x_libre, y_libre = trouver_case_libre_proche(
-                                    x_robot_actuel, y_robot_actuel,
-                                    grid_expanded, CASE_MM, width, height,
-                                    rayon_max_mm=500
-                                )
-                                if x_libre is not None and y_libre is not None:
-                                    print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
-                                    # Insérer un Avancer prioritaire vers ce point
-                                    #if action_precedente not in ["Relacher"]:
-                                    if action_voulu in ["Consigne", "Avancer"]:
-                                        Liste_actions.insert(0, ["ReculerPrecis", int(x_libre), int(y_libre)])
-                                    elif action_voulu in ["ReculerPrecis", "Reculer"]:
-                                        Liste_actions.insert(0, ["Consigne", int(x_libre), int(y_libre)])
-                                    demande_recalcul_traj = True
-                                    Astars_a_fail = False
-                                else:
-                                    print("❌ Aucune case libre trouvée dans le rayon de recherche")
-                                    demande_nouvelle_strat = True
-                                    Astars_a_fail = True
+                                """elif grid_expanded[x_case_robot, y_case_robot]:
+                                    print("⚠️ Robot dans zone interdite — recherche case libre proche")
+                                    x_libre, y_libre = trouver_case_libre_proche(
+                                        x_robot_actuel, y_robot_actuel,
+                                        grid_expanded, CASE_MM, width, height,
+                                        rayon_max_mm=500
+                                    )
+                                    if x_libre is not None and y_libre is not None:
+                                        print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
+                                        # Insérer un Avancer prioritaire vers ce point
+                                        #if action_precedente not in ["Relacher"]:
+                                        if action_voulu in ["Consigne", "Avancer"]:
+                                            Liste_actions.insert(0, ["ReculerPrecis", int(x_libre), int(y_libre)])
+                                        elif action_voulu in ["ReculerPrecis", "Reculer"]:
+                                            Liste_actions.insert(0, ["Consigne", int(x_libre), int(y_libre)])
+                                        demande_recalcul_traj = True
+                                        Astars_a_fail = False
+                                    else:
+                                        print("❌ Aucune case libre trouvée dans le rayon de recherche")
+                                        demande_nouvelle_strat = True
+                                        Astars_a_fail = True"""
                             else:
                                 # Robot pas dans zone rouge mais chemin inaccessible
                                 # → la destination est peut-être bloquée
