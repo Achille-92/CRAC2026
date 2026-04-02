@@ -863,6 +863,21 @@ if __name__ == '__main__':
         while(etat_bau == 1):
             print(f"Attente BAU")
             time.sleep(0.1)
+        
+        time.sleep(2)
+        dico_envoi[0x200]=x_robot_depart
+        dico_envoi[0x201]=y_robot_depart
+        dico_envoi[0x202]=angle_robot_depart
+        bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
+        bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
+        bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
+        dico_envoi[0x200]=0
+        dico_envoi[0x201]=0
+        dico_envoi[0x202]=0
+
+        recalage_x_depart = False
+        while(recalage_x_depart== False):
+            dico_envoi[0x01]=1
 
     while(lancement_strategie==False and etat_jack == 1 and not stop_event.is_set()):
         if current_os == "Linux" and Reel:
@@ -949,16 +964,6 @@ if __name__ == '__main__':
         """if Astars:
             tache_Astar = threading.Thread(target=calcul_traj, args=(stop_event,), daemon=False)
             tache_Astar.start()"""
-        if Reel: 
-            dico_envoi[0x200]=x_robot_depart
-            dico_envoi[0x201]=y_robot_depart
-            dico_envoi[0x202]=angle_robot_depart
-            bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
-            bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
-            bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
-            dico_envoi[0x200]=0
-            dico_envoi[0x201]=0
-            dico_envoi[0x202]=0
 
         n = random.randint(8, 15)
         Liste_actions_ennemi = [[1000,500],[1500,1000],[2700,500]]
