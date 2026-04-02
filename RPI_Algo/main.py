@@ -204,10 +204,10 @@ if couleur == "B":
         [2825,350],
         [2150,800],
         [2250,800],
-        [2825,1150],
-        [2825,1250],
-        [2900,750],
-        [2900,850],
+        #[2825,1150],
+        #[2825,1250],
+        #[2900,750],
+        #[2900,850],
     ]
 
 else:
@@ -974,9 +974,9 @@ if __name__ == '__main__':
             step +=1
             print("step :",step)
 
-            if step > 30:
+            """if step > 30:
                 x_ennemi = 2600
-                y_ennemi = 800
+                y_ennemi = 800"""
             # =============== Association Couleur CAM à Noisette Aveugle ==================== #
 
             if not Noisette_init:
