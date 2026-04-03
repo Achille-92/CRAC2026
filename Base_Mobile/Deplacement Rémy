@@ -5,7 +5,846 @@
 #include <BluetoothSerial.h>
 #include <CAN.h>
 #include <PID.h>
+#include <utility.h>#include <Arduino.h>
+#include <Wire.h>
+#include <DualVNH5019MotorShield.h>
+#include <ESP32Encoder.h>
+#include <BluetoothSerial.h>
+#include <CAN.h>
+#include <PID.h>
 #include <utility.h>
+#include <Polaire.h>
+#include <Vitesse.h>
+#include "esp_timer.h"
+
+#define TX_GPIO_NUM 5
+#define RX_GPIO_NUM 4
+#define X 0
+#define Y 1
+#define bleu 2
+#define jaune 3
+void Asserv(void *);
+void CAN_(void *);
+void recalage(int type);
+void aquisition(void);
+void reception(char ch);
+
+struct coo
+{
+  float x;
+  float y;
+};
+coo liste_point[100] = {0, 0};
+
+int tic_gauche = 0;
+int tic_droit = 0;
+float tour_gauche = 0;
+float tour_droit = 0;
+float distance_droit = 0, old_dist_droit = 0, diff_dist_droit = 0;
+float distance_gauche = 0, old_dist_gauche = 0, diff_dist_gauche = 0;
+float dist = 0, teta = 0, delta_x = 0, delta_y = 0, teta_act = 0, diff_teta = 0, teta_cons = PI;
+float pos_act[2] = {0, 0}, pos_fin[2] = {275, 1650}, pos_traj[2] = {0, 0}, E = 0, off_teta_act = 0;
+// const float tic_tour_droit = 4121.7, tic_tour_gauche = 4052, Rayon = 11;
+// const float tic_tour_droit = 3164.0, tic_tour_gauche = 3167.7, Rayon = 11.2;
+const float tic_tour_droit = 3198.42, tic_tour_gauche = 3192.92, Rayon = 11.289;
+int packetSize = 0;
+float Vg = 0, Vd = 0, PWM_G = 0, PWM_D = 0, Can_temp = 0, PWM_Dpre = 0, PWM_Gpre = 0;
+int old_mouv = 0, acuser = 0, acuser_angle = 0, acuser_recalage = 0;
+int pos_temp[2] = {0, 0};
+float moy_vitG[5] = {0, 0}, moy_vitD[5] = {0, 0};
+
+float teta_recu = 0, teta_cons_recu = 0;
+int etat_ESP_RPI = 0, etat_RPI = 0, Etat_ESP = 1;
+static bool x_ok = false, y_ok = false, angle_ok = false;
+bool mouvement = false;
+int nbr_point = 0, mouv = 0, RPI = 1;
+bool trajectoire_recue = false;
+
+float verif_mouv = 0, verif_angle = 0, verif_recalage = 0;
+int etape = 0;
+int delta = 0;
+float temp = 0, vcons = 0, tempo = 0, te = 0;
+
+int k = 0, stop = 0, tt = 0;
+float vlin = 0, vang = 0;
+float sendlast = 0;
+int calX = 0, calY = 0;
+
+// BluetoothSerial Bt;
+DualVNH5019MotorShield md;
+ESP32Encoder encoder;
+ESP32Encoder encoder2;
+TaskHandle_t Asservissement;
+TaskHandle_t _CAN_;
+Polaire position;
+vitesse moteur;
+
+void setup()
+{
+  Serial.begin(115200);
+  // Bt.begin("TEST");
+
+  md.init(); // Initialise le shield
+  ESP32Encoder::useInternalWeakPullResistors = puType::up;
+  // use pin 19 and 18 for the first encoder
+  encoder.attachFullQuad(36, 39);
+  // use pin 17 and 16 for the second encoder
+  encoder2.attachFullQuad(23, 22);
+
+  // set starting count value after attaching
+  encoder.setCount(0);
+  encoder2.setCount(0);
+  md.setSpeeds(0, 0);
+
+  // clear the encoder's raw count and set the tracked count to zero
+  //
+  Serial.println("Encoder Start = " + String((int32_t)encoder.getCount()));
+
+  if (RPI == 1)
+  {
+    CAN.setPins(RX_GPIO_NUM, TX_GPIO_NUM);
+
+    // start the CAN bus at 500 kbps
+    if (!CAN.begin(1000E3))
+    {
+      Serial.println("Starting CAN failed!");
+      while (1)
+        ;
+    }
+    // CAN.filter(0x200,0x700);
+  }
+  // liste_point[0] = {-1000, -100};
+  /*liste_point[0] = {2550, 1400};
+  liste_point[1] = {2550, 1000};
+  liste_point[2] = {2650, 900};
+  liste_point[3] = {2825, 900};
+  liste_point[4] = {2725, 1550};
+  liste_point[5] = {2329, 1176};
+  liste_point[6] = {1547, 1037};
+  liste_point[7] = {1500, 800};
+  liste_point[8] = {1910, 800};
+  liste_point[9] = {1090, 800};
+  liste_point[10] = {1500, 250};
+  liste_point[11] = {2010, 250};
+  liste_point[12] = {1500, 250};
+  liste_point[13] = {990, 250};
+  liste_point[14] = {2725, 1650};*/
+  moteur.reset();
+  tempo = millis();
+
+  xTaskCreate(Asserv, "Asserv", 32000, NULL, 15, &Asservissement);
+  xTaskCreate(CAN_, "CAN", 16000, NULL, 13, &_CAN_);
+}
+
+void loop()
+
+{
+  /*if (Serial.available() > 0)
+  {
+    reception(Serial.read());
+  }*/
+}
+
+void CAN_(void *)
+{
+
+  while (1)
+  {
+    if (RPI == 1)
+    {
+      // liste_point[12].x = 145;
+      //  Lecture CAN centralisée
+      int packetSize = CAN.parsePacket();
+      if (packetSize)
+      {
+        uint32_t canId = CAN.packetId();
+        // Serial.printf("ID reçu: 0x%X | taille: %d | extended: %d\n",
+        //           canId, packetSize, CAN.packetExtended());
+        if (CAN.available())
+        {
+          if (canId == 0x01)
+          {
+            etat_RPI = CAN.read();
+            // Serial.printf("%d ", etat_RPI); // vider le buffer
+
+            // CAN.readBytes((uint8_t *)&etat_RPI, packetSize);
+            //   while (CAN.available())
+            //   CAN.read(); // vider le buffer
+            // Serial.print("Reçu RPI : ");
+            // Serial.println(etat_RPI);
+          }
+
+          if (canId == 0x200)
+          {
+            /*while (CAN.available())
+            {
+              Serial.print(CAN.read());
+            }*/
+            CAN.readBytes((uint8_t *)&Can_temp, packetSize);
+            if (Can_temp > 50 && Can_temp < 2950)
+            {
+              pos_act[0] = Can_temp;
+            }
+            // Serial.print("Reçu XD : ");
+            // Serial.println(pos_act[0]);
+          }
+
+          if (canId == 0x201)
+          {
+            /*while (CAN.available())
+            {
+              Serial.printf("%d ",CAN.read());
+            }*/
+            CAN.readBytes((uint8_t *)&Can_temp, packetSize);
+            if (Can_temp > 50 && Can_temp < 1950)
+            {
+              pos_act[1] = Can_temp;
+            }
+            // Serial.print("Reçu YD : ");
+            // Serial.println(pos_act[1]);
+          }
+
+          if (canId == 0x202)
+          {
+            /*while (CAN.available())
+            {
+              Serial.printf("%d ",CAN.read());
+            }*/
+            CAN.readBytes((uint8_t *)&teta_recu, packetSize);
+            // Serial.print("Reçu Angle : ");
+            // Serial.println(teta_recu);
+          }
+
+          if (canId == 0x203)
+          {
+            CAN.readBytes((uint8_t *)&Can_temp, packetSize);
+            if (Can_temp > 50 && Can_temp < 2950)
+            {
+              liste_point[0].x = Can_temp;
+            }
+            // Serial.print("Reçu X : ");
+            // Serial.println(liste_point[0].x);
+          }
+          if (canId == 0x204)
+          {
+            CAN.readBytes((uint8_t *)&Can_temp, packetSize);
+            if (Can_temp > 50 && Can_temp < 1950)
+            {
+              liste_point[0].y = Can_temp;
+            }
+            // Serial.print("Reçu Y : ");
+            // Serial.println(liste_point[0].y);
+          }
+
+          if (canId == 0x205)
+          {
+            CAN.readBytes((uint8_t *)&teta_cons_recu, packetSize);
+            // Serial.print("Reçu Angle_voulu : ");
+            // Serial.println(teta_cons_recu);
+            teta_cons_recu -= 360;
+            teta_cons = (teta_cons_recu * PI / 180.0);
+          }
+
+          if (canId == 0x206)
+          {
+
+            mouv = CAN.read();
+             Serial.print("mouv : ");
+             Serial.println(mouv);
+          }
+
+          if (canId == 0x207)
+          {
+            CAN.readBytes((uint8_t *)&acuser, packetSize);
+          }
+          if (canId == 0x208)
+          {
+            CAN.readBytes((uint8_t *)&acuser_angle, packetSize);
+          }
+          if (canId == 0x209)
+          {
+            CAN.readBytes((uint8_t *)&acuser_recalage, packetSize);
+          }
+
+          // Réception des coordonnées X des points (IDs paires : 0x208, 0x20A, 0x20C, ...)
+          /*if (canId >= 0x20A && canId <= 0x2FE && canId % 2 == 0 && packetSize == 4)
+          {
+            int index = (canId - 0x20A) / 2; // Calculer l'index du point
+            if (index < 50)
+            { // Sécurité pour ne pas dépasser la taille du tableau
+              CAN.readBytes((uint8_t *)&liste_point[index].x, 4);
+              // Serial.print("Reçu X[");
+              // Serial.print(index);
+              // Serial.print("] : ");
+              // Serial.println(liste_point[index].x);
+            }
+          }
+
+          // Réception des coordonnées Y des points (IDs impaires : 0x209, 0x20B, 0x20D, ...)
+          if (canId >= 0x20B && canId <= 0x2FF && canId % 2 == 1 && packetSize == 4)
+          {
+            int index = (canId - 0x20B) / 2; // Calculer l'index du point
+            if (index < 50)
+            { // Sécurité
+              CAN.readBytes((uint8_t *)&liste_point[index].y, 4);
+              // Serial.print("Reçu Y[");
+              //  Serial.print(index);
+              // Serial.print("] : ");
+              //  Serial.println(liste_point[index].y);
+
+              // Vérifier si on a reçu tous les points
+              if (index == nbr_point - 1)
+              {
+                trajectoire_recue = true;
+                // Serial.println("✅ Trajectoire complète reçue !");
+              }
+            }
+          }*/
+        }
+      }
+
+      switch (etat_ESP_RPI)
+      {
+      case 0:
+        mouvement = false;
+        if (pos_act[0] != -1)
+          x_ok = true;
+        if (pos_act[1] != -1)
+          y_ok = true;
+        if (teta_recu != -181)
+          angle_ok = true;
+
+        if (!x_ok || !y_ok || !angle_ok)
+        {
+          // Serial.println("En attente des coordonnées initiales depuis la RPi...");
+        }
+
+        // Test en continu de la condition de passage à l'état 1
+        if (x_ok && y_ok && angle_ok)
+        {
+          if (etat_RPI == 1)
+          {
+            // Serial.println("Coordonnées reçues, passage à l'état 1 !");
+            etat_ESP_RPI = 1;
+            encoder.setCount(0);
+            encoder2.setCount(0);
+            distance_droit = 0;
+            distance_gauche = 0;
+            verif_mouv = 0;
+            verif_angle = 0;
+            tt = millis();
+          }
+          else
+          {
+            // Serial.println("Coordonnées OK mais RPi pas encore prête (etat_RPI != 1)");
+          }
+        }
+        break;
+
+      case 1:
+        // Serial.println("RPI_allumer");
+        mouvement = true;
+        if (etat_RPI == 0 || etat_RPI == 2)
+        {
+          etat_ESP_RPI = 0;
+          x_ok = false, y_ok = false, angle_ok = false;
+          mouv = 0;
+          PWM_G = 0;
+          PWM_D = 0;
+          // pos_act[0] = -1;
+          // pos_act[1] = -1;
+          // teta_recu = -181;
+          // Serial.println("Retour à l'état 0 (RPi arrêtée)");
+        }
+
+        // Serial.printf("X=%.1f Y=%.1f Angle=%.1f X_voulu=%.1f Y_voulu=%1.f Angle_voulu=%.1f Nbr_point=%d\n",pos_act[0],pos_act[1],teta_act_deg,pos_fin[0],pos_fin[1],teta_cons_recu,nbr_point);
+        for (int j = 0; j < nbr_point; j++)
+        {
+          // Serial.printf("X_%d = %.f   X_Y%d = %.f\n",j, liste_point[j].x,j,liste_point[j].y);
+        }
+        float x = pos_act[0];
+        float y = pos_act[1];
+        float teta = (180.0 * limit_angle(teta_act)) / PI;
+        static unsigned long lastSend = 0;
+        if (millis() - lastSend > 20)
+        { // toutes les 100 ms
+          lastSend = millis();
+
+          CAN.beginPacket(0x10E);
+          CAN.write((uint8_t *)&verif_mouv, sizeof(float)); // 4 octets
+          CAN.endPacket();
+
+          CAN.beginPacket(0x10F);
+          CAN.write((uint8_t *)&verif_angle, sizeof(float)); // 4 octets
+          CAN.endPacket();
+
+          CAN.beginPacket(0x100);
+          CAN.write((uint8_t *)&x, sizeof(float)); // 4 octets
+          CAN.endPacket();
+
+          CAN.beginPacket(0x101);
+          CAN.write((uint8_t *)&y, sizeof(float)); // 4 octets
+          CAN.endPacket();
+
+          CAN.beginPacket(0x102);
+          CAN.write((uint8_t *)&teta, sizeof(float)); // 4 octets
+          CAN.endPacket();
+
+          CAN.beginPacket(0x110);
+          CAN.write((uint8_t *)&verif_recalage, sizeof(float)); // 4 octets
+          CAN.endPacket();
+
+          // Serial.printf("X:%f Y:%f \n",pos_act[0],pos_act[1]);
+        }
+
+        break;
+      }
+      if (millis() - sendlast> 20)
+      {
+        sendlast = millis();
+        CAN.beginPacket(0x02);
+        CAN.write((uint8_t *)&Etat_ESP, sizeof(float)); // 4 octets
+        CAN.endPacket();
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+}
+
+void Asserv(void *)
+{
+  TickType_t xLastWakeTime;
+  xLastWakeTime = xTaskGetTickCount();
+  while (1)
+  {
+    if (mouv == 0)
+      moteur.reset();
+    aquisition();
+    if (fabs(Vg) > 0.8 || fabs(Vd) > 0.8)
+    {
+      // stop = 1, md.setM2Speed(0), md.setM1Speed(0);
+    }
+    if (stop == 0 || 1)
+    {
+      if (acuser == 2 || mouv == 3)
+        verif_mouv = 0;
+      if (acuser_angle == 2 || mouv == 3)
+        verif_angle = 0;
+      if (acuser_recalage == 2 || mouv == 3)
+        verif_recalage = 0;
+      if (mouv != 7 && mouv != 8)
+        etape = 0;
+
+      if (liste_point[0].x != 0 && liste_point[0].y != 0)
+      {
+        pos_fin[0] = liste_point[0].x;
+        pos_fin[1] = liste_point[0].y;
+        if (mouv == 5 || mouv == 6)
+        {
+          if (etat_RPI == 1 && (comparer(pos_act[0], liste_point[0].x, 10) && comparer(pos_act[1], liste_point[0].y, 10)))
+          {
+            verif_mouv = 1;
+          }
+        }
+        else if (mouv == 1 || mouv == 2)
+        {
+          if (etat_RPI == 1 && (comparer(pos_act[0], liste_point[0].x, 30) && comparer(pos_act[1], liste_point[0].y, 30)))
+          {
+            verif_mouv = 1;
+          }
+        }
+      }
+      if (RPI == 0)
+        mouv = 0;
+      // mouv=0;
+      switch (mouv)
+      {
+      case 0: // TEST
+        // Serial.print(0);
+        // PWM_G = moteur.gauche((position.avant(dist, 0,0, 0)), Vg, 0);
+        // PWM_D = moteur.droit((position.avant(dist, 0, 0, 0)), Vd, 0);
+        //  PWM_G=0;
+        //  PWM_D=0;
+
+        /*if (distance_droit < 100)
+        {
+          PWM_D = 100;
+          PWM_G = 100;
+        }
+        else
+        {
+          PWM_D = 0;
+          PWM_G = 0;
+        }*/
+
+        break;
+      case 1: // marche avant
+        vlin = position.avant(dist, 0, teta_act, teta);
+        vang = position.angle(teta, teta_act, dist);
+        PWM_G = moteur.gauche(vlin - vang, Vg, 0);
+        PWM_D = moteur.droit(vlin + vang, Vd, 0);
+        break;
+      case 2: // marche arrière
+        vlin = position.arriere(dist, 0, teta_act, teta);
+        vang = position.angle(teta + PI, teta_act, dist);
+        PWM_G = moteur.gauche(vlin - vang, Vg, 0);
+        PWM_D = moteur.droit(vlin + vang, Vd, 0);
+        break;
+      case 3: // Sur place
+              // Serial.printf("X%.1f Y%.1f", pos_act[0], pos_act[1]);
+              /* if (old_mouv != 3)
+               {
+                 pos_temp[0] = pos_act[0];
+                 pos_temp[1] = pos_act[1];
+      
+               }
+               moteur.reset();
+               delta_x = pos_temp[0] - pos_act[0];
+               delta_y = pos_temp[1] - pos_act[1];
+      
+               teta = atan2(delta_y, delta_x);
+               dist = sqrt(((pos_temp[0] - pos_act[0]) * (pos_temp[0] - pos_act[0])) + ((pos_temp[1] - pos_act[1]) * (pos_temp[1] - pos_act[1])));
+               vlin = position.avant(dist, 0, teta_act, teta);
+               vang = position.angle(teta, teta_act, dist);
+               PWM_G = moteur.gauche(vlin - vang, Vg, 0);
+               PWM_D = moteur.droit(vlin + vang, Vd, 0);*/
+        PWM_G = moteur.gauche(0, Vg, 0);
+        PWM_D = moteur.droit(0, Vd, 0);
+        break;
+      case 4: //  Angulaire
+        vang = position.angle(teta_cons, teta_act, 0);
+        PWM_G = moteur.gauche(-vang, Vg, 0);
+        PWM_D = moteur.droit(vang, Vd, 0);
+
+        if (fabs(Vg) < 0.05 && fabs(Vd) < 0.05 && (fabs(limit_angle(teta_cons - teta_act)) < (PI / 50.0)))
+          verif_angle = 1;
+        break;
+      case 5: // precis
+        vlin = position.avant(dist, 0, teta_act, teta);
+        vang = position.angle(teta, teta_act, dist);
+        PWM_G = moteur.gauche(vlin - vang, Vg, 0);
+        PWM_D = moteur.droit(vlin + vang, Vd, 0);
+        break;
+      case 6: // recalage X
+        vlin = position.arriere(dist, 0, teta_act, teta);
+        vang = position.angle(teta + PI, teta_act, dist);
+        PWM_G = moteur.gauche(vlin - vang, Vg, 0);
+        PWM_D = moteur.droit(vlin + vang, Vd, 0);
+        break;
+      case 7: // recalage bleu
+               Serial.printf("7 X%d Y%d",calX,calY);
+        recalage(bleu);
+        break;
+      case 8: // recalage jaune
+               Serial.printf("8 X%d Y%d",calX,calY);
+        recalage(jaune);
+        break;
+      case 100:
+        PWM_G = 0;
+        PWM_D = 0;
+        break;
+      }
+      old_mouv = mouv;
+
+      /*if (mouv != 3 && etat_RPI == 1 && (comparer(pos_act[0], liste_point[0].x, 10) && comparer(pos_act[1], liste_point[0].y, 10)) && (liste_point[1].x != 0) && (liste_point[1].y != 0))
+      {
+        for (int i = 0; i <= 98; i++)
+        {
+          liste_point[i].x = liste_point[i + 1].x;
+          liste_point[i].y = liste_point[i + 1].y;
+        }
+        liste_point[80].x = 0;
+        liste_point[80].y = 0;
+      }*/
+      if (etat_RPI == 1)
+      {
+
+        if (etape == 2)
+        {
+          md.setM1Speed(-180);
+          md.setM2Speed(-150);
+        }
+        else if (etape == 3)
+        {
+          md.setM1Speed(180);
+          md.setM2Speed(150);
+        }
+        else
+        {
+          /*if(abs(PWM_D)>(abs(PWM_Dpre+10))){
+            PWM_D=PWM_Dpre+10;
+          }
+          if(abs(PWM_G)>(abs(PWM_Gpre+10))){
+            PWM_G=PWM_Gpre+10;
+          }*/
+          md.setM1Speed(PWM_D * 0.85); // Droit
+          md.setM2Speed(PWM_G);        // Gauche
+        }
+      }
+
+      else
+      {
+        md.setM1Speed(0);
+        md.setM2Speed(0);
+      }
+    }
+
+    te = millis() - tempo;
+    tempo = millis();
+    // Serial.printf("distd%.1f distg%1f teta%.1f\n", distance_droit, distance_gauche, teta_act * 180.0 / PI);
+    /*Serial.printf("vlin%.2f Vang%.2f x%.1f Y%.1f act%.1f teta%.1f dist%.1f Vg%.2f Vd%.2f PWMG%.0f PWMD%.0f Xf%.1f Yf%.1f\n", vlin, vang, pos_act[0], pos_act[1], teta_act * 180.0 / PI, teta * 180.0 / PI, dist, Vg, Vd, PWM_G, PWM_D, liste_point[0].x, liste_point[0].y); /*for (int i = 0; i <= nbr_point; i++)
+    {
+      Serial.printf("X%d=%.1f Y%d=%.1f", i, liste_point[i].x, i, liste_point[i].y);
+    }*/
+
+    //  Serial.printf("teta_act%.1f", (180.0 * teta_act) / PI);
+    //  Serial.printf("teta_cons%.1f\n", (180.0 * teta_cons) / PI);
+    // Serial.printf("droit%d gauche%d\n", tic_droit,tic_gauche);
+    //   Serial.printf("mouv%dverif%dverif_angle%dteta_act%.1fteta_cons%.1f\n", mouv, verif_mouv, verif_angle, 180.0 * teta_act / PI, 180.0 * teta_cons / PI);
+    //    Serial.printf("diff_teta%.1f\n",(180.0*limit_angle((teta_cons-teta_act)))/PI);
+     Serial.printf("X%.1f Y%.1f teta%.1f teta_recu%.1f \n", pos_act[0], pos_act[1],teta_act,teta_recu);
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(10));
+  }
+}
+
+void recalage(int type)
+{
+  switch (type)
+  {
+  case X:
+    if (pos_act[0] > 1500)
+    {
+      teta_cons = 0;
+    }
+    else
+    {
+      teta_cons = PI;
+    }
+    break;
+  case Y:
+    teta_cons = -PI / 2.0;
+    break;
+  case bleu:
+    if (calX == 0)
+    {
+      teta_cons = PI;
+    }
+    else
+    {
+      teta_cons = -PI / 2.0;
+    }
+    break;
+  case jaune:
+    if (calX == 0)
+    {
+      teta_cons = 0;
+    }
+    else
+    {
+      teta_cons = -PI / 2.0;
+    }
+    break;
+  }
+  if (type == X || type == Y)
+  {
+    switch (etape)
+    {
+
+    case 0:
+
+      vang = position.angle(teta_cons, teta_act, 0);
+      PWM_G = moteur.gauche(-vang, Vg, 0);
+      PWM_D = moteur.droit(vang, Vd, 0);
+
+      if (fabs(Vg) < 0.05 && fabs(Vd) < 0.05 && (fabs(limit_angle(teta_cons - teta_act)) < (PI / 10.0)))
+        etape = 2, temp = millis();
+      break;
+    case 2:
+      if (diff_dist_droit == 0 && diff_dist_gauche == 0 && (millis() - temp) > 1000)
+      {
+        if (type == X)
+        {
+          if (pos_act[0] > 1500)
+          {
+            teta_cons = 0;
+            pos_act[0] = 2935;
+          }
+          else
+          {
+            teta_cons = PI;
+            pos_act[0] = 65;
+          }
+        }
+        else
+        {
+          teta_cons = -PI / 2.0;
+          pos_act[1] = 1935;
+        }
+        off_teta_act = teta_cons - teta_act;
+        verif_recalage = 1;
+      }
+      break;
+    }
+  }
+  else
+  {
+    switch (etape)
+    {
+
+    case 0:
+
+      vang = position.angle(teta_cons, teta_act, 0);
+      PWM_G = moteur.gauche(-vang, Vg, 0);
+      PWM_D = moteur.droit(vang, Vd, 0);
+
+      if (fabs(Vg) < 0.05 && fabs(Vd) < 0.05 && (fabs(limit_angle(teta_cons - teta_act)) < (PI / 10.0)))
+        etape = 2, temp = millis();
+      break;
+    case 2:
+      if (diff_dist_droit == 0 && diff_dist_gauche == 0 && (millis() - temp) > 1500)
+      {
+        if (calX == 0)
+        {
+          if (type == bleu)
+          {
+            pos_act[0] = 2935;
+            pos_act[1] = 1835;
+            diff_dist_droit = 0;
+             diff_dist_gauche = 0;
+            encoder2.setCount(0);
+            encoder.setCount(0);
+            teta_recu = 180.0;
+            calX = 1;
+            etape = 3;
+          }
+          else
+          {
+            pos_act[0] = 65;
+            pos_act[1] = 1835;
+            diff_dist_droit = 0;
+             diff_dist_gauche = 0;
+            encoder2.setCount(0);
+            encoder.setCount(0);
+            teta_recu = 0;
+            calX = 1;
+            etape = 3;
+          }
+        }
+        else if (calY == 0)
+        {
+          pos_act[1] = 1935;
+          calY = 1;
+          verif_recalage = 1;
+          etape = 4;
+        }
+      }
+      break;
+    case 3:
+      if (fabs(distance_droit) > 200)
+      {
+        etape = 0;
+      }
+      break;
+    case 4:
+      break;
+    }
+  }
+}
+
+void aquisition(void)
+{
+  tic_droit = encoder2.getCount();
+  tic_gauche = encoder.getCount();
+
+  tour_droit = (float)tic_droit / tic_tour_droit;
+  tour_gauche = (float)tic_gauche / tic_tour_gauche;
+
+  old_dist_droit = distance_droit;
+  old_dist_gauche = distance_gauche;
+
+  distance_droit = tour_droit * 40.0 * PI;
+  distance_gauche = tour_gauche * 40.0 * PI;
+
+  diff_dist_droit = distance_droit - old_dist_droit;
+  diff_dist_gauche = distance_gauche - old_dist_gauche;
+
+  Vg = diff_dist_gauche / 10.0;
+  Vd = diff_dist_droit / 10.0;
+
+  for (int i = 0; i <= 4; i++)
+  {
+    moy_vitD[i + 1] = moy_vitD[i];
+    moy_vitG[i + 1] = moy_vitG[i];
+  }
+  moy_vitD[0] = Vd;
+  moy_vitG[0] = Vg;
+
+  Vd = (moy_vitD[0] + moy_vitD[1] + moy_vitD[2]) / 3.0;
+  Vg = (moy_vitG[0] + moy_vitG[1] + moy_vitG[2]) / 3.0;
+  delta_x = liste_point[0].x - pos_act[0];
+  delta_y = liste_point[0].y - pos_act[1];
+
+  teta = atan2(delta_y, delta_x);
+
+  if (RPI == 1)
+    teta_act = (teta_recu * PI / 180.0) + ((distance_droit - distance_gauche) / (20 * Rayon)) + off_teta_act;
+  else
+    teta_act = ((distance_droit - distance_gauche) / (20 * Rayon)) - PI / 2.0 + off_teta_act;
+
+  dist = sqrt(((pos_fin[0] - pos_act[0]) * (pos_fin[0] - pos_act[0])) + ((pos_fin[1] - pos_act[1]) * (pos_fin[1] - pos_act[1])));
+
+  pos_act[0] = pos_act[0] + (cos(teta_act) * ((diff_dist_droit + diff_dist_gauche) / 2.0));
+  pos_act[1] = pos_act[1] + (sin(teta_act) * ((diff_dist_gauche + diff_dist_droit) / 2.0));
+}
+
+void reception(char ch)
+{
+
+  if (ch == '0')
+  {
+    vcons = 0.0;
+  }
+  if (ch == '1')
+  {
+    vcons = 0.1;
+  }
+  if (ch == '2')
+  {
+    vcons = 0.2;
+  }
+  if (ch == '3')
+  {
+    vcons = 0.3;
+  }
+  if (ch == '4')
+  {
+    vcons = 0.4;
+  }
+  if (ch == '5')
+  {
+    vcons = 0.5;
+  }
+  if (ch == '6')
+  {
+    vcons = -0.1;
+  }
+  if (ch == '7')
+  {
+    vcons = -0.2;
+  }
+  if (ch == '8')
+  {
+    vcons = -0.3;
+  }
+  if (ch == '9')
+  {
+    vcons = -0.4;
+  }
+  if (ch == 'r')
+  {
+    moteur.reset();
+  }
+}
 #include <Polaire.h>
 #include <Vitesse.h>
 #include "esp_timer.h"
