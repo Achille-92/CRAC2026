@@ -188,9 +188,20 @@ PORT_ENVOI = 5000
 # Coordonnées et angle de notre robot (coordonnées initiales en haut)
 if couleur == "B":
     x_robot_depart = int(2400+LARGEUR_ROBOT/2)
-    y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
+    y_robot_depart = int(2000-LONGUEUR_ROBOT/2)
     angle_robot_depart = -90
-    Liste_actions = [["Consigne",x_robot_depart,1350]]
+
+    x_robot_depart_2 = int(2400+LARGEUR_ROBOT/2+50)
+    y_robot_depart_2 = int(1550+LONGUEUR_ROBOT/2+100)
+    angle_robot_depart_2 = -90
+
+    if not Reel: # Simulation 
+        Liste_actions = [["Consigne",x_robot_depart,1350]]
+    else:# Reél
+        if Bat_Compet:
+            Liste_actions = [["Consigne",x_robot_depart_2,1350]]
+        else:
+            Liste_actions = [["Consigne",x_robot_depart,1350]]
 
     x_robot_retour = 3000-LARGEUR_ROBOT/2-200
     y_robot_retour = 1750
@@ -213,10 +224,20 @@ if couleur == "B":
 
 else:
     x_robot_depart = int(600-LARGEUR_ROBOT/2)
-    y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
+    y_robot_depart = int(2000-LONGUEUR_ROBOT/2)
     angle_robot_depart = 90
 
-    Liste_actions = [["Consigne",x_robot_depart,1350]]
+    x_robot_depart_2 = int(600-LARGEUR_ROBOT/2+-0)
+    y_robot_depart_2 = int(1550+LONGUEUR_ROBOT/2+100)
+    angle_robot_depart_2 = -90
+
+    if not Reel: # Simulation 
+        Liste_actions = [["Consigne",x_robot_depart,1350]]
+    else:# Reél
+        if Bat_Compet:
+            Liste_actions = [["Consigne",x_robot_depart_2,1350]]
+        else:
+            Liste_actions = [["Consigne",x_robot_depart,1350]]
     
     x_robot_retour = LARGEUR_ROBOT/2+200
     y_robot_retour = 1750
@@ -231,10 +252,21 @@ else:
         [850,800],
         [750,800],
     ]
-    
-x_robot_actuel = x_robot_depart
-y_robot_actuel = y_robot_depart
-angle_robot_actuel = angle_robot_depart
+
+
+if not Reel: # Simulation 
+    x_robot_actuel = x_robot_depart
+    y_robot_actuel = y_robot_depart
+    angle_robot_actuel = angle_robot_depart
+else:# Reél
+    if Bat_Compet:
+        x_robot_actuel = x_robot_depart_2
+        y_robot_actuel = y_robot_depart_2
+        angle_robot_actuel = angle_robot_depart_2
+    else:
+        x_robot_actuel = x_robot_depart
+        y_robot_actuel = y_robot_depart
+        angle_robot_actuel = angle_robot_depart
 
 x_robot_voulu = x_robot_actuel
 y_robot_voulu = y_robot_actuel
@@ -354,6 +386,8 @@ verif_angle = 0
 verif_action = 0
 verif_action1 = 0
 verif_action2 = 0
+verif_recalage = 0
+
 action_est_supprime = False 
 mode_attraper = False
 
@@ -400,9 +434,20 @@ grid_expanded = binary_dilation(grid, structure=structure)
 from scipy.ndimage import distance_transform_edt
 distance_map = distance_transform_edt(~grid_expanded)
 
-x_robot_actuel_cam = x_robot_depart
-y_robot_actuel_cam = y_robot_depart
-angle_robot_actuel_cam = angle_robot_depart
+if not Reel: # Simulation 
+    x_robot_actuel_cam = x_robot_depart
+    y_robot_actuel_cam = y_robot_depart
+    angle_robot_actuel_cam = angle_robot_depart
+else:# Reél
+    if Bat_Compet:
+        x_robot_actuel_cam = x_robot_depart_2
+        y_robot_actuel_cam = y_robot_depart_2
+        angle_robot_actuel_cam = angle_robot_depart_2
+    else:
+        x_robot_actuel_cam = x_robot_depart
+        y_robot_actuel_cam = y_robot_depart
+        angle_robot_actuel_cam = angle_robot_depart
+
 x_ennemi_cam = x_ennemi
 y_ennemi_cam = y_ennemi
 angle_ennemi_cam = 0
@@ -490,7 +535,7 @@ def LectureCAN(stop_event):
     Si l'ID du message n'est pas dans la Liste_ID, saute
     Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
     """
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, bus, verif_mouv, verif_angle,verif_action1,verif_action2,Batteries_alert, carte_actionneur0_active, carte_actionneur1_active, carte_asserv_active, carte_batteries_active, etat_bau
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, bus, verif_mouv, verif_angle,verif_action1,verif_action2,Batteries_alert, carte_actionneur0_active, carte_actionneur1_active, carte_asserv_active, carte_batteries_active, etat_bau,verif_recalage
     while not stop_event.is_set():
         msg = bus.recv(0.05)
         if msg is None:
@@ -556,6 +601,9 @@ def LectureCAN(stop_event):
                 etat_bau = struct.unpack('<H', bytes(msg.data[:2]))[0]
             else:
                 etat_bau = msg.data[0]
+                
+        elif msg.arbitration_id == 0x110:
+            verif_recalage = struct.unpack('f', bytes(msg.data))[0]
     
 # Fonction pour recevoir des données de la RPI
 def comm_bc(stop_event):
@@ -875,9 +923,78 @@ if __name__ == '__main__':
         dico_envoi[0x201]=0
         dico_envoi[0x202]=0
 
-        recalage_x_depart = False
-        while(recalage_x_depart== False):
-            dico_envoi[0x01]=1
+        if Bat_Compet: # Mode competition : recalage de départ automatique
+            recalage_depart = False
+            
+            while(recalage_depart == False):
+                print("Recalage de départ en cours")
+                dico_envoi[0x01]=1
+                if couleur == "B":
+                    dico_envoi[0x206]= 7
+                if couleur == "J":
+                    dico_envoi[0x206]= 8
+
+                if verif_recalage == 1:
+                    recalage_depart = True
+                    dico_envoi[0x209]=2
+                else :
+                    dico_envoi[0x209]=1
+                    
+                for key, value in dico_envoi.items() :
+                    if value != 0:
+                        if key in [0x01,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
+                            format_value = struct.pack('<i',dico_envoi[key])
+                        else:
+                            format_value = struct.pack('<f',dico_envoi[key])
+                        msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
+                        bus.send(msg)
+                        dico_envoi[key]=0
+                        time.sleep(0.0006)
+            pos_depart = False
+            while(pos_depart == False):
+                dico_envoi[0x203] = x_robot_depart_2
+                dico_envoi[0x204] = y_robot_depart_2
+                dico_envoi[0x205] = -181+360
+                dico_envoi[0x206]= 5
+                if verif_mouv == 1:
+                    dico_envoi[0x207]=2
+                    pos_depart = True
+                else :
+                    dico_envoi[0x207]=1
+
+                for key, value in dico_envoi.items() :
+                    if value != 0:
+                        if key in [0x01,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
+                            format_value = struct.pack('<i',dico_envoi[key])
+                        else:
+                            format_value = struct.pack('<f',dico_envoi[key])
+                        msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
+                        bus.send(msg)
+                        dico_envoi[key]=0
+                        time.sleep(0.0006)
+
+            angle_depart = False
+            while(angle_depart == False):
+                dico_envoi[0x203] = x_robot_depart_2
+                dico_envoi[0x204] = y_robot_depart_2
+                dico_envoi[0x205] = angle_robot_depart_2+360
+                dico_envoi[0x206]= 4
+                if verif_angle == 1:
+                    dico_envoi[0x208]=2
+                    angle_depart = True
+                else :
+                    dico_envoi[0x208]=1
+                    
+                for key, value in dico_envoi.items() :
+                    if value != 0:
+                        if key in [0x01,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
+                            format_value = struct.pack('<i',dico_envoi[key])
+                        else:
+                            format_value = struct.pack('<f',dico_envoi[key])
+                        msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
+                        bus.send(msg)
+                        dico_envoi[key]=0
+                        time.sleep(0.0006)
 
     while(lancement_strategie==False and etat_jack == 1 and not stop_event.is_set()):
         if current_os == "Linux" and Reel:
@@ -971,7 +1088,7 @@ if __name__ == '__main__':
             Liste_actions_ennemi.append([random.randint(100, 2900),random.randint(100, 1900)])
         n_init = len(Liste_actions_ennemi)
 
-        while (not stop_event.is_set() and len(Liste_actions)!=0 and temps_restant >=0 and not RPI_decharge and not etat_bau): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
+        while (not stop_event.is_set() and temps_restant >=0 and not RPI_decharge and not etat_bau): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
             dico_envoi[0x01]=1
 
             temps_ecoules = time.time() - temps_demarage
