@@ -1,12 +1,12 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 
 Strategie = True
 Debug_strategie = True
 Astars = True
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Debug_Mouv = True
 Recalage = True
@@ -69,7 +69,7 @@ MARGE_NOISETTE = 0
 MARGE_GM = -35
 MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
-TOL_CAM_NOISETTE = 36
+TOL_CAM_NOISETTE = 35
 TOLERANCE_STRATEGIE_NOISETTE = 20
 FREQUENCE_AFFICHAGE = 12
 
@@ -1111,7 +1111,21 @@ if __name__ == '__main__':
 
             if not Noisette_init:
                 Liste_noisette_xya_cam_copie = Liste_noisette_xya_cam.copy()
-                distance_N_centre = math.sqrt(
+                for Noisette_couleurconnue in Liste_noisette_xya_cam_copie:
+                    if couleur == "B":
+                        if 2700<Noisette_couleurconnue[0]<2900 and 250<Noisette_couleurconnue[1]<550:
+                            Noisette_couleurconnue[1] += 30
+
+                        if 100<Noisette_couleurconnue[0]<300 and 250<Noisette_couleurconnue[1]<550:
+                            Noisette_couleurconnue[0] += 20
+                            Noisette_couleurconnue[1] += 10
+
+                        if 950<Noisette_couleurconnue[0]<1250 and 50<Noisette_couleurconnue[1]<350:
+                            Noisette_couleurconnue[0] += 0
+                            Noisette_couleurconnue[1] += 10
+
+
+                """distance_N_centre = math.sqrt(
                                 (Liste_noisette_xya_cam[0][0] - 1500)**2 + 
                                 (Liste_noisette_xya_cam[0][1] - 1000)**2
                             )
@@ -1146,7 +1160,7 @@ if __name__ == '__main__':
                         
                         # ⭐ MODIFICATION EFFECTIVE ⭐
                         # Cas Caméra côté jaune
-                        """if 0<Noisette_cam[0]<300 and 0<Noisette_cam[1]<500:
+                        if 0<Noisette_cam[0]<300 and 0<Noisette_cam[1]<500:
                             #Noisette_cam[0] = x_corrige
                             Noisette_cam[1] +=25
                         if 0<Noisette_cam[0]<300 and 800<Noisette_cam[1]<1500:
@@ -1165,10 +1179,11 @@ if __name__ == '__main__':
                             )
                             
                             # Garder la meilleure correspondance dans la tolérance
-                            
                             if distance_NN <= TOL_CAM_NOISETTE:
+                                print("distance_NN : ",distance_NN)
                                 Noisette_posconnue[3] = Noisette_couleurconnue[3]
                                 Liste_noisette_xya_cam_copie.remove(Noisette_couleurconnue)
+                                break
 
                 Liste_noisettes_restantes = [n for n in Liste_noisette_xya if n[3] == "R"]
                 if len(Liste_noisettes_restantes) != 0 :
