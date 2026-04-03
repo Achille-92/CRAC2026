@@ -188,7 +188,7 @@ PORT_ENVOI = 5000
 # Coordonnées et angle de notre robot (coordonnées initiales en haut)
 if couleur == "B":
     x_robot_depart = int(2400+LARGEUR_ROBOT/2)
-    y_robot_depart = int(2000-LONGUEUR_ROBOT/2)
+    y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
 
     x_robot_depart_2 = int(2400+LARGEUR_ROBOT/2+50)
@@ -224,7 +224,7 @@ if couleur == "B":
 
 else:
     x_robot_depart = int(600-LARGEUR_ROBOT/2)
-    y_robot_depart = int(2000-LONGUEUR_ROBOT/2)
+    y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = 90
 
     x_robot_depart_2 = int(600-LARGEUR_ROBOT/2+-0)
