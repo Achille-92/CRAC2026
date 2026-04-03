@@ -1,15 +1,15 @@
 couleur = "B"
 Reel = False
-Wifi = True
+Wifi = False
 
 Strategie = True
 Debug_strategie = True
 Astars = True
 
-Simul_mvt = False
+Simul_mvt = True
 Simul_mvt_ennemi = False
 Debug_Mouv = True
-Recalage = True
+Recalage = False
 Simul_action = True
 Debug_Action = True
 
@@ -187,15 +187,11 @@ PORT_ENVOI = 5000
 
 # Coordonnées et angle de notre robot (coordonnées initiales en haut)
 if couleur == "B":
-    x_robot_depart = int(2400+LARGEUR_ROBOT/2)
+    x_robot_depart = int(2400+LARGEUR_ROBOT/2+50)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
 
-    x_robot_depart_2 = int(2400+LARGEUR_ROBOT/2+50)
-    y_robot_depart_2 = int(1550+LONGUEUR_ROBOT/2+100)
-    angle_robot_depart_2 = -90
-
-    Liste_actions = [["Consigne",x_robot_depart,1350]]
+    Liste_actions = [["Consigne",x_robot_depart,1400]]
 
     x_robot_retour = 3000-LARGEUR_ROBOT/2-300
     y_robot_retour = 1800
@@ -217,15 +213,11 @@ if couleur == "B":
     ]
 
 else:
-    x_robot_depart = int(600-LARGEUR_ROBOT/2)
+    x_robot_depart = int(600-LARGEUR_ROBOT/2-50)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = 90
 
-    x_robot_depart_2 = int(600-LARGEUR_ROBOT/2-50)
-    y_robot_depart_2 = int(1550+LONGUEUR_ROBOT/2+100)
-    angle_robot_depart_2 = 90
-
-    Liste_actions = [["Consigne",x_robot_depart,1350]]
+    Liste_actions = [["Consigne",x_robot_depart,1400]]
     
     x_robot_retour = LARGEUR_ROBOT/2+300
     y_robot_retour = 1800
@@ -242,19 +234,10 @@ else:
     ]
 
 
-if not Reel: # Simulation 
-    x_robot_actuel = x_robot_depart
-    y_robot_actuel = y_robot_depart
-    angle_robot_actuel = angle_robot_depart
-else:# Reél
-    if Recalage:
-        x_robot_actuel = x_robot_depart_2
-        y_robot_actuel = y_robot_depart_2
-        angle_robot_actuel = angle_robot_depart_2
-    else:
-        x_robot_actuel = x_robot_depart
-        y_robot_actuel = y_robot_depart
-        angle_robot_actuel = angle_robot_depart
+
+x_robot_actuel = x_robot_depart
+y_robot_actuel = y_robot_depart
+angle_robot_actuel = angle_robot_depart
 
 x_robot_voulu = x_robot_actuel
 y_robot_voulu = y_robot_actuel
@@ -390,7 +373,8 @@ Pince_Ar_2 = True
 
 demande_recalcul_traj = False
 sortir_ennemi = False
-sortir_depart = False
+sortir_depart = True
+curseur_fait = False
 Astars_a_fail = False
 calcul_astar = False
 calcul_fait = False
@@ -422,19 +406,9 @@ grid_expanded = binary_dilation(grid, structure=structure)
 from scipy.ndimage import distance_transform_edt
 distance_map = distance_transform_edt(~grid_expanded)
 
-if not Reel: # Simulation 
-    x_robot_actuel_cam = x_robot_depart
-    y_robot_actuel_cam = y_robot_depart
-    angle_robot_actuel_cam = angle_robot_depart
-else:# Reél
-    if Recalage:
-        x_robot_actuel_cam = x_robot_depart_2
-        y_robot_actuel_cam = y_robot_depart_2
-        angle_robot_actuel_cam = angle_robot_depart_2
-    else:
-        x_robot_actuel_cam = x_robot_depart
-        y_robot_actuel_cam = y_robot_depart
-        angle_robot_actuel_cam = angle_robot_depart
+x_robot_actuel_cam = x_robot_depart
+y_robot_actuel_cam = y_robot_depart
+angle_robot_actuel_cam = angle_robot_depart
 
 x_ennemi_cam = x_ennemi
 y_ennemi_cam = y_ennemi
@@ -920,88 +894,54 @@ if __name__ == '__main__':
                 if etat_bau == 1:
                     stop_event.set()
                 print("Recalage de départ en cours")
-                dico_envoi[0x01]=1
+
+                bus.send(can.Message(arbitration_id=0x01, data=struct.pack('<i',1), is_extended_id=False))
                 if couleur == "B":
-                    dico_envoi[0x206]= 7
+                    bus.send(can.Message(arbitration_id=0x206, data=struct.pack('<i',7), is_extended_id=False))
                 if couleur == "J":
-                    dico_envoi[0x206]= 8
+                    bus.send(can.Message(arbitration_id=0x206, data=struct.pack('<i',8), is_extended_id=False))
 
                 if verif_recalage == 1:
                     recalage_depart = True
-                    dico_envoi[0x209]=2
+                    bus.send(can.Message(arbitration_id=0x209, data=struct.pack('<i',2), is_extended_id=False))
                 else :
-                    dico_envoi[0x209]=1
-                    
-                for key, value in dico_envoi.items() :
-                    if value != 0:
-                        if key in [0x01,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
-                            format_value = struct.pack('<i',dico_envoi[key])
-                        else:
-                            format_value = struct.pack('<f',dico_envoi[key])
-                        msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
-                        bus.send(msg)
-                        dico_envoi[key]=0
-                        time.sleep(0.0006)
-                time.sleep(0.1)
+                    bus.send(can.Message(arbitration_id=0x209, data=struct.pack('<i',1), is_extended_id=False))
+
+                time.sleep(0.01)
 
             pos_depart = False
             ordre_mouvement=5
-            dico_envoi[0x206]= ordre_mouvement
-            bus.send(can.Message(arbitration_id=0x206, data=struct.pack('<i',dico_envoi[0x206]), is_extended_id=False))
             while(pos_depart == False and not stop_event.is_set()):
                 if etat_bau == 1:
                     stop_event.set()
                 print("X et Y de départ en cours")
-                dico_envoi[0x203] = x_robot_depart_2
-                dico_envoi[0x204] = y_robot_depart_2
-                dico_envoi[0x205] = -181+360
-                ordre_mouvement=5
-                dico_envoi[0x206]= ordre_mouvement
+                bus.send(can.Message(arbitration_id=0x203, data=struct.pack('<f',x_robot_depart), is_extended_id=False))
+                bus.send(can.Message(arbitration_id=0x204, data=struct.pack('<f',y_robot_depart), is_extended_id=False))
+                bus.send(can.Message(arbitration_id=0x206, data=struct.pack('<i',5), is_extended_id=False))
 
                 if verif_mouv == 1:
-                    dico_envoi[0x207]=2
+                    bus.send(can.Message(arbitration_id=0x207, data=struct.pack('<i',2), is_extended_id=False))
                     pos_depart = True
                 else :
-                    dico_envoi[0x207]=1
-                print("dico_envoi[0x206] : ",dico_envoi[0x206])
-                for key, value in dico_envoi.items() :
-                    if value != 0:
-                        if key in [0x01,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
-                            format_value = struct.pack('<i',dico_envoi[key])
-                        else:
-                            format_value = struct.pack('<f',dico_envoi[key])
-                        msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
-                        bus.send(msg)
-                        dico_envoi[key]=0
-                        time.sleep(0.0006)
-                time.sleep(0.1)
+                    bus.send(can.Message(arbitration_id=0x207, data=struct.pack('<i',1), is_extended_id=False))
+                    
+                time.sleep(0.01)
 
             angle_depart = False
             while(angle_depart == False and not stop_event.is_set()):
                 if etat_bau == 1:
                     stop_event.set()
                 print("Angle de départ en cours")
-                dico_envoi[0x203] = x_robot_depart_2
-                dico_envoi[0x204] = y_robot_depart_2
-                dico_envoi[0x205] = angle_robot_depart_2+360
-                dico_envoi[0x206]= 4
+                bus.send(can.Message(arbitration_id=0x205, data=struct.pack('<f',angle_robot_depart+360), is_extended_id=False))
+                bus.send(can.Message(arbitration_id=0x206, data=struct.pack('<i',4), is_extended_id=False))
+
                 if verif_angle == 1:
-                    dico_envoi[0x208]=2
+                    bus.send(can.Message(arbitration_id=0x208, data=struct.pack('<i',2), is_extended_id=False))
                     angle_depart = True
                 else :
-                    dico_envoi[0x208]=1
+                    bus.send(can.Message(arbitration_id=0x208, data=struct.pack('<i',1), is_extended_id=False))
                     
-                for key, value in dico_envoi.items() :
-                    if value != 0:
-                        if key in [0x01,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
-                            format_value = struct.pack('<i',dico_envoi[key])
-                        else:
-                            format_value = struct.pack('<f',dico_envoi[key])
-                        msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
-                        bus.send(msg)
-                        dico_envoi[key]=0
-                        time.sleep(0.0006)
-                time.sleep(0.1)
+                time.sleep(0.01)
 
     while(lancement_strategie==False and etat_jack == 1 and not stop_event.is_set()):
         if current_os == "Linux" and Reel:
@@ -1169,6 +1109,7 @@ if __name__ == '__main__':
                 
                 """for i in Liste_noisette_xya_cam:
                     Liste_noisette_xya.append(i)"""
+                
                 for Noisette_posconnue in Liste_noisette_xya:
                     if Noisette_posconnue[3] == "R":
                         for Noisette_couleurconnue in Liste_noisette_xya_cam_copie:
@@ -1327,8 +1268,8 @@ if __name__ == '__main__':
 
             if demande_nouvelle_strat and sortir_depart:
                 demande_nouvelle_strat = False
-                x_strategie = Liste_strategie[0][0]
-                y_strategie = Liste_strategie[0][1]
+                """x_strategie = Liste_strategie[0][0]
+                y_strategie = Liste_strategie[0][1]"""
                 if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
                     aller_Noisette = True
                     aller_GM = False
@@ -1345,7 +1286,7 @@ if __name__ == '__main__':
             # ========================================= #
             
             # === Retour au Nid au bout d'un certains temps === #
-            if temps_restant <= temps_retour and not reset_fin:
+            if temps_restant <= temps_retour and not reset_fin and action_voulu in ["Attente"]:
                 Liste_actions.clear() 
                 Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour)],["Rotation",angle_robot_retour],["Attente_test"]]
                 reset_fin = True
@@ -2044,10 +1985,10 @@ if __name__ == '__main__':
                     sortir_ennemi = False
                     x_sortie_fixe = None
                     y_sortie_fixe = None
-                    if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
+                    """if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
                         Liste_strategie.pop(0)
                         demande_nouvelle_strat = True
-                        demande_recalcul_traj = True
+                        demande_recalcul_traj = True"""
             else :
                 action_est_supprime = False
             
