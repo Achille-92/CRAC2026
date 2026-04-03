@@ -9,7 +9,7 @@ Astars = True
 Simul_mvt = True
 Simul_mvt_ennemi = False
 Debug_Mouv = True
-
+Recalage = True
 Simul_action = True
 Debug_Action = True
 
@@ -198,7 +198,7 @@ if couleur == "B":
     if not Reel: # Simulation 
         Liste_actions = [["Consigne",x_robot_depart,1350]]
     else:# Reél
-        if Bat_Compet:
+        if Recalage:
             Liste_actions = [["Consigne",x_robot_depart_2,1350]]
         else:
             Liste_actions = [["Consigne",x_robot_depart,1350]]
@@ -234,7 +234,7 @@ else:
     if not Reel: # Simulation 
         Liste_actions = [["Consigne",x_robot_depart,1350]]
     else:# Reél
-        if Bat_Compet:
+        if Recalage:
             Liste_actions = [["Consigne",x_robot_depart_2,1350]]
         else:
             Liste_actions = [["Consigne",x_robot_depart,1350]]
@@ -259,7 +259,7 @@ if not Reel: # Simulation
     y_robot_actuel = y_robot_depart
     angle_robot_actuel = angle_robot_depart
 else:# Reél
-    if Bat_Compet:
+    if Recalage:
         x_robot_actuel = x_robot_depart_2
         y_robot_actuel = y_robot_depart_2
         angle_robot_actuel = angle_robot_depart_2
@@ -439,7 +439,7 @@ if not Reel: # Simulation
     y_robot_actuel_cam = y_robot_depart
     angle_robot_actuel_cam = angle_robot_depart
 else:# Reél
-    if Bat_Compet:
+    if Recalage:
         x_robot_actuel_cam = x_robot_depart_2
         y_robot_actuel_cam = y_robot_depart_2
         angle_robot_actuel_cam = angle_robot_depart_2
@@ -912,7 +912,7 @@ if __name__ == '__main__':
             print(f"Attente BAU")
             time.sleep(0.1)
         
-        time.sleep(2)
+        time.sleep(5)
         dico_envoi[0x200]=x_robot_depart
         dico_envoi[0x201]=y_robot_depart
         dico_envoi[0x202]=angle_robot_depart
@@ -923,7 +923,7 @@ if __name__ == '__main__':
         dico_envoi[0x201]=0
         dico_envoi[0x202]=0
 
-        if Bat_Compet: # Mode competition : recalage de départ automatique
+        if Recalage: 
             recalage_depart = False
             
             while(recalage_depart == False):
@@ -950,8 +950,10 @@ if __name__ == '__main__':
                         bus.send(msg)
                         dico_envoi[key]=0
                         time.sleep(0.0006)
+
             pos_depart = False
             while(pos_depart == False):
+                print("X et Y de départ en cours")
                 dico_envoi[0x203] = x_robot_depart_2
                 dico_envoi[0x204] = y_robot_depart_2
                 dico_envoi[0x205] = -181+360
@@ -975,6 +977,7 @@ if __name__ == '__main__':
 
             angle_depart = False
             while(angle_depart == False):
+                print("Angle de départ en cours")
                 dico_envoi[0x203] = x_robot_depart_2
                 dico_envoi[0x204] = y_robot_depart_2
                 dico_envoi[0x205] = angle_robot_depart_2+360
