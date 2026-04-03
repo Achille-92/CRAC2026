@@ -195,17 +195,11 @@ if couleur == "B":
     y_robot_depart_2 = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart_2 = -90
 
-    if not Reel: # Simulation 
-        Liste_actions = [["Consigne",x_robot_depart,1350]]
-    else:# Reél
-        if Recalage:
-            Liste_actions = [["Consigne",x_robot_depart_2,1350]]
-        else:
-            Liste_actions = [["Consigne",x_robot_depart,1350]]
+    Liste_actions = [["Consigne",x_robot_depart,1350]]
 
-    x_robot_retour = 3000-LARGEUR_ROBOT/2-200
-    y_robot_retour = 1750
-    angle_robot_retour = 90
+    x_robot_retour = 3000-LARGEUR_ROBOT/2-300
+    y_robot_retour = 1800
+    angle_robot_retour = -90
     
     x_ennemi = 275
     y_ennemi = 1650
@@ -227,20 +221,14 @@ else:
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = 90
 
-    x_robot_depart_2 = int(600-LARGEUR_ROBOT/2+-0)
+    x_robot_depart_2 = int(600-LARGEUR_ROBOT/2-50)
     y_robot_depart_2 = int(1550+LONGUEUR_ROBOT/2+100)
-    angle_robot_depart_2 = -90
+    angle_robot_depart_2 = 90
 
-    if not Reel: # Simulation 
-        Liste_actions = [["Consigne",x_robot_depart,1350]]
-    else:# Reél
-        if Recalage:
-            Liste_actions = [["Consigne",x_robot_depart_2,1350]]
-        else:
-            Liste_actions = [["Consigne",x_robot_depart,1350]]
+    Liste_actions = [["Consigne",x_robot_depart,1350]]
     
-    x_robot_retour = LARGEUR_ROBOT/2+200
-    y_robot_retour = 1750
+    x_robot_retour = LARGEUR_ROBOT/2+300
+    y_robot_retour = 1800
     angle_robot_retour = 90
 
     x_ennemi = 2725 
@@ -954,8 +942,12 @@ if __name__ == '__main__':
                         bus.send(msg)
                         dico_envoi[key]=0
                         time.sleep(0.0006)
+                time.sleep(0.1)
 
             pos_depart = False
+            ordre_mouvement=5
+            dico_envoi[0x206]= ordre_mouvement
+            bus.send(can.Message(arbitration_id=0x206, data=struct.pack('<i',dico_envoi[0x206]), is_extended_id=False))
             while(pos_depart == False and not stop_event.is_set()):
                 if etat_bau == 1:
                     stop_event.set()
@@ -963,13 +955,15 @@ if __name__ == '__main__':
                 dico_envoi[0x203] = x_robot_depart_2
                 dico_envoi[0x204] = y_robot_depart_2
                 dico_envoi[0x205] = -181+360
-                dico_envoi[0x206]= 5
+                ordre_mouvement=5
+                dico_envoi[0x206]= ordre_mouvement
+
                 if verif_mouv == 1:
                     dico_envoi[0x207]=2
                     pos_depart = True
                 else :
                     dico_envoi[0x207]=1
-
+                print("dico_envoi[0x206] : ",dico_envoi[0x206])
                 for key, value in dico_envoi.items() :
                     if value != 0:
                         if key in [0x01,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
@@ -980,6 +974,7 @@ if __name__ == '__main__':
                         bus.send(msg)
                         dico_envoi[key]=0
                         time.sleep(0.0006)
+                time.sleep(0.1)
 
             angle_depart = False
             while(angle_depart == False and not stop_event.is_set()):
@@ -1006,6 +1001,7 @@ if __name__ == '__main__':
                         bus.send(msg)
                         dico_envoi[key]=0
                         time.sleep(0.0006)
+                time.sleep(0.1)
 
     while(lancement_strategie==False and etat_jack == 1 and not stop_event.is_set()):
         if current_os == "Linux" and Reel:
@@ -1336,7 +1332,7 @@ if __name__ == '__main__':
             # === Retour au Nid au bout d'un certains temps === #
             if temps_restant <= temps_retour and not reset_fin:
                 Liste_actions.clear() 
-                Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour)],["Rotation",angle_robot_retour]]
+                Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour)],["Rotation",angle_robot_retour],["Attente_test"]]
                 reset_fin = True
             # ================================================= #
 
