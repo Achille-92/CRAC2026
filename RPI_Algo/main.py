@@ -7,7 +7,7 @@ Debug_strategie = True
 Astars = True
 
 Simul_mvt = True
-Simul_mvt_ennemi = False
+Simul_mvt_ennemi = True
 Debug_Mouv = True
 Recalage = False
 Simul_action = True
@@ -119,6 +119,8 @@ Liste_noisette_xya = [
 
     [1025,175,90,"R"],[1075,175,90,"R"],[1125,175,90,"R"],[1175,175,90,"R"],
     [1825,175,90,"R"],[1875,175,90,"R"],[1925,175,90,"R"],[1975,175,90,"R"],
+
+    #[2500,1600,0,"R"],[2500,1650,0,"R"],[2500,1700,0,"R"],[2500,1750,0,"R"],
     
 ] 
 Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
@@ -213,6 +215,7 @@ if couleur == "B":
     y_ennemi = 1650
     
     Liste_strategie = [
+        [1050,175],
         [2825,450],
         [2825,350],
         [2150,800],
@@ -1041,10 +1044,10 @@ if __name__ == '__main__':
             tache_Astar = threading.Thread(target=calcul_traj, args=(stop_event,), daemon=False)
             tache_Astar.start()"""
 
-        n = random.randint(8, 15)
-        Liste_actions_ennemi = [[1000,500],[1500,1000],[2700,500]]
-        for i in range(n):
-            Liste_actions_ennemi.append([random.randint(100, 2900),random.randint(100, 1900)])
+        #n = random.randint(8, 15)
+        Liste_actions_ennemi = [[2400,700]]
+        """for i in range(n):
+            Liste_actions_ennemi.append([random.randint(100, 2900),random.randint(100, 1900)])"""
         n_init = len(Liste_actions_ennemi)
 
         while (not stop_event.is_set() and temps_restant >=0 and not RPI_decharge and not etat_bau): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
@@ -1358,12 +1361,17 @@ if __name__ == '__main__':
                                     print("Point de Traj dans Périmètre ennemi")
                                 demande_recalcul_traj = True
                                 break
+            if Astars:
+                if distance_robot_ennemi < R_securite:
+                    if Debug_Mouv:
+                        print("Ennemi trop proche du robot")
+                    demande_recalcul_traj = True
             if Debug_Mouv:
                 print("demande_recalcul_traj : ",demande_recalcul_traj)
             # ======================================================================== #
             
             # ======================== CALCUL DE LA TRAJECTOIRE A* =================== #
-            if Astars and sortir_depart: 
+            if Astars and sortir_depart : 
                 # === CALCUL DE LA TRAJECTOIRE A* ===
                 if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper and not sortir_ennemi:
                     grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
@@ -1440,27 +1448,30 @@ if __name__ == '__main__':
                                 if Debug_Mouv:
                                     print("ENNEMI TROP PROCHE")
 
-                                """elif grid_expanded[x_case_robot, y_case_robot]:
-                                    print("⚠️ Robot dans zone interdite — recherche case libre proche")
-                                    x_libre, y_libre = trouver_case_libre_proche(
-                                        x_robot_actuel, y_robot_actuel,
-                                        grid_expanded, CASE_MM, width, height,
-                                        rayon_max_mm=500
-                                    )
-                                    if x_libre is not None and y_libre is not None:
-                                        print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
-                                        # Insérer un Avancer prioritaire vers ce point
-                                        #if action_precedente not in ["Relacher"]:
+                            elif grid_expanded[x_case_robot, y_case_robot]:
+                                print("⚠️ Robot dans zone interdite — recherche case libre proche")
+                                x_libre, y_libre = trouver_case_libre_proche(
+                                    x_robot_actuel, y_robot_actuel,
+                                    grid_expanded, CASE_MM, width, height,
+                                    rayon_max_mm=500
+                                )
+                                if x_libre is not None and y_libre is not None:
+                                    x_prochain = Liste_actions[0][1]
+                                    y_prochain = Liste_actions[0][2]
+                                    distance_sortie = math.sqrt((x_prochain - x_libre)**2 + (y_prochain - y_libre)**2)
+                                    print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
+                                    # Insérer un Avancer prioritaire vers ce point
+                                    if distance_sortie >50:  # Seuil de proximité pour décider de se diriger vers la case libre
                                         if action_voulu in ["Consigne", "Avancer"]:
                                             Liste_actions.insert(0, ["ReculerPrecis", int(x_libre), int(y_libre)])
                                         elif action_voulu in ["ReculerPrecis", "Reculer"]:
                                             Liste_actions.insert(0, ["Consigne", int(x_libre), int(y_libre)])
                                         demande_recalcul_traj = True
                                         Astars_a_fail = False
-                                    else:
-                                        print("❌ Aucune case libre trouvée dans le rayon de recherche")
-                                        demande_nouvelle_strat = True
-                                        Astars_a_fail = True"""
+                                else:
+                                    print("❌ Aucune case libre trouvée dans le rayon de recherche")
+                                    demande_nouvelle_strat = True
+                                    Astars_a_fail = True
                             else:
                                 # Robot pas dans zone rouge mais chemin inaccessible
                                 # → la destination est peut-être bloquée
@@ -1513,7 +1524,7 @@ if __name__ == '__main__':
             else :
                 ordre_mouvement=100
             
-            
+            print("ordre_mouvement : ",ordre_mouvement)
             print("Action en cours : "+ action_voulu)
             if Debug_Mouv:
                 print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
