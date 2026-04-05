@@ -226,7 +226,7 @@ if couleur == "B":
         #[2900,750],
         #[2900,850],
     ]
-
+ 
 else:
     x_robot_depart = int(600-LARGEUR_ROBOT/2-50)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
