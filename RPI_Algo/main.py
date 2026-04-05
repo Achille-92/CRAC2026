@@ -120,7 +120,7 @@ Liste_noisette_xya = [
     [1025,175,90,"R"],[1075,175,90,"R"],[1125,175,90,"R"],[1175,175,90,"R"],
     [1825,175,90,"R"],[1875,175,90,"R"],[1925,175,90,"R"],[1975,175,90,"R"],
 
-    #[2500,1600,0,"R"],[2500,1650,0,"R"],[2500,1700,0,"R"],[2500,1750,0,"R"],
+    [2500,1600,0,"R"],[2500,1650,0,"R"],[2500,1700,0,"R"],[2500,1750,0,"R"],
     
 ] 
 Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
@@ -221,8 +221,8 @@ if couleur == "B":
         [2150,800],
         #[2300,1700],
         [2250,800],
-        #[2825,1150],
-        #[2825,1250],
+        [2825,1250],
+        [2825,1150],
         #[2900,750],
         #[2900,850],
     ]
@@ -1283,8 +1283,11 @@ if __name__ == '__main__':
 
             if demande_nouvelle_strat and sortir_depart:
                 demande_nouvelle_strat = False
-                """x_strategie = Liste_strategie[0][0]
-                y_strategie = Liste_strategie[0][1]"""
+                if x_strategie == Liste_strategie[0][0] and y_strategie == Liste_strategie[0][1]:
+                    couple_strat = Liste_strategie.pop(0)
+                    Liste_strategie.append(couple_strat)
+                x_strategie = Liste_strategie[0][0]
+                y_strategie = Liste_strategie[0][1]
                 if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
                     aller_Noisette = True
                     aller_GM = False
@@ -1462,10 +1465,13 @@ if __name__ == '__main__':
                                     print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
                                     # Insérer un Avancer prioritaire vers ce point
                                     if distance_sortie >50:  # Seuil de proximité pour décider de se diriger vers la case libre
+                                        angle_vers_libre = np.degrees(math.atan2(y_libre - y_robot_actuel, x_libre - x_robot_actuel))
+                                        x_plusloin = x_libre + 20 * math.cos(math.radians(angle_vers_libre))
+                                        y_plusloin = y_libre + 20 * math.sin(math.radians(angle_vers_libre))
                                         if action_voulu in ["Consigne", "Avancer"]:
-                                            Liste_actions.insert(0, ["ReculerPrecis", int(x_libre), int(y_libre)])
+                                            Liste_actions.insert(0, ["ReculerPrecis", int(x_plusloin), int(y_plusloin)])
                                         elif action_voulu in ["ReculerPrecis", "Reculer"]:
-                                            Liste_actions.insert(0, ["Consigne", int(x_libre), int(y_libre)])
+                                            Liste_actions.insert(0, ["Consigne", int(x_plusloin), int(y_plusloin)])
                                         demande_recalcul_traj = True
                                         Astars_a_fail = False
                                 else:
@@ -2008,10 +2014,10 @@ if __name__ == '__main__':
                     sortir_ennemi = False
                     x_sortie_fixe = None
                     y_sortie_fixe = None
-                    """if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
+                    if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
                         Liste_strategie.pop(0)
                         demande_nouvelle_strat = True
-                        demande_recalcul_traj = True"""
+                        demande_recalcul_traj = True
             else :
                 action_est_supprime = False
             
