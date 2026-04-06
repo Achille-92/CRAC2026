@@ -1188,6 +1188,8 @@ if __name__ == '__main__':
 
             ###
             
+
+
             # ======================== Tri Noisettes ============================================= #
             groupes_initiaux, adjacence = trouver_groupes_initiaux(Liste_noisette_xya)
             Noisettes_groupees = []
@@ -1497,49 +1499,56 @@ if __name__ == '__main__':
                         
                         # Reculer selon la dernière trajectoire, si possible alors le faire, sinon prendre l'algorithme de fuite
                         angle_ennemi_robot = math.atan2(y_robot_actuel - y_ennemi, x_robot_actuel - x_ennemi)
-                        x_test = x_robot_actuel + 50 * math.cos(angle_ennemi_robot)
-                        y_test = y_robot_actuel + 50 * math.sin(angle_ennemi_robot)
+                        x_test = x_robot_actuel + (R_securite - distance_robot_ennemi + 30) * math.cos(angle_ennemi_robot)
+                        y_test = y_robot_actuel + (R_securite - distance_robot_ennemi + 30) * math.sin(angle_ennemi_robot)
                         angle_consigne_robot = np.degrees(math.atan2(y_robot_actuel - y_robot_voulu, x_robot_actuel - x_robot_voulu))
                         distance_prochain_test = math.sqrt((x_test - x_robot_voulu)**2 + (y_test - y_robot_voulu)**2)
-                        if distance_prochain_test > 40:
-                            if not(angle_consigne_robot-90 < np.degrees(angle_ennemi_robot) < angle_consigne_robot+90):
-                                # Même direction
-                                if action_voulu in ["Consigne", "Avancer"]:
-                                    Liste_actions.insert(0, ["Consigne", int(x_test), int(y_test)])
-                                if action_voulu in ["ReculerPrecis", "Reculer"]:
-                                    Liste_actions.insert(0, ["ReculerPrecis", int(x_test), int(y_test)])
-                            else:
-                                # Direction opposée
-                                if action_voulu in ["Consigne", "Avancer"]:
-                                    Liste_actions.insert(0, ["ReculerPrecis", int(x_test), int(y_test)])
-                                if action_voulu in ["ReculerPrecis", "Reculer"]:
-                                    Liste_actions.insert(0, ["Consigne", int(x_test), int(y_test)])
+                        x_case_test = max(0, min(width - 1, int(x_test // CASE_MM)))
+                        y_case_test = max(0, min(height - 1, int(y_test // CASE_MM)))
 
-                        """x_libre, y_libre = trouver_case_libre_proche(
-                            x_robot_actuel, y_robot_actuel,
-                            grid_expanded, CASE_MM, width, height,
-                            rayon_max_mm=500
-                        )
-                        if x_libre is not None and y_libre is not None:
-                            x_prochain = Liste_actions[0][1]
-                            y_prochain = Liste_actions[0][2]
-                            distance_sortie = math.sqrt((x_prochain - x_libre)**2 + (y_prochain - y_libre)**2)
-                            print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
-                            # Insérer un Avancer prioritaire vers ce point
-                            if distance_sortie >50:  # Seuil de proximité pour décider de se diriger vers la case libre
-                                angle_vers_libre = np.degrees(math.atan2(y_libre - y_robot_actuel, x_libre - x_robot_actuel))
-                                x_plusloin = x_libre + 20 * math.cos(math.radians(angle_vers_libre))
-                                y_plusloin = y_libre + 20 * math.sin(math.radians(angle_vers_libre))
-                                if action_voulu in ["Consigne", "Avancer"]:
-                                    Liste_actions.insert(0, ["ReculerPrecis", int(x_plusloin), int(y_plusloin)])
-                                elif action_voulu in ["ReculerPrecis", "Reculer"]:
-                                    Liste_actions.insert(0, ["Consigne", int(x_plusloin), int(y_plusloin)])
-                                demande_recalcul_traj = True
-                                Astars_a_fail = False
+                        if grid_expanded[x_case_robot, y_case_robot]:
+                            print("⚠️ Robot dans zone interdite — recherche case libre proche")
+                            x_libre, y_libre = trouver_case_libre_proche(
+                                x_robot_actuel, y_robot_actuel,
+                                grid_expanded, CASE_MM, width, height,
+                                rayon_max_mm=500
+                            )
+                            if x_libre is not None and y_libre is not None:
+                                x_prochain = Liste_actions[0][1]
+                                y_prochain = Liste_actions[0][2]
+                                distance_sortie = math.sqrt((x_prochain - x_libre)**2 + (y_prochain - y_libre)**2)
+                                print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
+                                # Insérer un Avancer prioritaire vers ce point
+                                if distance_sortie >50:  # Seuil de proximité pour décider de se diriger vers la case libre
+                                    angle_vers_libre = np.degrees(math.atan2(y_libre - y_robot_actuel, x_libre - x_robot_actuel))
+                                    x_plusloin = x_libre + 20 * math.cos(math.radians(angle_vers_libre))
+                                    y_plusloin = y_libre + 20 * math.sin(math.radians(angle_vers_libre))
+                                    if action_voulu in ["Consigne", "Avancer"]:
+                                        Liste_actions.insert(0, ["ReculerPrecis", int(x_plusloin), int(y_plusloin)])
+                                    elif action_voulu in ["ReculerPrecis", "Reculer"]:
+                                        Liste_actions.insert(0, ["Consigne", int(x_plusloin), int(y_plusloin)])
+                            else:
+                                print("❌ Aucune case libre trouvée dans le rayon de recherche")
+                                demande_nouvelle_strat = True
+                                Astars_a_fail = True
                         else:
-                            print("❌ Aucune case libre trouvée dans le rayon de recherche")
-                            demande_nouvelle_strat = True
-                            Astars_a_fail = True"""            
+                            if distance_prochain_test > 40:
+                                if not(angle_consigne_robot-90 <= np.degrees(angle_ennemi_robot) < angle_consigne_robot+90):
+                                    # Même direction
+                                    print("Dans condition")
+                                    if action_voulu in ["Consigne", "Avancer"]:
+                                        Liste_actions.insert(0, ["Consigne", int(x_test), int(y_test)])
+                                    if action_voulu in ["ReculerPrecis", "Reculer"]:
+                                        Liste_actions.insert(0, ["ReculerPrecis", int(x_test), int(y_test)])
+                                else:
+                                    # Direction opposée
+                                    print("Hors condition")
+                                    if action_voulu in ["Consigne", "Avancer"]:
+                                        Liste_actions.insert(0, ["ReculerPrecis", int(x_test), int(y_test)])
+                                    if action_voulu in ["ReculerPrecis", "Reculer"]:
+                                        Liste_actions.insert(0, ["Consigne", int(x_test), int(y_test)])
+
+                          
             # ======================================================================== #
             
             # ========== Lire l'action courante =============== #
