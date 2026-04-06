@@ -7,7 +7,7 @@ Debug_strategie = True
 Astars = True
 
 Simul_mvt = True
-Simul_mvt_ennemi = True
+Simul_mvt_ennemi = False
 Debug_Mouv = True
 Recalage = False
 Simul_action = True
@@ -215,16 +215,18 @@ if couleur == "B":
     y_ennemi = 1650
     
     Liste_strategie = [
-        [1050,175],
         [2825,450],
         [2825,350],
-        [2150,800],
-        #[2300,1700],
-        [2250,800],
+        [2950,850],
+        [2950,750],
+        [2300,50],
         [2825,1250],
         [2825,1150],
-        [2900,750],
-        [2900,850],
+        [2150,800],
+        [2250,800],
+        #[2300,1700],
+        #[2900,750],
+        #[2900,850],
     ]
  
 else:
@@ -1304,8 +1306,9 @@ if __name__ == '__main__':
                 
             # ========================================= #
             
+            
             # === Retour au Nid au bout d'un certains temps === #
-            if temps_restant <= temps_retour and not reset_fin and action_voulu in ["Attente"]:
+            if temps_restant <= temps_retour and not reset_fin :
                 Liste_actions.clear() 
                 Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour)],["Rotation",angle_robot_retour],["Attente_test"]]
                 reset_fin = True
@@ -1499,14 +1502,14 @@ if __name__ == '__main__':
                         
                         # Reculer selon la dernière trajectoire, si possible alors le faire, sinon prendre l'algorithme de fuite
                         angle_ennemi_robot = math.atan2(y_robot_actuel - y_ennemi, x_robot_actuel - x_ennemi)
-                        x_test = x_robot_actuel + (R_securite - distance_robot_ennemi + 30) * math.cos(angle_ennemi_robot)
-                        y_test = y_robot_actuel + (R_securite - distance_robot_ennemi + 30) * math.sin(angle_ennemi_robot)
+                        x_test = x_robot_actuel + (R_securite - distance_robot_ennemi + 40) * math.cos(angle_ennemi_robot)
+                        y_test = y_robot_actuel + (R_securite - distance_robot_ennemi + 40) * math.sin(angle_ennemi_robot)
                         angle_consigne_robot = np.degrees(math.atan2(y_robot_actuel - y_robot_voulu, x_robot_actuel - x_robot_voulu))
                         distance_prochain_test = math.sqrt((x_test - x_robot_voulu)**2 + (y_test - y_robot_voulu)**2)
                         x_case_test = max(0, min(width - 1, int(x_test // CASE_MM)))
                         y_case_test = max(0, min(height - 1, int(y_test // CASE_MM)))
 
-                        if grid_expanded[x_case_robot, y_case_robot]:
+                        if grid_expanded[x_case_test, y_case_test]:
                             print("⚠️ Robot dans zone interdite — recherche case libre proche")
                             x_libre, y_libre = trouver_case_libre_proche(
                                 x_robot_actuel, y_robot_actuel,
@@ -1529,10 +1532,8 @@ if __name__ == '__main__':
                                         Liste_actions.insert(0, ["Consigne", int(x_plusloin), int(y_plusloin)])
                             else:
                                 print("❌ Aucune case libre trouvée dans le rayon de recherche")
-                                demande_nouvelle_strat = True
-                                Astars_a_fail = True
                         else:
-                            if distance_prochain_test > 40:
+                            if distance_prochain_test > 60:
                                 if not(angle_consigne_robot-90 <= np.degrees(angle_ennemi_robot) < angle_consigne_robot+90):
                                     # Même direction
                                     print("Dans condition")

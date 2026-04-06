@@ -474,11 +474,6 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
             print("pince_a_utilise",pince_a_utilise)
             print("sous_pince : ",sous_pince)
 
-            x_centre_gm = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
-            y_centre_gm = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
-            print(x_centre_gm)
-            print(y_centre_gm)
-
             Strat_Noisettes_dans_GM = []
             for Noisette in Liste_noisette_xya:
                 x_centre, y_centre, angle = Noisette[0], Noisette[1], Noisette[2]
@@ -513,6 +508,11 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                 # Vérifier si au moins un coin est dans la zone
                 if any(x_min <= coin[0] <= x_max and y_min <= coin[1] <= y_max for coin in coins):
                     Strat_Noisettes_dans_GM.append(Noisette)
+            
+            x_centre_gm = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
+            y_centre_gm = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
+            print(x_centre_gm)
+            print(y_centre_gm)
 
             print("Strat_Noisettes_dans_GM : ",Strat_Noisettes_dans_GM)
             if Strat_Noisettes_dans_GM != []:
@@ -608,30 +608,6 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                         print("Faire les 2 points de la Noisette")
 
             else:
-
-                angle_robot_gm = np.degrees(math.atan2(y_centre_gm - y_robot_actuel, x_centre_gm - x_robot_actuel))
-                angle_robot_gm += 360
-                angle_robot_gm %= 360
-                print("angle_robot_gm : ",angle_robot_gm)
-                if 45<=angle_robot_gm<135:
-                    print("haut")
-                    x_cote = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
-                    y_cote = Liste_zones_gm_coins[strategie_en_cours][1][1]
-                if 0<=angle_robot_gm<45 or 315<=angle_robot_gm<360:
-                    print("droite")
-                    x_cote = Liste_zones_gm_coins[strategie_en_cours][1][0]
-                    y_cote = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
-                if 135<=angle_robot_gm<225:
-                    print("gauche")
-                    x_cote = Liste_zones_gm_coins[strategie_en_cours][0][0]
-                    y_cote = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
-                if 225<=angle_robot_gm<315:
-                    print("bas")
-                    x_cote = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
-                    y_cote = Liste_zones_gm_coins[strategie_en_cours][0][1]
-
-                print("x_cote : ",x_cote,"  y_cote : ",y_cote)
-
                 if sous_pince == 12 or sous_pince == 2:
                     print("33333333333333")
                     distance = 100 + 25 + MARGE_GM + LONGUEUR_ROBOT/2
@@ -640,15 +616,10 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                     print("4444444444444")
                     distance = 50 + 25 + MARGE_GM + LONGUEUR_ROBOT/2
                     distanceA = 50 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 170
-                angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
-                print("angle_centre_cote : ",np.degrees(angle_centre_cote))
-                x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
-                y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
-                x_arrivee_Astar = x_cote + distanceA*math.cos(angle_centre_cote)
-                y_arrivee_Astar = y_cote + distanceA*math.sin(angle_centre_cote)
-                if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar // CASE_MM)))]:
-                    print("Tourner de 90°")
-                    angle_robot_gm -= 90
+
+                if 3<=strategie_en_cours<=5: 
+                    angle_robot_gm = np.degrees(math.atan2(y_centre_gm - y_robot_actuel, x_centre_gm - x_robot_actuel))
+                    angle_robot_gm += 360
                     angle_robot_gm %= 360
                     print("angle_robot_gm : ",angle_robot_gm)
                     if 45<=angle_robot_gm<135:
@@ -669,6 +640,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                         y_cote = Liste_zones_gm_coins[strategie_en_cours][0][1]
 
                     print("x_cote : ",x_cote,"  y_cote : ",y_cote)
+
                     angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
                     print("angle_centre_cote : ",np.degrees(angle_centre_cote))
                     x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
@@ -734,14 +706,48 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                             x_arrivee_Astar = x_cote + distanceA*math.cos(angle_centre_cote)
                             y_arrivee_Astar = y_cote + distanceA*math.sin(angle_centre_cote)
                             if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar // CASE_MM)))]:
-                                print("GM Inacessible")
-                                demande_nouvelle_strat = True
+                                print("Tourner de 90°")
+                                angle_robot_gm -= 90
+                                angle_robot_gm %= 360
+                                print("angle_robot_gm : ",angle_robot_gm)
+                                if 45<=angle_robot_gm<135:
+                                    print("haut")
+                                    x_cote = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
+                                    y_cote = Liste_zones_gm_coins[strategie_en_cours][1][1]
+                                if 0<=angle_robot_gm<45 or 315<=angle_robot_gm<360:
+                                    print("droite")
+                                    x_cote = Liste_zones_gm_coins[strategie_en_cours][1][0]
+                                    y_cote = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
+                                if 135<=angle_robot_gm<225:
+                                    print("gauche")
+                                    x_cote = Liste_zones_gm_coins[strategie_en_cours][0][0]
+                                    y_cote = (Liste_zones_gm_coins[strategie_en_cours][0][1]+Liste_zones_gm_coins[strategie_en_cours][1][1])/2
+                                if 225<=angle_robot_gm<315:
+                                    print("bas")
+                                    x_cote = (Liste_zones_gm_coins[strategie_en_cours][0][0]+Liste_zones_gm_coins[strategie_en_cours][1][0])/2
+                                    y_cote = Liste_zones_gm_coins[strategie_en_cours][0][1]
+
+                                print("x_cote : ",x_cote,"  y_cote : ",y_cote)
+                                angle_centre_cote = math.atan2(y_centre_gm - y_cote, x_centre_gm - x_cote)
+                                print("angle_centre_cote : ",np.degrees(angle_centre_cote))
+                                x_arrivee_1 = x_cote + distance*math.cos(angle_centre_cote)
+                                y_arrivee_1 = y_cote + distance*math.sin(angle_centre_cote)
+                                x_arrivee_Astar = x_cote + distanceA*math.cos(angle_centre_cote)
+                                y_arrivee_Astar = y_cote + distanceA*math.sin(angle_centre_cote)
+                                if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar // CASE_MM)))]:
+                                    print("GM Inacessible")
+                                    demande_nouvelle_strat = True
+                                else:
+                                    if pince_a_utilise == 0:
+                                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                                    else :
+                                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                                            
                             else:
                                 if pince_a_utilise == 0:
                                     Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                                 else :
                                     Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
-                                        
                         else:
                             if pince_a_utilise == 0:
                                 Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
@@ -753,10 +759,164 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                         else :
                             Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
                 else:
-                    if pince_a_utilise == 0:
-                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
-                    else :
-                        Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_centre_cote))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+
+                    if strategie_en_cours==0 or strategie_en_cours==1:
+                        
+                        x_arrivee_1 = 200+Liste_zones_gm_coins[strategie_en_cours][0][0] + distance*math.cos(np.radians(180))
+                        y_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][0][1]+50 + distance*math.sin(np.radians(180))
+
+                        x_arrivee_2 = -200+Liste_zones_gm_coins[strategie_en_cours][1][0] + distance*math.cos(np.radians(0))
+                        y_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][1][1]-150 + distance*math.sin(np.radians(0))
+
+                        x_arrivee_Astar_1 = 200+Liste_zones_gm_coins[strategie_en_cours][0][0] + distanceA*math.cos(np.radians(180))
+                        y_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][0][1]+50 + distanceA*math.sin(np.radians(180))
+
+                        x_arrivee_Astar_2 = -200+Liste_zones_gm_coins[strategie_en_cours][1][0] + distanceA*math.cos(np.radians(0))
+                        y_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][1][1]-150 + distanceA*math.sin(np.radians(0))
+
+                        
+                        if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_1 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_1 // CASE_MM)))] and grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_2 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_2 // CASE_MM)))]:
+                            demande_nouvelle_strat = True
+                        else:
+                            if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_2 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_2 // CASE_MM)))]:
+                                x_arrivee_Astar = x_arrivee_Astar_1
+                                y_arrivee_Astar = y_arrivee_Astar_1
+                                x_arrivee = x_arrivee_1
+                                y_arrivee = y_arrivee_1
+                            elif grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_1 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_1 // CASE_MM)))]:
+                                    x_arrivee_Astar = x_arrivee_Astar_2
+                                    y_arrivee_Astar = y_arrivee_Astar_2
+                                    x_arrivee = x_arrivee_2
+                                    y_arrivee = y_arrivee_2
+                            else:
+                                distance_point1 = math.sqrt((x_arrivee_Astar_1 - x_robot_actuel)**2 + (y_arrivee_Astar_1 - y_robot_actuel)**2)
+                                distance_point2 = math.sqrt((x_arrivee_Astar_2 - x_robot_actuel)**2 + (y_arrivee_Astar_2 - y_robot_actuel)**2)
+                                if distance_point1 < distance_point2:
+                                    x_arrivee_Astar = x_arrivee_Astar_1
+                                    y_arrivee_Astar = y_arrivee_Astar_1
+                                    x_arrivee = x_arrivee_1
+                                    y_arrivee = y_arrivee_1
+                                else:
+                                    x_arrivee_Astar = x_arrivee_Astar_2
+                                    y_arrivee_Astar = y_arrivee_Astar_2
+                                    x_arrivee = x_arrivee_2
+                                    y_arrivee = y_arrivee_2
+                            
+                            angle_arrivee = math.atan2(y_arrivee_Astar - y_arrivee, x_arrivee_Astar - x_arrivee)
+                            if pince_a_utilise == 0:
+                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_arrivee)-180)],["Consigne",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                            else :
+                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_arrivee))],["ReculerPrecis",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                    if strategie_en_cours==7 or strategie_en_cours==8 or strategie_en_cours==9:
+
+                        x_arrivee_1 = 200+Liste_zones_gm_coins[strategie_en_cours][0][0] + distance*math.cos(np.radians(180))
+                        y_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][0][1]+150 + distance*math.sin(np.radians(180))
+
+                        x_arrivee_2 = -200+Liste_zones_gm_coins[strategie_en_cours][1][0] + distance*math.cos(np.radians(0))
+                        y_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][1][1]-50 + distance*math.sin(np.radians(0))
+
+                        x_arrivee_Astar_1 = 200+Liste_zones_gm_coins[strategie_en_cours][0][0] + distanceA*math.cos(np.radians(180))
+                        y_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][0][1]+150 + distanceA*math.sin(np.radians(180))
+
+                        x_arrivee_Astar_2 = -200+Liste_zones_gm_coins[strategie_en_cours][1][0] + distanceA*math.cos(np.radians(0))
+                        y_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][1][1]-50 + distanceA*math.sin(np.radians(0))
+
+                        
+                        if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_1 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_1 // CASE_MM)))] and grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_2 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_2 // CASE_MM)))]:
+                            demande_nouvelle_strat = True
+                        else:
+                            if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_2 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_2 // CASE_MM)))]:
+                                x_arrivee_Astar = x_arrivee_Astar_1
+                                y_arrivee_Astar = y_arrivee_Astar_1
+                                x_arrivee = x_arrivee_1
+                                y_arrivee = y_arrivee_1
+                            elif grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_1 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_1 // CASE_MM)))]:
+                                    x_arrivee_Astar = x_arrivee_Astar_2
+                                    y_arrivee_Astar = y_arrivee_Astar_2
+                                    x_arrivee = x_arrivee_2
+                                    y_arrivee = y_arrivee_2
+                            else:
+                                distance_point1 = math.sqrt((x_arrivee_Astar_1 - x_robot_actuel)**2 + (y_arrivee_Astar_1 - y_robot_actuel)**2)
+                                distance_point2 = math.sqrt((x_arrivee_Astar_2 - x_robot_actuel)**2 + (y_arrivee_Astar_2 - y_robot_actuel)**2)
+                                if distance_point1 < distance_point2:
+                                    x_arrivee_Astar = x_arrivee_Astar_1
+                                    y_arrivee_Astar = y_arrivee_Astar_1
+                                    x_arrivee = x_arrivee_1
+                                    y_arrivee = y_arrivee_1
+                                else:
+                                    x_arrivee_Astar = x_arrivee_Astar_2
+                                    y_arrivee_Astar = y_arrivee_Astar_2
+                                    x_arrivee = x_arrivee_2
+                                    y_arrivee = y_arrivee_2
+                            
+                            angle_arrivee = math.atan2(y_arrivee_Astar - y_arrivee, x_arrivee_Astar - x_arrivee)
+                            if pince_a_utilise == 0:
+                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_arrivee)-180)],["Consigne",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                            else :
+                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_arrivee))],["ReculerPrecis",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                    if strategie_en_cours==2 or strategie_en_cours==6:
+
+                        if strategie_en_cours==2:
+                            x_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][1][0]-50 + distance*math.cos(np.radians(-90))
+                            y_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][1][1] + distance*math.sin(np.radians(-90))
+
+                            x_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][1][0]-50 + distanceA*math.cos(np.radians(-90))
+                            y_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][1][1] + distanceA*math.sin(np.radians(-90))
+
+                            x_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][1][0]-50 + distance*math.cos(np.radians(90))
+                            y_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][0][1] + distance*math.sin(np.radians(90))
+
+                            x_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][1][0]-50 + distanceA*math.cos(np.radians(90))
+                            y_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][0][1] + distanceA*math.sin(np.radians(90))
+                        
+                        if strategie_en_cours==6:
+                            x_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][0][0]+50 + distance*math.cos(np.radians(-90))
+                            y_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][1][1] + distance*math.sin(np.radians(-90))
+
+                            x_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][0][0]+50 + distanceA*math.cos(np.radians(-90))
+                            y_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][1][1] + distanceA*math.sin(np.radians(-90))
+
+                            x_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][0][0]+50 + distance*math.cos(np.radians(90))
+                            y_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][0][1] + distance*math.sin(np.radians(90))
+
+                            x_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][0][0]+50 + distanceA*math.cos(np.radians(90))
+                            y_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][0][1] + distanceA*math.sin(np.radians(90))
+
+                        
+                        if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_1 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_1 // CASE_MM)))] and grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_2 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_2 // CASE_MM)))]:
+                            demande_nouvelle_strat = True
+                        else:
+                            if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_2 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_2 // CASE_MM)))]:
+                                x_arrivee_Astar = x_arrivee_Astar_1
+                                y_arrivee_Astar = y_arrivee_Astar_1
+                                x_arrivee = x_arrivee_1
+                                y_arrivee = y_arrivee_1
+                            elif grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_1 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_1 // CASE_MM)))]:
+                                    x_arrivee_Astar = x_arrivee_Astar_2
+                                    y_arrivee_Astar = y_arrivee_Astar_2
+                                    x_arrivee = x_arrivee_2
+                                    y_arrivee = y_arrivee_2
+                            else:
+                                distance_point1 = math.sqrt((x_arrivee_Astar_1 - x_robot_actuel)**2 + (y_arrivee_Astar_1 - y_robot_actuel)**2)
+                                distance_point2 = math.sqrt((x_arrivee_Astar_2 - x_robot_actuel)**2 + (y_arrivee_Astar_2 - y_robot_actuel)**2)
+                                if distance_point1 < distance_point2:
+                                    x_arrivee_Astar = x_arrivee_Astar_1
+                                    y_arrivee_Astar = y_arrivee_Astar_1
+                                    x_arrivee = x_arrivee_1
+                                    y_arrivee = y_arrivee_1
+                                else:
+                                    x_arrivee_Astar = x_arrivee_Astar_2
+                                    y_arrivee_Astar = y_arrivee_Astar_2
+                                    x_arrivee = x_arrivee_2
+                                    y_arrivee = y_arrivee_2
+                            
+                            angle_arrivee = math.atan2(y_arrivee_Astar - y_arrivee, x_arrivee_Astar - x_arrivee)
+                            if pince_a_utilise == 0:
+                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_arrivee)-180)],["Consigne",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                            else :
+                                Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_arrivee))],["ReculerPrecis",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                                        
+                        
 
     elif aller_nid:
         print("Déposer au nid")
