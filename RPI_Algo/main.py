@@ -120,8 +120,8 @@ Liste_noisette_xya = [
     [1025,175,90,"R"],[1075,175,90,"R"],[1125,175,90,"R"],[1175,175,90,"R"],
     [1825,175,90,"R"],[1875,175,90,"R"],[1925,175,90,"R"],[1975,175,90,"R"],
 
-    #◘[2500,1600,0,"R"],[2500,1650,0,"R"],[2500,1700,0,"R"],[2500,1750,0,"R"],
-    
+    #[2500,1600,0,"R"],[2500,1650,0,"R"],[2500,1700,0,"R"],[2500,1750,0,"R"],
+    #[100+50,850-25,0,"B"],[100+50,850+25,0,"B"],
 ] 
 Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
 Liste_noisette_xya_cam = []
@@ -219,14 +219,11 @@ if couleur == "B":
         [2825,350],
         [2950,850],
         [2950,750],
-        [2300,50],
+
         [2825,1250],
         [2825,1150],
         [2150,800],
         [2250,800],
-        #[2300,1700],
-        #[2900,750],
-        #[2900,850],
     ]
  
 else:
@@ -364,7 +361,7 @@ aller_GM = False
 temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
-temps_retour = 40 # Temps restant pour revenir au départ en fin de match
+temps_retour = 10 # Temps restant pour revenir au départ en fin de match
 temps_max = 100
 reset_fin = False
 

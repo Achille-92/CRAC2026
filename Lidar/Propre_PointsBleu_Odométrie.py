@@ -24,7 +24,12 @@ if Can:
     )
 
 # Port série et Baudrate du LiDAR
-PORT_NAME = 'COM14'
+import platform
+current_os = platform.system()
+if current_os == "Linux":
+    PORT_NAME = '/dev/ttyUSB0'
+else:
+    PORT_NAME = 'COM14'
 BAUDRATE = 1000000
 
 # Pile pour les points LiDAR
