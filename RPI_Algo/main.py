@@ -9,12 +9,12 @@ Astars = True
 Simul_mvt = True
 Simul_mvt_ennemi = False
 Debug_Mouv = True
-Recalage = False
+Recalage = True
 Simul_action = True
 Debug_Action = True
 
 Lidar_on = False
-Bat_Compet = False
+Bat_Compet = True
 lancement_cartes = True
 
 Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
@@ -130,7 +130,7 @@ if not Wifi:
         [175-20,1125+20,0+2,"B"],[175-20,1175+20,0+2,"J"],[175-20,1225+20,0+2,"B"],[175-20,1275+20,0+2,"J"],
         [175-20,325-20,0-2,"B"],[175-20,375-20,0-2,"B"],[175-20,425-20,0-2,"J"],[175-20,475-20,0-2,"J"],
 
-        [2825+20,1125+20,0-2,"J"],[2825+20,1175+20,0-2,"J"],[2825+20,1275+20,0+2,"J"],[2825+20,1225+20,0+2,"J"],
+        [2825+20,1125+20,0-2,"J"],[2825+20,1175+20,0-2,"B"],[2825+20,1275+20,0+2,"B"],[2825+20,1225+20,0+2,"J"],
         [2825+20,325-20,0-2,"B"],[2825+20,375-20,0-2,"J"],[2825+20,425-20,0+2,"J"],[2825+20,475-20,0+2,"B"],
 
         [1075-20,800-20,90+2,"J"],[1125-20,800-20,90-2,"J"],[1175-20,800-20,90+2,"B"],[1225-20,800-20,90-2,"B"],
@@ -194,7 +194,7 @@ if couleur == "B":
     angle_robot_depart = -90
 
 
-    x_robot_retour = 3000-LARGEUR_ROBOT/2-300
+    x_robot_retour = 3000-LARGEUR_ROBOT/2-250
     y_robot_retour = 1800
     angle_robot_retour = -90
     
@@ -233,7 +233,7 @@ else:
 
     Liste_actions = [["Consigne",x_robot_depart,1400]]
     
-    x_robot_retour = LARGEUR_ROBOT/2+300
+    x_robot_retour = LARGEUR_ROBOT/2+250
     y_robot_retour = 1800
     angle_robot_retour = 90
 
@@ -361,8 +361,8 @@ aller_GM = False
 temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
-temps_retour = 10 # Temps restant pour revenir au départ en fin de match
-temps_max = 100
+temps_retour = 20 # Temps restant pour revenir au départ en fin de match
+temps_max = 300
 reset_fin = False
 
 verif_mouv = 0
