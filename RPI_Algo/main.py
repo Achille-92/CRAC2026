@@ -269,7 +269,7 @@ rayon_total_case = (R_ROBOT + MARGE_TRAJECTOIRE) // CASE_MM
 ####################
 
 # === CRÉATION DES OBSTACLES avec la classe Obstacles === #
-obs_manager = Obstacles(X_PISTE,Y_PISTE,int(LARGEUR_ROBOT/2),0,CASE_MM)
+obs_manager = Obstacles(X_PISTE,Y_PISTE,R_ROBOT-20,0,CASE_MM)
 obs_manager_noisettes = Obstacles(X_PISTE,Y_PISTE,R_ROBOT,0,CASE_MM)
 
 for i, noisette_data in enumerate(Liste_noisette_xya, 1):
@@ -450,49 +450,63 @@ def calcul_points(stop_event):
     while not stop_event.is_set():
         try:
             
-            lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE, timeout=3)
+            lidar = PyRPlidar()
+            lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
             print("INFO:", lidar.get_health())
-            lidar.start_motor()
 
-            for scan in lidar.iter_scans(max_buf_meas=4096):  # Retiré l'argument scan_type
+            lidar.set_motor_pwm(660)
+            time.sleep(2)
+        
+            #scan_generator = lidar.start_scan_express(0)
+            scan_generator = lidar.start_scan()
+            time.sleep(0.5)
+
+            for count, scan in enumerate(scan_generator()):  
                 if stop_event.is_set():
                     break
+                quality = scan.quality
+                angle_point = scan.angle
+                distance = scan.distance
+                
+                if distance > 4000:  # Exemple : 12 mètres en mm
+                    continue
+                if quality < 1:
+                    continue
 
-                for (quality, angle_point, distance) in scan:
-                    if Reel:
-                        x_r = x_robot_actuel
-                        y_r = y_robot_actuel
-                        angle_r = angle_robot_actuel
-                    else :
-                        x_r = x_robot_depart
-                        y_r = y_robot_depart
-                        angle_r = angle_robot_depart
-                    
-                    phi = math.radians(angle_point)
-                    
-                    # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
-                    angle_total = phi - math.radians(angle_r) - math.radians(-2)
-                    
-                    x_point = x_r + distance * math.cos(angle_total)
-                    y_point = y_r - distance * math.sin(angle_total)
-                    
-                    x_point = max(0, min(X_PISTE, int(x_point)))
-                    y_point = max(0, min(Y_PISTE, int(y_point)))
-                    distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
-                    if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
-                    MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 50 and 5 < quality < 20:
-                        if not(600<x_point<2400 and 1550<y_point<2000):
-                            buffer_points.append((x_point, y_point))
-                    
-                    if buffer_points:
-                        xs, ys = zip(*buffer_points)
-                        x_ennemi_potentiel = np.mean(xs)
-                        y_ennemi_potentiel = np.mean(ys)
-                        distance_ennemi_ennemi_potentiel = math.sqrt((x_ennemi - x_ennemi_potentiel)**2 + (y_ennemi - y_ennemi_potentiel)**2)
-                        #print("distance_ennemi_ennemi_potentiel : ",distance_ennemi_ennemi_potentiel)
-                        if 30<distance_ennemi_ennemi_potentiel<300:
-                            x_ennemi = x_ennemi_potentiel
-                            y_ennemi = y_ennemi_potentiel
+                if Reel:
+                    x_r = x_robot_actuel
+                    y_r = y_robot_actuel
+                    angle_r = angle_robot_actuel
+                else :
+                    x_r = x_robot_depart
+                    y_r = y_robot_depart
+                    angle_r = angle_robot_depart
+                
+                phi = math.radians(angle_point)
+                
+                # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
+                angle_total = phi - math.radians(angle_r) - math.radians(-2)
+                
+                x_point = x_r + distance * math.cos(angle_total)
+                y_point = y_r - distance * math.sin(angle_total)
+                
+                x_point = max(0, min(X_PISTE, int(x_point)))
+                y_point = max(0, min(Y_PISTE, int(y_point)))
+                distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
+                if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
+                MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 50 and 5 < quality < 20:
+                    if not(600<x_point<2400 and 1550<y_point<2000):
+                        buffer_points.append((x_point, y_point))
+                
+                if buffer_points:
+                    xs, ys = zip(*buffer_points)
+                    x_ennemi_potentiel = np.mean(xs)
+                    y_ennemi_potentiel = np.mean(ys)
+                    distance_ennemi_ennemi_potentiel = math.sqrt((x_ennemi - x_ennemi_potentiel)**2 + (y_ennemi - y_ennemi_potentiel)**2)
+                    #print("distance_ennemi_ennemi_potentiel : ",distance_ennemi_ennemi_potentiel)
+                    if 30<distance_ennemi_ennemi_potentiel<300:
+                        x_ennemi = x_ennemi_potentiel
+                        y_ennemi = y_ennemi_potentiel
             
         except Exception as e:
             print("Erreur dans le thread Lidar:", e)

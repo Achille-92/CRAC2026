@@ -1,4 +1,4 @@
-from rplidar import RPLidar
+from pyrplidar import PyRPlidar
 import math
 import numpy as np
 import matplotlib.pyplot as plt
@@ -38,8 +38,11 @@ pile_points = queue.Queue(maxsize=2000)
 # Coordonnées et angle du robot
 LARGEUR_ROBOT = 250
 LONGUEUR_ROBOT = 130
-x_robot = int(2400+LARGEUR_ROBOT/2)
+x_robot = int(2400+LARGEUR_ROBOT/2+50)
 y_robot = int(1550+LONGUEUR_ROBOT/2+100)
+
+"""x_robot = 1500
+y_robot = 1700"""
 angle_robot = -90
 
 # Coordonnées et angle du robot ennemi
@@ -55,39 +58,53 @@ robot_plot = None
 scat = None
 
 # Fonction pour récupérer les données LiDAR
+
 def calcul_points(stop_event):
     global x_robot, y_robot, angle_robot, pile_points
 
+    dict_points = {i: 0 for i in range(360)}
     try:
-        lidar = RPLidar(PORT_NAME, baudrate=BAUDRATE, timeout=3)
+        lidar = PyRPlidar()
+        lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
         print("INFO:", lidar.get_health())
-        lidar.clear_input()
-        lidar.start_motor()
 
-        for scan in lidar.iter_scans(max_buf_meas=4096):  # Retiré l'argument scan_type
+        lidar.set_motor_pwm(660)
+        time.sleep(2)
+    
+        #scan_generator = lidar.start_scan_express(0)
+        scan_generator = lidar.start_scan()
+        time.sleep(0.5)
+        for count, scan in enumerate(scan_generator()):  
             if stop_event.is_set():
                 break
+            quality = scan.quality
+            angle_point = scan.angle
+            distance = scan.distance
+            
+            if distance > 4000:  
+                continue
+            if quality < 1:
+                continue
+            #print(angle_point,"  ",distance, "  ",quality)
 
-            for (quality, angle_point, distance) in scan:
-                phi = math.radians(angle_point)
-                angle_total = phi - math.radians(angle_robot) - math.radians(-2)
+            phi = math.radians(angle_point)
+            angle_total = phi - math.radians(angle_robot) - math.radians(-2)
 
-                x_point = x_robot + distance * math.cos(angle_total)
-                y_point = y_robot - distance * math.sin(angle_total)
+            x_point = x_robot + distance * math.cos(angle_total)
+            y_point = y_robot - distance * math.sin(angle_total)
 
-                # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
-                x_point = max(0, min(3000, int(x_point)))
-                y_point = max(0, min(2000, int(y_point)))
+            # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
+            x_point = max(0, min(3000, int(x_point)))
+            y_point = max(0, min(2000, int(y_point)))
 
-                # Filtrage des points (on ignore les bords)
-                if 10 <= x_point <= 2990 and 10 <= y_point <= 1990:
-                    pile_points.put((x_point, y_point))
+            # Filtrage des points (on ignore les bords)
+            if (distance > 10 and quality > 1) and (120 <= x_point <= 2880 and 80 <= y_point <= 1920):
+                pile_points.put((int(x_point), int(y_point)))
 
     except Exception as e:
         print("Erreur dans le thread LiDAR:", e)
     finally:
         lidar.stop()
-        lidar.stop_motor()
         lidar.disconnect()
         print("LiDAR arrêté.")
 
@@ -170,3 +187,5 @@ if __name__ == '__main__':
         if Can:
             tache_odometrie.join()
         print("Programme terminé proprement.")
+
+#abcd
