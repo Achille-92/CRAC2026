@@ -497,6 +497,40 @@ class ArUcoTrackingSystem:
 
         self.centre_image = np.array([config.camera_largeur / 2, config.camera_longueur / 2])
 
+    def _draw_text_with_background(self, image, text, position, font=cv2.FONT_HERSHEY_SIMPLEX, 
+                                font_scale=0.6, text_color=(0, 255, 255), thickness=2,
+                                bg_color=(255, 255, 255), padding=5):
+        """
+        Dessine du texte avec un fond rectangulaire pour améliorer la lisibilité.
+        
+        Args:
+            image: Image sur laquelle dessiner
+            text: Texte à afficher
+            position: Tuple (x, y) de la position du texte
+            font: Police de caractères OpenCV
+            font_scale: Taille de la police
+            text_color: Couleur du texte (BGR)
+            thickness: Épaisseur du texte
+            bg_color: Couleur du fond (BGR) - blanc par défaut
+            padding: Espace entre le texte et le bord du rectangle (pixels)
+        """
+        x, y = position
+        
+        # Obtenir la taille du texte
+        (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+        
+        # Calculer les coordonnées du rectangle de fond
+        rect_x1 = x - padding
+        rect_y1 = y - text_height - padding
+        rect_x2 = x + text_width + padding
+        rect_y2 = y + baseline + padding
+        
+        # Dessiner le rectangle de fond blanc
+        cv2.rectangle(image, (rect_x1, rect_y1), (rect_x2, rect_y2), bg_color, -1)
+        
+        # Dessiner le texte par-dessus
+        cv2.putText(image, text, (x, y), font, font_scale, text_color, thickness)
+
     def load_calibration(self, filepath: str):
         try:
             data = np.load(filepath)
@@ -575,30 +609,36 @@ class ArUcoTrackingSystem:
         if self.mode_calibration_active:
             target = self.calibration_mode.get_current_target()
             if target is not None:
-                cv2.putText(undistorted_copie,
+                self._draw_text_with_background(
+                    undistorted_copie,
                     f"[NOISETTE] Tag {self.config.tag_calibration_Noisette} au-dessus du tag {target} puis ESPACE",
-                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
-                cv2.putText(undistorted_copie,
+                    (10, 30), text_color=(0, 255, 255))
+                self._draw_text_with_background(
+                    undistorted_copie,
                     f"Progression: {self.calibration_mode.current_index}/4",
-                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                    (10, 60), text_color=(0, 255, 255))
             else:
-                cv2.putText(undistorted_copie,
+                self._draw_text_with_background(
+                    undistorted_copie,
                     "CALIBRATION NOISETTE TERMINEE - Appuyer sur 'S' pour sauvegarder",
-                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    (10, 30), text_color=(0, 255, 0))
 
         if self.mode_calibration_robot_active:
             target = self.calibration_mode_robot.get_current_target()
             if target is not None:
-                cv2.putText(undistorted_copie,
+                self._draw_text_with_background(
+                    undistorted_copie,
                     f"[ROBOT] Tag {self.config.tag_calibration_robot} au-dessus du tag {target} puis ESPACE",
-                    (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 200, 255), 2)
-                cv2.putText(undistorted_copie,
+                    (10, 90), text_color=(0, 200, 255))
+                self._draw_text_with_background(
+                    undistorted_copie,
                     f"Progression robot: {self.calibration_mode_robot.current_index}/4",
-                    (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 200, 255), 2)
+                    (10, 120), text_color=(0, 200, 255))
             else:
-                cv2.putText(undistorted_copie,
+                self._draw_text_with_background(
+                    undistorted_copie,
                     "CALIBRATION ROBOT TERMINEE - Appuyer sur 'P' pour sauvegarder",
-                    (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    (10, 90), text_color=(0, 255, 0))
 
         # ── Calcul des homographies surélevées si calibration complète ────────
         if self.calibration_mode.is_complete() and not self.plan_elevated_calcule:
@@ -725,13 +765,6 @@ class ArUcoTrackingSystem:
         if self.plan_robot_calcule:
             cfg = self.config
             # Zone de filtrage : rectangle complet en largeur, tronqué à y=1500 en hauteur
-            coins_robot_mm = [
-                np.array([0, 0]),
-                np.array([cfg.largeur_totale_mm, 0]),
-                np.array([cfg.largeur_totale_mm, 1500.0]),  # <- MODIFIÉ
-                np.array([0, 1500.0])                        # <- MODIFIÉ
-            ]
-
             for tag_id, coins in detected_tags_list:
                 est_robot  = tag_id in self.config.tag_robot
                 est_ennemi = tag_id in self.config.tag_ennemi
@@ -742,8 +775,6 @@ class ArUcoTrackingSystem:
                 pos_robot = self.homographie.point_cam_to_robot(centre_pixel)
 
                 if pos_robot is None:
-                    continue
-                if not self.point_dans_polygone(pos_robot, coins_robot_mm):
                     continue
 
                 # Calcul de l'angle du tag dans le plan robot
