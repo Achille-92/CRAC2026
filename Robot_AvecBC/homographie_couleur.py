@@ -613,11 +613,11 @@ class ArUcoTrackingSystem:
                 self._draw_text_with_background(
                     undistorted_copie,
                     f"[NOISETTE] Tag {self.config.tag_calibration_Noisette} au-dessus du tag {target} puis ESPACE",
-                    (10, 30), text_color=(0, 255, 255))
+                    (10, 30), text_color=(0, 0, 0))
                 self._draw_text_with_background(
                     undistorted_copie,
                     f"Progression: {self.calibration_mode.current_index}/4",
-                    (10, 60), text_color=(0, 255, 255))
+                    (10, 60), text_color=(0, 0, 0))
             else:
                 self._draw_text_with_background(
                     undistorted_copie,
@@ -630,11 +630,11 @@ class ArUcoTrackingSystem:
                 self._draw_text_with_background(
                     undistorted_copie,
                     f"[ROBOT] Tag {self.config.tag_calibration_robot} au-dessus du tag {target} puis ESPACE",
-                    (10, 90), text_color=(0, 200, 255))
+                    (10, 90), text_color=(0, 0, 0))
                 self._draw_text_with_background(
                     undistorted_copie,
                     f"Progression robot: {self.calibration_mode_robot.current_index}/4",
-                    (10, 120), text_color=(0, 200, 255))
+                    (10, 120), text_color=(0, 0, 0))
             else:
                 self._draw_text_with_background(
                     undistorted_copie,
