@@ -467,14 +467,22 @@ if __name__ == '__main__':
         config = Config()
         config = appliquer_couleur(config, couleur)
 
+        if couleur == "B":
+            calibration_sequence = [20, 22, 23, 21]
+        elif couleur == "J":
+            calibration_sequence = [21, 23, 22, 20]
+        else:
+            calibration_sequence = [20, 21, 22, 23]
+
         print(f"Équipe configurée : {'Bleue' if couleur == 'B' else 'Jaune'}")
         print(f"  tag_calibration_Noisette : {config.tag_calibration_Noisette}")
         print(f"  tag_calibration_robot    : {config.tag_calibration_robot}")
         print(f"  tag_robot                : {config.tag_robot}")
         print(f"  tag_ennemi               : {config.tag_ennemi}")
 
-        system = ArUcoTrackingSystem(config, matrice_antidstorsion='calibration_data_HR_camM.npz')
-
+        system = ArUcoTrackingSystem(config, 
+                             matrice_antidstorsion='calibration_data_HR_vraiecam.npz',
+                             calibration_sequence=calibration_sequence)
         # Chargement automatique des deux calibrations au démarrage
         if system.calibration_mode.load_calibration():
             system.homographie.calcul_homographie_elevated(system.calibration_mode.calibration_points)
@@ -504,8 +512,8 @@ if __name__ == '__main__':
         btn_spacing = 5
         
         buttons_config = [
-            (10, "Plan Noisette", (0, 100, 150)),
-            (150, "Plan Robot", (0, 150, 100)),
+            (10, "Noisette", (0, 100, 150)),
+            (150, "Robot", (0, 150, 100)),
             (280, "Capturer", (150, 100, 0)),
             (400, "Sauvegarder", (0, 150, 150)),
             (550, "Chargement", (100, 0, 150)),
@@ -562,14 +570,14 @@ if __name__ == '__main__':
                 # Gérer les clics de boutons
                 button_click = button_manager.get_last_click()
                 
-                if button_click == "Plan Noisette":
+                if button_click == "Noisette":
                     system.mode_calibration_active = True
                     system.calibration_mode.reset()
                     print("\nMode calibration NOISETTE activé")
                     print(f"Positionner le tag {config.tag_calibration_Noisette} au-dessus du tag "
                         f"{system.calibration_mode.get_current_target()} et appuyer sur CAPTURER")
                 
-                elif button_click == "Plan Robot":
+                elif button_click == "Robot":
                     system.mode_calibration_robot_active = True
                     system.calibration_mode_robot.reset()
                     print("\nMode calibration ROBOT activé")
@@ -744,11 +752,11 @@ if __name__ == '__main__':
             # Mettre à jour la zone de sécurité dynamique de l'ennemi
             zone_ennemi_scatter, cercle_ennemi_patch = mettre_a_jour_zone_ennemi(
                 zone_ennemi_scatter, cercle_ennemi_patch,
-                x_ennemi, y_ennemi, R_ROBOT, R_ENNEMI,
+                x_ennemi_cam, y_ennemi_cam, R_ROBOT, R_ENNEMI,
                 MARGE_ENNEMI, CASE_MM,
                 X_PISTE, Y_PISTE
             )
-            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
+            ennemi_plot.set_offsets([[x_ennemi_cam, y_ennemi_cam]])
             
             x0, y0 = x_robot_actuel_cam, y_robot_actuel_cam
             x1 = x0 + longueur_trait * math.cos(math.radians(angle_robot_actuel_cam))

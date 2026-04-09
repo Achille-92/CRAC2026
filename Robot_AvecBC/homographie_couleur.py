@@ -59,8 +59,8 @@ class Button_A:
         cv2.rectangle(img, (self.x, self.y), (self.x + self.w, self.y + self.h), (255, 255, 255), 2)
         
         font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 0.5
-        thickness = 1
+        font_scale = 0.65
+        thickness = 2
         text_size = cv2.getTextSize(self.text, font, font_scale, thickness)[0]
         text_x = self.x + (self.w - text_size[0]) // 2
         text_y = self.y + (self.h + text_size[1]) // 2
@@ -351,10 +351,10 @@ class ArUcoDetector:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class CalibrationMode:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, sequence: List[int] = None):
         self.config = config
         self.calibration_points = {}
-        self.sequence = [20, 21, 22, 23]
+        self.sequence = sequence if sequence is not None else [20, 21, 22, 23]
         self.current_index = 0
         self.calibration_file = "elevated_plane_calibration.json"
 
@@ -405,10 +405,10 @@ class CalibrationMode:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class CalibrationModeRobot:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, sequence: List[int] = None):
         self.config = config
         self.calibration_points = {}
-        self.sequence = [20, 21, 22, 23]
+        self.sequence = sequence if sequence is not None else [20, 21, 22, 23]
         self.current_index = 0
         self.calibration_file = "elevated_plane_calibration_robot.json"
 
@@ -459,19 +459,20 @@ class CalibrationModeRobot:
 # ─────────────────────────────────────────────────────────────────────────────
 
 class ArUcoTrackingSystem:
-    def __init__(self, config: Config, matrice_antidstorsion: Optional[str] = None):
+    def __init__(self, config: Config, matrice_antidstorsion: Optional[str] = None, 
+             calibration_sequence: List[int] = None):
         self.config = config
         self.detecteur = ArUcoDetector()
         self.color_detector = ColorDetector(config)
         self.homographie = CalculHomographie(config)
 
         # Plan Noisette
-        self.calibration_mode = CalibrationMode(config)
+        self.calibration_mode = CalibrationMode(config, sequence=calibration_sequence)
         self.mode_calibration_active = False
         self.plan_elevated_calcule = False
 
         # Plan Robot
-        self.calibration_mode_robot = CalibrationModeRobot(config)
+        self.calibration_mode_robot = CalibrationModeRobot(config, sequence=calibration_sequence)
         self.mode_calibration_robot_active = False
         self.plan_robot_calcule = False
 
@@ -1778,14 +1779,22 @@ if __name__ == "__main__":
     config = Config()
     config = appliquer_couleur(config, couleur)
 
+    if couleur == "B":
+        calibration_sequence = [20, 22, 23, 21]
+    elif couleur == "J":
+        calibration_sequence = [21, 23, 22, 20]
+    else:
+        calibration_sequence = [20, 21, 22, 23]
+
     print(f"Équipe configurée : {'Bleue' if couleur == 'B' else 'Jaune'}")
     print(f"  tag_calibration_Noisette : {config.tag_calibration_Noisette}")
     print(f"  tag_calibration_robot    : {config.tag_calibration_robot}")
     print(f"  tag_robot                : {config.tag_robot}")
     print(f"  tag_ennemi               : {config.tag_ennemi}")
 
-    system = ArUcoTrackingSystem(config, matrice_antidstorsion='calibration_data_HR_camM.npz')
-
+    system = ArUcoTrackingSystem(config, 
+                             matrice_antidstorsion='calibration_data_HR_vraiecam.npz',
+                             calibration_sequence=calibration_sequence)
     # Chargement automatique des deux calibrations au démarrage
     if system.calibration_mode.load_calibration():
         system.homographie.calcul_homographie_elevated(system.calibration_mode.calibration_points)
