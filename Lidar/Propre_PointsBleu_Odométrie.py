@@ -41,8 +41,8 @@ LONGUEUR_ROBOT = 130
 x_robot = int(2400+LARGEUR_ROBOT/2+50)
 y_robot = int(1550+LONGUEUR_ROBOT/2+100)
 
-"""x_robot = 1500
-y_robot = 1700"""
+x_robot = 1500
+y_robot = 1700
 angle_robot = -90
 
 # Coordonnées et angle du robot ennemi
@@ -62,7 +62,8 @@ scat = None
 def calcul_points(stop_event):
     global x_robot, y_robot, angle_robot, pile_points
 
-    dict_points = {i: 0 for i in range(360)}
+    dict_points = {i:[] for i in range(360)}
+    dict_points_moy = {i: 0 for i in range(360)}
     try:
         lidar = PyRPlidar()
         lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
@@ -85,9 +86,12 @@ def calcul_points(stop_event):
                 continue
             if quality < 1:
                 continue
-            #print(angle_point,"  ",distance, "  ",quality)
+            dict_points[int(angle_point)] = []
+            dict_points[int(angle_point)].append(distance)
+            print(f"[{angle_point}]: ",dict_points[int(angle_point)])
 
-            phi = math.radians(angle_point)
+
+            """phi = math.radians(angle_point)
             angle_total = phi - math.radians(angle_robot) - math.radians(-2)
 
             x_point = x_robot + distance * math.cos(angle_total)
@@ -99,7 +103,7 @@ def calcul_points(stop_event):
 
             # Filtrage des points (on ignore les bords)
             if (distance > 10 and quality > 1) and (120 <= x_point <= 2880 and 80 <= y_point <= 1920):
-                pile_points.put((int(x_point), int(y_point)))
+                pile_points.put((int(x_point), int(y_point)))"""
 
     except Exception as e:
         print("Erreur dans le thread LiDAR:", e)
@@ -141,7 +145,7 @@ def affichage(stop_event):
     ax.set_ylim(0, 2000)
     ax.set_aspect('equal')
 
-    buffer_points = deque(maxlen=50)
+    buffer_points = deque(maxlen=500)
 
     while not stop_event.is_set():
         try:
@@ -175,11 +179,11 @@ if __name__ == '__main__':
         tache_odometrie.start()
 
     # L'affichage est exécuté dans le thread principal
-    affichage(stop_event)
+    #affichage(stop_event)
 
     try:
         while True:
-            time.sleep(0.1)
+            time.sleep(0.01)
     except KeyboardInterrupt:
         print("Arrêt demandé par l'utilisateur.")
         stop_event.set()

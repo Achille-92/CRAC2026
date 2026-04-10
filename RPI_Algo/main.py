@@ -1,12 +1,12 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 
 Strategie = True
 Debug_strategie = True
 Astars = True
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Debug_Mouv = True
 Recalage = True
@@ -43,7 +43,7 @@ from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper
 #couleur = fenetre_selection_couleur()
 # Config CAN 
 Liste_ID_recoit = [0x02,0x03,0x04,0x05,0x06,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
-Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x204,0x205,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
+Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x204,0x205,0x206,0x207,0x208,0x209,0x20A,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
     os.system('sudo ip link set can0 type can bitrate 500000')
@@ -208,7 +208,7 @@ if couleur == "B":
 
     angle_pichnette = [45,-60,-180]
     
-    #Liste_actions = [["Consigne",x_curseur_1,y_curseur_1],["Rotation",angle_curseur_1],["CurseurHaut",0]["Consigne",x_curseur_2,y_curseur_2],["Rotation",angle_curseur_1],["RotationCurseur",angle_pichnette[0]]]
+    #Liste_actions = [["Consigne",x_curseur_1,y_curseur_1],["Rotation",angle_curseur_1],["CurseurHaut",0],["Consigne",x_curseur_2,y_curseur_2],["Rotation",angle_curseur_1],["RotationCurseur",angle_pichnette[0]]]
 
 
     x_ennemi = 275
@@ -256,6 +256,8 @@ angle_robot_actuel = angle_robot_depart
 x_robot_voulu = x_robot_actuel
 y_robot_voulu = y_robot_actuel
 angle_robot_voulu = angle_robot_actuel
+x_robot_voulu_prochain = x_robot_actuel
+y_robot_voulu_prochain = y_robot_actuel
 
 x_ennemi_old = x_ennemi
 y_ennemi_old = y_ennemi
@@ -303,7 +305,7 @@ expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes]) if 
 # ======================================================= #
 
 # Variables fonctionnelles des Batteries
-Batteries = [100,80,50,19] # V décharge, V charge, V actuel, % de charge
+Batteries = [random.randint(1, 100),random.randint(1, 100),random.randint(1, 100),random.randint(1, 100)] # V décharge, V charge, V actuel, % de charge
 Batteries_interrupteur = [1,1,1]
 Batteries_alert = [0,0,0,0]
 RPI_decharge = False
@@ -1077,7 +1079,7 @@ if __name__ == '__main__':
 
             if not Noisette_init:
                 Liste_noisette_xya_cam_copie = Liste_noisette_xya_cam.copy()
-                for Noisette_couleurconnue in Liste_noisette_xya_cam_copie:
+                """for Noisette_couleurconnue in Liste_noisette_xya_cam_copie:
                     if couleur == "B":
                         if 2700<Noisette_couleurconnue[0]<2900 and 250<Noisette_couleurconnue[1]<550:
                             Noisette_couleurconnue[1] += 30
@@ -1088,7 +1090,7 @@ if __name__ == '__main__':
 
                         if 950<Noisette_couleurconnue[0]<1250 and 50<Noisette_couleurconnue[1]<350:
                             Noisette_couleurconnue[0] += 0
-                            Noisette_couleurconnue[1] += 10
+                            Noisette_couleurconnue[1] += 10"""
 
 
                 """distance_N_centre = math.sqrt(
@@ -1568,6 +1570,12 @@ if __name__ == '__main__':
                 action_voulu = Liste_actions[0][0]
                 x_robot_voulu = Liste_actions[0][1] 
                 y_robot_voulu = Liste_actions[0][2]
+                if Liste_actions[1][0] in ["Consigne","Avancer","Reculer","ReculerPrecis"]:
+                    x_robot_voulu_prochain = Liste_actions[1][1]
+                    y_robot_voulu_prochain = Liste_actions[1][2]
+                else:
+                    x_robot_voulu_prochain = x_robot_voulu
+                    y_robot_voulu_prochain = y_robot_voulu
                 angle_robot_voulu = -181
 
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Attente","Attente_test"]:
@@ -1613,14 +1621,17 @@ if __name__ == '__main__':
                 print("Ordre Mouvement : ",ordre_mouvement) 
             # ==================================================================== #
 
+
             # ==== Envoi des Ordres de Consigne de Rotation à la Carte Asserv ==== #
             if angle_robot_voulu != -181:
                 if angle_robot_voulu <= -180:
                     angle_robot_voulu +=360
                 elif angle_robot_voulu > 180:
                     angle_robot_voulu -= 360
-            dico_envoi[0x203] = x_robot_voulu
-            dico_envoi[0x204] = y_robot_voulu
+            dico_envoi[0x203] = x_robot_voulu_prochain
+            dico_envoi[0x204] = y_robot_voulu_prochain
+            dico_envoi[0x209] = x_robot_voulu
+            dico_envoi[0x20A] = y_robot_voulu
             dico_envoi[0x205] = angle_robot_voulu+360
             dico_envoi[0x206]= ordre_mouvement
             # ==================================================================== #
