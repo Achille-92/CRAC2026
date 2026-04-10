@@ -1,6 +1,6 @@
 couleur = "B"
 Reel = False
-Wifi = True
+Wifi = False
 
 Strategie = True
 Debug_strategie = True
@@ -368,6 +368,7 @@ temps_max = 300
 reset_fin = False
 
 verif_mouv = 0
+verif_mouv_rpi = 0
 old_verif_mouv = verif_mouv
 verif_angle = 0
 verif_action = 0
@@ -947,6 +948,8 @@ if __name__ == '__main__':
                 print("X et Y de départ en cours")
                 bus.send(can.Message(arbitration_id=0x203, data=struct.pack('<f',x_robot_depart), is_extended_id=False))
                 bus.send(can.Message(arbitration_id=0x204, data=struct.pack('<f',y_robot_depart), is_extended_id=False))
+                bus.send(can.Message(arbitration_id=0x209, data=struct.pack('<f',x_robot_depart), is_extended_id=False))
+                bus.send(can.Message(arbitration_id=0x20A, data=struct.pack('<f',y_robot_depart), is_extended_id=False))
                 bus.send(can.Message(arbitration_id=0x206, data=struct.pack('<i',5), is_extended_id=False))
 
                 if verif_mouv == 1:
@@ -1770,21 +1773,19 @@ if __name__ == '__main__':
             # ==================================================================== #
             
 
-            # Si robot est à la position de consigne  
+            # Si robot est à la position de consigne 
+            distance_robot_consigne = math.sqrt((x_robot_actuel - x_robot_voulu)**2 + (y_robot_actuel - y_robot_voulu)**2)
+            if((distance_robot_consigne<15 and action_voulu in ["Consigne","ReculerPrecis"]) or (distance_robot_consigne<50 and action_voulu in ["Avancer","Reculer"])):
+                if Debug_Mouv:
+                    print("Bonne position")
+                verif_mouv_rpi = 1
+                    
             if not Reel :
-                if(abs(x_robot_actuel-x_robot_voulu)<16 and abs(y_robot_actuel-y_robot_voulu)<16 and action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]):
-                    if Debug_Mouv:
-                        print("Bonne position")
-                    verif_mouv = 1
-                    distance_robot_consigne = 20
                 if(abs(angle_robot_actuel-angle_robot_voulu)<5) and action_voulu in ["Rotation"]:
                     if Debug_Mouv:
                         print("Bon Angle")
                     verif_angle = 1 
-            else:
-                if (action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]):
-                    distance_robot_consigne = math.sqrt((x_robot_actuel - x_robot_voulu)**2 + (y_robot_actuel - y_robot_voulu)**2)
-
+                    
             if not Reel:
                 if Simul_mvt_ennemi:
                     if(abs(x_ennemi-x_ennemi_voulu)<31 and abs(y_ennemi-y_ennemi_voulu)<31):
@@ -1792,7 +1793,7 @@ if __name__ == '__main__':
                             Liste_actions_ennemi.pop(0)
             
             # ================= Envoi des accusés de réception ======================== #
-            if verif_mouv == 1:
+            if verif_mouv_rpi == 1:
                 dico_envoi[0x207]=2
             else :
                 dico_envoi[0x207]=1
@@ -1810,7 +1811,7 @@ if __name__ == '__main__':
             # ==================================================================== #
             
             if Debug_Mouv:
-                print("verif_mouv : ",verif_mouv)
+                print("verif_mouv : ",verif_mouv_rpi)
                 print("ack mouv : ",dico_envoi[0x207])
                 print("verif_angle : ",verif_angle)
                 print("ack angle : ",dico_envoi[0x208])
@@ -1822,7 +1823,7 @@ if __name__ == '__main__':
 
 
             if not action_est_supprime:
-                if (action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"] and verif_mouv == 1 and distance_robot_consigne<30) or \
+                if (action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"] and verif_mouv_rpi == 1) or \
                 (action_voulu in ["Rotation"] and verif_angle == 1) or \
                 (action_voulu in ["Attente_test"] and verif_action == 1) or \
                 (action_voulu in ["Attraper","Retourner","Relacher"] and ((verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1))):
@@ -2093,6 +2094,7 @@ if __name__ == '__main__':
                     # Retirer l'action de la liste 
                     Liste_actions.pop(0) 
                     verif_mouv=0
+                    verif_mouv_rpi=0
                     verif_angle = 0
                     angle_robot_voulu = -181
                     verif_action = 0
@@ -2117,7 +2119,7 @@ if __name__ == '__main__':
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
-                        if key in [0x01,0x206,0x207,0x208,0x209,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
+                        if key in [0x01,0x206,0x207,0x208,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
                             format_value = struct.pack('<i',dico_envoi[key])
                         else:
                             format_value = struct.pack('<f',dico_envoi[key])

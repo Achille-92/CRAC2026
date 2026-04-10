@@ -62,8 +62,7 @@ scat = None
 def calcul_points(stop_event):
     global x_robot, y_robot, angle_robot, pile_points
 
-    dict_points = {i:[] for i in range(360)}
-    dict_points_moy = {i: 0 for i in range(360)}
+    dict_points = {i: 0 for i in range(360)}
     try:
         lidar = PyRPlidar()
         lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
@@ -75,36 +74,43 @@ def calcul_points(stop_event):
         #scan_generator = lidar.start_scan_express(0)
         scan_generator = lidar.start_scan()
         time.sleep(0.5)
+
         for count, scan in enumerate(scan_generator()):  
             if stop_event.is_set():
                 break
+            flag = scan.start_flag
             quality = scan.quality
             angle_point = scan.angle
             distance = scan.distance
-            
+            if flag == True:
+                for angle_point, distance in dict_points.items():
+                    phi = math.radians(angle_point)
+                    angle_total = phi - math.radians(angle_robot) - math.radians(0)
+
+                    x_point = x_robot + distance * math.cos(angle_total)
+                    y_point = y_robot - distance * math.sin(angle_total)
+
+                    # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
+                    x_point = max(0, min(3000, int(x_point)))
+                    y_point = max(0, min(2000, int(y_point)))
+
+                    # Filtrage des points (on ignore les bords)
+                    if (120 <= x_point <= 2880 and 80 <= y_point <= 1920) and distance > 10:
+                        pile_points.put((int(x_point), int(y_point)))
+
+                dict_points = {i: 0 for i in range(360)}
+                print("Début de tour")
             if distance > 4000:  
                 continue
             if quality < 1:
                 continue
-            dict_points[int(angle_point)] = []
-            dict_points[int(angle_point)].append(distance)
-            print(f"[{angle_point}]: ",dict_points[int(angle_point)])
+            
+            if dict_points[int(angle_point)] == 0:
+                dict_points[int(angle_point)] = distance
+                print(f"[{int(angle_point)}]: ",dict_points[int(angle_point)])
+            
 
-
-            """phi = math.radians(angle_point)
-            angle_total = phi - math.radians(angle_robot) - math.radians(-2)
-
-            x_point = x_robot + distance * math.cos(angle_total)
-            y_point = y_robot - distance * math.sin(angle_total)
-
-            # Saturation dans le repère (0 ≤ x ≤ 3000, 0 ≤ y ≤ 2000)
-            x_point = max(0, min(3000, int(x_point)))
-            y_point = max(0, min(2000, int(y_point)))
-
-            # Filtrage des points (on ignore les bords)
-            if (distance > 10 and quality > 1) and (120 <= x_point <= 2880 and 80 <= y_point <= 1920):
-                pile_points.put((int(x_point), int(y_point)))"""
-
+            
     except Exception as e:
         print("Erreur dans le thread LiDAR:", e)
     finally:
@@ -145,7 +151,7 @@ def affichage(stop_event):
     ax.set_ylim(0, 2000)
     ax.set_aspect('equal')
 
-    buffer_points = deque(maxlen=500)
+    buffer_points = deque(maxlen=100)
 
     while not stop_event.is_set():
         try:
@@ -179,7 +185,7 @@ if __name__ == '__main__':
         tache_odometrie.start()
 
     # L'affichage est exécuté dans le thread principal
-    #affichage(stop_event)
+    affichage(stop_event)
 
     try:
         while True:
