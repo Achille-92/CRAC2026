@@ -6,8 +6,8 @@ Strategie = True
 Debug_strategie = True
 Astars = True
 
-Simul_mvt = False
-Simul_mvt_ennemi = False
+Simul_mvt = True
+Simul_mvt_ennemi = True
 Debug_Mouv = True
 Recalage = True
 Simul_action = True
@@ -215,6 +215,8 @@ if couleur == "B":
     y_ennemi = 1650
     
     Liste_strategie = [
+        [1050,175],[1150,175],
+
         [2825,450],
         [2825,350],
         [2950,850],
@@ -1201,8 +1203,8 @@ if __name__ == '__main__':
 
                     angle_ennemi_consigne = np.degrees(math.atan2(y_ennemi_voulu - y_ennemi, x_ennemi_voulu - x_ennemi))
 
-                    x_ennemi += round(26*np.cos(math.radians(angle_ennemi_consigne)),0)
-                    y_ennemi += round(26*np.sin(math.radians(angle_ennemi_consigne)),0)
+                    x_ennemi += round(22*np.cos(math.radians(angle_ennemi_consigne)),0)
+                    y_ennemi += round(22*np.sin(math.radians(angle_ennemi_consigne)),0)
 
             ###
             
@@ -1517,15 +1519,26 @@ if __name__ == '__main__':
                         grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
                         
                         # Reculer selon la dernière trajectoire, si possible alors le faire, sinon prendre l'algorithme de fuite
-                        angle_ennemi_robot = math.atan2(y_robot_actuel - y_ennemi, x_robot_actuel - x_ennemi)
-                        x_test = x_robot_actuel + (R_securite - distance_robot_ennemi + 40) * math.cos(angle_ennemi_robot)
-                        y_test = y_robot_actuel + (R_securite - distance_robot_ennemi + 40) * math.sin(angle_ennemi_robot)
-                        angle_consigne_robot = np.degrees(math.atan2(y_robot_actuel - y_robot_voulu, x_robot_actuel - x_robot_voulu))
+                        angle_consigne_robot = math.atan2(y_robot_voulu - y_robot_actuel, x_robot_voulu - x_robot_actuel)
+                        if angle_consigne_robot >math.pi:
+                            angle_consigne_robot -=2*math.pi
+
+                        angle_ennemi_robot = math.atan2(y_ennemi - y_robot_actuel, x_ennemi - x_robot_actuel)
+                        if angle_ennemi_robot >math.pi:
+                            angle_ennemi_robot -=2*math.pi
+
+                        x_test = x_robot_actuel + (R_securite - distance_robot_ennemi + 50) * math.cos(math.pi+angle_ennemi_robot)
+                        y_test = y_robot_actuel + (R_securite - distance_robot_ennemi + 50) * math.sin(math.pi+angle_ennemi_robot)
+
+                        angle_robot_test = math.atan2(y_test - y_robot_actuel, x_test - x_robot_actuel)
+                        if angle_robot_test > math.pi:
+                            angle_robot_test -= 2*math.pi
+
                         distance_prochain_test = math.sqrt((x_test - x_robot_voulu)**2 + (y_test - y_robot_voulu)**2)
                         x_case_test = max(0, min(width - 1, int(x_test // CASE_MM)))
                         y_case_test = max(0, min(height - 1, int(y_test // CASE_MM)))
 
-                        if grid_expanded[x_case_test, y_case_test]:
+                        """if grid_expanded[x_case_test, y_case_test]:
                             print("⚠️ Robot dans zone interdite — recherche case libre proche")
                             x_libre, y_libre = trouver_case_libre_proche(
                                 x_robot_actuel, y_robot_actuel,
@@ -1540,30 +1553,53 @@ if __name__ == '__main__':
                                 # Insérer un Avancer prioritaire vers ce point
                                 if distance_sortie >50:  # Seuil de proximité pour décider de se diriger vers la case libre
                                     angle_vers_libre = np.degrees(math.atan2(y_libre - y_robot_actuel, x_libre - x_robot_actuel))
-                                    x_plusloin = x_libre + 20 * math.cos(math.radians(angle_vers_libre))
-                                    y_plusloin = y_libre + 20 * math.sin(math.radians(angle_vers_libre))
+                                    x_plusloin = x_libre + 30 * math.cos(math.radians(angle_vers_libre))
+                                    y_plusloin = y_libre + 30 * math.sin(math.radians(angle_vers_libre))
                                     if action_voulu in ["Consigne", "Avancer"]:
                                         Liste_actions.insert(0, ["ReculerPrecis", int(x_plusloin), int(y_plusloin)])
                                     elif action_voulu in ["ReculerPrecis", "Reculer"]:
                                         Liste_actions.insert(0, ["Consigne", int(x_plusloin), int(y_plusloin)])
                             else:
                                 print("❌ Aucune case libre trouvée dans le rayon de recherche")
-                        else:
-                            if distance_prochain_test > 60:
-                                if not(angle_consigne_robot-90 <= np.degrees(angle_ennemi_robot) < angle_consigne_robot+90):
-                                    # Même direction
-                                    print("Dans condition")
-                                    if action_voulu in ["Consigne", "Avancer"]:
-                                        Liste_actions.insert(0, ["Consigne", int(x_test), int(y_test)])
-                                    if action_voulu in ["ReculerPrecis", "Reculer"]:
-                                        Liste_actions.insert(0, ["ReculerPrecis", int(x_test), int(y_test)])
+                        else:"""
+
+                        if distance_prochain_test > 60:
+                            print("angle_ennemi_robot : ", np.degrees(angle_ennemi_robot))
+                            print("angle_consigne_robot : ", np.degrees(angle_consigne_robot))
+                            print("angle_consigne_robot - 90°: ", np.degrees(angle_consigne_robot - math.pi/2))
+                            print("angle_consigne_robot + 90°: ", np.degrees(angle_consigne_robot + math.pi/2))
+
+                            print("angle_robot_test : ", np.degrees(angle_robot_test))
+                            print("angle_robot_actuel : ", angle_robot_actuel)
+                            print("angle_robot_actuel-90 : ", angle_robot_actuel-90)
+                            print("angle_robot_actuel+90 : ", angle_robot_actuel+90)
+
+                            if np.degrees(angle_consigne_robot - math.pi/2)<np.degrees(angle_ennemi_robot)<np.degrees(angle_consigne_robot + math.pi/2):
+                                print("Ennemi dans cadran, Reculer pour s'éloigner")
+                                if angle_robot_actuel-90<=np.degrees(angle_robot_test)<angle_robot_actuel+90:
+                                    Liste_actions.insert(0, ["Consigne", int(x_test), int(y_test)])
                                 else:
-                                    # Direction opposée
-                                    print("Hors condition")
-                                    if action_voulu in ["Consigne", "Avancer"]:
-                                        Liste_actions.insert(0, ["ReculerPrecis", int(x_test), int(y_test)])
-                                    if action_voulu in ["ReculerPrecis", "Reculer"]:
-                                        Liste_actions.insert(0, ["Consigne", int(x_test), int(y_test)])
+                                    Liste_actions.insert(0, ["ReculerPrecis", int(x_test), int(y_test)])
+                            else:
+                                print("Ennemi dans cadran opposé, Avancer vers Consigne")
+                                #Astars_a_fail = True
+                                if angle_robot_actuel-90<=np.degrees(angle_robot_test)<angle_robot_actuel+90:
+                                    Liste_actions.insert(0, ["ReculerPrecis", int(x_robot_voulu), int(y_robot_voulu)])
+                                else:
+                                    Liste_actions.insert(0, ["Consigne", int(x_robot_voulu), int(y_robot_voulu)])
+
+                            """if angle_consigne_robot - math.pi/2 < angle_ennemi_robot < angle_consigne_robot + math.pi/2:
+                                print("Ennemi dans cadran, Reculer pour s'éloigner")
+                                if angle_robot_actuel*math.pi/180 -math.pi/2 < angle_robot_test < angle_robot_actuel*math.pi/180 +math.pi/2:
+                                    Liste_actions.insert(0, ["Consigne", int(x_test), int(y_test)])
+                                else:
+                                    Liste_actions.insert(0, ["ReculerPrecis", int(x_test), int(y_test)])
+                            else:
+                                print("Ennemi dans cadran opposé, Avancer vers Consigne")
+                                if angle_robot_actuel*math.pi/180 -math.pi/2 < angle_robot_test < angle_robot_actuel*math.pi/180 +math.pi/2:
+                                    Liste_actions.insert(0, ["ReculerPrecis", int(x_robot_voulu), int(y_robot_voulu)])
+                                else:
+                                    Liste_actions.insert(0, ["Consigne", int(x_robot_voulu), int(y_robot_voulu)])"""
 
                           
             # ======================================================================== #

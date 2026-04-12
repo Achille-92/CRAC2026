@@ -43,7 +43,7 @@ y_robot = int(1550+LONGUEUR_ROBOT/2+100)
 
 x_robot = 1500
 y_robot = 1700
-angle_robot = -90
+angle_robot = 90
 
 # Coordonnées et angle du robot ennemi
 x_ennemi = 0
