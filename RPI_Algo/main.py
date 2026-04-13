@@ -9,12 +9,12 @@ Astars = True
 Simul_mvt = True
 Simul_mvt_ennemi = False
 Debug_Mouv = True
-Recalage = True
+Recalage = False
 Simul_action = True
 Debug_Action = True
 
 Lidar_on = False
-Bat_Compet = True
+Bat_Compet = False
 lancement_cartes = True
 
 Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
@@ -189,8 +189,9 @@ PORT_ENVOI = 5000
 
 # Coordonnées et angle de notre robot (coordonnées initiales en haut)
 if couleur == "B":
-    x_robot_depart = int(2400+LARGEUR_ROBOT/2+50)
+    x_robot_depart = int(2850-LARGEUR_ROBOT/2)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
+
     angle_robot_depart = -90
 
 
@@ -215,17 +216,17 @@ if couleur == "B":
     y_ennemi = 1650
     
     Liste_strategie = [
-        [1050,175],[1150,175],
+        #[1050,175],[1150,175],
 
-        [2825,450],
-        [2825,350],
-        [2950,850],
-        [2950,750],
+        #[2825,450],
+        #[2825,350],
+        #[2950,850],
+        #[2950,750],
 
-        [2825,1250],
-        [2825,1150],
-        [2150,800],
-        [2250,800],
+        #[2825,1250],
+        #[2825,1150],
+        #[2150,800],
+        #[2250,800],
 
         [1950,175],
         [1850,175],
@@ -923,6 +924,18 @@ if __name__ == '__main__':
         dico_envoi[0x200]=0
         dico_envoi[0x201]=0
         dico_envoi[0x202]=0
+        time.sleep(0.1)
+        dico_envoi[0x01]=1
+        dico_envoi[0x200]=x_robot_depart
+        dico_envoi[0x201]=y_robot_depart
+        dico_envoi[0x202]=angle_robot_depart
+        bus.send(can.Message(arbitration_id=0x01, data=struct.pack('<i',dico_envoi[0x01]), is_extended_id=False))
+        bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
+        bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
+        bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
+        dico_envoi[0x200]=0
+        dico_envoi[0x201]=0
+        dico_envoi[0x202]=0
         time.sleep(5)
 
         if Recalage: 
@@ -998,10 +1011,11 @@ if __name__ == '__main__':
                 Batteries_interrupteur[1]=2
             else :
                 Batteries_interrupteur[1]=1
-            if Batteries_alert[2]==0:
+            Batteries_interrupteur[2]=2
+            """if Batteries_alert[2]==0:
                 Batteries_interrupteur[2]=2
             else :
-                Batteries_interrupteur[2]=1
+                Batteries_interrupteur[2]=1"""
         else :                                  # Sinon
             Batteries_interrupteur[0]=2         #  On met tous les interrupteurs à 1
             Batteries_interrupteur[1]=2
@@ -1066,9 +1080,9 @@ if __name__ == '__main__':
         if Lidar_on: 
             tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
             tache_lidar.start()
-        """if Astars:
+        if Astars:
             tache_Astar = threading.Thread(target=calcul_traj, args=(stop_event,), daemon=False)
-            tache_Astar.start()"""
+            tache_Astar.start()
 
         #n = random.randint(8, 15)
         Liste_actions_ennemi = [[2400,750]]
@@ -1210,11 +1224,11 @@ if __name__ == '__main__':
 
                     x_ennemi += round(26*np.cos(math.radians(angle_ennemi_consigne)),0)
                     y_ennemi += round(26*np.sin(math.radians(angle_ennemi_consigne)),0)
-            else:
-                if Wifi and not Lidar_on:
-                    x_ennemi = x_ennemi_cam
-                    y_ennemi = y_ennemi_cam
-                    angle_ennemi = angle_ennemi_cam
+            
+            if Wifi and not Lidar_on:
+                x_ennemi = x_ennemi_cam
+                y_ennemi = y_ennemi_cam
+                angle_ennemi = angle_ennemi_cam
                 
             ###
             
@@ -1422,11 +1436,11 @@ if __name__ == '__main__':
                         if Debug_Mouv:
                             print("\n🚀 Déclenchement du calcul A*")
                         demande_recalcul_traj = False
-                        """else:
-                            queue_demande_astar.put((
-                                x_robot_actuel, y_robot_actuel,
-                                x_robot_voulu, y_robot_voulu
-                            ))
+                        
+                        """queue_demande_astar.put((
+                            x_robot_actuel, y_robot_actuel,
+                            x_robot_voulu, y_robot_voulu
+                        ))
                             
                         try:"""
                         if distance_consigne_ennemi <= R_securite:
@@ -1524,8 +1538,8 @@ if __name__ == '__main__':
 
                         """except queue.Empty:
                             # Pas de résultat disponible, on continue
-                            Astars_a_fail = True
-                            pass    """          
+                            Astars_a_fail = True"""
+                                          
                 else:
                     if not mode_attraper:
                         print("Il faut sortir du rayon ennemi")  
@@ -1791,10 +1805,11 @@ if __name__ == '__main__':
                     Batteries_interrupteur[1]=2
                 else :
                     Batteries_interrupteur[1]=1
-                if Batteries_alert[2]==0:
+                Batteries_interrupteur[2]=2
+                """if Batteries_alert[2]==0:
                     Batteries_interrupteur[2]=2
                 else :
-                    Batteries_interrupteur[2]=1
+                    Batteries_interrupteur[2]=1"""
             else :                                  # Sinon
                 Batteries_interrupteur[0]=2         #  On met tous les interrupteurs à 1
                 Batteries_interrupteur[1]=2

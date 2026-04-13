@@ -625,8 +625,8 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                     if 0<=strategie_en_cours<=1:
                         if nb == 2:
                             # 2 Noisette ou moins
-                            distance_robot_n0 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[0][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+50 - Strat_Noisettes_dans_GM[0][1])**2)
-                            distance_robot_n1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[1][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+50 - Strat_Noisettes_dans_GM[1][1])**2)
+                            distance_robot_n0 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[0][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+25 - Strat_Noisettes_dans_GM[0][1])**2)
+                            distance_robot_n1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[1][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+25 - Strat_Noisettes_dans_GM[1][1])**2)
                             print("distance_robot_n0 : ",distance_robot_n0)
                             print("distance_robot_n1 : ",distance_robot_n1)
                             print("Strat_Noisettes_dans_GM avant tri : ",Strat_Noisettes_dans_GM)
@@ -637,7 +637,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                 Strat_Noisettes_dans_GM[1] = temp
                                 distance_robot_n0, distance_robot_n1 = distance_robot_n1, distance_robot_n0
                             print("Strat_Noisettes_dans_GM après tri : ",Strat_Noisettes_dans_GM)
-                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+50 - Strat_Noisettes_dans_GM[0][1],Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[0][0])
+                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+25 - Strat_Noisettes_dans_GM[0][1],Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[0][0])
                             print("angle_Noisette_centre : ",math.degrees(angle_Noisette_centre))
                             x_cote = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(angle_Noisette_centre)
                             y_cote = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(angle_Noisette_centre)
@@ -667,13 +667,13 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                         Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_Noisette_centre))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_Noisette_centre))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
                                 
                         else:
-                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+50 - Strat_Noisettes_dans_GM[0][1], Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[0][0])
+                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+25 - Strat_Noisettes_dans_GM[0][1], Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[0][0])
                             x_cote1 = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(angle_Noisette_centre)
                             y_cote1 = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(angle_Noisette_centre)
                             x_cote2 = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(math.pi+angle_Noisette_centre)
                             y_cote2 = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(math.pi+angle_Noisette_centre)
-                            distance_cote_centre1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote1)**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+50 - y_cote1)**2)
-                            distance_cote_centre2 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote2)**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+50 - y_cote2)**2)
+                            distance_cote_centre1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote1)**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+25 - y_cote1)**2)
+                            distance_cote_centre2 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote2)**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+25 - y_cote2)**2)
                             if distance_cote_centre1 > distance_cote_centre2:
                                 x_cote = x_cote2
                                 y_cote = y_cote2
@@ -708,8 +708,8 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                     if strategie_en_cours==7 or strategie_en_cours==8 or strategie_en_cours==9:
                         if nb == 2:
                             # 2 Noisette ou moins
-                            distance_robot_n0 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[0][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][1][1]-50 - Strat_Noisettes_dans_GM[0][1])**2)
-                            distance_robot_n1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[1][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][1][1]-50 - Strat_Noisettes_dans_GM[1][1])**2)
+                            distance_robot_n0 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[0][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][1][1]-25 - Strat_Noisettes_dans_GM[0][1])**2)
+                            distance_robot_n1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[1][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][1][1]-25 - Strat_Noisettes_dans_GM[1][1])**2)
                             print("distance_robot_n0 : ",distance_robot_n0)
                             print("distance_robot_n1 : ",distance_robot_n1)
                             print("Strat_Noisettes_dans_GM avant tri : ",Strat_Noisettes_dans_GM)
@@ -720,7 +720,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                 Strat_Noisettes_dans_GM[1] = temp
                                 distance_robot_n0, distance_robot_n1 = distance_robot_n1, distance_robot_n0
                             print("Strat_Noisettes_dans_GM après tri : ",Strat_Noisettes_dans_GM)
-                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][1][1]-50 - Strat_Noisettes_dans_GM[0][1],Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[0][0])
+                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][1][1]-25 - Strat_Noisettes_dans_GM[0][1],Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[0][0])
                             print("angle_Noisette_centre : ",math.degrees(angle_Noisette_centre))
                             x_cote = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(angle_Noisette_centre)
                             y_cote = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(angle_Noisette_centre)
@@ -750,13 +750,13 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                     else:
                                         Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_Noisette_centre))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_Noisette_centre))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
                         else:
-                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+50 - Strat_Noisettes_dans_GM[0][1], Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[0][0])
+                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+25 - Strat_Noisettes_dans_GM[0][1], Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - Strat_Noisettes_dans_GM[0][0])
                             x_cote1 = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(angle_Noisette_centre)
                             y_cote1 = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(angle_Noisette_centre)
                             x_cote2 = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(math.pi+angle_Noisette_centre)
                             y_cote2 = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(math.pi+angle_Noisette_centre)
-                            distance_cote_centre1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote1)**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+50 - y_cote1)**2)
-                            distance_cote_centre2 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote2)**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+50 - y_cote2)**2)
+                            distance_cote_centre1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote1)**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+25 - y_cote1)**2)
+                            distance_cote_centre2 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote2)**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+25 - y_cote2)**2)
                             if distance_cote_centre1 > distance_cote_centre2:
                                 x_cote = x_cote2
                                 y_cote = y_cote2
@@ -792,8 +792,8 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                     if strategie_en_cours==6:
                         if nb == 2:
                             # 2 Noisette ou moins
-                            distance_robot_n0 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+50 - Strat_Noisettes_dans_GM[0][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[0][1])**2)
-                            distance_robot_n1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+50 - Strat_Noisettes_dans_GM[1][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[1][1])**2)
+                            distance_robot_n0 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+25 - Strat_Noisettes_dans_GM[0][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[0][1])**2)
+                            distance_robot_n1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+25 - Strat_Noisettes_dans_GM[1][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[1][1])**2)
                             print("distance_robot_n0 : ",distance_robot_n0)
                             print("distance_robot_n1 : ",distance_robot_n1)
                             print("Strat_Noisettes_dans_GM avant tri : ",Strat_Noisettes_dans_GM)
@@ -804,7 +804,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                 Strat_Noisettes_dans_GM[1] = temp
                                 distance_robot_n0, distance_robot_n1 = distance_robot_n1, distance_robot_n0
                             print("Strat_Noisettes_dans_GM après tri : ",Strat_Noisettes_dans_GM)
-                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[0][1],Liste_zones_gm_coins[strategie_en_cours][0][0]+50 - Strat_Noisettes_dans_GM[0][0])
+                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[0][1],Liste_zones_gm_coins[strategie_en_cours][0][0]+25 - Strat_Noisettes_dans_GM[0][0])
                             print("angle_Noisette_centre : ",math.degrees(angle_Noisette_centre))
                             x_cote = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(angle_Noisette_centre)
                             y_cote = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(angle_Noisette_centre)
@@ -833,13 +833,13 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                     else:
                                         Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_Noisette_centre))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_Noisette_centre))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
                         else:
-                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[0][1], Liste_zones_gm_coins[strategie_en_cours][0][0]+50 - Strat_Noisettes_dans_GM[0][0])
+                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[0][1], Liste_zones_gm_coins[strategie_en_cours][0][0]+25 - Strat_Noisettes_dans_GM[0][0])
                             x_cote1 = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(angle_Noisette_centre)
                             y_cote1 = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(angle_Noisette_centre)
                             x_cote2 = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(math.pi+angle_Noisette_centre)
                             y_cote2 = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(math.pi+angle_Noisette_centre)
-                            distance_cote_centre1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote1)**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+50 - y_cote1)**2)
-                            distance_cote_centre2 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote2)**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+50 - y_cote2)**2)
+                            distance_cote_centre1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote1)**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+25 - y_cote1)**2)
+                            distance_cote_centre2 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote2)**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+25 - y_cote2)**2)
                             if distance_cote_centre1 > distance_cote_centre2:
                                 x_cote = x_cote2
                                 y_cote = y_cote2
@@ -874,8 +874,8 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                     if strategie_en_cours==2:
                         if nb == 2:
                             # 2 Noisette ou moins
-                            distance_robot_n0 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][1][0]-50 - Strat_Noisettes_dans_GM[0][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[0][1])**2)
-                            distance_robot_n1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][1][0]-50 - Strat_Noisettes_dans_GM[1][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[1][1])**2)
+                            distance_robot_n0 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][1][0]-25 - Strat_Noisettes_dans_GM[0][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[0][1])**2)
+                            distance_robot_n1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][1][0]-25 - Strat_Noisettes_dans_GM[1][0])**2 + (Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[1][1])**2)
                             print("distance_robot_n0 : ",distance_robot_n0)
                             print("distance_robot_n1 : ",distance_robot_n1)
                             print("Strat_Noisettes_dans_GM avant tri : ",Strat_Noisettes_dans_GM)
@@ -886,7 +886,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                 Strat_Noisettes_dans_GM[1] = temp
                                 distance_robot_n0, distance_robot_n1 = distance_robot_n1, distance_robot_n0
                             print("Strat_Noisettes_dans_GM après tri : ",Strat_Noisettes_dans_GM)
-                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[0][1],Liste_zones_gm_coins[strategie_en_cours][1][0]-50 - Strat_Noisettes_dans_GM[0][0])
+                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[0][1],Liste_zones_gm_coins[strategie_en_cours][1][0]-25 - Strat_Noisettes_dans_GM[0][0])
                             print("angle_Noisette_centre : ",math.degrees(angle_Noisette_centre))
                             x_cote = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(angle_Noisette_centre)
                             y_cote = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(angle_Noisette_centre)
@@ -915,13 +915,13 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                     else:
                                         Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_Noisette_centre))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_Noisette_centre))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
                         else:
-                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[0][1], Liste_zones_gm_coins[strategie_en_cours][1][0]-50 - Strat_Noisettes_dans_GM[0][0])
+                            angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[0][1], Liste_zones_gm_coins[strategie_en_cours][1][0]-25 - Strat_Noisettes_dans_GM[0][0])
                             x_cote1 = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(angle_Noisette_centre)
                             y_cote1 = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(angle_Noisette_centre)
                             x_cote2 = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(math.pi+angle_Noisette_centre)
                             y_cote2 = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(math.pi+angle_Noisette_centre)
-                            distance_cote_centre1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote1)**2 + (Liste_zones_gm_coins[strategie_en_cours][1][1]-50 - y_cote1)**2)
-                            distance_cote_centre2 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote2)**2 + (Liste_zones_gm_coins[strategie_en_cours][1][1]-50 - y_cote2)**2)
+                            distance_cote_centre1 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote1)**2 + (Liste_zones_gm_coins[strategie_en_cours][1][1]-25 - y_cote1)**2)
+                            distance_cote_centre2 = math.sqrt((Liste_zones_gm_coins[strategie_en_cours][0][0]+100 - x_cote2)**2 + (Liste_zones_gm_coins[strategie_en_cours][1][1]-25 - y_cote2)**2)
                             if distance_cote_centre1 > distance_cote_centre2:
                                 x_cote = x_cote2
                                 y_cote = y_cote2
@@ -1132,16 +1132,16 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                     if strategie_en_cours==0 or strategie_en_cours==1:
                         
                         x_arrivee_1 = 200+Liste_zones_gm_coins[strategie_en_cours][0][0] + distance*math.cos(np.radians(180))
-                        y_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][0][1]+50 + distance*math.sin(np.radians(180))
+                        y_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][0][1]+25 + distance*math.sin(np.radians(180))
 
                         x_arrivee_2 = -200+Liste_zones_gm_coins[strategie_en_cours][1][0] + distance*math.cos(np.radians(0))
-                        y_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][1][1]-150 + distance*math.sin(np.radians(0))
+                        y_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][1][1]-175 + distance*math.sin(np.radians(0))
 
                         x_arrivee_Astar_1 = 200+Liste_zones_gm_coins[strategie_en_cours][0][0] + distanceA*math.cos(np.radians(180))
-                        y_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][0][1]+50 + distanceA*math.sin(np.radians(180))
+                        y_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][0][1]+25 + distanceA*math.sin(np.radians(180))
 
                         x_arrivee_Astar_2 = -200+Liste_zones_gm_coins[strategie_en_cours][1][0] + distanceA*math.cos(np.radians(0))
-                        y_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][1][1]-150 + distanceA*math.sin(np.radians(0))
+                        y_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][1][1]-175 + distanceA*math.sin(np.radians(0))
 
                         
                         if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_1 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_1 // CASE_MM)))] and grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_2 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_2 // CASE_MM)))]:
@@ -1185,16 +1185,16 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                     if strategie_en_cours==7 or strategie_en_cours==8 or strategie_en_cours==9:
 
                         x_arrivee_1 = 200+Liste_zones_gm_coins[strategie_en_cours][0][0] + distance*math.cos(np.radians(180))
-                        y_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][0][1]+150 + distance*math.sin(np.radians(180))
+                        y_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][0][1]+175 + distance*math.sin(np.radians(180))
 
                         x_arrivee_2 = -200+Liste_zones_gm_coins[strategie_en_cours][1][0] + distance*math.cos(np.radians(0))
-                        y_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][1][1]-50 + distance*math.sin(np.radians(0))
+                        y_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][1][1]-25 + distance*math.sin(np.radians(0))
 
                         x_arrivee_Astar_1 = 200+Liste_zones_gm_coins[strategie_en_cours][0][0] + distanceA*math.cos(np.radians(180))
-                        y_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][0][1]+150 + distanceA*math.sin(np.radians(180))
+                        y_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][0][1]+175 + distanceA*math.sin(np.radians(180))
 
                         x_arrivee_Astar_2 = -200+Liste_zones_gm_coins[strategie_en_cours][1][0] + distanceA*math.cos(np.radians(0))
-                        y_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][1][1]-50 + distanceA*math.sin(np.radians(0))
+                        y_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][1][1]-25 + distanceA*math.sin(np.radians(0))
 
                         
                         if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_1 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_1 // CASE_MM)))] and grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar_2 // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar_2 // CASE_MM)))]:
@@ -1238,29 +1238,29 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                     if strategie_en_cours==2 or strategie_en_cours==6:
 
                         if strategie_en_cours==2:
-                            x_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][1][0]-50 + distance*math.cos(np.radians(-90))
+                            x_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][1][0]-25 + distance*math.cos(np.radians(-90))
                             y_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][1][1] + distance*math.sin(np.radians(-90))
 
-                            x_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][1][0]-50 + distanceA*math.cos(np.radians(-90))
+                            x_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][1][0]-25 + distanceA*math.cos(np.radians(-90))
                             y_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][1][1] + distanceA*math.sin(np.radians(-90))
 
-                            x_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][1][0]-50 + distance*math.cos(np.radians(90))
+                            x_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][1][0]-25 + distance*math.cos(np.radians(90))
                             y_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][0][1] + distance*math.sin(np.radians(90))
 
-                            x_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][1][0]-50 + distanceA*math.cos(np.radians(90))
+                            x_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][1][0]-25 + distanceA*math.cos(np.radians(90))
                             y_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][0][1] + distanceA*math.sin(np.radians(90))
                         
                         if strategie_en_cours==6:
-                            x_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][0][0]+50 + distance*math.cos(np.radians(-90))
+                            x_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][0][0]+25 + distance*math.cos(np.radians(-90))
                             y_arrivee_1 = Liste_zones_gm_coins[strategie_en_cours][1][1] + distance*math.sin(np.radians(-90))
 
-                            x_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][0][0]+50 + distanceA*math.cos(np.radians(-90))
+                            x_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][0][0]+25 + distanceA*math.cos(np.radians(-90))
                             y_arrivee_Astar_1 = Liste_zones_gm_coins[strategie_en_cours][1][1] + distanceA*math.sin(np.radians(-90))
 
-                            x_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][0][0]+50 + distance*math.cos(np.radians(90))
+                            x_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][0][0]+25 + distance*math.cos(np.radians(90))
                             y_arrivee_2 = Liste_zones_gm_coins[strategie_en_cours][0][1] + distance*math.sin(np.radians(90))
 
-                            x_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][0][0]+50 + distanceA*math.cos(np.radians(90))
+                            x_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][0][0]+25 + distanceA*math.cos(np.radians(90))
                             y_arrivee_Astar_2 = Liste_zones_gm_coins[strategie_en_cours][0][1] + distanceA*math.sin(np.radians(90))
 
                         
