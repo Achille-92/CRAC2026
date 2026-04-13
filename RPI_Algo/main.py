@@ -7,7 +7,7 @@ Debug_strategie = True
 Astars = True
 
 Simul_mvt = True
-Simul_mvt_ennemi = True
+Simul_mvt_ennemi = False
 Debug_Mouv = True
 Recalage = True
 Simul_action = True
@@ -1208,9 +1208,14 @@ if __name__ == '__main__':
 
                     angle_ennemi_consigne = np.degrees(math.atan2(y_ennemi_voulu - y_ennemi, x_ennemi_voulu - x_ennemi))
 
-                    x_ennemi += round(28*np.cos(math.radians(angle_ennemi_consigne)),0)
-                    y_ennemi += round(28*np.sin(math.radians(angle_ennemi_consigne)),0)
-
+                    x_ennemi += round(26*np.cos(math.radians(angle_ennemi_consigne)),0)
+                    y_ennemi += round(26*np.sin(math.radians(angle_ennemi_consigne)),0)
+            else:
+                if Wifi and not Lidar_on:
+                    x_ennemi = x_ennemi_cam
+                    y_ennemi = y_ennemi_cam
+                    angle_ennemi = angle_ennemi_cam
+                
             ###
             
 
@@ -1525,7 +1530,7 @@ if __name__ == '__main__':
                     if not mode_attraper:
                         print("Il faut sortir du rayon ennemi")  
                         grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
-                        
+                        Astars_a_fail = True
                         # Reculer selon la dernière trajectoire, si possible alors le faire, sinon prendre l'algorithme de fuite
                         angle_consigne_robot = math.atan2(y_robot_voulu - y_robot_actuel, x_robot_voulu - x_robot_actuel)
                         if angle_consigne_robot >math.pi:
@@ -1572,7 +1577,8 @@ if __name__ == '__main__':
                         else:
 
                             if distance_prochain_test > 60:
-                                Liste_actions.pop(0)
+                                if action_voulu in ["Consigne","ReculerPrecis"]:
+                                    Liste_actions.pop(0)
                                 print("angle_ennemi_robot : ", np.degrees(angle_ennemi_robot))
                                 print("angle_consigne_robot : ", np.degrees(angle_consigne_robot))
                                 print("angle_consigne_robot - 90°: ", np.degrees(angle_consigne_robot - math.pi/2))
@@ -1583,9 +1589,9 @@ if __name__ == '__main__':
                                 print("angle_robot_actuel-90 : ", angle_robot_actuel-90)
                                 print("angle_robot_actuel+90 : ", angle_robot_actuel+90)
                                 if angle_robot_actuel-90<=np.degrees(angle_robot_test)<angle_robot_actuel+90:
-                                    Liste_actions.insert(0, ["Consigne", int(x_test), int(y_test)])
+                                    Liste_actions.insert(0, ["Avancer", int(x_test), int(y_test)])
                                 else:
-                                    Liste_actions.insert(0, ["ReculerPrecis", int(x_test), int(y_test)])
+                                    Liste_actions.insert(0, ["Reculer", int(x_test), int(y_test)])
 
                                 """if np.degrees(angle_consigne_robot - math.pi/2)<np.degrees(angle_ennemi_robot)<np.degrees(angle_consigne_robot + math.pi/2):
                                     print("Ennemi dans cadran, Reculer pour s'éloigner")
