@@ -1,13 +1,13 @@
 couleur = "B"
 Reel = False
-Wifi = True
+Wifi = False
 
 Strategie = True
 Debug_strategie = True
 Astars = True
 
 Simul_mvt = True
-Simul_mvt_ennemi = False
+Simul_mvt_ennemi = True
 Debug_Mouv = True
 Recalage = False
 Simul_action = True
@@ -211,7 +211,6 @@ if couleur == "B":
     
     #Liste_actions = [["Consigne",x_curseur_1,y_curseur_1],["Rotation",angle_curseur_1],["CurseurHaut",0],["Consigne",x_curseur_2,y_curseur_2],["Rotation",angle_curseur_1],["RotationCurseur",angle_pichnette[0]]]
 
-
     x_ennemi = 275
     y_ennemi = 1650
     
@@ -280,7 +279,7 @@ rayon_total_case = (R_ROBOT + MARGE_TRAJECTOIRE) // CASE_MM
 
 # === CRÉATION DES OBSTACLES avec la classe Obstacles === #
 obs_manager = Obstacles(X_PISTE,Y_PISTE,R_ROBOT-20,0,CASE_MM)
-obs_manager_noisettes = Obstacles(X_PISTE,Y_PISTE,R_ROBOT,0,CASE_MM)
+obs_manager_noisettes = Obstacles(X_PISTE,Y_PISTE,R_ROBOT-30,0,CASE_MM)
 
 for i, noisette_data in enumerate(Liste_noisette_xya, 1):
     if len(noisette_data) >= 3:
@@ -313,7 +312,7 @@ expanded_array = np.vstack([expanded_array_zones, expanded_array_noisettes]) if 
 # ======================================================= #
 
 # Variables fonctionnelles des Batteries
-Batteries = [random.randint(1, 100),random.randint(1, 100),random.randint(1, 100),random.randint(1, 100)] # V décharge, V charge, V actuel, % de charge
+Batteries = [random.randint(10, 100),random.randint(10, 100),random.randint(10, 100),random.randint(10, 100)] # V décharge, V charge, V actuel, % de charge
 Batteries_interrupteur = [1,1,1]
 Batteries_alert = [0,0,0,0]
 RPI_decharge = False
@@ -389,12 +388,12 @@ mode_attraper = False
 
 pince_a_utilise = -1
 noisette_a_manipulee = 0
-Pince_Avant = True
-Pince_Av_1 = True
-Pince_Av_2 = True
-Pince_Arriere = True
-Pince_Ar_1 = True
-Pince_Ar_2 = True
+Pince_Avant = True # Pas à pas ou herkulex écarter pince marchent pas : pas possibe de retourner
+Pince_Av_1 = True # Serrer intérieur 
+Pince_Av_2 = True # Serrer extérieur 
+Pince_Arriere = True  # Pas à pas ou herkulex écarter pince marchent pas : pas possibe de retourner
+Pince_Ar_1 = True # Serrer intérieur 
+Pince_Ar_2 = True # Serrer extérieur 
 
 demande_recalcul_traj = False
 sortir_ennemi = False
@@ -1085,7 +1084,7 @@ if __name__ == '__main__':
             tache_Astar.start()
 
         #n = random.randint(8, 15)
-        Liste_actions_ennemi = [[2400,750]]
+        Liste_actions_ennemi = [[2400,750],[1500,1000]]
         """for i in range(n):
             Liste_actions_ennemi.append([random.randint(100, 2900),random.randint(100, 1900)])"""
         n_init = len(Liste_actions_ennemi)
@@ -1103,61 +1102,6 @@ if __name__ == '__main__':
 
             if not Noisette_init:
                 Liste_noisette_xya_cam_copie = Liste_noisette_xya_cam.copy()
-                """for Noisette_couleurconnue in Liste_noisette_xya_cam_copie:
-                    if couleur == "B":
-                        if 2700<Noisette_couleurconnue[0]<2900 and 250<Noisette_couleurconnue[1]<550:
-                            Noisette_couleurconnue[1] += 30
-
-                        if 100<Noisette_couleurconnue[0]<300 and 250<Noisette_couleurconnue[1]<550:
-                            Noisette_couleurconnue[0] += 20
-                            Noisette_couleurconnue[1] += 10
-
-                        if 950<Noisette_couleurconnue[0]<1250 and 50<Noisette_couleurconnue[1]<350:
-                            Noisette_couleurconnue[0] += 0
-                            Noisette_couleurconnue[1] += 10"""
-
-
-                """distance_N_centre = math.sqrt(
-                                (Liste_noisette_xya_cam[0][0] - 1500)**2 + 
-                                (Liste_noisette_xya_cam[0][1] - 1000)**2
-                            )
-                plus_loin = Liste_noisette_xya_cam[0],distance_N_centre
-                for Noisette in Liste_noisette_xya_cam_copie:
-                    distance_N_centre = math.sqrt(
-                                (Noisette[0] - 1500)**2 + 
-                                (Noisette[1] - 1000)**2
-                            ) 
-                    if distance_N_centre >= plus_loin[1]:
-                        plus_loin = Noisette,distance_N_centre
-                        
-                if plus_loin[0][0]<400:
-                    plus_loin_reel = (175,400)
-                else:
-                    plus_loin_reel = (2825,400)
-
-                erreur = plus_loin[0][0] - plus_loin_reel[0]
-                distance_centre = plus_loin_reel[0] - 1500
-                if abs(distance_centre) > 500:  # Au moins 500mm du centre
-                    K_CORRECTION_X = erreur / distance_centre
-                    
-                    for Noisette_cam in Liste_noisette_xya_cam_copie:  # ⚠️ Modifier directement Liste_noisette_xya_cam
-                        x_brut = Noisette_cam[0]
-                        distance_centre_cam = x_brut - 1500
-                        correction = K_CORRECTION_X * distance_centre_cam
-                        x_corrige = x_brut - correction
-                        
-                        # Affichage pour debug
-                        if Debug_Action:
-                            print(f"   X_brut={x_brut:.0f} → X_corrigé={x_corrige:.0f} (correction={-correction:.1f}mm)")
-                        
-                        # ⭐ MODIFICATION EFFECTIVE ⭐
-                        # Cas Caméra côté jaune
-                        if 0<Noisette_cam[0]<300 and 0<Noisette_cam[1]<500:
-                            #Noisette_cam[0] = x_corrige
-                            Noisette_cam[1] +=25
-                        if 0<Noisette_cam[0]<300 and 800<Noisette_cam[1]<1500:
-                            #Noisette_cam[0] = x_corrige
-                            Noisette_cam[1] +=20"""
                 
                 """for i in Liste_noisette_xya_cam:
                     Liste_noisette_xya.append(i)"""
@@ -1224,8 +1168,8 @@ if __name__ == '__main__':
 
                     angle_ennemi_consigne = np.degrees(math.atan2(y_ennemi_voulu - y_ennemi, x_ennemi_voulu - x_ennemi))
 
-                    x_ennemi += round(26*np.cos(math.radians(angle_ennemi_consigne)),0)
-                    y_ennemi += round(26*np.sin(math.radians(angle_ennemi_consigne)),0)
+                    x_ennemi += round(35*np.cos(math.radians(angle_ennemi_consigne)),0)
+                    y_ennemi += round(35*np.sin(math.radians(angle_ennemi_consigne)),0)
             
             if Wifi and not Lidar_on:
                 x_ennemi = x_ennemi_cam
@@ -1542,7 +1486,7 @@ if __name__ == '__main__':
                             # Pas de résultat disponible, on continue
                             Astars_a_fail = True"""
                                           
-                else:
+                    """else:
                     if not mode_attraper:
                         print("Il faut sortir du rayon ennemi")  
                         grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
@@ -1609,7 +1553,7 @@ if __name__ == '__main__':
                                 else:
                                     Liste_actions.insert(0, ["Reculer", int(x_test), int(y_test)])
 
-                                """if np.degrees(angle_consigne_robot - math.pi/2)<np.degrees(angle_ennemi_robot)<np.degrees(angle_consigne_robot + math.pi/2):
+                                if np.degrees(angle_consigne_robot - math.pi/2)<np.degrees(angle_ennemi_robot)<np.degrees(angle_consigne_robot + math.pi/2):
                                     print("Ennemi dans cadran, Reculer pour s'éloigner")
                                     if angle_robot_actuel-90<=np.degrees(angle_robot_test)<angle_robot_actuel+90:
                                         Liste_actions.insert(0, ["Consigne", int(x_test), int(y_test)])
@@ -1655,7 +1599,7 @@ if __name__ == '__main__':
             # ================================================= #
                 
             
-            if Astars_a_fail:
+            if Astars_a_fail or sortir_ennemi:
                 ordre_mouvement=3
             elif action_voulu in ["Avancer"]:
                 ordre_mouvement=1
