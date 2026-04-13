@@ -1,6 +1,6 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 
 Strategie = True
 Debug_strategie = True
@@ -218,15 +218,15 @@ if couleur == "B":
     Liste_strategie = [
         #[1050,175],[1150,175],
 
-        #[2825,450],
-        #[2825,350],
-        #[2950,850],
-        #[2950,750],
+        [2825,450],
+        [2825,350],
+        [2950,850],
+        [2950,750],
 
-        #[2825,1250],
-        #[2825,1150],
-        #[2150,800],
-        #[2250,800],
+        [2825,1250],
+        [2825,1150],
+        [2150,800],
+        [2250,800],
 
         [1950,175],
         [1850,175],
@@ -1181,7 +1181,7 @@ if __name__ == '__main__':
                 Liste_noisettes_restantes = [n for n in Liste_noisette_xya if n[3] == "R"]
                 if len(Liste_noisettes_restantes) != 0 :
                     print("Il reste encore des Noisettes dont les couleurs sont inconnues")
-                    if temps_ecoules > 2:
+                    if temps_ecoules > 1:
                         Liste_noisette_xya_copie = Liste_noisette_xya
                         print("Faire tri par déduction")
                         Noisette_groupee_debut = [[],[],[],[],[],[],[],[]]
@@ -1208,6 +1208,8 @@ if __name__ == '__main__':
                                             Noisette_restante[3]="B"
                                         if val == 1:
                                             Noisette_restante[3]="J"
+                    Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
+                
                 else:
                     Noisette_init = True
             # ============================================================================ #
@@ -1325,7 +1327,7 @@ if __name__ == '__main__':
             if Strategie:
                 print("Liste_strategie : ",Liste_strategie)
 
-            if (demande_nouvelle_strat and sortir_depart) or step==1:
+            if ((demande_nouvelle_strat and sortir_depart) or step==1)and Noisette_init:
                 demande_nouvelle_strat = False
                 if x_strategie == Liste_strategie[0][0] and y_strategie == Liste_strategie[0][1]:
                     print("Changement de stratégie")
