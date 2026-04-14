@@ -36,14 +36,15 @@ BAUDRATE = 1000000
 pile_points = queue.Queue(maxsize=2000)
 
 # Coordonnées et angle du robot
+X_PISTE = 3000
+Y_PISTE = 2000
+MARGE_BORDUREPISTE_X = 120 # Détection Lidar
+MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 LARGEUR_ROBOT = 250
 LONGUEUR_ROBOT = 130
-x_robot = int(2400+LARGEUR_ROBOT/2+50)
+x_robot = int(2400+LARGEUR_ROBOT/2)
 y_robot = int(1550+LONGUEUR_ROBOT/2+100)
-
-x_robot = 1500
-y_robot = 1700
-angle_robot = 90
+angle_robot = -90
 
 # Coordonnées et angle du robot ennemi
 x_ennemi = 0
@@ -60,28 +61,34 @@ scat = None
 # Fonction pour récupérer les données LiDAR
 
 def calcul_points(stop_event):
-    global x_robot, y_robot, angle_robot, pile_points
+    global x_robot, y_robot, angle_robot, pile_points, x_ennemi, y_ennemi
 
-    dict_points = {i: 0 for i in range(360)}
+    buffer_points = deque(maxlen=50)
+    dict_points = {i*0.5: 0 for i in range(720)}
     try:
         lidar = PyRPlidar()
         lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
         print("INFO:", lidar.get_health())
+        lidar.stop()
+        time.sleep(0.5)
+        lidar.disconnect()
+        time.sleep(0.5)
+        lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
 
         lidar.set_motor_pwm(660)
         time.sleep(2)
     
-        #scan_generator = lidar.start_scan_express(0)
-        scan_generator = lidar.start_scan()
-        time.sleep(0.5)
+        scan_generator = lidar.start_scan_express(0)
+        #scan_generator = lidar.start_scan()
+
 
         for count, scan in enumerate(scan_generator()):  
             if stop_event.is_set():
                 break
             flag = scan.start_flag
             quality = scan.quality
-            angle_point = scan.angle
-            distance = scan.distance
+            angle_scan = scan.angle
+            distance_scan = scan.distance
             if flag == True:
                 for angle_point, distance in dict_points.items():
                     phi = math.radians(angle_point)
@@ -95,19 +102,33 @@ def calcul_points(stop_event):
                     y_point = max(0, min(2000, int(y_point)))
 
                     # Filtrage des points (on ignore les bords)
-                    if (120 <= x_point <= 2880 and 80 <= y_point <= 1920) and distance > 10:
-                        pile_points.put((int(x_point), int(y_point)))
+                    distance_robot_point = math.sqrt((x_robot - x_point)**2 + (y_robot - y_point)**2)
+                    if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
+                    MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 50:
+                        if not(600<x_point<2400 and 1550<y_point<2000):
+                            buffer_points.append((x_point, y_point))
+                            pile_points.put((int(x_point), int(y_point)))
 
-                dict_points = {i: 0 for i in range(360)}
-                print("Début de tour")
-            if distance > 4000:  
+                    #if (120 <= x_point <= 2880 and 80 <= y_point <= 1920) and distance > 10:
+
+                dict_points = {i*0.5: 0 for i in range(720)}
+                if buffer_points:
+                    xs, ys = zip(*buffer_points)
+                    x_ennemi = np.mean(xs)
+                    y_ennemi = np.mean(ys)
+                    print(f"[Lidar] : Position ennemie estimée : ({x_ennemi:.1f}, {y_ennemi:.1f})")
+                #print("Début de tour")
+            if distance_scan > 4000:  
                 continue
             if quality < 1:
                 continue
             
-            if dict_points[int(angle_point)] == 0:
-                dict_points[int(angle_point)] = distance
-                print(f"[{int(angle_point)}]: ",dict_points[int(angle_point)])
+            # Arrondir l'angle au multiple de 0.5 le plus proche
+            angle_arrondi = round(angle_scan * 2) / 2
+            
+            if dict_points[angle_arrondi] == 0:
+                dict_points[angle_arrondi] = distance_scan
+                #print(f"[{angle_arrondi}]: ",dict_points[angle_arrondi])
             
 
             
@@ -143,7 +164,7 @@ def affichage(stop_event):
     plt.show(block=False)  # Utilisation de block=False pour éviter le blocage
 
     robot_plot = ax.scatter([x_robot], [y_robot], s=50, c='red', marker='x')
-    ennemi_plot = ax.scatter([], [], s=50, c='green', marker='o')
+    ennemi_plot = ax.scatter([x_ennemi], [y_ennemi], s=50, c='green', marker='o')
     ennemi_vecteur, = ax.plot([], [], c='orange', linewidth=2)
     scat = ax.scatter([], [], s=5, c='blue', alpha=0.5)
 
@@ -167,8 +188,9 @@ def affichage(stop_event):
             xs, ys = zip(*buffer_points)
             scat.set_offsets(np.c_[xs, ys])
             robot_plot.set_offsets([[x_robot, y_robot]])
+            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
             fig.canvas.draw_idle()  # Utilisation de draw_idle pour éviter les conflits de thread
-            plt.pause(0.01)  # Pause pour permettre la mise à jour de l'interface
+            plt.pause(0.02)  # Pause pour permettre la mise à jour de l'interface
 
 # Programme principal
 if __name__ == '__main__':
@@ -197,5 +219,3 @@ if __name__ == '__main__':
         if Can:
             tache_odometrie.join()
         print("Programme terminé proprement.")
-
-#abcd

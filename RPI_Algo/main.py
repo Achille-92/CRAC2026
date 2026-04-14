@@ -6,15 +6,15 @@ Strategie = True
 Debug_strategie = True
 Astars = True
 
-Simul_mvt = True
-Simul_mvt_ennemi = True
+Simul_mvt = False
+Simul_mvt_ennemi = False
 Debug_Mouv = True
-Recalage = False
+Recalage = True
 Simul_action = True
 Debug_Action = True
 
-Lidar_on = False
-Bat_Compet = False
+Lidar_on = True
+Bat_Compet = True
 lancement_cartes = True
 
 Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
@@ -71,7 +71,7 @@ MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 TOL_CAM_NOISETTE = 35
 TOLERANCE_STRATEGIE_NOISETTE = 20
-FREQUENCE_AFFICHAGE = 12
+FREQUENCE_AFFICHAGE = 20
 
 X_PISTE = 3000
 Y_PISTE = 2000
@@ -190,10 +190,9 @@ PORT_ENVOI = 5000
 # Coordonnées et angle de notre robot (coordonnées initiales en haut)
 if couleur == "B":
     x_robot_depart = int(2850-LARGEUR_ROBOT/2)
+    x_robot_depart = int(2400+LARGEUR_ROBOT/2)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
-
     angle_robot_depart = -90
-
 
     x_robot_retour = 3000-LARGEUR_ROBOT/2-250
     y_robot_retour = 1800
@@ -266,6 +265,9 @@ angle_robot_voulu = angle_robot_actuel
 x_robot_voulu_prochain = x_robot_actuel
 y_robot_voulu_prochain = y_robot_actuel
 
+x_ennemi_lidar = x_ennemi
+y_ennemi_lidar = y_ennemi
+
 x_ennemi_old = x_ennemi
 y_ennemi_old = y_ennemi
 ############
@@ -293,7 +295,7 @@ for i, noisette_data in enumerate(Liste_noisette_xya, 1):
             actif=True
         )
 
-obs_manager.ajouter_rectangle("grenier", (600, 1550), (2400, 2000), actif=True)
+obs_manager.ajouter_rectangle("grenier", (600, 1550), (2400, 2000), actif=False)
 # ======================================================= #
 
 # === Création des Grilles pour A* ====================== #
@@ -452,36 +454,32 @@ queue_resultat_astar = queue.Queue()  # Pour recevoir les résultats
 
 def calcul_points(stop_event):
 
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi,Reel,x_robot_depart,y_robot_depart,angle_robot_depart
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi_lidar, y_ennemi_lidar,Reel,x_robot_depart,y_robot_depart,angle_robot_depart
 
     x_point = 0
     y_point = 0
     buffer_points = deque(maxlen=5)
     while not stop_event.is_set():
+        dict_points = {i*0.5: 0 for i in range(720)}
+
         try:
-            
             lidar = PyRPlidar()
             lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
             print("INFO:", lidar.get_health())
+            lidar.stop()
+            time.sleep(0.5)
+            lidar.disconnect()
+            time.sleep(0.5)
+            lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
 
             lidar.set_motor_pwm(660)
             time.sleep(2)
         
-            #scan_generator = lidar.start_scan_express(0)
-            scan_generator = lidar.start_scan()
-            time.sleep(0.5)
+            scan_generator = lidar.start_scan_express(0)
 
             for count, scan in enumerate(scan_generator()):  
                 if stop_event.is_set():
                     break
-                quality = scan.quality
-                angle_point = scan.angle
-                distance = scan.distance
-                
-                if distance > 4000:  # Exemple : 12 mètres en mm
-                    continue
-                if quality < 1:
-                    continue
 
                 if Reel:
                     x_r = x_robot_actuel
@@ -491,33 +489,53 @@ def calcul_points(stop_event):
                     x_r = x_robot_depart
                     y_r = y_robot_depart
                     angle_r = angle_robot_depart
+
+                flag = scan.start_flag
+                quality = scan.quality
+                angle_scan = scan.angle
+                distance_scan = scan.distance
+                if flag == True:
+                    for angle_point, distance in dict_points.items():
+                        phi = math.radians(angle_point)
                 
-                phi = math.radians(angle_point)
+                        # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
+                        angle_total = phi - math.radians(angle_r) - math.radians(0)
+                        
+                        x_point = x_r + distance * math.cos(angle_total)
+                        y_point = y_r - distance * math.sin(angle_total)
+                        
+                        x_point = max(0, min(X_PISTE, int(x_point)))
+                        y_point = max(0, min(Y_PISTE, int(y_point)))
+                        distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
+                        if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
+                        MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 50:
+                            if not(600<x_point<2400 and 1550<y_point<2000):
+                                buffer_points.append((x_point, y_point))
+                        
+
+                        """distance_ennemi_ennemi_potentiel = math.sqrt((x_ennemi - x_ennemi_potentiel)**2 + (y_ennemi - y_ennemi_potentiel)**2)
+                        #print("distance_ennemi_ennemi_potentiel : ",distance_ennemi_ennemi_potentiel)
+                        if 30<distance_ennemi_ennemi_potentiel<300:
+                            x_ennemi = x_ennemi_potentiel
+                            y_ennemi = y_ennemi_potentiel"""
+                    #print(dict_points)
+                    dict_points = {i*0.5: 0 for i in range(720)}
+                    if buffer_points:
+                        xs, ys = zip(*buffer_points)
+                        x_ennemi_lidar = np.mean(xs)
+                        y_ennemi_lidar = np.mean(ys)
+                        #print(f"[Lidar] : Position ennemie estimée : ({x_ennemi_lidar:.1f}, {y_ennemi_lidar:.1f})")
+
+                if distance_scan > 6000 or distance_scan < 10:  
+                    continue
                 
-                # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
-                angle_total = phi - math.radians(angle_r) - math.radians(-2)
-                
-                x_point = x_r + distance * math.cos(angle_total)
-                y_point = y_r - distance * math.sin(angle_total)
-                
-                x_point = max(0, min(X_PISTE, int(x_point)))
-                y_point = max(0, min(Y_PISTE, int(y_point)))
-                distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
-                if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
-                MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 50 and 5 < quality < 20:
-                    if not(600<x_point<2400 and 1550<y_point<2000):
-                        buffer_points.append((x_point, y_point))
-                
-                if buffer_points:
-                    xs, ys = zip(*buffer_points)
-                    x_ennemi_potentiel = np.mean(xs)
-                    y_ennemi_potentiel = np.mean(ys)
-                    distance_ennemi_ennemi_potentiel = math.sqrt((x_ennemi - x_ennemi_potentiel)**2 + (y_ennemi - y_ennemi_potentiel)**2)
-                    #print("distance_ennemi_ennemi_potentiel : ",distance_ennemi_ennemi_potentiel)
-                    if 30<distance_ennemi_ennemi_potentiel<300:
-                        x_ennemi = x_ennemi_potentiel
-                        y_ennemi = y_ennemi_potentiel
+                angle_arrondi = round(angle_scan * 2) / 2
             
+                if dict_points[angle_arrondi] == 0:
+                    dict_points[angle_arrondi] = distance_scan
+                    #print(f"[{angle_arrondi}]: ",dict_points[angle_arrondi])
+
+                
         except Exception as e:
             print("Erreur dans le thread Lidar:", e)
             
@@ -944,7 +962,7 @@ if __name__ == '__main__':
                 if etat_bau == 1:
                     stop_event.set()
                 print("Recalage de départ en cours")
-
+                print("X : ",x_robot_actuel," Y : ",y_robot_actuel," A : ",angle_robot_actuel)
                 bus.send(can.Message(arbitration_id=0x01, data=struct.pack('<i',1), is_extended_id=False))
                 if couleur == "B":
                     bus.send(can.Message(arbitration_id=0x206, data=struct.pack('<i',7), is_extended_id=False))
@@ -957,7 +975,7 @@ if __name__ == '__main__':
                 else :
                     bus.send(can.Message(arbitration_id=0x209, data=struct.pack('<i',1), is_extended_id=False))
 
-                time.sleep(0.01)
+                time.sleep(0.1)
 
             pos_depart = False
             ordre_mouvement=5
@@ -965,6 +983,7 @@ if __name__ == '__main__':
                 if etat_bau == 1:
                     stop_event.set()
                 print("X et Y de départ en cours")
+                print("X : ",x_robot_actuel," Y : ",y_robot_actuel," A : ",angle_robot_actuel)
                 bus.send(can.Message(arbitration_id=0x203, data=struct.pack('<f',x_robot_depart), is_extended_id=False))
                 bus.send(can.Message(arbitration_id=0x204, data=struct.pack('<f',y_robot_depart), is_extended_id=False))
                 bus.send(can.Message(arbitration_id=0x209, data=struct.pack('<f',x_robot_depart), is_extended_id=False))
@@ -977,13 +996,14 @@ if __name__ == '__main__':
                 else :
                     bus.send(can.Message(arbitration_id=0x207, data=struct.pack('<i',1), is_extended_id=False))
                     
-                time.sleep(0.01)
+                time.sleep(0.1)
 
             angle_depart = False
             while(angle_depart == False and not stop_event.is_set()):
                 if etat_bau == 1:
                     stop_event.set()
                 print("Angle de départ en cours")
+                print("X : ",x_robot_actuel," Y : ",y_robot_actuel," A : ",angle_robot_actuel)
                 bus.send(can.Message(arbitration_id=0x205, data=struct.pack('<f',angle_robot_depart+360), is_extended_id=False))
                 bus.send(can.Message(arbitration_id=0x206, data=struct.pack('<i',4), is_extended_id=False))
 
@@ -993,7 +1013,7 @@ if __name__ == '__main__':
                 else :
                     bus.send(can.Message(arbitration_id=0x208, data=struct.pack('<i',1), is_extended_id=False))
                     
-                time.sleep(0.01)
+                time.sleep(0.1)
 
     while(lancement_strategie==False and etat_jack == 1 and not stop_event.is_set()):
         if current_os == "Linux" and Reel:
@@ -1175,7 +1195,9 @@ if __name__ == '__main__':
                 x_ennemi = x_ennemi_cam
                 y_ennemi = y_ennemi_cam
                 angle_ennemi = angle_ennemi_cam
-                
+            elif not Wifi and Lidar_on:
+                x_ennemi = x_ennemi_lidar
+                y_ennemi = y_ennemi_lidar
             ###
             
 
@@ -1383,108 +1405,109 @@ if __name__ == '__main__':
                             print("\n🚀 Déclenchement du calcul A*")
                         demande_recalcul_traj = False
                         
-                        """queue_demande_astar.put((
+                        queue_demande_astar.put((
                             x_robot_actuel, y_robot_actuel,
                             x_robot_voulu, y_robot_voulu
                         ))
                             
-                        try:"""
-                        if distance_consigne_ennemi <= R_securite:
+                        try:
+                            if distance_consigne_ennemi <= R_securite:
 
-                            print("Point dans zone interdite autour de l'ennemi")
-                            demande_nouvelle_strat = True
-                        else:
-                            # Vérifier si un résultat est disponible (non-bloquant)
-                            points_bruts = None
-                            #points_bruts = queue_resultat_astar.get_nowait()  
-                            
-                            points_bruts = calculer_trajectoire_complete(
-                                x_robot_actuel, y_robot_actuel, x_robot_voulu, y_robot_voulu,
-                                obs_manager, obs_manager_noisettes,
-                                x_ennemi, y_ennemi, R_securite,
-                                CASE_MM, X_PISTE, Y_PISTE,
-                                SAFETY_WEIGHT, MIN_CLEARANCE,
-                                SMOOTHNESS, DISTANCE_AJUSTABLE,
-                                affichage_ax=ax
-                            )
-
-                            if points_bruts is not None:
-                                # 10. AFFICHER (OPTIONNEL)
-                                if ax is not None:
-                                    # Supprimer anciennes trajectoires
-                                    for line in ax.lines[:]:
-                                        if line.get_label() in ['Chemin A*', 'A* brut']:
-                                            line.remove()
-                                    
-                                    # Tracer nouvelle trajectoire
-                                    x_plot = [p[0] for p in points_bruts]
-                                    y_plot = [p[1] for p in points_bruts]
-                                    ax.plot(x_plot, y_plot, 'g-', linewidth=2, label='Chemin A*', 
-                                                    marker='o', markersize=4, zorder=10)
-                            
-                            if points_bruts is not None:
-                                if Debug_Mouv:
-                                    print(f"✅ Trajectoire calculée : {len(points_bruts)} points")
-                                Liste_actions = [action for action in Liste_actions if not (isinstance(action, list) 
-                                                    and len(action) >= 2 and action[0] in ["Avancer","Reculer"])]
-                                # ⭐ AJOUT DES POINTS DANS Liste_actions
-                                verif_mouv = 0
-                                verif_angle = 0
-                                if len(points_bruts) >1:
-                                    for i in range(len(points_bruts)-1, 0, -1):
-                                        x_cible, y_cible = points_bruts[i]
-                                        if abs(x_cible - x_robot_voulu) > 20 or abs(y_cible - y_robot_voulu) > 20:
-                                            if action_voulu in ["Consigne"]:
-                                                Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
-                                            elif action_voulu in ["ReculerPrecis"]:
-                                                Liste_actions.insert(0, ["Reculer", x_cible, y_cible])
-
-                                Astars_a_fail = False
-                                
+                                print("Point dans zone interdite autour de l'ennemi")
+                                demande_nouvelle_strat = True
                             else:
-                                # Vérifier si le robot lui-même est dans une zone interdite
-                                x_case_robot = max(0, min(width - 1, int(x_robot_actuel // CASE_MM)))
-                                y_case_robot = max(0, min(height - 1, int(y_robot_actuel // CASE_MM)))
-                                if Debug_Mouv:
-                                    print("❌ Aucun chemin trouvé par A*")
+                                # Vérifier si un résultat est disponible (non-bloquant)
+                                points_bruts = None
+                                points_bruts = queue_resultat_astar.get_nowait()  
+                                
+                                """points_bruts = calculer_trajectoire_complete(
+                                    x_robot_actuel, y_robot_actuel, x_robot_voulu, y_robot_voulu,
+                                    obs_manager, obs_manager_noisettes,
+                                    x_ennemi, y_ennemi, R_securite,
+                                    CASE_MM, X_PISTE, Y_PISTE,
+                                    SAFETY_WEIGHT, MIN_CLEARANCE,
+                                    SMOOTHNESS, DISTANCE_AJUSTABLE,
+                                    affichage_ax=ax
+                                )"""
 
-                                if grid_expanded[x_case_robot, y_case_robot]:
-                                    print("⚠️ Robot dans zone interdite — recherche case libre proche")
-                                    x_libre, y_libre = trouver_case_libre_proche(
-                                        x_robot_actuel, y_robot_actuel,
-                                        grid_expanded, CASE_MM, width, height,
-                                        rayon_max_mm=500
-                                    )
-                                    if x_libre is not None and y_libre is not None:
-                                        x_prochain = Liste_actions[0][1]
-                                        y_prochain = Liste_actions[0][2]
-                                        distance_sortie = math.sqrt((x_prochain - x_libre)**2 + (y_prochain - y_libre)**2)
-                                        print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
-                                        # Insérer un Avancer prioritaire vers ce point
-                                        if distance_sortie >50:  # Seuil de proximité pour décider de se diriger vers la case libre
-                                            angle_vers_libre = np.degrees(math.atan2(y_libre - y_robot_actuel, x_libre - x_robot_actuel))
-                                            x_plusloin = x_libre + 20 * math.cos(math.radians(angle_vers_libre))
-                                            y_plusloin = y_libre + 20 * math.sin(math.radians(angle_vers_libre))
-                                            if action_voulu in ["Consigne", "Avancer"]:
-                                                Liste_actions.insert(0, ["ReculerPrecis", int(x_plusloin), int(y_plusloin)])
-                                            elif action_voulu in ["ReculerPrecis", "Reculer"]:
-                                                Liste_actions.insert(0, ["Consigne", int(x_plusloin), int(y_plusloin)])
-                                            demande_recalcul_traj = True
-                                            Astars_a_fail = False
+                                if points_bruts is not None:
+                                    # 10. AFFICHER (OPTIONNEL)
+                                    if ax is not None:
+                                        # Supprimer anciennes trajectoires
+                                        for line in ax.lines[:]:
+                                            if line.get_label() in ['Chemin A*', 'A* brut']:
+                                                line.remove()
+                                        
+                                        # Tracer nouvelle trajectoire
+                                        x_plot = [p[0] for p in points_bruts]
+                                        y_plot = [p[1] for p in points_bruts]
+                                        ax.plot(x_plot, y_plot, 'g-', linewidth=2, label='Chemin A*', 
+                                                        marker='o', markersize=4, zorder=10)
+                                
+                                if points_bruts is not None:
+                                    if Debug_Mouv:
+                                        print(f"✅ Trajectoire calculée : {len(points_bruts)} points")
+                                    Liste_actions = [action for action in Liste_actions if not (isinstance(action, list) 
+                                                        and len(action) >= 2 and action[0] in ["Avancer","Reculer"])]
+                                    # ⭐ AJOUT DES POINTS DANS Liste_actions
+                                    verif_mouv = 0
+                                    verif_angle = 0
+                                    if len(points_bruts) >1:
+                                        for i in range(len(points_bruts)-1, 0, -1):
+                                            x_cible, y_cible = points_bruts[i]
+                                            if abs(x_cible - x_robot_voulu) > 20 or abs(y_cible - y_robot_voulu) > 20:
+                                                if action_voulu in ["Consigne"]:
+                                                    Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
+                                                elif action_voulu in ["ReculerPrecis"]:
+                                                    Liste_actions.insert(0, ["Reculer", x_cible, y_cible])
+
+                                    Astars_a_fail = False
+                                    
+                                else:
+                                    # Vérifier si le robot lui-même est dans une zone interdite
+                                    x_case_robot = max(0, min(width - 1, int(x_robot_actuel // CASE_MM)))
+                                    y_case_robot = max(0, min(height - 1, int(y_robot_actuel // CASE_MM)))
+                                    if Debug_Mouv:
+                                        print("❌ Aucun chemin trouvé par A*")
+
+                                    if grid_expanded[x_case_robot, y_case_robot]:
+                                        print("⚠️ Robot dans zone interdite — recherche case libre proche")
+                                        x_libre, y_libre = trouver_case_libre_proche(
+                                            x_robot_actuel, y_robot_actuel,
+                                            grid_expanded, CASE_MM, width, height,
+                                            rayon_max_mm=500
+                                        )
+                                        if x_libre is not None and y_libre is not None:
+                                            x_prochain = Liste_actions[0][1]
+                                            y_prochain = Liste_actions[0][2]
+                                            distance_sortie = math.sqrt((x_prochain - x_libre)**2 + (y_prochain - y_libre)**2)
+                                            print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
+                                            # Insérer un Avancer prioritaire vers ce point
+                                            if distance_sortie >50:  # Seuil de proximité pour décider de se diriger vers la case libre
+                                                angle_vers_libre = np.degrees(math.atan2(y_libre - y_robot_actuel, x_libre - x_robot_actuel))
+                                                x_plusloin = x_libre + 20 * math.cos(math.radians(angle_vers_libre))
+                                                y_plusloin = y_libre + 20 * math.sin(math.radians(angle_vers_libre))
+                                                if action_voulu in ["Consigne", "Avancer"]:
+                                                    Liste_actions.insert(0, ["ReculerPrecis", int(x_plusloin), int(y_plusloin)])
+                                                elif action_voulu in ["ReculerPrecis", "Reculer"]:
+                                                    Liste_actions.insert(0, ["Consigne", int(x_plusloin), int(y_plusloin)])
+                                                demande_recalcul_traj = True
+                                                Astars_a_fail = False
+                                        else:
+                                            print("❌ Aucune case libre trouvée dans le rayon de recherche")
+                                            demande_nouvelle_strat = True
+                                            Astars_a_fail = True
                                     else:
-                                        print("❌ Aucune case libre trouvée dans le rayon de recherche")
+                                        # Robot pas dans zone rouge mais chemin inaccessible
+                                        # → la destination est peut-être bloquée
+                                        print("⚠️ Chemin inaccessible — destination peut-être bloquée")
                                         demande_nouvelle_strat = True
                                         Astars_a_fail = True
-                                else:
-                                    # Robot pas dans zone rouge mais chemin inaccessible
-                                    # → la destination est peut-être bloquée
-                                    print("⚠️ Chemin inaccessible — destination peut-être bloquée")
-                                    demande_nouvelle_strat = True
-                                    Astars_a_fail = True
 
-                        """except queue.Empty:
+                        except queue.Empty:
                             # Pas de résultat disponible, on continue
-                            Astars_a_fail = True"""
+                            Astars_a_fail = True
+                            pass
                                           
                     """else:
                     if not mode_attraper:
