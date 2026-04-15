@@ -726,7 +726,7 @@ if __name__ == '__main__':
                 Noisette_coin_bd = (x_centre + dx_long + dx_larg, y_centre + dy_long + dy_larg)  # Bas-Droite
                 Noisette_coin_bg = (x_centre - dx_long + dx_larg, y_centre - dy_long + dy_larg)  # Bas-Gauche
     
-                 # Vérifier si AU MOINS UN coin est dans une zone GM
+                # Vérifier si AU MOINS UN coin est dans une zone GM
                 for num_gm in range(len(Liste_zones_gm_coins)):
                     zone = Liste_zones_gm_coins[num_gm]
                     x_min, y_min = zone[0]

@@ -259,6 +259,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                 pince_a_utilise = 1
                 sous_pince = 12
             else:
+                print("Ce cas là")
                 if Noisettes_stockees_dans_robot[0]==["N","N"] and Pince_Av_1 and not Pince_Av_2:
                     pince_a_utilise = 0
                     sous_pince = 1
@@ -296,7 +297,11 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
 
             angle_noisette1 = strategie_en_cours[0][2]
             angle_noisette2 = strategie_en_cours[1][2]
-            distance = 25 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+
+            if sous_pince == 2:
+                distance = 50 + 25 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
+            else:
+                distance = 25 + MARGE_NOISETTE + LONGUEUR_ROBOT/2
 
             # Normaliser l'angle entre 0 et 180°
             angle_moyen = (angle_noisette1 + angle_noisette2) / 2
@@ -344,7 +349,12 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
             x_arrivee_2 = strategie_en_cours[1][0]+distance*math.cos(angle_rad2)
             y_arrivee_2 = strategie_en_cours[1][1]+distance*math.sin(angle_rad2)
 
-            distance = 50 + 25 + MARGE_NOISETTE+LONGUEUR_ROBOT/2 + 100
+            
+            if sous_pince == 2:
+                distance = 50 + 50 + 25 + MARGE_NOISETTE+LONGUEUR_ROBOT/2 + 100
+            else:
+                distance = 50 + 25 + MARGE_NOISETTE+LONGUEUR_ROBOT/2 + 100
+                
             x_arrivee_Astar1 = strategie_en_cours[0][0]+distance*math.cos(angle_rad1)
             y_arrivee_Astar1 = strategie_en_cours[0][1]+distance*math.sin(angle_rad1)
             x_arrivee_Astar2 = strategie_en_cours[1][0]+distance*math.cos(angle_rad2)
