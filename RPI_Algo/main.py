@@ -1,6 +1,6 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 
 Strategie = True
 Debug_strategie = True
@@ -14,7 +14,7 @@ Simul_action = True
 Debug_Action = True
 
 Lidar_on = False
-Bat_Compet = False
+Bat_Compet = True
 lancement_cartes = True
 
 Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
