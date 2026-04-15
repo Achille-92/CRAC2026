@@ -1359,7 +1359,7 @@ if __name__ == '__main__':
                     mode_attraper = False
             else :
                 mode_attraper = False
-                if (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]) or action_voulu in ["Retourner"]:
+                if (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]) or action_voulu in ["Retourner","Attraper"]:
                     mode_attraper = True
             if Debug_Mouv:
                 print("mode_attraper : ",mode_attraper)
