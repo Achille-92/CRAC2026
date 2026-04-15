@@ -259,7 +259,20 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                 pince_a_utilise = 1
                 sous_pince = 12
             else:
-                demande_nouvelle_strat = True
+                if Noisettes_stockees_dans_robot[0]==["N","N"] and Pince_Av_1 and not Pince_Av_2:
+                    pince_a_utilise = 0
+                    sous_pince = 1
+                elif Noisettes_stockees_dans_robot[0]==["N","N"] and not Pince_Av_1 and Pince_Av_2:
+                    pince_a_utilise = 0
+                    sous_pince = 2
+                elif Noisettes_stockees_dans_robot[1]==["N","N"] and Pince_Ar_1 and not Pince_Ar_2:
+                    pince_a_utilise = 1
+                    sous_pince = 1
+                elif Noisettes_stockees_dans_robot[1]==["N","N"] and not Pince_Ar_1 and Pince_Ar_2:
+                    pince_a_utilise = 1
+                    sous_pince = 2
+                else:
+                    demande_nouvelle_strat = True
 
             if Debug_strategie:
                 print("pince_a_utilise : ",pince_a_utilise)
@@ -833,6 +846,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                     else:
                                         Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_Noisette_centre))],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_Noisette_centre))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
                         else:
+
                             angle_Noisette_centre = math.atan2(Liste_zones_gm_coins[strategie_en_cours][0][1]+100 - Strat_Noisettes_dans_GM[0][1], Liste_zones_gm_coins[strategie_en_cours][0][0]+25 - Strat_Noisettes_dans_GM[0][0])
                             x_cote1 = Strat_Noisettes_dans_GM[0][0] + 25*math.cos(angle_Noisette_centre)
                             y_cote1 = Strat_Noisettes_dans_GM[0][1] + 25*math.sin(angle_Noisette_centre)
@@ -846,19 +860,27 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                             else:
                                 x_cote = x_cote1
                                 y_cote = y_cote1
-
+                            print("x_cote1 : ",x_cote1," y_cote1 : ",y_cote1)
+                            print("x_cote2 : ",x_cote2," y_cote2 : ",y_cote2)
+                            print("x_cote : ",x_cote," y_cote : ",y_cote)
                             if sous_pince == 12 or sous_pince == 2:
-                                distance = 100 + 25 + MARGE_GM + LONGUEUR_ROBOT/2 + 25 
-                                distanceA = 100 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 170 + 25
+                                distance = 100 + 25 + MARGE_GM + LONGUEUR_ROBOT/2
+                                distanceA = 100 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 170
                             elif sous_pince == 1: 
-                                distance = 50 + 25 + MARGE_GM + LONGUEUR_ROBOT/2 + 25
-                                distanceA = 50 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 170 + 25
+                                distance = 50 + 25 + MARGE_GM + LONGUEUR_ROBOT/2
+                                distanceA = 50 + 25 + MARGE_GM+LONGUEUR_ROBOT/2 + 170
+                            print("angle_Noisette_centre : ",math.degrees(angle_Noisette_centre))
                             x_arrivee_1 = x_cote + distance*math.cos(angle_Noisette_centre)
                             y_arrivee_1 = y_cote + distance*math.sin(angle_Noisette_centre)
                             x_arrivee_Astar = x_cote + distanceA*math.cos(angle_Noisette_centre)
                             y_arrivee_Astar = y_cote + distanceA*math.sin(angle_Noisette_centre)
+                            print("x_arrivee_1 : ",x_arrivee_1)
+                            print("y_arrivee_1 : ",y_arrivee_1)
+                            print("x_arrivee_Astar : ",x_arrivee_Astar)
+                            print("y_arrivee_Astar : ",y_arrivee_Astar)
                             if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar // CASE_MM)))]:
                                 demande_nouvelle_strat = True
+                                print("patate")
                             else:
                                 if pince_a_utilise == 0:
                                     if distance_Robot_strategie < distanceA:

@@ -64,7 +64,7 @@ def calcul_points(stop_event):
     global x_robot, y_robot, angle_robot, pile_points, x_ennemi, y_ennemi
 
     buffer_points = deque(maxlen=50)
-    dict_points = {i*0.5: 0 for i in range(720)}
+    dict_points = {i: 0 for i in range(360)}
     try:
         lidar = PyRPlidar()
         lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
@@ -76,7 +76,7 @@ def calcul_points(stop_event):
         lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
 
         lidar.set_motor_pwm(660)
-        time.sleep(2)
+        time.sleep(5)
     
         scan_generator = lidar.start_scan_express(0)
         #scan_generator = lidar.start_scan()
@@ -87,8 +87,8 @@ def calcul_points(stop_event):
                 break
             flag = scan.start_flag
             quality = scan.quality
-            angle_scan = scan.angle
-            distance_scan = scan.distance
+            angle_point = scan.angle
+            distance = scan.distance
             if flag == True:
                 for angle_point, distance in dict_points.items():
                     phi = math.radians(angle_point)
@@ -106,29 +106,26 @@ def calcul_points(stop_event):
                     if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
                     MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 50:
                         if not(600<x_point<2400 and 1550<y_point<2000):
-                            buffer_points.append((x_point, y_point))
+                            buffer_points.append((int(x_point), int(y_point)))
                             pile_points.put((int(x_point), int(y_point)))
 
                     #if (120 <= x_point <= 2880 and 80 <= y_point <= 1920) and distance > 10:
 
-                dict_points = {i*0.5: 0 for i in range(720)}
+                dict_points = {i: 0 for i in range(360)}
                 if buffer_points:
                     xs, ys = zip(*buffer_points)
                     x_ennemi = np.mean(xs)
                     y_ennemi = np.mean(ys)
-                    print(f"[Lidar] : Position ennemie estimée : ({x_ennemi:.1f}, {y_ennemi:.1f})")
+                    #print(f"[Lidar] : Position ennemie estimée : ({x_ennemi:.1f}, {y_ennemi:.1f})")
                 #print("Début de tour")
-            if distance_scan > 4000:  
+            if distance > 4000:  
                 continue
             if quality < 1:
                 continue
             
-            # Arrondir l'angle au multiple de 0.5 le plus proche
-            angle_arrondi = round(angle_scan * 2) / 2
-            
-            if dict_points[angle_arrondi] == 0:
-                dict_points[angle_arrondi] = distance_scan
-                #print(f"[{angle_arrondi}]: ",dict_points[angle_arrondi])
+            if dict_points[int(angle_point)] == 0:
+                dict_points[int(angle_point)] = distance
+                #print(f"[{int(angle_point)}]: ",dict_points[int(angle_point)])
             
 
             
@@ -219,3 +216,5 @@ if __name__ == '__main__':
         if Can:
             tache_odometrie.join()
         print("Programme terminé proprement.")
+
+#abcd

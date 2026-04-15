@@ -147,6 +147,9 @@ x_ennemi_cam = x_ennemi
 y_ennemi_cam = y_ennemi
 angle_ennemi_cam = angle_ennemi
 
+x_ennemi_lidar = x_ennemi
+y_ennemi_lidar = y_ennemi
+
 x_ennemi_old = x_ennemi
 y_ennemi_old = y_ennemi
 ########
@@ -256,7 +259,7 @@ TOL_POS_A = 5
 def comm_robot(stop_event):
     print(f"[Récepteur] Serveur en attente sur le port {PORT_RECEPTION}...")
     
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi, y_ennemi, Batteries, Batteries_alert,Noisettes_stockees_dans_robot, action_voulu, action_precedente,step_robot,match_demarre,match_id,old_match_demarre,temps_demarage,old_match_id,temps_ecoules,temps_restant,temps_retour,temps_max,PAMI_debut_match
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi_lidar, y_ennemi_lidar, Batteries, Batteries_alert,Noisettes_stockees_dans_robot, action_voulu, action_precedente,step_robot,match_demarre,match_id,old_match_demarre,temps_demarage,old_match_id,temps_ecoules,temps_restant,temps_retour,temps_max,PAMI_debut_match
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -286,8 +289,8 @@ def comm_robot(stop_event):
                 x_robot_actuel = donnees_recues["x_robot_actuel"]
                 y_robot_actuel = donnees_recues["y_robot_actuel"]
                 angle_robot_actuel = donnees_recues["angle_robot_actuel"]
-                x_ennemi = donnees_recues["x_ennemi"]
-                y_ennemi = donnees_recues["y_ennemi"]
+                x_ennemi_lidar = donnees_recues["x_ennemi"]
+                y_ennemi_lidar = donnees_recues["y_ennemi"]
                 Batteries = donnees_recues["Batteries"]
                 Batteries_alert = donnees_recues["Batteries_alert"]
                 Noisettes_stockees_dans_robot = donnees_recues["Noisettes_stockees_dans_robot"]
@@ -749,14 +752,16 @@ if __name__ == '__main__':
             robot_plot.set_offsets([[x_robot_actuel_cam, y_robot_actuel_cam]])
             cercle_robot_patch.center = (x_robot_actuel_cam, y_robot_actuel_cam)
             
+            x_ennemi = x_ennemi_lidar
+            y_ennemi = y_ennemi_lidar
             # Mettre à jour la zone de sécurité dynamique de l'ennemi
             zone_ennemi_scatter, cercle_ennemi_patch = mettre_a_jour_zone_ennemi(
                 zone_ennemi_scatter, cercle_ennemi_patch,
-                x_ennemi_cam, y_ennemi_cam, R_ROBOT, R_ENNEMI,
+                x_ennemi, y_ennemi, R_ROBOT, R_ENNEMI,
                 MARGE_ENNEMI, CASE_MM,
                 X_PISTE, Y_PISTE
             )
-            ennemi_plot.set_offsets([[x_ennemi_cam, y_ennemi_cam]])
+            ennemi_plot.set_offsets([[x_ennemi, y_ennemi]])
             
             x0, y0 = x_robot_actuel_cam, y_robot_actuel_cam
             x1 = x0 + longueur_trait * math.cos(math.radians(angle_robot_actuel_cam))
