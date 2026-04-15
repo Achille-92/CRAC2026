@@ -1,5 +1,6 @@
 couleur = "B"
 Camera = True
+Camera_active = Camera
 WiFi = True
 Pami = True
 Strategie = False
@@ -466,7 +467,7 @@ if __name__ == '__main__':
         Liste_noisette_xya_precedente
     )
     
-    if Camera:
+    if Camera_active:
         config = Config()
         config = appliquer_couleur(config, couleur)
 
@@ -637,12 +638,20 @@ if __name__ == '__main__':
                             cv2.destroyWindow(win)
                 
                 elif button_click == "Quitter":
-                    break
+                    print("Fermeture de la fenêtre caméra...")
+                    Camera_active = False
+                    cv2.destroyAllWindows()
+                    if cap.isOpened():
+                        cap.release()
                 
                 key = cv2.waitKey(1) & 0xFF
 
                 if key == ord('q'):
-                    break
+                    print("Fermeture de la fenêtre caméra...")
+                    Camera_active = False
+                    cv2.destroyAllWindows()
+                    if cap.isOpened():
+                        cap.release()
 
             if WiFi:
                 donnees_pour_robot = {
@@ -752,8 +761,8 @@ if __name__ == '__main__':
             robot_plot.set_offsets([[x_robot_actuel_cam, y_robot_actuel_cam]])
             cercle_robot_patch.center = (x_robot_actuel_cam, y_robot_actuel_cam)
             
-            x_ennemi = x_ennemi_lidar
-            y_ennemi = y_ennemi_lidar
+            x_ennemi = x_ennemi_cam
+            y_ennemi = y_ennemi_cam
             # Mettre à jour la zone de sécurité dynamique de l'ennemi
             zone_ennemi_scatter, cercle_ennemi_patch = mettre_a_jour_zone_ennemi(
                 zone_ennemi_scatter, cercle_ennemi_patch,
