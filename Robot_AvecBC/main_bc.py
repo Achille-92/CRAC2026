@@ -536,7 +536,7 @@ if __name__ == '__main__':
                 temps_ecoules = time.time() - temps_demarage
             temps_restant = temps_max - temps_ecoules
 
-            if Camera:
+            if Camera_active:
                 cv2.namedWindow("Systeme de Tracking ArUco", cv2.WINDOW_NORMAL)
                 cv2.resizeWindow("Systeme de Tracking ArUco", 1280, 720)
 
@@ -761,8 +761,8 @@ if __name__ == '__main__':
             robot_plot.set_offsets([[x_robot_actuel_cam, y_robot_actuel_cam]])
             cercle_robot_patch.center = (x_robot_actuel_cam, y_robot_actuel_cam)
             
-            x_ennemi = x_ennemi_cam
-            y_ennemi = y_ennemi_cam
+            x_ennemi = x_ennemi_lidar
+            y_ennemi = y_ennemi_lidar
             # Mettre à jour la zone de sécurité dynamique de l'ennemi
             zone_ennemi_scatter, cercle_ennemi_patch = mettre_a_jour_zone_ennemi(
                 zone_ennemi_scatter, cercle_ennemi_patch,
