@@ -436,7 +436,42 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                 Liste_actions = [["ReculerPrecis",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]#,["Consigne",x_arrivee_Astar2,y_arrivee_Astar2]]
                             
                 Liste_actions.append(["Attraper",pince_a_utilise,sous_pince])
-                if (pince_a_utilise == 0 and Pince_Avant) or (pince_a_utilise == 1 and Pince_Arriere):
+
+                if pince_a_utilise == 1 and Pince_Avant:
+                    action = None
+                    if Noisettes_stockees_dans_robot[0][0] != couleur and Noisettes_stockees_dans_robot[0][1] != couleur and Noisettes_stockees_dans_robot[0] != ["N","N"]:
+                        action = ["Retourner",0,12]
+                    elif Noisettes_stockees_dans_robot[0][0] != couleur and Noisettes_stockees_dans_robot[0][1] == couleur and Noisettes_stockees_dans_robot[0] != ["N","N"]:
+                        action = ["Retourner",0,1]
+                    elif Noisettes_stockees_dans_robot[0][0] == couleur and Noisettes_stockees_dans_robot[0][1] != couleur and Noisettes_stockees_dans_robot[0] != ["N","N"]:
+                        action = ["Retourner",0,2]
+                    else : 
+                        action = None
+                    print("action : ",action)
+                    if action is not None:
+                        for idx_action in range(len(Liste_actions)):
+                            if Liste_actions[idx_action][0] in ["Attraper"]:
+                                Liste_actions.insert(idx_action,action)
+                                break
+                        
+                if pince_a_utilise == 0 and Pince_Arriere:
+                    action = None
+                    if Noisettes_stockees_dans_robot[1][0] != couleur and Noisettes_stockees_dans_robot[1][1] != couleur and Noisettes_stockees_dans_robot[1] != ["N","N"]:
+                        action = ["Retourner",1,12]
+                    elif Noisettes_stockees_dans_robot[1][0] != couleur and Noisettes_stockees_dans_robot[1][1] == couleur and Noisettes_stockees_dans_robot[1] != ["N","N"]:
+                        action = ["Retourner",1,1]
+                    elif Noisettes_stockees_dans_robot[1][0] == couleur and Noisettes_stockees_dans_robot[1][1] != couleur and Noisettes_stockees_dans_robot[1] != ["N","N"]:
+                        action = ["Retourner",1,2]
+                    else : 
+                        action = None
+                    
+                    if action is not None:
+                        for idx_action in range(len(Liste_actions)):
+                            if Liste_actions[idx_action][0] in ["Attraper"]:
+                                Liste_actions.insert(idx_action,action)
+                                break
+
+                    """if (pince_a_utilise == 0 and Pince_Avant) or (pince_a_utilise == 1 and Pince_Arriere):
                     if strategie_en_cours[0][3] != "R" and strategie_en_cours[1][3] != "R":
                         if point_1_bloquee:
                             print("eeeeee")
@@ -473,7 +508,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                     Liste_actions.append(["Retourner",pince_a_utilise,1])
                         
                     else:
-                        demande_nouvelle_strat = True
+                        demande_nouvelle_strat = True"""
                     
 
     elif chercher_Noisette == False:
@@ -1335,7 +1370,39 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                 else:
                                     Liste_actions = [["Consigne",x_arrivee_Astar,y_arrivee_Astar],["Rotation",int(np.degrees(angle_arrivee))],["ReculerPrecis",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]] 
                         
-
+        if pince_a_utilise == 1 and Pince_Avant:
+            action = None
+            if Noisettes_stockees_dans_robot[0][0] != couleur and Noisettes_stockees_dans_robot[0][1] != couleur and Noisettes_stockees_dans_robot[0] != ["N","N"]:
+                action = ["Retourner",0,12]
+            elif Noisettes_stockees_dans_robot[0][0] != couleur and Noisettes_stockees_dans_robot[0][1] == couleur and Noisettes_stockees_dans_robot[0] != ["N","N"]:
+                action = ["Retourner",0,1]
+            elif Noisettes_stockees_dans_robot[0][0] == couleur and Noisettes_stockees_dans_robot[0][1] != couleur and Noisettes_stockees_dans_robot[0] != ["N","N"]:
+                action = ["Retourner",0,2]
+            else : 
+                action = None
+            print("action : ",action)
+            if action is not None:
+                for idx_action in range(len(Liste_actions)):
+                    if Liste_actions[idx_action][0] in ["Relacher"]:
+                        Liste_actions.insert(idx_action,action)
+                        break
+                
+        if pince_a_utilise == 0 and Pince_Arriere:
+            action = None
+            if Noisettes_stockees_dans_robot[1][0] != couleur and Noisettes_stockees_dans_robot[1][1] != couleur and Noisettes_stockees_dans_robot[1] != ["N","N"]:
+                action = ["Retourner",1,12]
+            elif Noisettes_stockees_dans_robot[1][0] != couleur and Noisettes_stockees_dans_robot[1][1] == couleur and Noisettes_stockees_dans_robot[1] != ["N","N"]:
+                action = ["Retourner",1,1]
+            elif Noisettes_stockees_dans_robot[1][0] == couleur and Noisettes_stockees_dans_robot[1][1] != couleur and Noisettes_stockees_dans_robot[1] != ["N","N"]:
+                action = ["Retourner",1,2]
+            else : 
+                action = None
+            
+            if action is not None:
+                for idx_action in range(len(Liste_actions)):
+                    if Liste_actions[idx_action][0] in ["Relacher"]:
+                        Liste_actions.insert(idx_action,action)
+                        break
     elif aller_nid:
         print("Déposer au nid")
         if Noisettes_stockees_dans_robot[0] != ["N","N"]:
