@@ -198,17 +198,6 @@ if couleur == "B":
     y_robot_retour = 1800
     angle_robot_retour = -90
     
-    x_curseur_1 = 2600
-    y_curseur_1 = 200
-    
-    x_curseur_2 = 2600
-    y_curseur_2 = 200
-
-    angle_curseur_1 = math.degrees(math.atan2(y_curseur_1 - y_curseur_2, x_curseur_1 - x_curseur_2))
-
-    angle_pichnette = [45,-60,-180]
-    
-    #Liste_actions = [["Consigne",x_curseur_1,y_curseur_1],["Rotation",angle_curseur_1],["CurseurHaut",0],["Consigne",x_curseur_2,y_curseur_2],["Rotation",angle_curseur_1],["RotationCurseur",angle_pichnette[0]]]
 
     x_ennemi = 275
     y_ennemi = 1650
