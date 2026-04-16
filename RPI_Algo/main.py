@@ -1,17 +1,17 @@
 couleur = "B"
-Reel = False
-Wifi = False
+Reel = True
+Wifi = True
 
 Strategie = True
-Debug_strategie = True
+Debug_strategie = False
 Astars = True
 
 Simul_mvt = False
 Simul_mvt_ennemi = False
-Debug_Mouv = True
-Recalage = True
+Debug_Mouv = False
+Recalage = False
 Simul_action = True
-Debug_Action = True
+Debug_Action = False
 
 Lidar_on = True
 Bat_Compet = True
@@ -449,18 +449,18 @@ queue_demande_astar = queue.Queue()  # Pour envoyer des demandes
 queue_resultat_astar = queue.Queue()  # Pour recevoir les résultats
 
 ################## Fonction Threads ##########################################
-
 def calcul_points(stop_event_lidar, x_robot_shared, y_robot_shared, angle_robot_shared,
                   x_ennemi_shared, y_ennemi_shared,
                   x_robot_depart, y_robot_depart, angle_robot_depart, Reel):
-    """
-    Tous les objets partagés et paramètres nécessaires sont passés en arguments.
-    Plus de variables globales !
-    """
-
+    
     x_point = 0
     y_point = 0
     buffer_points = deque(maxlen=5)
+    
+    # ✅ Compteur pour limiter la fréquence de mise à jour
+    compteur_scans = 0
+    FREQUENCE_MAJ_ENNEMI = 10  # Ne mettre à jour l'ennemi que tous les 10 scans
+    
     while not stop_event_lidar.is_set():
         dict_points = {i: 0 for i in range(360)}
         
@@ -483,46 +483,53 @@ def calcul_points(stop_event_lidar, x_robot_shared, y_robot_shared, angle_robot_
                 if stop_event_lidar.is_set():
                     break
 
-                if Reel:
+                # ✅ Lecture des positions seulement quand nécessaire
+                if Reel and scan.start_flag:  # Lire uniquement au début d'un nouveau tour
                     x_r = x_robot_shared.value
                     y_r = y_robot_shared.value
                     angle_r = angle_robot_shared.value
                 else:
-                    x_r = x_robot_depart
-                    y_r = y_robot_depart
-                    angle_r = angle_robot_depart
+                    if scan.start_flag:  # En simulation, positions fixes
+                        x_r = x_robot_depart
+                        y_r = y_robot_depart
+                        angle_r = angle_robot_depart
 
                 flag = scan.start_flag
                 quality = scan.quality
                 angle_scan = scan.angle
                 distance_scan = scan.distance
-                if flag == True:
-                    for angle_point, distance in dict_points.items():
-                        phi = math.radians(angle_point)
                 
-                        # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
-                        angle_total = phi - math.radians(angle_r) - math.radians(-3)
+                if flag == True:
+                    compteur_scans += 1  # ✅ Incrémenter le compteur
+                    
+                    # ✅ Ne calculer la position ennemie que tous les N tours complets
+                    if compteur_scans >= FREQUENCE_MAJ_ENNEMI:
+                        compteur_scans = 0  # Reset
                         
-                        x_point = x_r + distance * math.cos(angle_total)
-                        y_point = y_r - distance * math.sin(angle_total)
+                        for angle_point, distance in dict_points.items():
+                            phi = math.radians(angle_point)
+                    
+                            angle_total = phi - math.radians(angle_r) - math.radians(0)
+                            
+                            x_point = x_r + distance * math.cos(angle_total)
+                            y_point = y_r - distance * math.sin(angle_total)
+                            
+                            x_point = max(0, min(X_PISTE, int(x_point)))
+                            y_point = max(0, min(Y_PISTE, int(y_point)))
+                            distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
+                            
+                            if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
+                            MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 50:
+                                if not(600<x_point<2400 and 1550<y_point<2000):
+                                    buffer_points.append((x_point, y_point))
                         
-                        x_point = max(0, min(X_PISTE, int(x_point)))
-                        y_point = max(0, min(Y_PISTE, int(y_point)))
-                        distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
-                        if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
-                        MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 50:
-                            if not(600<x_point<2400 and 1550<y_point<2000):
-                                buffer_points.append((x_point, y_point))
+                        # ✅ Mise à jour position ennemie
+                        if buffer_points:
+                            xs, ys = zip(*buffer_points)
+                            x_ennemi_shared.value = float(np.mean(xs))
+                            y_ennemi_shared.value = float(np.mean(ys))
                         
-
-                    #print(dict_points)
                     dict_points = {i: 0 for i in range(360)}
-                    if buffer_points:
-                        xs, ys = zip(*buffer_points)
-                        # ⭐ ÉCRITURE des valeurs partagées avec .value
-                        x_ennemi_shared.value = float(np.mean(xs))
-                        y_ennemi_shared.value = float(np.mean(ys))
-                        #print(f"[Lidar] : Position ennemie estimée : ({x_ennemi_lidar:.1f}, {y_ennemi_lidar:.1f})")
 
                 if distance_scan > 6000 or distance_scan < 10:  
                     continue
@@ -531,11 +538,10 @@ def calcul_points(stop_event_lidar, x_robot_shared, y_robot_shared, angle_robot_
             
                 if dict_points[int(angle_scan)] == 0:
                     dict_points[int(angle_scan)] = distance_scan
-                    #print(f"[{angle_arrondi}]: ",dict_points[angle_arrondi])
-
-                
+                    
         except Exception as e:
             print("Erreur dans le thread Lidar:", e)
+            time.sleep(1)  # ✅ Pause avant de réessayer
             
     print("Arrêt du Lidar...")
     lidar.stop()
@@ -1122,8 +1128,8 @@ if __name__ == '__main__':
     temps_demarage = time.time()
     match_demarre = True
 
-    """if Reel:
-        plt.close(fig)"""
+    #if Reel:
+    plt.close(fig)
 
     try:
         if Lidar_on:
@@ -2236,7 +2242,7 @@ if __name__ == '__main__':
             #if not Reel:
             if step % FREQUENCE_AFFICHAGE == 0:
                 update_display(background)
-            fig.canvas.flush_events()
+                fig.canvas.flush_events()
             x_robot_voulu_last = x_robot_voulu
             y_robot_voulu_last = y_robot_voulu
             x_ennemi_old = x_ennemi
