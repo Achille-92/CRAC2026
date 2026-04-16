@@ -42,7 +42,7 @@ LARGEUR_ROBOT = 250
 LONGUEUR_ROBOT = 130
 
 # Fonction pour récupérer les données LiDAR
-def calcul_points(stop_event, pile_points, x_robot_actuel_lidar, y_robot_actuel_lidar, angle_robot_actuel_lidar, x_ennemi_lidar, y_ennemi_lidar):
+def calcul_points(stop_event, pile_points, x_robot, y_robot, angle_robot, x_ennemi, y_ennemi):
     """
     Fonction exécutée dans un processus séparé.
     Tous les objets partagés sont passés en paramètres.
@@ -75,13 +75,13 @@ def calcul_points(stop_event, pile_points, x_robot_actuel_lidar, y_robot_actuel_
             
             if flag == True:
                 # Lecture des valeurs partagées avec .value
-                x_rob = x_robot_actuel_lidar.value
-                y_rob = y_robot_actuel_lidar.value
-                angle_rob = angle_robot_actuel_lidar.value
+                x_rob = x_robot.value
+                y_rob = y_robot.value
+                angle_rob = angle_robot.value
                 
                 for angle_point, distance in dict_points.items():
                     phi = math.radians(angle_point)
-                    angle_total = phi - math.radians(angle_rob) - math.radians(0)
+                    angle_total = phi - math.radians(angle_rob) - math.radians(-3)
 
                     x_point = x_rob + distance * math.cos(angle_total)
                     y_point = y_rob - distance * math.sin(angle_total)
@@ -103,8 +103,8 @@ def calcul_points(stop_event, pile_points, x_robot_actuel_lidar, y_robot_actuel_
                 if buffer_points:
                     xs, ys = zip(*buffer_points)
                     # Écriture des valeurs partagées avec .value
-                    x_ennemi_lidar.value = np.mean(xs)
-                    y_ennemi_lidar.value = np.mean(ys)
+                    x_ennemi.value = np.mean(xs)
+                    y_ennemi.value = np.mean(ys)
                     
             if distance > 4000:  
                 continue
@@ -122,7 +122,7 @@ def calcul_points(stop_event, pile_points, x_robot_actuel_lidar, y_robot_actuel_
         print("LiDAR arrêté.")
 
 # Fonction pour la réception CAN (si activée)
-def CAN_Odometrie(stop_event, x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_robot_actuel_lidar, y_robot_actuel_lidar, angle_robot_actuel_lidar):
+def CAN_Odometrie(stop_event, x_robot, y_robot, angle_robot):
     """
     Fonction exécutée dans un processus séparé.
     Met à jour les valeurs partagées depuis le bus CAN.
@@ -134,17 +134,14 @@ def CAN_Odometrie(stop_event, x_robot_actuel, y_robot_actuel, angle_robot_actuel
 
         # Écriture des valeurs partagées avec .value
         if msg.arbitration_id == 0x10:
-            x_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
-            x_robot_actuel_lidar.value = float(x_robot_actuel)
+            x_robot.value = struct.unpack('f', bytes(msg.data))[0]
         elif msg.arbitration_id == 0x11:
-            y_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
-            y_robot_actuel_lidar.value = float(y_robot_actuel)
+            y_robot.value = struct.unpack('f', bytes(msg.data))[0]
         elif msg.arbitration_id == 0x12:
-            angle_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
-            angle_robot_actuel_lidar.value = float(angle_robot_actuel)
+            angle_robot.value = struct.unpack('f', bytes(msg.data))[0]
 
 # Fonction pour l'affichage en temps réel (dans le processus principal)
-def affichage(stop_event, pile_points, x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi_lidar, y_ennemi_lidar):
+def affichage(stop_event, pile_points, x_robot, y_robot, x_ennemi, y_ennemi):
     """
     Fonction d'affichage exécutée dans le processus principal.
     Lit les valeurs partagées pour mettre à jour l'affichage.
@@ -154,8 +151,8 @@ def affichage(stop_event, pile_points, x_robot_actuel, y_robot_actuel, angle_rob
     plt.show(block=False)
 
     # Lecture des valeurs initiales avec .value
-    robot_plot = ax.scatter([x_robot_actuel.value], [y_robot_actuel.value], s=50, c='red', marker='x')
-    ennemi_plot = ax.scatter([x_ennemi_lidar.value], [y_ennemi_lidar.value], s=50, c='green', marker='o')
+    robot_plot = ax.scatter([x_robot.value], [y_robot.value], s=50, c='red', marker='x')
+    ennemi_plot = ax.scatter([x_ennemi.value], [y_ennemi.value], s=50, c='green', marker='o')
     ennemi_vecteur, = ax.plot([], [], c='orange', linewidth=2)
     scat = ax.scatter([], [], s=5, c='blue', alpha=0.5)
 
@@ -182,8 +179,8 @@ def affichage(stop_event, pile_points, x_robot_actuel, y_robot_actuel, angle_rob
             xs, ys = zip(*buffer_points)
             scat.set_offsets(np.c_[xs, ys])
             # Lecture des valeurs partagées avec .value
-            robot_plot.set_offsets([[x_robot_actuel.value, y_robot_actuel.value]])
-            ennemi_plot.set_offsets([[x_ennemi_lidar.value, y_ennemi_lidar.value]])
+            robot_plot.set_offsets([[x_robot.value, y_robot.value]])
+            ennemi_plot.set_offsets([[x_ennemi.value, y_ennemi.value]])
             fig.canvas.draw_idle()
             plt.pause(0.2)
 
@@ -197,29 +194,26 @@ if __name__ == '__main__':
     pile_points = Queue(maxsize=500)
     
     # Création des Value pour les coordonnées (utilisent ctypes pour le partage)
-    x_robot_actuel = float(2400 + LARGEUR_ROBOT/2)
-    x_robot_actuel_lidar = Value(ctypes.c_float, float(x_robot_actuel))
-
-    y_robot_actuel = float(1550 + LONGUEUR_ROBOT/2 + 100)
-    y_robot_actuel_lidar = Value(ctypes.c_float, float(y_robot_actuel))
+    x_robot = Value(ctypes.c_float, float(2400 + LARGEUR_ROBOT/2))
+    #x_robot = Value(ctypes.c_float, float(1500))
+    y_robot = Value(ctypes.c_float, float(1550 + LONGUEUR_ROBOT/2 + 100))
+    #y_robot = Value(ctypes.c_float, float(1700))
+    angle_robot = Value(ctypes.c_float, -90.0)
     
-    angle_robot_actuel = float(-90.0)
-    angle_robot_actuel_lidar = Value(ctypes.c_float, float(angle_robot_actuel))
-    
-    x_ennemi_lidar= Value(ctypes.c_float, 0.0)
-    y_ennemi_lidar = Value(ctypes.c_float, 0.0)
+    x_ennemi = Value(ctypes.c_float, 0.0)
+    y_ennemi = Value(ctypes.c_float, 0.0)
 
     # Création des processus (au lieu de threads)
     tache_lidar = Process(
         target=calcul_points, 
-        args=(stop_event, pile_points, x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi_lidar, y_ennemi_lidar),
+        args=(stop_event, pile_points, x_robot, y_robot, angle_robot, x_ennemi, y_ennemi),
         daemon=True
     )
 
     if Can:
         tache_odometrie = Process(
             target=CAN_Odometrie, 
-            args=(stop_event, x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_robot_actuel_lidar, y_robot_actuel_lidar, angle_robot_actuel_lidar),
+            args=(stop_event, x_robot, y_robot, angle_robot),
             daemon=True
         )
 
@@ -230,7 +224,7 @@ if __name__ == '__main__':
         tache_odometrie.start()
 
     # L'affichage est exécuté dans le processus principal
-    affichage(stop_event, pile_points, x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi_lidar, y_ennemi_lidar)
+    affichage(stop_event, pile_points, x_robot, y_robot, x_ennemi, y_ennemi)
 
     try:
         while True:

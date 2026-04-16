@@ -6,14 +6,14 @@ Strategie = True
 Debug_strategie = True
 Astars = True
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
-Debug_Mouv = False
-Recalage = False
+Debug_Mouv = True
+Recalage = True
 Simul_action = True
 Debug_Action = True
 
-Lidar_on = False
+Lidar_on = True
 Bat_Compet = True
 lancement_cartes = True
 
@@ -34,6 +34,9 @@ from collections import deque
 import matplotlib.pyplot as plt
 from functools import partial
 from matplotlib.widgets import Button
+import multiprocessing as mp
+from multiprocessing import Process, Event, Value
+import ctypes
 from scipy.ndimage import binary_dilation
 from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes,fenetre_selection_couleur
 from calcul_mouv import  calculer_trajectoire_complete,actualiser_zones_jeu,verifier_segments_trajectoire_ennemi
@@ -65,7 +68,7 @@ R_ROBOT = int(math.sqrt((LARGEUR_ROBOT/2)**2+(LONGUEUR_ROBOT/2)**2))
 R_ROBOT = 170
 R_ENNEMI = 150
 MARGE_ENNEMI = 90
-MARGE_NOISETTE = 0
+MARGE_NOISETTE = 10
 MARGE_GM = -35
 MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
@@ -447,16 +450,20 @@ queue_resultat_astar = queue.Queue()  # Pour recevoir les résultats
 
 ################## Fonction Threads ##########################################
 
-def calcul_points(stop_event):
-
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, x_ennemi_lidar, y_ennemi_lidar,Reel,x_robot_depart,y_robot_depart,angle_robot_depart
+def calcul_points(stop_event_lidar, x_robot_shared, y_robot_shared, angle_robot_shared,
+                  x_ennemi_shared, y_ennemi_shared,
+                  x_robot_depart, y_robot_depart, angle_robot_depart, Reel):
+    """
+    Tous les objets partagés et paramètres nécessaires sont passés en arguments.
+    Plus de variables globales !
+    """
 
     x_point = 0
     y_point = 0
     buffer_points = deque(maxlen=5)
-    while not stop_event.is_set():
+    while not stop_event_lidar.is_set():
         dict_points = {i: 0 for i in range(360)}
-
+        
         try:
             lidar = PyRPlidar()
             lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
@@ -473,14 +480,14 @@ def calcul_points(stop_event):
             scan_generator = lidar.start_scan_express(0)
 
             for count, scan in enumerate(scan_generator()):  
-                if stop_event.is_set():
+                if stop_event_lidar.is_set():
                     break
 
-                if Reel:    
-                    x_r = x_robot_actuel
-                    y_r = y_robot_actuel
-                    angle_r = angle_robot_actuel
-                else :
+                if Reel:
+                    x_r = x_robot_shared.value
+                    y_r = y_robot_shared.value
+                    angle_r = angle_robot_shared.value
+                else:
                     x_r = x_robot_depart
                     y_r = y_robot_depart
                     angle_r = angle_robot_depart
@@ -494,7 +501,7 @@ def calcul_points(stop_event):
                         phi = math.radians(angle_point)
                 
                         # ⭐ UTILISER LA POSITION FIGÉE DU ROBOT
-                        angle_total = phi - math.radians(angle_r) - math.radians(0)
+                        angle_total = phi - math.radians(angle_r) - math.radians(-3)
                         
                         x_point = x_r + distance * math.cos(angle_total)
                         y_point = y_r - distance * math.sin(angle_total)
@@ -512,8 +519,9 @@ def calcul_points(stop_event):
                     dict_points = {i: 0 for i in range(360)}
                     if buffer_points:
                         xs, ys = zip(*buffer_points)
-                        x_ennemi_lidar = np.mean(xs)
-                        y_ennemi_lidar = np.mean(ys)
+                        # ⭐ ÉCRITURE des valeurs partagées avec .value
+                        x_ennemi_shared.value = float(np.mean(xs))
+                        y_ennemi_shared.value = float(np.mean(ys))
                         #print(f"[Lidar] : Position ennemie estimée : ({x_ennemi_lidar:.1f}, {y_ennemi_lidar:.1f})")
 
                 if distance_scan > 6000 or distance_scan < 10:  
@@ -533,7 +541,7 @@ def calcul_points(stop_event):
     lidar.stop()
     lidar.disconnect()
 
-def LectureCAN(stop_event):
+def LectureCAN(stop_event, x_robot_actuel_shared, y_robot_actuel_shared, angle_robot_actuel_shared):
     """
     Argument : flag "stop_event"
     Modification : variables globales x_robot, y_robot, angle_robot, Batteries
@@ -556,10 +564,13 @@ def LectureCAN(stop_event):
 
         if msg.arbitration_id == 0x100:
             x_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
+            x_robot_actuel_shared.value = x_robot_actuel  # Écriture dans la variable partagée
         elif msg.arbitration_id == 0x101:
             y_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
+            y_robot_actuel_shared.value = y_robot_actuel  # Écriture dans la variable partagée
         elif msg.arbitration_id == 0x102:
             angle_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
+            angle_robot_actuel_shared.value = angle_robot_actuel  # Écriture dans la variable partagée
 
         # Batteries
         elif msg.arbitration_id == 0x103:
@@ -700,6 +711,7 @@ def arret_programme(event, stop_event=None):
     print("Bouton STOP pressé — arrêt demandé.")
     if stop_event is not None:
         stop_event.set()
+        stop_event_lidar.set()
         bring_to_front(fig)
 
 def demarrage_strategie(event):
@@ -822,14 +834,33 @@ def trouver_case_libre_proche(x_robot, y_robot, grid_expanded,
 ############################### Programme principal ####################
 
 if __name__ == '__main__':
+    try:
+        mp.set_start_method('spawn')
+    except RuntimeError:
+        pass
 
     stop_event = threading.Event()
+    stop_event_lidar = Event()
+
+    x_robot_actuel_shared = Value(ctypes.c_float, float(x_robot_depart))
+    y_robot_actuel_shared = Value(ctypes.c_float, float(y_robot_depart))
+    angle_robot_actuel_shared = Value(ctypes.c_float, angle_robot_depart)
+    
+    x_ennemi_lidar_shared = Value(ctypes.c_float, float(x_ennemi))
+    y_ennemi_lidar_shared = Value(ctypes.c_float, float(y_ennemi))
 
     if Reel :
         GPIO.setmode(GPIO.BCM)  # Utilisation de la numérotation BCM
         GPIO.setup(26, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Activation de la résistance de pull-up interne
         
-        tache_LectureCAN = threading.Thread(target=LectureCAN, args=(stop_event,), daemon=True)
+        tache_LectureCAN = threading.Thread(
+            target=LectureCAN, 
+            args=(stop_event, 
+                x_robot_actuel_shared, 
+                y_robot_actuel_shared, 
+                angle_robot_actuel_shared),
+            daemon=True
+        )
         tache_LectureCAN.start()
 
     if Wifi:
@@ -953,6 +984,7 @@ if __name__ == '__main__':
             while(recalage_depart == False and not stop_event.is_set()):
                 if etat_bau == 1:
                     stop_event.set()
+                    stop_event_lidar.set()
                 print("Recalage de départ en cours")
                 print("X : ",x_robot_actuel," Y : ",y_robot_actuel," A : ",angle_robot_actuel)
                 bus.send(can.Message(arbitration_id=0x01, data=struct.pack('<i',1), is_extended_id=False))
@@ -974,6 +1006,7 @@ if __name__ == '__main__':
             while(pos_depart == False and not stop_event.is_set()):
                 if etat_bau == 1:
                     stop_event.set()
+                    stop_event_lidar.set()
                 print("X et Y de départ en cours")
                 print("X : ",x_robot_actuel," Y : ",y_robot_actuel," A : ",angle_robot_actuel)
                 bus.send(can.Message(arbitration_id=0x203, data=struct.pack('<f',x_robot_depart), is_extended_id=False))
@@ -994,6 +1027,7 @@ if __name__ == '__main__':
             while(angle_depart == False and not stop_event.is_set()):
                 if etat_bau == 1:
                     stop_event.set()
+                    stop_event_lidar.set()
                 print("Angle de départ en cours")
                 print("X : ",x_robot_actuel," Y : ",y_robot_actuel," A : ",angle_robot_actuel)
                 bus.send(can.Message(arbitration_id=0x205, data=struct.pack('<f',angle_robot_depart+360), is_extended_id=False))
@@ -1055,6 +1089,7 @@ if __name__ == '__main__':
 
             if etat_bau == 1:
                 stop_event.set()
+                stop_event_lidar.set()
         print("Attente du Jack")
         if Wifi:
             donnees_vers_bc = {
@@ -1091,8 +1126,16 @@ if __name__ == '__main__':
         plt.close(fig)"""
 
     try:
-        if Lidar_on: 
-            tache_lidar = threading.Thread(target=calcul_points, args=(stop_event,), daemon=False)
+        if Lidar_on:
+            tache_lidar = Process(
+                target=calcul_points,
+                args=(stop_event_lidar, 
+                    x_robot_actuel_shared, y_robot_actuel_shared, angle_robot_actuel_shared,
+                    x_ennemi_lidar_shared, y_ennemi_lidar_shared,
+                    x_robot_depart, y_robot_depart, angle_robot_depart,
+                    Reel),
+                daemon=True
+            )
             tache_lidar.start()
         if Astars:
             tache_Astar = threading.Thread(target=calcul_traj, args=(stop_event,), daemon=False)
@@ -1190,11 +1233,11 @@ if __name__ == '__main__':
                 y_ennemi = y_ennemi_cam
                 angle_ennemi = angle_ennemi_cam
             elif not Wifi and Lidar_on:
-                x_ennemi = x_ennemi_lidar
-                y_ennemi = y_ennemi_lidar
+                x_ennemi = x_ennemi_lidar_shared.value  # ✅ Lire la Value partagée
+                y_ennemi = y_ennemi_lidar_shared.value
             elif Wifi and Lidar_on:
-                x_ennemi = x_ennemi_lidar
-                y_ennemi = y_ennemi_lidar
+                x_ennemi = x_ennemi_lidar_shared.value  # ✅ Lire la Value partagée
+                y_ennemi = y_ennemi_lidar_shared.value
             ###
             
 
@@ -1724,7 +1767,10 @@ if __name__ == '__main__':
                                 angle_robot_actuel = np.degrees(angle_robot_consigne)+180
                             x_robot_actuel += round(15*np.cos(angle_robot_consigne),0)
                             y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
-                            
+                        if Lidar_on:
+                            x_robot_actuel_shared.value = x_robot_actuel
+                            y_robot_actuel_shared.value = y_robot_actuel
+                            angle_robot_actuel_shared.value = angle_robot_actuel  
 
             # ============== MISE À JOUR AFFICHAGE ==================== #
 
@@ -2243,10 +2289,12 @@ if __name__ == '__main__':
             print("Batterie 3 Trop faible")
             
         stop_event.set()
+        stop_event_lidar.set()
 
     except KeyboardInterrupt:
         print("Arrêt demandé par l'utilisateur.")
         stop_event.set()  # signal aux threads de s'arrêter
+        stop_event_lidar.set()
         # Attente que chaque thread termine proprement
         
         if Lidar_on:
