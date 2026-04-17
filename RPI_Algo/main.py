@@ -1,19 +1,19 @@
 couleur = "B"
-Reel = True
-Wifi = True
+Reel = False
+Wifi = False
 
 Strategie = True
-Debug_strategie = False
+Debug_strategie = True
 Astars = True
 
-Simul_mvt = False
+Simul_mvt = True
 Simul_mvt_ennemi = False
-Debug_Mouv = False
+Debug_Mouv = True
 Recalage = False
 Simul_action = True
-Debug_Action = False
+Debug_Action = True
 
-Lidar_on = True
+Lidar_on = False
 Bat_Compet = True
 lancement_cartes = True
 
@@ -74,7 +74,7 @@ MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
 TOL_CAM_NOISETTE = 35
 TOLERANCE_STRATEGIE_NOISETTE = 20
-FREQUENCE_AFFICHAGE = 20
+FREQUENCE_AFFICHAGE = 2
 
 X_PISTE = 3000
 Y_PISTE = 2000
@@ -370,8 +370,8 @@ aller_GM = False
 temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
-temps_retour = 20 # Temps restant pour revenir au départ en fin de match
-temps_max = 300
+temps_retour = 10 # Temps restant pour revenir au départ en fin de match
+temps_max = 100
 reset_fin = False
 
 verif_mouv = 0
@@ -397,7 +397,6 @@ Pince_Ar_2 = True # Serrer extérieur
 
 demande_recalcul_traj = False
 sortir_ennemi = False
-sortir_depart = True
 curseur_fait = False
 Astars_a_fail = False
 calcul_astar = False
@@ -938,9 +937,6 @@ if __name__ == '__main__':
         # Forcer le recalcul de trajectoire
         demande_recalcul_traj = True
 
-    """if Strategie and sortir_depart:
-        Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
-    """
     
     if Reel and lancement_cartes:
         while(carte_asserv_active == 0 or carte_actionneur0_active == 0 or carte_actionneur1_active == 0 or carte_batteries_active == 0):
@@ -1129,7 +1125,7 @@ if __name__ == '__main__':
     match_demarre = True
 
     #if Reel:
-    plt.close(fig)
+    #plt.close(fig)
 
     try:
         if Lidar_on:
@@ -1324,51 +1320,39 @@ if __name__ == '__main__':
             # ================================================================================================= #
 
             # ============ Prise de décision ========== #
-            print("sortir_depart : ",sortir_depart)
-            if not sortir_depart:
-                if couleur == "B":
-                    distance_robot_pointdepart = distance((x_robot_actuel,y_robot_actuel),(2400+LARGEUR_ROBOT/2,1350))
-                
-                if couleur == "J":
-                    distance_robot_pointdepart = distance((x_robot_actuel,y_robot_actuel),(600-LARGEUR_ROBOT/2,1350))
-                    
-                if distance_robot_pointdepart < 50:
-                    sortir_depart = True
-                    demande_nouvelle_strat = True
-
             if Strategie:
                 print("Liste_strategie : ",Liste_strategie)
 
-            if ((demande_nouvelle_strat and sortir_depart) or step==1)and Noisette_init:
-                demande_nouvelle_strat = False
-                if x_strategie == Liste_strategie[0][0] and y_strategie == Liste_strategie[0][1]:
-                    print("Changement de stratégie")
-                    couple_strat = Liste_strategie.pop(0)   
-                    Liste_strategie.append(couple_strat)
-                x_strategie = Liste_strategie[0][0]
-                y_strategie = Liste_strategie[0][1]
-                if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
-                    aller_Noisette = True
-                    aller_GM = False
-                elif "N" in Noisettes_stockees_dans_robot[0] or "N" in Noisettes_stockees_dans_robot[1]:
-                    aller_Noisette = True
-                    aller_GM = True
-                else:
-                    aller_Noisette = False
-                    aller_GM = False
-
-                Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
-                demande_recalcul_traj = True
-                
-            # ========================================= #
-            
             
             # === Retour au Nid au bout d'un certains temps === #
-            if temps_restant <= temps_retour and not reset_fin :
-                Liste_actions.clear() 
-                Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour)],["Rotation",angle_robot_retour],["Attente_test"]]
-                reset_fin = True
+            if not reset_fin :
+                if temps_restant <= temps_retour:
+                    Liste_actions.clear() 
+                    Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour)],["Rotation",angle_robot_retour],["Attente_test"]]
+                    reset_fin = True
+                else:
+                    if ((demande_nouvelle_strat) or step==1)and Noisette_init:
+                        demande_nouvelle_strat = False
+                        if x_strategie == Liste_strategie[0][0] and y_strategie == Liste_strategie[0][1]:
+                            print("Changement de stratégie")
+                            couple_strat = Liste_strategie.pop(0)   
+                            Liste_strategie.append(couple_strat)
+                        x_strategie = Liste_strategie[0][0]
+                        y_strategie = Liste_strategie[0][1]
+                        if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
+                            aller_Noisette = True
+                            aller_GM = False
+                        elif "N" in Noisettes_stockees_dans_robot[0] or "N" in Noisettes_stockees_dans_robot[1]:
+                            aller_Noisette = True
+                            aller_GM = True
+                        else:
+                            aller_Noisette = False
+                            aller_GM = False
+
+                        Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
+                        demande_recalcul_traj = True
             # ================================================= #
+            
 
             # ========== Lire l'action courante =============== #
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer","ReculerPrecis"]:
@@ -1442,7 +1426,7 @@ if __name__ == '__main__':
             # ======================================================================== #
             
             # ======================== CALCUL DE LA TRAJECTOIRE A* =================== #
-            if Astars and sortir_depart: 
+            if Astars : 
                 if not sortir_ennemi:
                     # === CALCUL DE LA TRAJECTOIRE A* ===
                     if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper:
