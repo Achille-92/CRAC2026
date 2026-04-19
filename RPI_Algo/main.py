@@ -1,17 +1,17 @@
 couleur = "B"
 Reel = False
-Wifi = True
+Wifi = False
 Lidar_on = False
 
 Strategie = True
 Astars = True
 Faire_curseur = False
 
-Simul_mvt = False
+Simul_mvt = True
 Simul_mvt_ennemi = False
 Simul_action = True
 
-Maj_Noisette = True
+Maj_Noisette = False
 
 Debug_Action = True
 Debug_strategie = True
@@ -21,7 +21,7 @@ Bat_Compet = True
 Recalage = True
 lancement_cartes = True
 
-Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
+Noisettes_stockees_dans_robot = [["B","B"],["N","N"]]
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -242,6 +242,7 @@ if couleur == "B":
     else:
         Liste_strategie = [
             #[1050,175],[1150,175],
+            [2150,800],
 
             [2825,450],
             [2825,350],
@@ -1198,7 +1199,6 @@ if __name__ == '__main__':
             dico_envoi[0x01]=1
             if x_robot_actuel <= 0 or y_robot_actuel <= 0:
                 stop_event.set()
-
             temps_ecoules = time.time() - temps_demarage
             temps_restant = temps_max - temps_ecoules
 
@@ -1268,11 +1268,11 @@ if __name__ == '__main__':
                     print("Mettre à jour les positions des noisettes dans Liste_noisette_xya à partir de la CAM")
                     if Liste_Noisette_temps_cam[int(temps_ecoules)] == []:
                         Liste_Noisette_temps_cam[int(temps_ecoules)] = Liste_noisette_xya_cam
-                    if temps_ecoules > 3:
+                    if temps_ecoules > 5:
                         for Noisette_save in Liste_noisette_xya:
                             est_supprimee = True
-                            for index in range(3):
-                                for Noisette_presente in Liste_Noisette_temps_cam[int(temps_ecoules-index)]:
+                            for index in range(5):
+                                for Noisette_presente in Liste_Noisette_temps_cam[index]:
                                     distance_NN = math.sqrt(
                                         (Noisette_save[0] - Noisette_presente[0])**2 + 
                                         (Noisette_save[1] - Noisette_presente[1])**2
@@ -1281,15 +1281,10 @@ if __name__ == '__main__':
                                         est_supprimee = False
 
                             if est_supprimee:
-                                distance_N_ennemi = math.sqrt(
-                                        (Noisette_save[0] - x_ennemi)**2 + 
-                                        (Noisette_save[1] - y_ennemi)**2
-                                    )
-                                if distance_N_ennemi < R_securite:
-                                    print("Noisette supprimée : ",Noisette_save)
-                                    Liste_noisette_xya.remove(Noisette_save)
+                                print("Noisette supprimée : ",Noisette_save)
+                                Liste_noisette_xya.remove(Noisette_save)
                                     
-                                    
+                    print("Liste_Noisette_temps_cam[[int(temps_ecoules)]] : ",Liste_Noisette_temps_cam[int(temps_ecoules)])
             # ============================================================================ #
 
             
@@ -1428,6 +1423,7 @@ if __name__ == '__main__':
                             Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
                             demande_recalcul_traj = True
                         else:
+                            print("123456")
                             if couleur == "B":
                                 Liste_actions = [["Curseur_Bleu"],["Attente"],["Attente"]]
                             if couleur == "J":
@@ -1456,7 +1452,8 @@ if __name__ == '__main__':
 
             # ====== Bouger si Robot dans Zone interdite pour Attraper et Relacher === #
             if len(Liste_actions)>2:
-                if (action_voulu in ["Attraper","Retourner","Relacher"]) or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Attraper","Relacher","Retourner"]) or (action_voulu in ["Consigne","ReculerPrecis"] and Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper","Relacher","Retourner"])  or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Consigne","ReculerPrecis"] and Liste_actions[2][0] in ["Rotation"] and Liste_actions[3][0] in ["Attraper","Relacher","Retourner"]) or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]):
+                print("Ce mode")
+                if (action_voulu in ["Attraper","Retourner","Relacher"]) or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Attraper","Relacher","Retourner"]) or (action_voulu in ["Consigne","ReculerPrecis"] and Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper","Retourner"])  or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Consigne","ReculerPrecis"] and Liste_actions[2][0] in ["Rotation"] and Liste_actions[3][0] in ["Attraper","Relacher","Retourner"]) or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]):
                     mode_attraper = True
                 else : 
                     mode_attraper = False
