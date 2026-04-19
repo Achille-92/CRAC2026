@@ -1,24 +1,24 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 Lidar_on = False
 
 Strategie = True
 Astars = True
-Faire_curseur = True
+Faire_curseur = False
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Simul_action = True
 
-Maj_Noisette = False
+Maj_Noisette = True
 
 Debug_Action = True
 Debug_strategie = True
 Debug_Mouv = True
 
 Bat_Compet = True
-Recalage = False
+Recalage = True
 lancement_cartes = True
 
 Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
@@ -222,20 +222,21 @@ if couleur == "B":
 
             ["Curseur"],
 
-            [2825,1250],
-            [2825,1150],
-            [2150,800],
-            [2250,800],
-
             [1950,175],
             [1850,175],
             [2350,100],
             [2250,100],
 
+
             [1800,800],
             [1900,800],
             [1450,800],
-            [1450,100]
+            [2250,800],
+
+            #[2825,1250],
+            #[2825,1150],
+            #[2150,800],
+            #[2250,800],
 
         ]
     else:
@@ -1195,6 +1196,8 @@ if __name__ == '__main__':
 
         while (not stop_event.is_set() and temps_restant >=0 and not RPI_decharge and not etat_bau): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
             dico_envoi[0x01]=1
+            if x_robot_actuel <= 0 or y_robot_actuel <= 0:
+                stop_event.set()
 
             temps_ecoules = time.time() - temps_demarage
             temps_restant = temps_max - temps_ecoules
@@ -1265,11 +1268,11 @@ if __name__ == '__main__':
                     print("Mettre à jour les positions des noisettes dans Liste_noisette_xya à partir de la CAM")
                     if Liste_Noisette_temps_cam[int(temps_ecoules)] == []:
                         Liste_Noisette_temps_cam[int(temps_ecoules)] = Liste_noisette_xya_cam
-                    if temps_ecoules > 5:
+                    if temps_ecoules > 3:
                         for Noisette_save in Liste_noisette_xya:
                             est_supprimee = True
-                            for index in range(5):
-                                for Noisette_presente in Liste_Noisette_temps_cam[index]:
+                            for index in range(3):
+                                for Noisette_presente in Liste_Noisette_temps_cam[int(temps_ecoules-index)]:
                                     distance_NN = math.sqrt(
                                         (Noisette_save[0] - Noisette_presente[0])**2 + 
                                         (Noisette_save[1] - Noisette_presente[1])**2
@@ -1278,10 +1281,15 @@ if __name__ == '__main__':
                                         est_supprimee = False
 
                             if est_supprimee:
-                                print("Noisette supprimée : ",Noisette_save)
-                                Liste_noisette_xya.remove(Noisette_save)
+                                distance_N_ennemi = math.sqrt(
+                                        (Noisette_save[0] - x_ennemi)**2 + 
+                                        (Noisette_save[1] - y_ennemi)**2
+                                    )
+                                if distance_N_ennemi < R_securite:
+                                    print("Noisette supprimée : ",Noisette_save)
+                                    Liste_noisette_xya.remove(Noisette_save)
                                     
-                    print("Liste_Noisette_temps_cam[[int(temps_ecoules)]] : ",Liste_Noisette_temps_cam[int(temps_ecoules)])
+                                    
             # ============================================================================ #
 
             
@@ -1420,7 +1428,6 @@ if __name__ == '__main__':
                             Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
                             demande_recalcul_traj = True
                         else:
-                            print("123456")
                             if couleur == "B":
                                 Liste_actions = [["Curseur_Bleu"],["Attente"],["Attente"]]
                             if couleur == "J":
