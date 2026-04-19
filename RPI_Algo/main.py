@@ -1,16 +1,17 @@
 couleur = "B"
 Reel = False
-Wifi = True
+Wifi = False
 Lidar_on = False
 
 Strategie = True
 Astars = True
+Faire_curseur = True
 
-Simul_mvt = False
+Simul_mvt = True
 Simul_mvt_ennemi = False
 Simul_action = True
 
-Maj_Noisette = True
+Maj_Noisette = False
 
 Debug_Action = True
 Debug_strategie = True
@@ -48,7 +49,7 @@ from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper
 ########################################################################
 #couleur = fenetre_selection_couleur()
 # Config CAN 
-Liste_ID_recoit = [0x02,0x03,0x04,0x05,0x06,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
+Liste_ID_recoit = [0x02,0x03,0x04,0x05,0x06,0x008,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
 Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x204,0x205,0x206,0x207,0x208,0x209,0x20A,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
@@ -206,34 +207,62 @@ if couleur == "B":
     y_robot_retour = 1800
     angle_robot_retour = -90
     
+    x_fin_curseur = 2300
+    y_fin_curseur = 150
 
     x_ennemi = 275
     y_ennemi = 1650
     
-    Liste_strategie = [
-        #[1050,175],[1150,175],
+    if Faire_curseur:
+        Liste_strategie = [
+            [2825,450],
+            [2825,350],
+            [2950,850],
+            [2950,750],
 
-        [2825,450],
-        [2825,350],
-        [2950,850],
-        [2950,750],
+            ["Curseur"],
 
-        [2825,1250],
-        [2825,1150],
-        [2150,800],
-        [2250,800],
+            [2825,1250],
+            [2825,1150],
+            [2150,800],
+            [2250,800],
 
-        [1950,175],
-        [1850,175],
-        [2350,100],
-        [2250,100],
+            [1950,175],
+            [1850,175],
+            [2350,100],
+            [2250,100],
 
-        [1800,800],
-        [1900,800],
-        [1450,800],
-        [1450,100]
+            [1800,800],
+            [1900,800],
+            [1450,800],
+            [1450,100]
 
-    ]
+        ]
+    else:
+        Liste_strategie = [
+            #[1050,175],[1150,175],
+
+            [2825,450],
+            [2825,350],
+            [2950,850],
+            [2950,750],
+
+            [2825,1250],
+            [2825,1150],
+            [2150,800],
+            [2250,800],
+
+            [1950,175],
+            [1850,175],
+            [2350,100],
+            [2250,100],
+
+            [1800,800],
+            [1900,800],
+            [1450,800],
+            [1450,100]
+
+        ]
  
 else:
     x_robot_depart = int(600-LARGEUR_ROBOT/2-50)
@@ -245,6 +274,9 @@ else:
     x_robot_retour = LARGEUR_ROBOT/2+250
     y_robot_retour = 1800
     angle_robot_retour = 90
+
+    x_fin_curseur = 700
+    y_fin_curseur = 150
 
     x_ennemi = 2725 
     y_ennemi = 1650    
@@ -387,6 +419,7 @@ verif_action = 0
 verif_action1 = 0
 verif_action2 = 0
 verif_recalage = 0
+verif_curseur = 0
 
 action_est_supprime = False 
 mode_attraper = False
@@ -561,7 +594,7 @@ def LectureCAN(stop_event, x_robot_actuel_shared, y_robot_actuel_shared, angle_r
     Si l'ID du message n'est pas dans la Liste_ID, saute
     Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
     """
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, bus, verif_mouv, verif_angle,verif_action1,verif_action2,Batteries_alert, carte_actionneur0_active, carte_actionneur1_active, carte_asserv_active, carte_batteries_active, etat_bau,verif_recalage
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, bus, verif_mouv, verif_angle,verif_action1,verif_action2,Batteries_alert, carte_actionneur0_active, carte_actionneur1_active, carte_asserv_active, carte_batteries_active, etat_bau,verif_recalage,verif_curseur
     while not stop_event.is_set():
         msg = bus.recv(0.05)
         if msg is None:
@@ -633,6 +666,10 @@ def LectureCAN(stop_event, x_robot_actuel_shared, y_robot_actuel_shared, angle_r
                 
         elif msg.arbitration_id == 0x110:
             verif_recalage = struct.unpack('f', bytes(msg.data))[0]
+
+        elif msg.arbitration_id == 0x008:
+            if msg.dlc >= 1:
+                verif_curseur = msg.data[0]
     
 # Fonction pour recevoir des données de la RPI
 def comm_bc(stop_event):
@@ -776,7 +813,7 @@ def bouton_attraper_callback(event):
     """
     Callback pour le bouton Attraper.
     """
-    global verif_action1,verif_action2,verif_action, action_voulu
+    global verif_action1,verif_action2,verif_action, action_voulu,verif_curseur
     
     # Vérifier qu il y a une action en cours
     if len(Liste_actions) > 0 and action_voulu in ["Attraper","Retourner","Relacher"]:
@@ -784,6 +821,8 @@ def bouton_attraper_callback(event):
         verif_action2 = 1
     if len(Liste_actions) > 0 and action_voulu in ["Attente_test"]:
         verif_action = 1
+    if len(Liste_actions) > 0 and action_voulu in ["Curseur_Bleu","Curseur_Jaune"]:
+        verif_curseur = 1
 
 
 def update_display(background):
@@ -1361,24 +1400,31 @@ if __name__ == '__main__':
                 else:
                     if ((demande_nouvelle_strat) or step==1)and Noisette_init:
                         demande_nouvelle_strat = False
-                        if x_strategie == Liste_strategie[0][0] and y_strategie == Liste_strategie[0][1]:
-                            print("Changement de stratégie")
-                            couple_strat = Liste_strategie.pop(0)   
-                            Liste_strategie.append(couple_strat)
-                        x_strategie = Liste_strategie[0][0]
-                        y_strategie = Liste_strategie[0][1]
-                        if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
-                            aller_Noisette = True
-                            aller_GM = False
-                        elif "N" in Noisettes_stockees_dans_robot[0] or "N" in Noisettes_stockees_dans_robot[1]:
-                            aller_Noisette = True
-                            aller_GM = True
-                        else:
-                            aller_Noisette = False
-                            aller_GM = False
+                        if len(Liste_strategie[0])==2:
+                            if x_strategie == Liste_strategie[0][0] and y_strategie == Liste_strategie[0][1]:
+                                print("Changement de stratégie")
+                                couple_strat = Liste_strategie.pop(0)   
+                                Liste_strategie.append(couple_strat)
+                            x_strategie = Liste_strategie[0][0]
+                            y_strategie = Liste_strategie[0][1]
+                            if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
+                                aller_Noisette = True
+                                aller_GM = False
+                            elif "N" in Noisettes_stockees_dans_robot[0] or "N" in Noisettes_stockees_dans_robot[1]:
+                                aller_Noisette = True
+                                aller_GM = True
+                            else:
+                                aller_Noisette = False
+                                aller_GM = False
 
-                        Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
-                        demande_recalcul_traj = True
+                            Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
+                            demande_recalcul_traj = True
+                        else:
+                            print("123456")
+                            if couleur == "B":
+                                Liste_actions = [["Curseur_Bleu"],["Attente"],["Attente"]]
+                            if couleur == "J":
+                                Liste_actions = [["Curseur_Jaune"],["Attente"],["Attente"]]
             # ================================================= #
             
 
@@ -1389,7 +1435,7 @@ if __name__ == '__main__':
                 y_robot_voulu = Liste_actions[0][2]
                 angle_robot_voulu = -181
 
-            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Attente","Attente_test"]:
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Attente","Attente_test","Curseur_Bleu","Curseur_Jaune"]:
                 action_voulu = Liste_actions[0][0]
                 
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
@@ -1724,6 +1770,10 @@ if __name__ == '__main__':
                 ordre_mouvement=5
             elif action_voulu in ["ReculerPrecis"]:
                 ordre_mouvement = 6
+            elif action_voulu in ["Curseur_Bleu"]:
+                ordre_mouvement = 9
+            elif action_voulu in ["Curseur_Jaune"]:
+                ordre_mouvement = 10
             else :
                 ordre_mouvement=100
             
@@ -1944,7 +1994,13 @@ if __name__ == '__main__':
                 if (action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"] and verif_mouv_rpi == 1) or \
                 (action_voulu in ["Rotation"] and verif_angle == 1) or \
                 (action_voulu in ["Attente_test"] and verif_action == 1) or \
+                (action_voulu in ["Curseur_Bleu","Curseur_Jaune"] and verif_curseur == 1) or \
                 (action_voulu in ["Attraper","Retourner","Relacher"] and ((verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1))):
+                    if not Reel:
+                        if action_voulu in ["Curseur_Bleu","Curseur_Jaune"]:
+                            x_robot_actuel = x_fin_curseur
+                            y_robot_actuel = y_fin_curseur
+                    
                     if Simul_action:
                         if (action_voulu in ["Attraper"]):
                             if(Noisettes_stockees_dans_robot[pince_a_utilise][0] in ["J","B"] and Noisettes_stockees_dans_robot[pince_a_utilise][1] in ["J","B"] and noisette_a_manipulee == 12):
