@@ -1,20 +1,23 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
+Lidar_on = False
 
 Strategie = True
-Debug_strategie = True
 Astars = True
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
-Debug_Mouv = True
-Recalage = False
 Simul_action = True
-Debug_Action = True
 
-Lidar_on = False
+Maj_Noisette = True
+
+Debug_Action = True
+Debug_strategie = True
+Debug_Mouv = True
+
 Bat_Compet = True
+Recalage = False
 lancement_cartes = True
 
 Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
@@ -63,7 +66,7 @@ for ID in Liste_ID_envoi:
 
 # Perimètre de sécurité
 LARGEUR_ROBOT = 250
-LONGUEUR_ROBOT = 130
+LONGUEUR_ROBOT = 138
 R_ROBOT = int(math.sqrt((LARGEUR_ROBOT/2)**2+(LONGUEUR_ROBOT/2)**2))
 R_ROBOT = 170
 R_ENNEMI = 150
@@ -152,6 +155,8 @@ for Noisette_posconnue in Liste_noisette_xya:
             Liste_zones_Noisette_depart[num_zonedepart][0][1] < Noisette_posconnue[1] < Liste_zones_Noisette_depart[num_zonedepart][1][1]):
             Liste_association_Noisette_zone[num_zonedepart].append(Noisette_posconnue)
             
+            
+Liste_Noisette_temps_cam = [[] for i in range(100)]
 
 Noisette_init = False
 Liste_association_Noisette_zone_cam = [[] for i in range(8)]
@@ -1215,6 +1220,29 @@ if __name__ == '__main__':
                 
                 else:
                     Noisette_init = True
+
+            else:
+                if Maj_Noisette:
+                    print("Mettre à jour les positions des noisettes dans Liste_noisette_xya à partir de la CAM")
+                    if Liste_Noisette_temps_cam[int(temps_ecoules)] == []:
+                        Liste_Noisette_temps_cam[int(temps_ecoules)] = Liste_noisette_xya_cam
+                    if temps_ecoules > 5:
+                        for Noisette_save in Liste_noisette_xya:
+                            est_supprimee = True
+                            for index in range(5):
+                                for Noisette_presente in Liste_Noisette_temps_cam[index]:
+                                    distance_NN = math.sqrt(
+                                        (Noisette_save[0] - Noisette_presente[0])**2 + 
+                                        (Noisette_save[1] - Noisette_presente[1])**2
+                                    )
+                                    if distance_NN <= TOL_CAM_NOISETTE:
+                                        est_supprimee = False
+
+                            if est_supprimee:
+                                print("Noisette supprimée : ",Noisette_save)
+                                Liste_noisette_xya.remove(Noisette_save)
+                                    
+                    print("Liste_Noisette_temps_cam[[int(temps_ecoules)]] : ",Liste_Noisette_temps_cam[int(temps_ecoules)])
             # ============================================================================ #
 
             
