@@ -1,3 +1,7 @@
+Faire_curseur = True
+TOL_PRECIS = 15
+TOL_PASPRECIS = 60
+
 couleur = "B"
 Reel = False
 Wifi = False
@@ -5,7 +9,6 @@ Lidar_on = False
 
 Strategie = True
 Astars = True
-Faire_curseur = False
 
 Simul_mvt = True
 Simul_mvt_ennemi = False
@@ -21,7 +24,7 @@ Bat_Compet = True
 Recalage = True
 lancement_cartes = True
 
-Noisettes_stockees_dans_robot = [["B","B"],["N","N"]]
+Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 ################## Librairies ##########################################
 import matplotlib
 matplotlib.use('Qt5Agg')
@@ -233,36 +236,24 @@ if couleur == "B":
             [1450,800],
             [2250,800],
 
-            #[2825,1250],
-            #[2825,1150],
-            #[2150,800],
-            #[2250,800],
-
         ]
     else:
         Liste_strategie = [
-            #[1050,175],[1150,175],
-            [2150,800],
-
             [2825,450],
             [2825,350],
             [2950,850],
             [2950,750],
-
-            [2825,1250],
-            [2825,1150],
-            [2150,800],
-            [2250,800],
 
             [1950,175],
             [1850,175],
             [2350,100],
             [2250,100],
 
+
             [1800,800],
             [1900,800],
             [1450,800],
-            [1450,100]
+            [2250,800],
 
         ]
  
@@ -1947,7 +1938,7 @@ if __name__ == '__main__':
 
             # Si robot est à la position de consigne 
             distance_robot_consigne = math.sqrt((x_robot_actuel - x_robot_voulu)**2 + (y_robot_actuel - y_robot_voulu)**2)
-            if((distance_robot_consigne<15 and action_voulu in ["Consigne","ReculerPrecis"]) or (distance_robot_consigne<50 and action_voulu in ["Avancer","Reculer"])):
+            if((distance_robot_consigne<TOL_PRECIS and action_voulu in ["Consigne","ReculerPrecis"]) or (distance_robot_consigne<TOL_PASPRECIS and action_voulu in ["Avancer","Reculer"])):
                 if Debug_Mouv:
                     print("Bonne position")
                 verif_mouv_rpi = 1
@@ -1980,6 +1971,12 @@ if __name__ == '__main__':
                 dico_envoi[0x504+pince_a_utilise]=2
             else :
                 dico_envoi[0x504+pince_a_utilise]=1
+
+                
+            if verif_curseur == 1:
+                dico_envoi[0x009]=2
+            else :
+                dico_envoi[0x009]=1
             # ==================================================================== #
             
             if Debug_Mouv:
