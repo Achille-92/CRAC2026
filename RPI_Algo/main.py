@@ -5,7 +5,7 @@ TOL_PASPRECIS = 60
 couleur = "B"
 Reel = False
 Wifi = False
-Lidar_on = False
+Lidar_on = True
 
 Strategie = True
 Astars = True
@@ -21,7 +21,7 @@ Debug_strategie = True
 Debug_Mouv = True
 
 Bat_Compet = True
-Recalage = True
+Recalage = False
 lancement_cartes = True
 
 Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
@@ -42,7 +42,6 @@ import matplotlib.pyplot as plt
 from functools import partial
 from matplotlib.widgets import Button
 import multiprocessing as mp
-from multiprocessing import Process, Event, Value
 import ctypes
 from scipy.ndimage import binary_dilation
 from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes,fenetre_selection_couleur
@@ -51,9 +50,9 @@ from fonction import Obstacles,associer_noisette_a_emplacement,detecter_changeme
 from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper_par_quatre,remplir_Liste_actions
 ########################################################################
 #couleur = fenetre_selection_couleur()
-if Lidar_on and Reel:
+"""if Lidar_on and Reel:
     os.system('gcc progLidar.c -o lidar')
-    os.system('./lidar')
+    os.system('./lidar')"""
 
 # Config CAN 
 Liste_ID_recoit = [0x02,0x03,0x04,0x05,0x06,0x008,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
@@ -193,6 +192,18 @@ else:
     PORT_NAME = 'COM14'
 BAUDRATE = 1000000
 lidar = None
+
+PRECISION = 2 # 0.5° = 2 points par degré
+PORT = 12345
+BUFFER_SIZE = 2048
+NB_VALUES = 360 * PRECISION
+
+# --- INITIALISATION ---
+# Un tableau de 720 points (x, y) initialisé à 10000
+points = 10000*np.ones((NB_VALUES, 2))
+encore = True
+
+lock = threading.Lock()
 ####################################
 
 # Configuration pour la réception
@@ -483,10 +494,76 @@ queue_demande_astar = queue.Queue()  # Pour envoyer des demandes
 queue_resultat_astar = queue.Queue()  # Pour recevoir les résultats
 
 ################## Fonction Threads ##########################################
-def calcul_points(stop_event_lidar, x_robot_shared, y_robot_shared, angle_robot_shared,
-                  x_ennemi_shared, y_ennemi_shared,
-                  x_robot_depart, y_robot_depart, angle_robot_depart, Reel):
+def lidar_udp(stop_event):
+
+    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel,x_ennemi_lidar, y_ennemi_lidar,x_robot_depart, y_robot_depart, angle_robot_depart, Reel
     
+    buffer_points = deque(maxlen=5)
+
+    # 1. Création du socket UDP
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.settimeout(1.0)  # 1 seconde
+
+    # 2. Liaison à une adresse et un port
+    sock.bind(("0.0.0.0", PORT))  # écoute sur toutes les interfaces
+
+    print(f"Serveur UDP en attente sur le port {PORT}...")
+
+    while not stop_event.is_set():
+        if stop_event.is_set():
+            break
+        # 3. Réception du datagramme
+        try:
+            data, addr = sock.recvfrom(BUFFER_SIZE)
+        except socket.timeout:
+            # print("Aucune donnée reçue depuis 1s...")
+            data = bytes(NB_VALUES * 2)  # Remplir de zéros en cas aucune données reçues
+
+        if len(data) != NB_VALUES * 2:  # Chaque valeur est un uint16 (2 bytes)
+            # print(f"Taille inattendue : {len(data)}")
+            data = bytes(NB_VALUES * 2)  # Remplir de zéros en cas de données incorrectes
+
+        # '720H' = 720 unsigned short (uint16)
+        tableau = np.frombuffer(data, dtype='<u2', count=NB_VALUES)
+
+        if Reel :  # Lire uniquement au début d'un nouveau tour
+            x_r = x_robot_actuel
+            y_r = y_robot_actuel
+            angle_r = angle_robot_actuel
+        else:
+            x_r = x_robot_depart
+            y_r = y_robot_depart
+            angle_r = angle_robot_depart
+
+        for i in range(len(tableau)):
+            if tableau[i] != 0: #mettre le point loin
+                angle_point = np.radians(90)-(i+0.5)*((np.pi/180.0)/PRECISION) #angle en radians
+                    
+                angle_total = angle_point - math.radians(angle_r) - math.radians(0)
+                
+                x_point = x_r + tableau[i] * math.cos(angle_total)
+                y_point = y_r - tableau[i] * math.sin(angle_total)
+                
+                x_point = max(0, min(X_PISTE, int(x_point)))
+                y_point = max(0, min(Y_PISTE, int(y_point)))
+                distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
+                
+                if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
+                MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 50:
+                    if not(600<x_point<2400 and 1550<y_point<2000):
+                        buffer_points.append((x_point, y_point))
+
+                #points[i,0] = tableau[i]*np.cos(angle)
+                #points[i,1] = tableau[i]*np.sin(angle)
+
+        if buffer_points:
+            xs, ys = zip(*buffer_points)
+            x_ennemi_lidar = float(np.mean(xs))
+            y_ennemi_lidar = float(np.mean(ys))
+
+def calcul_points(stop_event,):
+    
+    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel,x_ennemi, y_ennemi,x_robot_depart, y_robot_depart, angle_robot_depart, Reel
     x_point = 0
     y_point = 0
     buffer_points = deque(maxlen=5)
@@ -495,7 +572,7 @@ def calcul_points(stop_event_lidar, x_robot_shared, y_robot_shared, angle_robot_
     compteur_scans = 0
     FREQUENCE_MAJ_ENNEMI = 10  # Ne mettre à jour l'ennemi que tous les 10 scans
     
-    while not stop_event_lidar.is_set():
+    while not stop_event.is_set():
         dict_points = {i: 0 for i in range(360)}
         
         try:
@@ -514,14 +591,14 @@ def calcul_points(stop_event_lidar, x_robot_shared, y_robot_shared, angle_robot_
             scan_generator = lidar.start_scan_express(0)
 
             for count, scan in enumerate(scan_generator()):  
-                if stop_event_lidar.is_set():
+                if stop_event.is_set():
                     break
 
                 # ✅ Lecture des positions seulement quand nécessaire
                 if Reel and scan.start_flag:  # Lire uniquement au début d'un nouveau tour
-                    x_r = x_robot_shared.value
-                    y_r = y_robot_shared.value
-                    angle_r = angle_robot_shared.value
+                    x_r = x_robot_actuel
+                    y_r = y_robot_actuel
+                    angle_r = angle_robot_actuel
                 else:
                     if scan.start_flag:  # En simulation, positions fixes
                         x_r = x_robot_depart
@@ -560,8 +637,8 @@ def calcul_points(stop_event_lidar, x_robot_shared, y_robot_shared, angle_robot_
                         # ✅ Mise à jour position ennemie
                         if buffer_points:
                             xs, ys = zip(*buffer_points)
-                            x_ennemi_shared.value = float(np.mean(xs))
-                            y_ennemi_shared.value = float(np.mean(ys))
+                            x_ennemi_lidar = float(np.mean(xs))
+                            y_ennemi_lidar = float(np.mean(ys))
                         
                     dict_points = {i: 0 for i in range(360)}
 
@@ -581,7 +658,7 @@ def calcul_points(stop_event_lidar, x_robot_shared, y_robot_shared, angle_robot_
     lidar.stop()
     lidar.disconnect()
 
-def LectureCAN(stop_event, x_robot_actuel_shared, y_robot_actuel_shared, angle_robot_actuel_shared):
+def LectureCAN(stop_event):
     """
     Argument : flag "stop_event"
     Modification : variables globales x_robot, y_robot, angle_robot, Batteries
@@ -604,13 +681,10 @@ def LectureCAN(stop_event, x_robot_actuel_shared, y_robot_actuel_shared, angle_r
 
         if msg.arbitration_id == 0x100:
             x_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
-            x_robot_actuel_shared.value = x_robot_actuel  # Écriture dans la variable partagée
         elif msg.arbitration_id == 0x101:
             y_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
-            y_robot_actuel_shared.value = y_robot_actuel  # Écriture dans la variable partagée
         elif msg.arbitration_id == 0x102:
             angle_robot_actuel = struct.unpack('f', bytes(msg.data))[0]
-            angle_robot_actuel_shared.value = angle_robot_actuel  # Écriture dans la variable partagée
 
         # Batteries
         elif msg.arbitration_id == 0x103:
@@ -755,7 +829,6 @@ def arret_programme(event, stop_event=None):
     print("Bouton STOP pressé — arrêt demandé.")
     if stop_event is not None:
         stop_event.set()
-        stop_event_lidar.set()
         bring_to_front(fig)
 
 def demarrage_strategie(event):
@@ -886,14 +959,6 @@ if __name__ == '__main__':
         pass
 
     stop_event = threading.Event()
-    stop_event_lidar = Event()
-
-    x_robot_actuel_shared = Value(ctypes.c_float, float(x_robot_depart))
-    y_robot_actuel_shared = Value(ctypes.c_float, float(y_robot_depart))
-    angle_robot_actuel_shared = Value(ctypes.c_float, angle_robot_depart)
-    
-    x_ennemi_lidar_shared = Value(ctypes.c_float, float(x_ennemi))
-    y_ennemi_lidar_shared = Value(ctypes.c_float, float(y_ennemi))
 
     if Reel :
         GPIO.setmode(GPIO.BCM)  # Utilisation de la numérotation BCM
@@ -901,10 +966,7 @@ if __name__ == '__main__':
         
         tache_LectureCAN = threading.Thread(
             target=LectureCAN, 
-            args=(stop_event, 
-                x_robot_actuel_shared, 
-                y_robot_actuel_shared, 
-                angle_robot_actuel_shared),
+            args=(stop_event,),
             daemon=True
         )
         tache_LectureCAN.start()
@@ -1027,7 +1089,6 @@ if __name__ == '__main__':
             while(recalage_depart == False and not stop_event.is_set()):
                 if etat_bau == 1:
                     stop_event.set()
-                    stop_event_lidar.set()
                 print("Recalage de départ en cours")
                 print("X : ",x_robot_actuel," Y : ",y_robot_actuel," A : ",angle_robot_actuel)
                 bus.send(can.Message(arbitration_id=0x01, data=struct.pack('<i',1), is_extended_id=False))
@@ -1049,7 +1110,6 @@ if __name__ == '__main__':
             while(pos_depart == False and not stop_event.is_set()):
                 if etat_bau == 1:
                     stop_event.set()
-                    stop_event_lidar.set()
                 print("X et Y de départ en cours")
                 print("X : ",x_robot_actuel," Y : ",y_robot_actuel," A : ",angle_robot_actuel)
                 bus.send(can.Message(arbitration_id=0x203, data=struct.pack('<f',x_robot_depart), is_extended_id=False))
@@ -1070,7 +1130,6 @@ if __name__ == '__main__':
             while(angle_depart == False and not stop_event.is_set()):
                 if etat_bau == 1:
                     stop_event.set()
-                    stop_event_lidar.set()
                 print("Angle de départ en cours")
                 print("X : ",x_robot_actuel," Y : ",y_robot_actuel," A : ",angle_robot_actuel)
                 bus.send(can.Message(arbitration_id=0x205, data=struct.pack('<f',angle_robot_depart+360), is_extended_id=False))
@@ -1132,7 +1191,6 @@ if __name__ == '__main__':
 
             if etat_bau == 1:
                 stop_event.set()
-                stop_event_lidar.set()
         print("Attente du Jack")
         if Wifi:
             donnees_vers_bc = {
@@ -1170,16 +1228,13 @@ if __name__ == '__main__':
 
     try:
         if Lidar_on:
-            tache_lidar = Process(
-                target=calcul_points,
-                args=(stop_event_lidar, 
-                    x_robot_actuel_shared, y_robot_actuel_shared, angle_robot_actuel_shared,
-                    x_ennemi_lidar_shared, y_ennemi_lidar_shared,
-                    x_robot_depart, y_robot_depart, angle_robot_depart,
-                    Reel),
+            tache_Lidar = threading.Thread(
+                target=lidar_udp, 
+                args=(stop_event,),
                 daemon=True
             )
-            tache_lidar.start()
+            tache_Lidar.start()
+
         if Astars:
             tache_Astar = threading.Thread(target=calcul_traj, args=(stop_event,), daemon=False)
             tache_Astar.start()
@@ -1300,11 +1355,11 @@ if __name__ == '__main__':
                 y_ennemi = y_ennemi_cam
                 angle_ennemi = angle_ennemi_cam
             elif not Wifi and Lidar_on:
-                x_ennemi = x_ennemi_lidar_shared.value  # ✅ Lire la Value partagée
-                y_ennemi = y_ennemi_lidar_shared.value
+                x_ennemi = x_ennemi_lidar  
+                y_ennemi = y_ennemi_lidar
             elif Wifi and Lidar_on:
-                x_ennemi = x_ennemi_lidar_shared.value  # ✅ Lire la Value partagée
-                y_ennemi = y_ennemi_lidar_shared.value
+                x_ennemi = x_ennemi_lidar  
+                y_ennemi = y_ennemi_lidar
             ###
             
 
@@ -1857,10 +1912,7 @@ if __name__ == '__main__':
                                 angle_robot_actuel = np.degrees(angle_robot_consigne)+180
                             x_robot_actuel += round(15*np.cos(angle_robot_consigne),0)
                             y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
-                        if Lidar_on:
-                            x_robot_actuel_shared.value = x_robot_actuel
-                            y_robot_actuel_shared.value = y_robot_actuel
-                            angle_robot_actuel_shared.value = angle_robot_actuel  
+                            
 
             # ============== MISE À JOUR AFFICHAGE ==================== #
 
@@ -2391,16 +2443,14 @@ if __name__ == '__main__':
             print("Batterie 3 Trop faible")
             
         stop_event.set()
-        stop_event_lidar.set()
 
     except KeyboardInterrupt:
         print("Arrêt demandé par l'utilisateur.")
         stop_event.set()  # signal aux threads de s'arrêter
-        stop_event_lidar.set()
         # Attente que chaque thread termine proprement
         
         if Lidar_on:
-            tache_lidar.join()
+            tache_Lidar.join()
 
         if Reel :
             tache_LectureCAN.join()
@@ -2418,7 +2468,7 @@ if __name__ == '__main__':
         print("Programme terminé proprement.")
     
         if Lidar_on:
-            tache_lidar.join()
+            tache_Lidar.join()
         
         if Reel :
             tache_LectureCAN.join()
