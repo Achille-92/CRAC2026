@@ -6,11 +6,11 @@ couleur = "B"
 Reel = False
 Wifi = False
 Lidar_on = True
-
+affichage = True
 Strategie = True
 Astars = True
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Simul_action = True
 
@@ -90,6 +90,7 @@ X_PISTE = 3000
 Y_PISTE = 2000
 MARGE_BORDUREPISTE_X = 120 # Détection Lidar
 MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
+DISTANCE_MIN_ROBOT = 50  # Distance minimale au robot en mm
 ############################
 
 Liste_actions = [
@@ -498,8 +499,6 @@ def lidar_udp(stop_event):
 
     global  x_robot_actuel, y_robot_actuel, angle_robot_actuel,x_ennemi_lidar, y_ennemi_lidar,x_robot_depart, y_robot_depart, angle_robot_depart, Reel
     
-    buffer_points = deque(maxlen=5)
-
     # 1. Création du socket UDP
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(1.0)  # 1 seconde
@@ -509,9 +508,12 @@ def lidar_udp(stop_event):
 
     print(f"Serveur UDP en attente sur le port {PORT}...")
 
-    while not stop_event.is_set():
-        if stop_event.is_set():
-            break
+    # Conversion de l'angle en radians pour les calculs
+    angle_robot_rad = np.deg2rad(angle_robot_actuel)
+    cos_angle = np.cos(angle_robot_rad)
+    sin_angle = np.sin(angle_robot_rad)
+
+    while encore:
         # 3. Réception du datagramme
         try:
             data, addr = sock.recvfrom(BUFFER_SIZE)
@@ -526,40 +528,54 @@ def lidar_udp(stop_event):
         # '720H' = 720 unsigned short (uint16)
         tableau = np.frombuffer(data, dtype='<u2', count=NB_VALUES)
 
-        if Reel :  # Lire uniquement au début d'un nouveau tour
-            x_r = x_robot_actuel
-            y_r = y_robot_actuel
-            angle_r = angle_robot_actuel
-        else:
-            x_r = x_robot_depart
-            y_r = y_robot_depart
-            angle_r = angle_robot_depart
-
         for i in range(len(tableau)):
-            if tableau[i] != 0: #mettre le point loin
-                angle_point = np.radians(90)-(i+0.5)*((np.pi/180.0)/PRECISION) #angle en radians
-                    
-                angle_total = angle_point - math.radians(angle_r) - math.radians(0)
+            if tableau[i] == 0: #mettre le point loin
+                points[i,0] = 10000
+            else:
+                # Calcul dans le repère du LIDAR
+                angle = -(i+0.5)*((np.pi/180.0)/PRECISION) #angle en radians
+                x_lidar = tableau[i]*np.cos(angle)
+                y_lidar = tableau[i]*np.sin(angle)
                 
-                x_point = x_r + tableau[i] * math.cos(angle_total)
-                y_point = y_r - tableau[i] * math.sin(angle_total)
+                # Transformation vers le repère global
+                # Rotation selon l'orientation du robot
+                x_rotated = x_lidar * cos_angle - y_lidar * sin_angle
+                y_rotated = x_lidar * sin_angle + y_lidar * cos_angle
                 
+                # Translation selon la position du robot
+                x_point = x_rotated + x_robot_actuel
+                y_point = y_rotated + y_robot_actuel
+                
+                # Clamping des coordonnées
                 x_point = max(0, min(X_PISTE, int(x_point)))
                 y_point = max(0, min(Y_PISTE, int(y_point)))
-                distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
                 
-                if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
-                MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 50:
-                    if not(600<x_point<2400 and 1550<y_point<2000):
-                        buffer_points.append((x_point, y_point))
-
-                #points[i,0] = tableau[i]*np.cos(angle)
-                #points[i,1] = tableau[i]*np.sin(angle)
-
-        if buffer_points:
-            xs, ys = zip(*buffer_points)
-            x_ennemi_lidar = float(np.mean(xs))
-            y_ennemi_lidar = float(np.mean(ys))
+                # Calcul de la distance entre le robot et le point
+                distance_robot_point = np.sqrt((x_robot_actuel - x_point)**2 + (y_robot_actuel - y_point)**2)
+                
+                # Vérification des conditions de validité
+                
+                if 1500+MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
+                   MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y and \
+                   distance_robot_point > DISTANCE_MIN_ROBOT and not (600<x_point<2400 and 1550<y_point<2000):
+                    # Point valide
+                    points[i,0] = x_point
+                    points[i,1] = y_point
+                else:
+                    # Point ignoré (trop proche des bords ou du robot)
+                    points[i,0] = 10000
+                    points[i,1] = 10000
+        
+        # Calcul de la position moyenne de l'ennemi (moyenne des points valides)
+        with lock:
+            points_valides = points[points[:, 0] != 10000]
+            if len(points_valides) > 0:
+                x_ennemi_lidar = np.mean(points_valides[:, 0])
+                y_ennemi_lidar = np.mean(points_valides[:, 1])
+            else:
+                # Aucun point valide détecté - placer hors du graphique
+                x_ennemi_lidar = -1000
+                y_ennemi_lidar = -1000
 
 def calcul_points(stop_event,):
     
@@ -1223,8 +1239,8 @@ if __name__ == '__main__':
     temps_demarage = time.time()
     match_demarre = True
 
-    #if Reel:
-    #plt.close(fig)
+    if not affichage:
+        plt.close(fig)
 
     try:
         if Lidar_on:
@@ -1355,11 +1371,13 @@ if __name__ == '__main__':
                 y_ennemi = y_ennemi_cam
                 angle_ennemi = angle_ennemi_cam
             elif not Wifi and Lidar_on:
-                x_ennemi = x_ennemi_lidar  
-                y_ennemi = y_ennemi_lidar
+                with lock:
+                    x_ennemi = x_ennemi_lidar  
+                    y_ennemi = y_ennemi_lidar
             elif Wifi and Lidar_on:
-                x_ennemi = x_ennemi_lidar  
-                y_ennemi = y_ennemi_lidar
+                with lock:
+                    x_ennemi = x_ennemi_lidar  
+                    y_ennemi = y_ennemi_lidar
             ###
             
 
