@@ -34,6 +34,8 @@ import math,time,os,can,struct,random,platform,sys, json, socket,uuid
 current_os = platform.system()
 if current_os == "Linux":
     import RPi.GPIO as GPIO
+    GPIO.setmode(GPIO.BCM)  # Utilisation de la numérotation BCM
+    GPIO.setup(26, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Activation de la résistance de pull-up interne
 import numpy as np
 import threading
 import queue
@@ -513,7 +515,11 @@ def lidar_udp(stop_event):
     cos_angle = np.cos(angle_robot_rad)
     sin_angle = np.sin(angle_robot_rad)
 
-    while encore:
+    while not stop_event.is_set():
+        
+        if stop_event.is_set():
+            break
+
         # 3. Réception du datagramme
         try:
             data, addr = sock.recvfrom(BUFFER_SIZE)
@@ -977,8 +983,6 @@ if __name__ == '__main__':
     stop_event = threading.Event()
 
     if Reel :
-        GPIO.setmode(GPIO.BCM)  # Utilisation de la numérotation BCM
-        GPIO.setup(26, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Activation de la résistance de pull-up interne
         
         tache_LectureCAN = threading.Thread(
             target=LectureCAN, 
@@ -1160,7 +1164,7 @@ if __name__ == '__main__':
                 time.sleep(0.1)
 
     while(lancement_strategie==False and etat_jack == 1 and not stop_event.is_set()):
-        if current_os == "Linux" and Reel:
+        if current_os == "Linux":
             etat_jack = GPIO.input(26)
             print("etat_jack : ",etat_jack)
         dico_envoi[0x01]=1
