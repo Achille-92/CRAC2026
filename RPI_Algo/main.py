@@ -401,7 +401,7 @@ temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
 temps_retour = 10 # Temps restant pour revenir au départ en fin de match
-temps_max = 30
+temps_max = 100
 reset_fin = False
 
 verif_mouv = 0
