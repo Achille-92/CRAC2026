@@ -5,12 +5,12 @@ TOL_PASPRECIS = 60
 couleur = "B"
 Reel = False
 Wifi = False
-Lidar_on = True
+Lidar_on = False
 affichage = True
 Strategie = True
 Astars = True
 
-Simul_mvt = False
+Simul_mvt = True
 Simul_mvt_ennemi = False
 Simul_action = True
 
@@ -51,7 +51,7 @@ from calcul_mouv import  calculer_trajectoire_complete,actualiser_zones_jeu,veri
 from fonction import Obstacles,associer_noisette_a_emplacement,detecter_changements_noisettes, distance
 from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper_par_quatre,remplir_Liste_actions
 ########################################################################
-#couleur = fenetre_selection_couleur()
+couleur = fenetre_selection_couleur()
 """if Lidar_on and Reel:
     os.system('gcc progLidar.c -o lidar')
     os.system('./lidar')"""
@@ -96,17 +96,6 @@ DISTANCE_MIN_ROBOT = 50  # Distance minimale au robot en mm
 ############################
 
 Liste_actions = [
-    #["Reculer",int(2400+LARGEUR_ROBOT/2),1300],
-    ["ReculerPrecis",1500,800],
-    ["Rotation",90],
-    ["Attente_test"],
-    ["Attraper",0,12],
-    ["Retourner",0,12],
-    ["Relacher",0,12],
-    ["Attente_test"],
-    ["Attraper",1,12],
-    ["Retourner",1,12],
-    ["Relacher",1,12],
     ["Attente"]
 ]
 
@@ -136,8 +125,6 @@ Liste_noisette_xya = [
     [1025,175,90,"R"],[1075,175,90,"R"],[1125,175,90,"R"],[1175,175,90,"R"],
     [1825,175,90,"R"],[1875,175,90,"R"],[1925,175,90,"R"],[1975,175,90,"R"],
 
-    #[2500,1600,0,"R"],[2500,1650,0,"R"],[2500,1700,0,"R"],[2500,1750,0,"R"],
-    #[100+50,850-25,0,"B"],[100+50,850+25,0,"B"],
 ] 
 Liste_noisette_xya_precedente = [noisette[:] for noisette in Liste_noisette_xya]  # Copie profonde
 Liste_noisette_xya_cam = []
@@ -201,7 +188,6 @@ PORT = 12345
 BUFFER_SIZE = 2048
 NB_VALUES = 360 * PRECISION
 
-# --- INITIALISATION ---
 # Un tableau de 720 points (x, y) initialisé à 10000
 points = 10000*np.ones((NB_VALUES, 2))
 encore = True
@@ -220,7 +206,6 @@ PORT_ENVOI = 5000
 # Coordonnées et angle de notre robot (coordonnées initiales en haut)
 if couleur == "B":
     x_robot_depart = int(2850-LARGEUR_ROBOT/2)
-    #x_robot_depart = int(2400+LARGEUR_ROBOT/2)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
 
@@ -248,7 +233,6 @@ if couleur == "B":
             [2350,100],
             [2250,100],
 
-
             [1800,800],
             [1900,800],
             [1450,800],
@@ -267,7 +251,6 @@ if couleur == "B":
             [2350,100],
             [2250,100],
 
-
             [1800,800],
             [1900,800],
             [1450,800],
@@ -276,15 +259,13 @@ if couleur == "B":
         ]
  
 else:
-    x_robot_depart = int(600-LARGEUR_ROBOT/2-50)
+    x_robot_depart = int(150+LARGEUR_ROBOT/2)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
-    angle_robot_depart = 90
-
-    Liste_actions = [["Consigne",x_robot_depart,1400]]
+    angle_robot_depart = -90
     
     x_robot_retour = LARGEUR_ROBOT/2+250
     y_robot_retour = 1800
-    angle_robot_retour = 90
+    angle_robot_retour = -90
 
     x_fin_curseur = 700
     y_fin_curseur = 150
@@ -292,12 +273,44 @@ else:
     x_ennemi = 2725 
     y_ennemi = 1650    
     
-    Liste_strategie = [
-        [175,450],
-        [175,350],
-        [850,800],
-        [750,800],
-    ]
+    if Faire_curseur:
+        Liste_strategie = [
+            [175,450],
+            [175,350],
+            [50,850],
+            [50,750],
+
+            ["Curseur"],
+
+            [1050,175],
+            [1150,175],
+            [650,100],
+            [750,100],
+
+            [1200,800],
+            [1100,800],
+            [1550,800],
+            [750,800],
+
+        ]
+    else:
+        Liste_strategie = [
+            [175,450],
+            [175,350],
+            [50,850],
+            [50,750],
+
+            [1050,175],
+            [1150,175],
+            [650,100],
+            [750,100],
+
+            [1200,800],
+            [1100,800],
+            [1550,800],
+            [750,800],
+
+        ]
 
 
 
@@ -1328,6 +1341,7 @@ if __name__ == '__main__':
                                             Noisette_restante[3]="B"
                                         if val == 1:
                                             Noisette_restante[3]="J"
+                    
                     Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
                 
                 else:
@@ -1473,7 +1487,7 @@ if __name__ == '__main__':
                     Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour-100)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Rotation",angle_robot_retour],["Attente_test"]]
                     reset_fin = True
                 else:
-                    if ((demande_nouvelle_strat) or step==1)and Noisette_init:
+                    if ((demande_nouvelle_strat) or step==1) and Noisette_init:
                         demande_nouvelle_strat = False
                         if len(Liste_strategie[0])==2:
                             if x_strategie == Liste_strategie[0][0] and y_strategie == Liste_strategie[0][1]:
