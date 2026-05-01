@@ -995,29 +995,55 @@ if __name__ == '__main__':
             print(f"Attente BAU")
             time.sleep(0.1)
         
-        dico_envoi[0x01]=1
-        dico_envoi[0x200]=x_robot_depart
-        dico_envoi[0x201]=y_robot_depart
-        dico_envoi[0x202]=angle_robot_depart
-        bus.send(can.Message(arbitration_id=0x01, data=struct.pack('<i',dico_envoi[0x01]), is_extended_id=False))
-        bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
-        bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
-        bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
-        dico_envoi[0x200]=0
-        dico_envoi[0x201]=0
-        dico_envoi[0x202]=0
-        time.sleep(0.1)
-        dico_envoi[0x01]=1
-        dico_envoi[0x200]=x_robot_depart
-        dico_envoi[0x201]=y_robot_depart
-        dico_envoi[0x202]=angle_robot_depart
-        bus.send(can.Message(arbitration_id=0x01, data=struct.pack('<i',dico_envoi[0x01]), is_extended_id=False))
-        bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
-        bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
-        bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
-        dico_envoi[0x200]=0
-        dico_envoi[0x201]=0
-        dico_envoi[0x202]=0
+        if couleur == "B":
+            dico_envoi[0x01]=1
+            dico_envoi[0x200]=x_robot_depart
+            dico_envoi[0x201]=y_robot_depart
+            dico_envoi[0x202]=angle_robot_depart
+            bus.send(can.Message(arbitration_id=0x01, data=struct.pack('<i',dico_envoi[0x01]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
+            dico_envoi[0x200]=0
+            dico_envoi[0x201]=0
+            dico_envoi[0x202]=0
+            time.sleep(0.1)
+            dico_envoi[0x01]=1
+            dico_envoi[0x200]=x_robot_depart
+            dico_envoi[0x201]=y_robot_depart
+            dico_envoi[0x202]=angle_robot_depart
+            bus.send(can.Message(arbitration_id=0x01, data=struct.pack('<i',dico_envoi[0x01]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
+            dico_envoi[0x200]=0
+            dico_envoi[0x201]=0
+            dico_envoi[0x202]=0
+
+        if couleur == "J":
+            dico_envoi[0x01]=1
+            dico_envoi[0x200]=x_robot_depart
+            dico_envoi[0x201]=y_robot_depart
+            dico_envoi[0x202]=90
+            bus.send(can.Message(arbitration_id=0x01, data=struct.pack('<i',dico_envoi[0x01]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
+            dico_envoi[0x200]=0
+            dico_envoi[0x201]=0
+            dico_envoi[0x202]=0
+            time.sleep(0.1)
+            dico_envoi[0x01]=1
+            dico_envoi[0x200]=x_robot_depart
+            dico_envoi[0x201]=y_robot_depart
+            dico_envoi[0x202]=90
+            bus.send(can.Message(arbitration_id=0x01, data=struct.pack('<i',dico_envoi[0x01]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x200, data=struct.pack('<f',dico_envoi[0x200]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x201, data=struct.pack('<f',dico_envoi[0x201]), is_extended_id=False))
+            bus.send(can.Message(arbitration_id=0x202, data=struct.pack('<f',dico_envoi[0x202]), is_extended_id=False))
+            dico_envoi[0x200]=0
+            dico_envoi[0x201]=0
+            dico_envoi[0x202]=0
         time.sleep(5)
 
         if Recalage: 
