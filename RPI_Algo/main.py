@@ -1,16 +1,16 @@
 Faire_curseur = True
 TOL_PRECIS = 15
-TOL_PASPRECIS = 60
+TOL_PASPRECIS = 70
 
 couleur = "B"
-Reel = False
+Reel = True
 Wifi = False
-Lidar_on = False
+Lidar_on = True
 affichage = True
 Strategie = True
 Astars = True
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Simul_action = True
 
@@ -21,7 +21,7 @@ Debug_strategie = True
 Debug_Mouv = True
 
 Bat_Compet = True
-Recalage = False
+Recalage = True
 lancement_cartes = True
 
 Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
@@ -524,9 +524,6 @@ def lidar_udp(stop_event):
     print(f"Serveur UDP en attente sur le port {PORT}...")
 
     # Conversion de l'angle en radians pour les calculs
-    angle_robot_rad = np.deg2rad(angle_robot_actuel)
-    cos_angle = np.cos(angle_robot_rad)
-    sin_angle = np.sin(angle_robot_rad)
 
     while not stop_event.is_set():
         
@@ -552,6 +549,9 @@ def lidar_udp(stop_event):
                 points[i,0] = 10000
             else:
                 # Calcul dans le repère du LIDAR
+                angle_robot_rad = np.deg2rad(angle_robot_actuel)
+                cos_angle = np.cos(angle_robot_rad)
+                sin_angle = np.sin(angle_robot_rad)
                 angle = -(i+0.5)*((np.pi/180.0)/PRECISION) #angle en radians
                 x_lidar = tableau[i]*np.cos(angle)
                 y_lidar = tableau[i]*np.sin(angle)
@@ -574,7 +574,7 @@ def lidar_udp(stop_event):
                 
                 # Vérification des conditions de validité
                 
-                if 1500+MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
+                if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
                    MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y and \
                    distance_robot_point > DISTANCE_MIN_ROBOT and not (600<x_point<2400 and 1550<y_point<2000):
                     # Point valide
@@ -596,102 +596,6 @@ def lidar_udp(stop_event):
                 x_ennemi_lidar = -1000
                 y_ennemi_lidar = -1000
 
-def calcul_points(stop_event,):
-    
-    global  x_robot_actuel, y_robot_actuel, angle_robot_actuel,x_ennemi, y_ennemi,x_robot_depart, y_robot_depart, angle_robot_depart, Reel
-    x_point = 0
-    y_point = 0
-    buffer_points = deque(maxlen=5)
-    
-    # ✅ Compteur pour limiter la fréquence de mise à jour
-    compteur_scans = 0
-    FREQUENCE_MAJ_ENNEMI = 10  # Ne mettre à jour l'ennemi que tous les 10 scans
-    
-    while not stop_event.is_set():
-        dict_points = {i: 0 for i in range(360)}
-        
-        try:
-            lidar = PyRPlidar()
-            lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
-            print("INFO:", lidar.get_health())
-            lidar.stop()
-            time.sleep(0.5)
-            lidar.disconnect()
-            time.sleep(0.5)
-            lidar.connect(port=PORT_NAME, baudrate=BAUDRATE, timeout=3)
-
-            lidar.set_motor_pwm(660)
-            time.sleep(2)
-        
-            scan_generator = lidar.start_scan_express(0)
-
-            for count, scan in enumerate(scan_generator()):  
-                if stop_event.is_set():
-                    break
-
-                # ✅ Lecture des positions seulement quand nécessaire
-                if Reel and scan.start_flag:  # Lire uniquement au début d'un nouveau tour
-                    x_r = x_robot_actuel
-                    y_r = y_robot_actuel
-                    angle_r = angle_robot_actuel
-                else:
-                    if scan.start_flag:  # En simulation, positions fixes
-                        x_r = x_robot_depart
-                        y_r = y_robot_depart
-                        angle_r = angle_robot_depart
-
-                flag = scan.start_flag
-                quality = scan.quality
-                angle_scan = scan.angle
-                distance_scan = scan.distance
-                
-                if flag == True:
-                    compteur_scans += 1  # ✅ Incrémenter le compteur
-                    
-                    # ✅ Ne calculer la position ennemie que tous les N tours complets
-                    if compteur_scans >= FREQUENCE_MAJ_ENNEMI:
-                        compteur_scans = 0  # Reset
-                        
-                        for angle_point, distance in dict_points.items():
-                            phi = math.radians(angle_point)
-                    
-                            angle_total = phi - math.radians(angle_r) - math.radians(0)
-                            
-                            x_point = x_r + distance * math.cos(angle_total)
-                            y_point = y_r - distance * math.sin(angle_total)
-                            
-                            x_point = max(0, min(X_PISTE, int(x_point)))
-                            y_point = max(0, min(Y_PISTE, int(y_point)))
-                            distance_robot_point = math.sqrt((x_r - x_point)**2 + (y_r - y_point)**2)
-                            
-                            if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
-                            MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y  and distance_robot_point > 50:
-                                if not(600<x_point<2400 and 1550<y_point<2000):
-                                    buffer_points.append((x_point, y_point))
-                        
-                        # ✅ Mise à jour position ennemie
-                        if buffer_points:
-                            xs, ys = zip(*buffer_points)
-                            x_ennemi_lidar = float(np.mean(xs))
-                            y_ennemi_lidar = float(np.mean(ys))
-                        
-                    dict_points = {i: 0 for i in range(360)}
-
-                if distance_scan > 6000 or distance_scan < 10:  
-                    continue
-                
-                angle_arrondi = round(angle_scan * 2) / 2
-            
-                if dict_points[int(angle_scan)] == 0:
-                    dict_points[int(angle_scan)] = distance_scan
-                    
-        except Exception as e:
-            print("Erreur dans le thread Lidar:", e)
-            time.sleep(1)  # ✅ Pause avant de réessayer
-            
-    print("Arrêt du Lidar...")
-    lidar.stop()
-    lidar.disconnect()
 
 def LectureCAN(stop_event):
     """
@@ -1352,11 +1256,13 @@ if __name__ == '__main__':
                     print("Mettre à jour les positions des noisettes dans Liste_noisette_xya à partir de la CAM")
                     if Liste_Noisette_temps_cam[int(temps_ecoules)] == []:
                         Liste_Noisette_temps_cam[int(temps_ecoules)] = Liste_noisette_xya_cam
+                        print("Liste_Noisette_temps_cam[[int(temps_ecoules)]] : ",Liste_Noisette_temps_cam[int(temps_ecoules)])
+
                     if temps_ecoules > 5:
                         for Noisette_save in Liste_noisette_xya:
                             est_supprimee = True
                             for index in range(5):
-                                for Noisette_presente in Liste_Noisette_temps_cam[index]:
+                                for Noisette_presente in Liste_Noisette_temps_cam[int(temps_ecoules)-index]:
                                     distance_NN = math.sqrt(
                                         (Noisette_save[0] - Noisette_presente[0])**2 + 
                                         (Noisette_save[1] - Noisette_presente[1])**2
@@ -1368,7 +1274,6 @@ if __name__ == '__main__':
                                 print("Noisette supprimée : ",Noisette_save)
                                 Liste_noisette_xya.remove(Noisette_save)
                                     
-                    print("Liste_Noisette_temps_cam[[int(temps_ecoules)]] : ",Liste_Noisette_temps_cam[int(temps_ecoules)])
             # ============================================================================ #
 
             
@@ -1575,14 +1480,16 @@ if __name__ == '__main__':
                                 demande_recalcul_traj = True
                                 break
             # Cas : Ennemi trop proche du robot
-            if Astars:
-                if distance_robot_ennemi < R_securite:
-                    sortir_ennemi = True
-                    if Debug_Mouv:
-                        print("Ennemi trop proche du robot")
-                    demande_recalcul_traj = True
-                else:
-                    sortir_ennemi = False
+            if distance_robot_ennemi <= R_securite:
+                sortir_ennemi = True
+                if Debug_Mouv:
+                    print("Ennemi trop proche du robot")
+                demande_recalcul_traj = True
+            else:
+                if Debug_Mouv:
+                    print("Ennemi assez loin du robot")
+                sortir_ennemi = False
+
             if Debug_Mouv:
                 print("demande_recalcul_traj : ",demande_recalcul_traj)
             # ======================================================================== #
@@ -1590,6 +1497,7 @@ if __name__ == '__main__':
             # ======================== CALCUL DE LA TRAJECTOIRE A* =================== #
             if Astars : 
                 if not sortir_ennemi:
+                    Astars_a_fail = False
                     # === CALCUL DE LA TRAJECTOIRE A* ===
                     if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper:
                         grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
@@ -1869,7 +1777,7 @@ if __name__ == '__main__':
             # ================================================= #
                 
             
-            if Astars_a_fail or sortir_ennemi:
+            if Astars_a_fail:
                 ordre_mouvement=3
             elif action_voulu in ["Avancer"]:
                 ordre_mouvement=1
@@ -1889,9 +1797,7 @@ if __name__ == '__main__':
                 ordre_mouvement = 10
             else :
                 ordre_mouvement=100
-            
-            print("ordre_mouvement : ",ordre_mouvement)
-            print("Action en cours : "+ action_voulu)
+        
             if Debug_Mouv:
                 print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
                 print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
@@ -2087,7 +1993,6 @@ if __name__ == '__main__':
             else :
                 dico_envoi[0x504+pince_a_utilise]=1
 
-                
             if verif_curseur == 1:
                 dico_envoi[0x009]=2
             else :
@@ -2493,7 +2398,7 @@ if __name__ == '__main__':
             os.system("sudo ifconfig can0 down")
         if Astars:
             queue_demande_astar.put(None)  # Signal d'arrêt au thread
-            #tache_Astar.join(timeout=2)
+            tache_Astar.join(timeout=2)
         if Wifi:
             tache_Wifi.join()
             
@@ -2514,7 +2419,7 @@ if __name__ == '__main__':
         
         if Astars:
             queue_demande_astar.put(None)  # Signal d'arrêt au thread
-            #tache_Astar.join(timeout=2)
+            tache_Astar.join(timeout=2)
         if Wifi:
             tache_Wifi.join()
             
