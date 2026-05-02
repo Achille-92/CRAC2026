@@ -4,7 +4,7 @@ TOL_PASPRECIS = 70
 
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 Lidar_on = False
 affichage = True
 Strategie = True
@@ -14,7 +14,7 @@ Simul_mvt = True
 Simul_mvt_ennemi = False
 Simul_action = True
 
-Maj_Noisette = False
+Maj_Noisette = True
 
 Debug_Action = True
 Debug_strategie = True
@@ -1306,7 +1306,6 @@ if __name__ == '__main__':
                                 print("Noisette supprimée : ",Noisette_save)
                                 Liste_noisette_xya.remove(Noisette_save)
 
-                    """Noisettes_apparues = []
                     for index in range(5):   
                         for Noisette_presente in Liste_Noisette_temps_cam[int(temps_ecoules)-index]: 
                             est_nouvelle = True
@@ -1319,16 +1318,23 @@ if __name__ == '__main__':
                                     est_nouvelle = False
 
                             if est_nouvelle:
-                                print("Nouvelle noisette détectée : ",Noisette_presente)
-                                for nvlNoisette in Noisettes_apparues:
-                                    distance_NN = math.sqrt(
-                                        (nvlNoisette[0] - Noisette_presente[0])**2 + 
-                                        (nvlNoisette[1] - Noisette_presente[1])**2
-                                    )
-                                    if distance_NN <= TOL_CAM_NOISETTE:
-                                        Noisettes_apparues.append(Noisette_presente)  
-                                        Liste_noisette_xya.append(Noisette_presente)       
-                    print("Noisettes apparues : ",Noisettes_apparues)  """
+                                ajoutee = False
+                                for num_gm in range(len(Liste_zones_gm_coins)):
+                                    zone = Liste_zones_gm_coins[num_gm]
+                                    x_min, y_min = zone[0]
+                                    x_max, y_max = zone[1]
+                                    # Vérifier si au moins un coin est dans la zone
+                                    if (x_min <= Noisette_presente[0] <= x_max and y_min <= Noisette_presente[1] <= y_max):
+                                        Liste_noisette_xya.append(Noisette_presente)
+                                        ajoutee = True
+                                if not ajoutee:
+                                    for index_zone_depart in range(len(Liste_zones_Noisette_depart)):
+                                        zone_depart = Liste_zones_Noisette_depart[index_zone_depart]
+                                        x_min, y_min = zone_depart[0]
+                                        x_max, y_max = zone_depart[1]
+                                        if (x_min <= Noisette_presente[0] <= x_max and y_min <= Noisette_presente[1] <= y_max):
+                                            Liste_noisette_xya.append(Noisette_presente)
+                                            ajoutee = True
             # ============================================================================ #
 
             
@@ -1432,7 +1438,8 @@ if __name__ == '__main__':
                     # Vérifier si au moins un coin est dans la zone
                     if any(x_min <= coin[0] <= x_max and y_min <= coin[1] <= y_max for coin in coins):
                         Liste_Noisettes_dans_GM.append(Noisette)
-                        break  # Sortir dès qu'une zone est trouvée    
+                        break  # Sortir dès qu'une zone est trouvée  
+                  
             # ================================================================================================= #
 
             # ============ Prise de décision ========== #
@@ -1450,10 +1457,12 @@ if __name__ == '__main__':
                             Liste_actions.insert(0, ["ReculerPrecis",int(600+LONGUEUR_ROBOT/2),1400])
                             Liste_actions.insert(0, ["Consigne",int(1150-LARGEUR_ROBOT/2),1400])
                             Liste_actions.insert(0, ["Consigne",int(600+LONGUEUR_ROBOT/2),1400])
+                            Liste_actions.insert(0, ["Consigne",int(600+LONGUEUR_ROBOT/2),1200])
                         if couleur == "B":
                             Liste_actions.insert(0, ["ReculerPrecis",int(2400-LONGUEUR_ROBOT/2),1400])
                             Liste_actions.insert(0, ["Consigne",int(1850+LARGEUR_ROBOT/2),1400])
                             Liste_actions.insert(0, ["Consigne",int(2400-LONGUEUR_ROBOT/2),1400])
+                            Liste_actions.insert(0, ["Consigne",int(600+LONGUEUR_ROBOT/2),1200])
                     reset_fin = True
                 else:
                     if ((demande_nouvelle_strat) or step==1) and Noisette_init:
