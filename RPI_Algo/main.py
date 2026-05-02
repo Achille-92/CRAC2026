@@ -3,9 +3,9 @@ TOL_PRECIS = 15
 TOL_PASPRECIS = 70
 
 couleur = "B"
-Reel = True
+Reel = False
 Wifi = False
-Lidar_on = True
+Lidar_on = False
 affichage = True
 Strategie = True
 Astars = True
@@ -23,7 +23,7 @@ Debug_Mouv = True
 Bat_Compet = True
 Recalage = True
 lancement_cartes = True
-
+faire_Ninja = True
 Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 ################## Librairies ##########################################
 import matplotlib
@@ -339,7 +339,7 @@ rayon_total_case = (R_ROBOT + MARGE_TRAJECTOIRE) // CASE_MM
 ####################
 
 # === CRÉATION DES OBSTACLES avec la classe Obstacles === #
-obs_manager = Obstacles(X_PISTE,Y_PISTE,R_ROBOT-20,0,CASE_MM)
+obs_manager = Obstacles(X_PISTE,Y_PISTE,R_ROBOT-50,0,CASE_MM)
 obs_manager_noisettes = Obstacles(X_PISTE,Y_PISTE,R_ROBOT-30,0,CASE_MM)
 
 for i, noisette_data in enumerate(Liste_noisette_xya, 1):
@@ -431,7 +431,7 @@ aller_GM = False
 temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
-temps_retour = 10 # Temps restant pour revenir au départ en fin de match
+temps_retour = 15 # Temps restant pour revenir au départ en fin de match
 temps_max = 100
 reset_fin = False
 
@@ -1241,7 +1241,6 @@ if __name__ == '__main__':
                             if distance_NN <= TOL_CAM_NOISETTE:
                                 Noisette_posconnue[3] = Noisette_couleurconnue[3]
                                 Liste_noisette_xya_cam_copie.remove(Noisette_couleurconnue)
-                                break
 
                 Liste_noisettes_restantes = [n for n in Liste_noisette_xya if n[3] == "R"]
                 if len(Liste_noisettes_restantes) != 0 :
@@ -1445,11 +1444,20 @@ if __name__ == '__main__':
             if not reset_fin :
                 if temps_restant <= temps_retour:
                     Liste_actions.clear() 
-                    Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour-100)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Rotation",angle_robot_retour],["Attente_test"]]
+                    Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour-100)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
+                    if faire_Ninja:
+                        if couleur == "J":
+                            Liste_actions.insert(0, ["ReculerPrecis",int(600+LONGUEUR_ROBOT/2),1400])
+                            Liste_actions.insert(0, ["Consigne",int(1150-LARGEUR_ROBOT/2),1400])
+                            Liste_actions.insert(0, ["Consigne",int(600+LONGUEUR_ROBOT/2),1400])
+                        if couleur == "B":
+                            Liste_actions.insert(0, ["ReculerPrecis",int(2400-LONGUEUR_ROBOT/2),1400])
+                            Liste_actions.insert(0, ["Consigne",int(1850+LARGEUR_ROBOT/2),1400])
+                            Liste_actions.insert(0, ["Consigne",int(2400-LONGUEUR_ROBOT/2),1400])
                     reset_fin = True
                 else:
-                    #if ((demande_nouvelle_strat) or step==1) and Noisette_init:
-                    if ((demande_nouvelle_strat) or step==1):
+                    if ((demande_nouvelle_strat) or step==1) and Noisette_init:
+                    #if ((demande_nouvelle_strat) or step==1):
                         demande_nouvelle_strat = False
                         if len(Liste_strategie[0])==2:
                             if x_strategie == Liste_strategie[0][0] and y_strategie == Liste_strategie[0][1]:
@@ -1623,11 +1631,11 @@ if __name__ == '__main__':
                             # ⭐ ÉTAPE 4 : TRAITER LE RÉSULTAT
                             if points_bruts is None:
                                 # Timeout dépassé
+                                Astars_a_fail = True
                                 if Debug_Mouv:
                                     print("⏱️ Timeout calcul A* - pas de résultat reçu")
-                                Astars_a_fail = True
                                 
-                                if distance_consigne_ennemi <= R_securite+50:
+                                if distance_consigne_ennemi <= R_securite:
                                     print("Point dans zone interdite autour de l'ennemi")
                                     demande_nouvelle_strat = True
                                 
