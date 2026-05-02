@@ -10,7 +10,7 @@ affichage = True
 Strategie = True
 Astars = True
 
-Simul_mvt = False
+Simul_mvt = True
 Simul_mvt_ennemi = False
 Simul_action = True
 
@@ -79,12 +79,12 @@ LONGUEUR_ROBOT = 138
 R_ROBOT = int(math.sqrt((LARGEUR_ROBOT/2)**2+(LONGUEUR_ROBOT/2)**2))
 R_ROBOT = 170
 R_ENNEMI = 150
-MARGE_ENNEMI = 90
+MARGE_ENNEMI = 100
 MARGE_NOISETTE = 10
 MARGE_GM = -35
 MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
-TOL_CAM_NOISETTE = 35
+TOL_CAM_NOISETTE = 32
 TOLERANCE_STRATEGIE_NOISETTE = 20
 FREQUENCE_AFFICHAGE = 2
 
@@ -574,7 +574,7 @@ def lidar_udp(stop_event):
                 
                 # Vérification des conditions de validité
                 
-                if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
+                if MARGE_BORDUREPISTE_X <= x_point <= 1500-MARGE_BORDUREPISTE_X and \
                    MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y and \
                    distance_robot_point > DISTANCE_MIN_ROBOT and not (600<x_point<2400 and 1550<y_point<2000):
                     # Point valide
@@ -1121,7 +1121,7 @@ if __name__ == '__main__':
                 Batteries_interrupteur[1]=2
             else :
                 Batteries_interrupteur[1]=1
-            #Batteries_interrupteur[2]=2
+                
             if Batteries_alert[2]==0:
                 Batteries_interrupteur[2]=2
             else :
@@ -1210,6 +1210,8 @@ if __name__ == '__main__':
 
         while (not stop_event.is_set() and temps_restant >=0 and not RPI_decharge and not etat_bau): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
             dico_envoi[0x01]=1
+            if Wifi:
+                print(f"Envoi WiFi : x={x_robot_actuel_cam}, y={y_robot_actuel_cam}, angle={angle_robot_actuel_cam}")
             if x_robot_actuel <= 0 or y_robot_actuel <= 0:
                 stop_event.set()
             temps_ecoules = time.time() - temps_demarage
@@ -1277,29 +1279,57 @@ if __name__ == '__main__':
                 else:
                     Noisette_init = True
 
-            else:
-                if Maj_Noisette:
-                    print("Mettre à jour les positions des noisettes dans Liste_noisette_xya à partir de la CAM")
-                    if Liste_Noisette_temps_cam[int(temps_ecoules)] == []:
-                        Liste_Noisette_temps_cam[int(temps_ecoules)] = Liste_noisette_xya_cam
-                        print("Liste_Noisette_temps_cam[[int(temps_ecoules)]] : ",Liste_Noisette_temps_cam[int(temps_ecoules)])
+            #else:
+            if Maj_Noisette:
+                print("Mettre à jour les positions des noisettes dans Liste_noisette_xya à partir de la CAM")
+                if Liste_Noisette_temps_cam[int(temps_ecoules)] == []:
+                    Liste_Noisette_temps_cam[int(temps_ecoules)] = Liste_noisette_xya_cam
+                    print("Liste_Noisette_temps_cam[[int(temps_ecoules)]] : ",Liste_Noisette_temps_cam[int(temps_ecoules)])
 
-                    if temps_ecoules > 5:
-                        for Noisette_save in Liste_noisette_xya:
-                            est_supprimee = True
-                            for index in range(5):
-                                for Noisette_presente in Liste_Noisette_temps_cam[int(temps_ecoules)-index]:
-                                    distance_NN = math.sqrt(
-                                        (Noisette_save[0] - Noisette_presente[0])**2 + 
-                                        (Noisette_save[1] - Noisette_presente[1])**2
-                                    )
-                                    if distance_NN <= TOL_CAM_NOISETTE:
-                                        est_supprimee = False
+                if temps_ecoules > 3:
+                    for Noisette_save in Liste_noisette_xya:
+                        est_supprimee = True
+                        for index in range(3):
+                            for Noisette_presente in Liste_Noisette_temps_cam[int(temps_ecoules)-index]:
+                                distance_NN = math.sqrt(
+                                    (Noisette_save[0] - Noisette_presente[0])**2 + 
+                                    (Noisette_save[1] - Noisette_presente[1])**2
+                                )
+                                if distance_NN <= TOL_CAM_NOISETTE:
+                                    est_supprimee = False
 
-                            if est_supprimee:
+                        if est_supprimee:
+                            distance_NN_ennemi = math.sqrt(
+                                (Noisette_save[0] - x_ennemi)**2 + 
+                                (Noisette_save[1] - y_ennemi)**2
+                            )
+                            if distance_NN_ennemi < R_securite:
                                 print("Noisette supprimée : ",Noisette_save)
                                 Liste_noisette_xya.remove(Noisette_save)
-                                    
+
+                    """Noisettes_apparues = []
+                    for index in range(5):   
+                        for Noisette_presente in Liste_Noisette_temps_cam[int(temps_ecoules)-index]: 
+                            est_nouvelle = True
+                            for Noisette_save in Liste_noisette_xya:
+                                distance_NN = math.sqrt(
+                                    (Noisette_save[0] - Noisette_presente[0])**2 + 
+                                    (Noisette_save[1] - Noisette_presente[1])**2
+                                )
+                                if distance_NN <= TOL_CAM_NOISETTE:
+                                    est_nouvelle = False
+
+                            if est_nouvelle:
+                                print("Nouvelle noisette détectée : ",Noisette_presente)
+                                for nvlNoisette in Noisettes_apparues:
+                                    distance_NN = math.sqrt(
+                                        (nvlNoisette[0] - Noisette_presente[0])**2 + 
+                                        (nvlNoisette[1] - Noisette_presente[1])**2
+                                    )
+                                    if distance_NN <= TOL_CAM_NOISETTE:
+                                        Noisettes_apparues.append(Noisette_presente)  
+                                        Liste_noisette_xya.append(Noisette_presente)       
+                    print("Noisettes apparues : ",Noisettes_apparues)  """
             # ============================================================================ #
 
             
@@ -1418,7 +1448,8 @@ if __name__ == '__main__':
                     Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour-100)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Rotation",angle_robot_retour],["Attente_test"]]
                     reset_fin = True
                 else:
-                    if ((demande_nouvelle_strat) or step==1) and Noisette_init:
+                    #if ((demande_nouvelle_strat) or step==1) and Noisette_init:
+                    if ((demande_nouvelle_strat) or step==1):
                         demande_nouvelle_strat = False
                         if len(Liste_strategie[0])==2:
                             if x_strategie == Liste_strategie[0][0] and y_strategie == Liste_strategie[0][1]:
@@ -1588,7 +1619,7 @@ if __name__ == '__main__':
                                 except queue.Empty:
                                     # Pas encore de résultat, continuer à attendre
                                     continue
-                            
+                            print("points_bruts après attente : ",points_bruts)
                             # ⭐ ÉTAPE 4 : TRAITER LE RÉSULTAT
                             if points_bruts is None:
                                 # Timeout dépassé
@@ -1596,14 +1627,13 @@ if __name__ == '__main__':
                                     print("⏱️ Timeout calcul A* - pas de résultat reçu")
                                 Astars_a_fail = True
                                 
-                            elif distance_consigne_ennemi <= R_securite:
-                                print("Point dans zone interdite autour de l'ennemi")
-                                demande_nouvelle_strat = True
+                                if distance_consigne_ennemi <= R_securite+50:
+                                    print("Point dans zone interdite autour de l'ennemi")
+                                    demande_nouvelle_strat = True
                                 
                             else:
                                 # ✅ Résultat valide reçu
                                 print("points_bruts : ",points_bruts)
-                                print("Taille de points_bruts : ",len(points_bruts))
                                 print("x_robot_actuel : ",x_robot_actuel," y_robot_actuel : ",y_robot_actuel)
 
                                 if points_bruts is not None and len(points_bruts) > 0:
