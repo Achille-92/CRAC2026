@@ -431,7 +431,7 @@ temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
 temps_retour = 10 # Temps restant pour revenir au départ en fin de match
-temps_max = 3600
+temps_max = 100
 reset_fin = False
 
 verif_mouv = 0
@@ -1212,8 +1212,10 @@ if __name__ == '__main__':
             dico_envoi[0x01]=1
             if Wifi:
                 print(f"Envoi WiFi : x={x_robot_actuel_cam}, y={y_robot_actuel_cam}, angle={angle_robot_actuel_cam}")
+
             if x_robot_actuel <= 0 or y_robot_actuel <= 0:
                 stop_event.set()
+
             temps_ecoules = time.time() - temps_demarage
             temps_restant = temps_max - temps_ecoules
 
@@ -1339,16 +1341,15 @@ if __name__ == '__main__':
 
             
             # Simu déplacement robot ennemi
-            if not Reel:
-                if Simul_mvt_ennemi:
+            if not Reel and Simul_mvt_ennemi:
                     
-                    x_ennemi_voulu = int(Liste_actions_ennemi[0][0])
-                    y_ennemi_voulu = int(Liste_actions_ennemi[0][1])
+                x_ennemi_voulu = int(Liste_actions_ennemi[0][0])
+                y_ennemi_voulu = int(Liste_actions_ennemi[0][1])
 
-                    angle_ennemi_consigne = np.degrees(math.atan2(y_ennemi_voulu - y_ennemi, x_ennemi_voulu - x_ennemi))
+                angle_ennemi_consigne = np.degrees(math.atan2(y_ennemi_voulu - y_ennemi, x_ennemi_voulu - x_ennemi))
 
-                    x_ennemi += round(35*np.cos(math.radians(angle_ennemi_consigne)),0)
-                    y_ennemi += round(35*np.sin(math.radians(angle_ennemi_consigne)),0)
+                x_ennemi += round(35*np.cos(math.radians(angle_ennemi_consigne)),0)
+                y_ennemi += round(35*np.sin(math.radians(angle_ennemi_consigne)),0)
             
             if Wifi and not Lidar_on:
                 x_ennemi = x_ennemi_cam
@@ -1447,13 +1448,10 @@ if __name__ == '__main__':
                 print("Liste_strategie : ",Liste_strategie)
 
             if (0<=x_ennemi<=1000 and 0<=y_ennemi<=1000)or(2000<x_ennemi<3000 and 0<y_ennemi<1000):
-                
-                #demande_nouvelle_strat = True
-                print("aaaaaaaaaaaaaa")
-                print(Liste_actions[0][0])
                 if Liste_actions[0][0] in ["Curseur_Jaune","Curseur_Bleu"]:
-                    print("bbbbbbbbbbbbb")
                     demande_nouvelle_strat = True
+                    print("abcdef")
+
             # === Retour au Nid au bout d'un certains temps === #
             if not reset_fin :
                 if temps_restant <= temps_retour:
@@ -1475,43 +1473,30 @@ if __name__ == '__main__':
                     #if ((demande_nouvelle_strat) or step==1) and Noisette_init:
                     if ((demande_nouvelle_strat) or step==1):
                         demande_nouvelle_strat = False
-                        print("Liste_strategie[0] : ",Liste_strategie[0])
-                        print("len(Liste_strategie[0]) : ",len(Liste_strategie[0]))
                         if len(Liste_strategie[0])==2:
                             if x_strategie == Liste_strategie[0][0] and y_strategie == Liste_strategie[0][1]:
                                 print("Changement de stratégie")
                                 couple_strat = Liste_strategie.pop(0)   
                                 Liste_strategie.append(couple_strat)
-                            
-                            if len(Liste_strategie[0])==2:
-                                x_strategie = Liste_strategie[0][0]
-                                y_strategie = Liste_strategie[0][1]
-                                if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
-                                    aller_Noisette = True
-                                    aller_GM = False
-                                elif "N" in Noisettes_stockees_dans_robot[0] or "N" in Noisettes_stockees_dans_robot[1]:
-                                    aller_Noisette = True
-                                    aller_GM = True
-                                else:
-                                    aller_Noisette = False
-                                    aller_GM = False
-
-                                Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
-                                demande_recalcul_traj = True
-                            else :
-                                if couleur == "B":
-                                    Liste_actions = [["Curseur_Bleu"],["Attente"],["Attente"]]
-                                if couleur == "J":
-                                    Liste_actions = [["Curseur_Jaune"],["Attente"],["Attente"]]
-                        else:
-                            if Liste_actions[0][0] in ["Curseur_Jaune","Curseur_Bleu"]:
+                                Astars_a_fail = True
+                        elif len(Liste_strategie[0])==1:
+                            if Liste_actions[0][0] in ['Curseur_Bleu','Curseur_Jaune']:
                                 print("Changement de stratégie")
                                 couple_strat = Liste_strategie.pop(0)   
                                 Liste_strategie.append(couple_strat)
+
+                        if len(Liste_strategie[0])==2:
+                            x_strategie = Liste_strategie[0][0]
+                            y_strategie = Liste_strategie[0][1]
+                            Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
+                            demande_recalcul_traj = True
+
+                        else:
                             if couleur == "B":
                                 Liste_actions = [["Curseur_Bleu"],["Attente"],["Attente"]]
                             if couleur == "J":
                                 Liste_actions = [["Curseur_Jaune"],["Attente"],["Attente"]]
+
             # ================================================= #
             
 
@@ -1556,8 +1541,8 @@ if __name__ == '__main__':
                 distance_consigne_ennemi = math.sqrt((x_robot_voulu - x_ennemi)**2 + (y_robot_voulu - y_ennemi)**2)
             else:
                 distance_consigne_ennemi = 100000
+
             # =========== Détection demande_recalcul_traj ============= #
-            # Cas : Ennemi coupe la trajectoire
             if Astars :
                 if verifier_segments_trajectoire_ennemi(Liste_actions,x_ennemi, y_ennemi,R_securite, MARGE_TRAJECTOIRE,x_robot_actuel, y_robot_actuel):
                     demande_recalcul_traj = True
@@ -1591,9 +1576,9 @@ if __name__ == '__main__':
             # ======================== CALCUL DE LA TRAJECTOIRE A* =================== #
             if Astars : 
                 if not sortir_ennemi:
-                    Astars_a_fail = False
                     # === CALCUL DE LA TRAJECTOIRE A* ===
                     if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper:
+                        Astars_a_fail = False
                         grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
                         
                         if Debug_Mouv:
@@ -1754,7 +1739,6 @@ if __name__ == '__main__':
                                         demande_nouvelle_strat = True
                                         Astars_a_fail = True
                 else:
-                    # Pas de résultat disponible, on continue
                     Astars_a_fail = True
                                           
                     """else:
@@ -1838,10 +1822,8 @@ if __name__ == '__main__':
                                         Liste_actions.insert(0, ["Consigne", int(x_robot_voulu), int(y_robot_voulu)])"""
 
                             
-
-                          
             # ======================================================================== #
-            print("demande_nouvelle_strat : ",demande_nouvelle_strat)
+            
             # ========== Lire l'action courante =============== #
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer","ReculerPrecis"]:
                 action_voulu = Liste_actions[0][0]
@@ -1868,8 +1850,17 @@ if __name__ == '__main__':
                 noisette_a_manipulee = Liste_actions[0][2]
                 print("Appeler Pince N°",pince_a_utilise," pour ",action_voulu," les Noisettes ",noisette_a_manipulee)
             # ================================================= #
-                
             
+            # ===== Verif coordonnées souhaitées dans la table ============== #
+            for action in Liste_actions:
+                if action[0] in ["Consigne","Avancer","Reculer","ReculerPrecis"]:
+                    x = action[1]
+                    y = action[2]
+                    if not (100 <= x <= 2900 and 100 <= y <= 1900):
+                        demande_nouvelle_strat = True
+            # ================================================= #
+
+            # ====== Traduction de l'action en ordre de mouvement pour la carte Asserv ==== #
             if Astars_a_fail:
                 ordre_mouvement=3
             elif action_voulu in ["Avancer"]:
@@ -1890,6 +1881,7 @@ if __name__ == '__main__':
                 ordre_mouvement = 10
             else :
                 ordre_mouvement=100
+            # ======================================================== #
         
             if Debug_Mouv:
                 print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
