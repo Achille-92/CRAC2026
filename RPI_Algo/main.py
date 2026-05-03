@@ -1,11 +1,7 @@
-Faire_curseur = True
-TOL_PRECIS = 15
-TOL_PASPRECIS = 70
-
 couleur = "B"
-Reel = False
+Reel = True
 Wifi = True
-Lidar_on = False
+Lidar_on = True
 affichage = True
 Strategie = True
 Astars = True
@@ -14,7 +10,7 @@ Simul_mvt = False
 Simul_mvt_ennemi = False
 Simul_action = True
 
-Maj_Noisette = True
+Maj_Noisette = False
 
 Debug_Action = True
 Debug_strategie = True
@@ -24,6 +20,11 @@ Bat_Compet = True
 Recalage = True
 lancement_cartes = True
 faire_Ninja = False
+Strat_agressive = False
+Faire_curseur = True
+TOL_PRECIS = 15
+TOL_PASPRECIS = 70
+
 Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 ################## Librairies ##########################################
 import matplotlib
@@ -218,25 +219,22 @@ if couleur == "B":
     x_ennemi = 275
     y_ennemi = 1650
     
-    if Faire_curseur:
+    if Strat_agressive:
         Liste_strategie = [
-            [2825,450],
-            [2825,350],
-            [2950,850],
-            [2950,750],
-
-            ["Curseur"],
+            [1200,800],
+            [1450,800],
+            [1150,175],
+            [1450,100],
 
             [1950,175],
             [1850,175],
             [2350,100],
-            [1450,100],
+            [2250,100],
 
             [1800,800],
             [1900,800],
             [1450,800],
             [2250,800],
-
         ]
     else:
         Liste_strategie = [
@@ -272,46 +270,26 @@ else:
     x_ennemi = 2725 
     y_ennemi = 1650    
     
-    if Faire_curseur:
-        Liste_strategie = [
-            [175,450],
-            [175,350],
-            [50,850],
-            [50,750],
+    Liste_strategie = [
+        [175,450],
+        [175,350],
+        [50,850],
+        [50,750],
 
-            ["Curseur"],
+        [1050,175],
+        [1150,175],
+        [650,100],
+        [1550,100],
 
-            [1050,175],
-            [1150,175],
-            [650,100],
-            [1550,100],
+        [1200,800],
+        [1100,800],
+        [1550,800],
+        [750,800],
 
-            [1200,800],
-            [1100,800],
-            [1550,800],
-            [750,800],
+    ]
 
-        ]
-    else:
-        Liste_strategie = [
-            [175,450],
-            [175,350],
-            [50,850],
-            [50,750],
-
-            [1050,175],
-            [1150,175],
-            [650,100],
-            [1550,100],
-
-            [1200,800],
-            [1100,800],
-            [1550,800],
-            [750,800],
-
-        ]
-
-
+if Faire_curseur:
+    Liste_strategie.insert(4,['Curseur'])
 
 x_robot_actuel = x_robot_depart
 y_robot_actuel = y_robot_depart
