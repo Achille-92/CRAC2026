@@ -3,18 +3,18 @@ TOL_PRECIS = 15
 TOL_PASPRECIS = 70
 
 couleur = "B"
-Reel = True
+Reel = False
 Wifi = True
 Lidar_on = False
 affichage = True
 Strategie = True
 Astars = True
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Simul_action = True
 
-Maj_Noisette = False
+Maj_Noisette = True
 
 Debug_Action = True
 Debug_strategie = True
@@ -153,7 +153,6 @@ for Noisette_posconnue in Liste_noisette_xya:
             Liste_association_Noisette_zone[num_zonedepart].append(Noisette_posconnue)
             
             
-Liste_Noisette_temps_cam = [[] for i in range(100)]
 
 Noisette_init = False
 Liste_association_Noisette_zone_cam = [[] for i in range(8)]
@@ -432,7 +431,7 @@ temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
 temps_retour = 10 # Temps restant pour revenir au départ en fin de match
-temps_max = 100
+temps_max = 3600
 reset_fin = False
 
 verif_mouv = 0
@@ -509,6 +508,7 @@ print(f"🎲 Match ID généré : {match_id}")
 queue_demande_astar = queue.Queue()  # Pour envoyer des demandes
 queue_resultat_astar = queue.Queue()  # Pour recevoir les résultats
 
+Liste_Noisette_temps_cam = [[] for i in range(temps_max)]
 ################## Fonction Threads ##########################################
 def lidar_udp(stop_event):
 
@@ -1327,14 +1327,14 @@ if __name__ == '__main__':
                                     if (x_min <= Noisette_presente[0] <= x_max and y_min <= Noisette_presente[1] <= y_max):
                                         Liste_noisette_xya.append(Noisette_presente)
                                         ajoutee = True
-                                if not ajoutee:
+                                """if not ajoutee:
                                     for index_zone_depart in range(len(Liste_zones_Noisette_depart)):
                                         zone_depart = Liste_zones_Noisette_depart[index_zone_depart]
                                         x_min, y_min = zone_depart[0]
                                         x_max, y_max = zone_depart[1]
                                         if (x_min <= Noisette_presente[0] <= x_max and y_min <= Noisette_presente[1] <= y_max):
                                             Liste_noisette_xya.append(Noisette_presente)
-                                            ajoutee = True
+                                            ajoutee = True"""
             # ============================================================================ #
 
             
@@ -1446,7 +1446,14 @@ if __name__ == '__main__':
             if Strategie:
                 print("Liste_strategie : ",Liste_strategie)
 
-            
+            if (0<=x_ennemi<=1000 and 0<=y_ennemi<=1000)or(2000<x_ennemi<3000 and 0<y_ennemi<1000):
+                
+                #demande_nouvelle_strat = True
+                print("aaaaaaaaaaaaaa")
+                print(Liste_actions[0][0])
+                if Liste_actions[0][0] in ["Curseur_Jaune","Curseur_Bleu"]:
+                    print("bbbbbbbbbbbbb")
+                    demande_nouvelle_strat = True
             # === Retour au Nid au bout d'un certains temps === #
             if not reset_fin :
                 if temps_restant <= temps_retour:
@@ -1468,26 +1475,39 @@ if __name__ == '__main__':
                     #if ((demande_nouvelle_strat) or step==1) and Noisette_init:
                     if ((demande_nouvelle_strat) or step==1):
                         demande_nouvelle_strat = False
+                        print("Liste_strategie[0] : ",Liste_strategie[0])
+                        print("len(Liste_strategie[0]) : ",len(Liste_strategie[0]))
                         if len(Liste_strategie[0])==2:
                             if x_strategie == Liste_strategie[0][0] and y_strategie == Liste_strategie[0][1]:
                                 print("Changement de stratégie")
                                 couple_strat = Liste_strategie.pop(0)   
                                 Liste_strategie.append(couple_strat)
-                            x_strategie = Liste_strategie[0][0]
-                            y_strategie = Liste_strategie[0][1]
-                            if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
-                                aller_Noisette = True
-                                aller_GM = False
-                            elif "N" in Noisettes_stockees_dans_robot[0] or "N" in Noisettes_stockees_dans_robot[1]:
-                                aller_Noisette = True
-                                aller_GM = True
-                            else:
-                                aller_Noisette = False
-                                aller_GM = False
+                            
+                            if len(Liste_strategie[0])==2:
+                                x_strategie = Liste_strategie[0][0]
+                                y_strategie = Liste_strategie[0][1]
+                                if Noisettes_stockees_dans_robot == [["N","N"],["N","N"]]:
+                                    aller_Noisette = True
+                                    aller_GM = False
+                                elif "N" in Noisettes_stockees_dans_robot[0] or "N" in Noisettes_stockees_dans_robot[1]:
+                                    aller_Noisette = True
+                                    aller_GM = True
+                                else:
+                                    aller_Noisette = False
+                                    aller_GM = False
 
-                            Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
-                            demande_recalcul_traj = True
+                                Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
+                                demande_recalcul_traj = True
+                            else :
+                                if couleur == "B":
+                                    Liste_actions = [["Curseur_Bleu"],["Attente"],["Attente"]]
+                                if couleur == "J":
+                                    Liste_actions = [["Curseur_Jaune"],["Attente"],["Attente"]]
                         else:
+                            if Liste_actions[0][0] in ["Curseur_Jaune","Curseur_Bleu"]:
+                                print("Changement de stratégie")
+                                couple_strat = Liste_strategie.pop(0)   
+                                Liste_strategie.append(couple_strat)
                             if couleur == "B":
                                 Liste_actions = [["Curseur_Bleu"],["Attente"],["Attente"]]
                             if couleur == "J":
@@ -1624,7 +1644,7 @@ if __name__ == '__main__':
                             
                             # ⭐ ÉTAPE 3 : ATTENDRE LE RÉSULTAT AVEC TIMEOUT
                             points_bruts = None
-                            timeout_calcul = 2.0  # Timeout de 2 secondes
+                            timeout_calcul = 0.6  # Timeout de 0.5 secondes
                             temps_debut_attente = time.time()
                             
                             while points_bruts is None and (time.time() - temps_debut_attente) < timeout_calcul:
@@ -1646,7 +1666,7 @@ if __name__ == '__main__':
                                 
                                 if distance_consigne_ennemi <= R_securite:
                                     print("Point dans zone interdite autour de l'ennemi")
-                                    demande_nouvelle_strat = True
+                                demande_nouvelle_strat = True
                                 
                             else:
                                 # ✅ Résultat valide reçu
@@ -1821,7 +1841,7 @@ if __name__ == '__main__':
 
                           
             # ======================================================================== #
-            
+            print("demande_nouvelle_strat : ",demande_nouvelle_strat)
             # ========== Lire l'action courante =============== #
             if type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Consigne","Avancer","Reculer","ReculerPrecis"]:
                 action_voulu = Liste_actions[0][0]
@@ -1927,10 +1947,10 @@ if __name__ == '__main__':
                                 angle_robot_actuel = np.degrees(angle_robot_consigne)+180
                             x_robot_actuel += round(15*np.cos(angle_robot_consigne),0)
                             y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
-            elif not Reel and Wifi:
+            """elif not Reel and Wifi:
                 x_robot_actuel = x_robot_actuel_cam
                 y_robot_actuel = y_robot_actuel_cam
-                angle_robot_actuel = angle_robot_actuel_cam             
+                angle_robot_actuel = angle_robot_actuel_cam"""             
 
             # ============== MISE À JOUR AFFICHAGE ==================== #
 
