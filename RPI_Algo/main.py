@@ -3,7 +3,7 @@ TOL_PRECIS = 15
 TOL_PASPRECIS = 70
 
 couleur = "B"
-Reel = False
+Reel = True
 Wifi = True
 Lidar_on = False
 affichage = True
@@ -14,7 +14,7 @@ Simul_mvt = True
 Simul_mvt_ennemi = False
 Simul_action = True
 
-Maj_Noisette = True
+Maj_Noisette = False
 
 Debug_Action = True
 Debug_strategie = True
@@ -23,7 +23,7 @@ Debug_Mouv = True
 Bat_Compet = True
 Recalage = True
 lancement_cartes = True
-faire_Ninja = True
+faire_Ninja = False
 Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 ################## Librairies ##########################################
 import matplotlib
@@ -209,7 +209,7 @@ if couleur == "B":
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
 
-    x_robot_retour = 3000-LARGEUR_ROBOT/2-250
+    x_robot_retour = 3000-LARGEUR_ROBOT/2-150
     y_robot_retour = 1800
     angle_robot_retour = -90
     
@@ -231,7 +231,7 @@ if couleur == "B":
             [1950,175],
             [1850,175],
             [2350,100],
-            [2250,100],
+            [1450,100],
 
             [1800,800],
             [1900,800],
@@ -249,7 +249,7 @@ if couleur == "B":
             [1950,175],
             [1850,175],
             [2350,100],
-            [2250,100],
+            [1450,100],
 
             [1800,800],
             [1900,800],
@@ -263,7 +263,7 @@ else:
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
     
-    x_robot_retour = LARGEUR_ROBOT/2+250
+    x_robot_retour = LARGEUR_ROBOT/2+150
     y_robot_retour = 1800
     angle_robot_retour = -90
 
@@ -285,7 +285,7 @@ else:
             [1050,175],
             [1150,175],
             [650,100],
-            [750,100],
+            [1550,100],
 
             [1200,800],
             [1100,800],
@@ -303,7 +303,7 @@ else:
             [1050,175],
             [1150,175],
             [650,100],
-            [750,100],
+            [1550,100],
 
             [1200,800],
             [1100,800],
@@ -431,7 +431,7 @@ aller_GM = False
 temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
-temps_retour = 15 # Temps restant pour revenir au départ en fin de match
+temps_retour = 10 # Temps restant pour revenir au départ en fin de match
 temps_max = 100
 reset_fin = False
 
@@ -1273,7 +1273,7 @@ if __name__ == '__main__':
                                         if val == 1:
                                             Noisette_restante[3]="J"
                     
-                    Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
+                    #Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
                 
                 else:
                     Noisette_init = True
@@ -1465,8 +1465,8 @@ if __name__ == '__main__':
                             Liste_actions.insert(0, ["Consigne",int(600+LONGUEUR_ROBOT/2),1200])
                     reset_fin = True
                 else:
-                    if ((demande_nouvelle_strat) or step==1) and Noisette_init:
-                    #if ((demande_nouvelle_strat) or step==1):
+                    #if ((demande_nouvelle_strat) or step==1) and Noisette_init:
+                    if ((demande_nouvelle_strat) or step==1):
                         demande_nouvelle_strat = False
                         if len(Liste_strategie[0])==2:
                             if x_strategie == Liste_strategie[0][0] and y_strategie == Liste_strategie[0][1]:
@@ -1909,7 +1909,7 @@ if __name__ == '__main__':
             # ==================================================================== #
             
             # ================== Simulation Mouvement Robot ====================== #
-            if not Reel: 
+            if not Reel and not Wifi: 
                 if Simul_mvt:
                     if ordre_mouvement!=3:
                         if(action_voulu in ["Rotation"]):
@@ -1927,7 +1927,10 @@ if __name__ == '__main__':
                                 angle_robot_actuel = np.degrees(angle_robot_consigne)+180
                             x_robot_actuel += round(15*np.cos(angle_robot_consigne),0)
                             y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
-                            
+            elif not Reel and Wifi:
+                x_robot_actuel = x_robot_actuel_cam
+                y_robot_actuel = y_robot_actuel_cam
+                angle_robot_actuel = angle_robot_actuel_cam             
 
             # ============== MISE À JOUR AFFICHAGE ==================== #
 
