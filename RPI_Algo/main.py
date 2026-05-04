@@ -1,12 +1,12 @@
 couleur = "B"
-Reel = True
-Wifi = True
-Lidar_on = True
+Reel = False
+Wifi = False
+Lidar_on = False
 affichage = True
 Strategie = True
 Astars = True
 
-Simul_mvt = False
+Simul_mvt = True
 Simul_mvt_ennemi = False
 Simul_action = True
 
@@ -20,7 +20,7 @@ Bat_Compet = True
 Recalage = True
 lancement_cartes = True
 faire_Ninja = False
-Strat_agressive = False
+Strat_agressive = True
 Faire_curseur = True
 TOL_PRECIS = 15
 TOL_PASPRECIS = 70
@@ -221,20 +221,21 @@ if couleur == "B":
     
     if Strat_agressive:
         Liste_strategie = [
-            [1200,800],
-            [1450,800],
-            [1150,175],
-            [1450,100],
-
-            [1950,175],
-            [1850,175],
-            [2350,100],
-            [2250,100],
-
             [1800,800],
             [1900,800],
             [1450,800],
             [2250,800],
+            
+            [1850,175],
+            [1950,175],
+            [1450,100],
+            [2350,100],
+            
+            [2825,450],
+            [2825,350],
+            [2950,850],
+            [2950,750],
+
         ]
     else:
         Liste_strategie = [
@@ -270,26 +271,48 @@ else:
     x_ennemi = 2725 
     y_ennemi = 1650    
     
-    Liste_strategie = [
-        [175,450],
-        [175,350],
-        [50,850],
-        [50,750],
+    if Strat_agressive:    
+        Liste_strategie = [
 
-        [1050,175],
-        [1150,175],
-        [650,100],
-        [1550,100],
+            [1200,800],
+            [1100,800],
+            [1550,800],
+            [750,800],
 
-        [1200,800],
-        [1100,800],
-        [1550,800],
-        [750,800],
+            [1150,175],
+            [1050,175],
+            [650,100],
+            [1550,100],
 
-    ]
+
+            [175,450],
+            [175,350],
+            [50,850],
+            [50,750],
+
+        ]
+    else:
+        Liste_strategie = [
+            [175,450],
+            [175,350],
+            [50,850],
+            [50,750],
+
+            [1050,175],
+            [1150,175],
+            [650,100],
+            [1550,100],
+
+            [1200,800],
+            [1100,800],
+            [1550,800],
+            [750,800],
+
+        ]
 
 if Faire_curseur:
-    Liste_strategie.insert(4,['Curseur'])
+    if not Strat_agressive:
+        Liste_strategie.insert(4,['Curseur'])
 
 x_robot_actuel = x_robot_depart
 y_robot_actuel = y_robot_depart
@@ -317,7 +340,7 @@ rayon_total_case = (R_ROBOT + MARGE_TRAJECTOIRE) // CASE_MM
 
 # === CRÉATION DES OBSTACLES avec la classe Obstacles === #
 obs_manager = Obstacles(X_PISTE,Y_PISTE,R_ROBOT-50,0,CASE_MM)
-obs_manager_noisettes = Obstacles(X_PISTE,Y_PISTE,R_ROBOT-30,0,CASE_MM)
+obs_manager_noisettes = Obstacles(X_PISTE,Y_PISTE,R_ROBOT-35,0,CASE_MM)
 
 for i, noisette_data in enumerate(Liste_noisette_xya, 1):
     if len(noisette_data) >= 3:
@@ -452,7 +475,7 @@ distance_robot_consigne = 3000
 # ==================== PARAMÈTRES DE L'ALGORITHME ====================
 
 SAFETY_WEIGHT = 2.0  # Poids de sécurité pour A*
-MIN_CLEARANCE = 3.0
+MIN_CLEARANCE = 2.0
 SMOOTHNESS = 1.0
 DISTANCE_AJUSTABLE = 5  # Distance seuil pour pénalité sécurité (en cases)
 
