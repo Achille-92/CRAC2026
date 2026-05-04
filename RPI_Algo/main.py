@@ -20,7 +20,7 @@ Bat_Compet = True
 Recalage = True
 lancement_cartes = True
 faire_Ninja = False
-Strat_agressive = True
+Strat_agressive = False
 Faire_curseur = True
 TOL_PRECIS = 15
 TOL_PASPRECIS = 70
@@ -47,12 +47,14 @@ from matplotlib.widgets import Button
 import multiprocessing as mp
 import ctypes
 from scipy.ndimage import binary_dilation
-from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes,fenetre_selection_couleur
+from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes,fenetre_selection_couleur,fenetre_selection_agression
 from calcul_mouv import  calculer_trajectoire_complete,actualiser_zones_jeu,verifier_segments_trajectoire_ennemi
 from fonction import Obstacles,associer_noisette_a_emplacement,detecter_changements_noisettes, distance
 from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper_par_quatre,remplir_Liste_actions
 ########################################################################
 couleur = fenetre_selection_couleur()
+Strat_agressive = fenetre_selection_agression()
+
 """if Lidar_on and Reel:
     os.system('gcc progLidar.c -o lidar')
     os.system('./lidar')"""
@@ -221,20 +223,25 @@ if couleur == "B":
     
     if Strat_agressive:
         Liste_strategie = [
-            [1800,800],
-            [1900,800],
+            [1200,800],
+            [1100,800],
+            [1550,800],
             [1450,800],
-            [2250,800],
             
-            [1850,175],
-            [1950,175],
+            [1050,175],
+            [1150,175],
+            [1550,100],
             [1450,100],
-            [2350,100],
             
-            [2825,450],
-            [2825,350],
-            [2950,850],
-            [2950,750],
+            [1950,175],
+            [1850,175],
+            [2350,100],
+            [2250,100],
+            
+            [1900,800],
+            [1800,800],
+            [2250,800],
+            [2150,800],
 
         ]
     else:
@@ -273,22 +280,25 @@ else:
     
     if Strat_agressive:    
         Liste_strategie = [
-
-            [1200,800],
-            [1100,800],
+            [1800,800],
+            [1900,800],
+            [1450,800],
             [1550,800],
-            [750,800],
-
-            [1150,175],
-            [1050,175],
-            [650,100],
+            
+            [1950,175],
+            [1850,175],
+            [1450,100],
             [1550,100],
-
-
-            [175,450],
-            [175,350],
-            [50,850],
-            [50,750],
+            
+            [1050,175],
+            [1150,175],
+            [650,100],
+            [750,100],
+            
+            [1100,800],
+            [1200,800],
+            [750,800],
+            [850,800],
 
         ]
     else:
@@ -340,7 +350,7 @@ rayon_total_case = (R_ROBOT + MARGE_TRAJECTOIRE) // CASE_MM
 
 # === CRÉATION DES OBSTACLES avec la classe Obstacles === #
 obs_manager = Obstacles(X_PISTE,Y_PISTE,R_ROBOT-50,0,CASE_MM)
-obs_manager_noisettes = Obstacles(X_PISTE,Y_PISTE,R_ROBOT-35,0,CASE_MM)
+obs_manager_noisettes = Obstacles(X_PISTE,Y_PISTE,R_ROBOT-30,0,CASE_MM)
 
 for i, noisette_data in enumerate(Liste_noisette_xya, 1):
     if len(noisette_data) >= 3:
@@ -1922,16 +1932,35 @@ if __name__ == '__main__':
             # ==================================================================== #
             
             # ================== Simulation Mouvement Robot ====================== #
+
             if not Reel and not Wifi: 
                 if Simul_mvt:
                     if ordre_mouvement!=3:
                         if(action_voulu in ["Rotation"]):
-                            diff_angle = angle_robot_actuel%5
+                            diff_angle = angle_robot_actuel % 5
                             angle_robot_actuel -= diff_angle
-                            if(angle_robot_actuel > angle_robot_voulu):
-                                angle_robot_actuel -= 5
-                            elif(angle_robot_actuel < angle_robot_voulu):
-                                angle_robot_actuel += 5
+                            
+                            # ⭐ Calculer la différence angulaire la plus courte
+                            angle_diff = angle_robot_voulu - angle_robot_actuel
+                            
+                            # Normaliser entre -180 et 180
+                            while angle_diff > 180:
+                                angle_diff -= 360
+                            while angle_diff < -180:
+                                angle_diff += 360
+                            
+                            # Tourner dans le bon sens selon le signe de angle_diff
+                            if angle_diff > 0:
+                                angle_robot_actuel += 5  # Sens anti-horaire
+                            elif angle_diff < 0:
+                                angle_robot_actuel -= 5  # Sens horaire
+                            
+                            # Normaliser l'angle résultant entre -180 et 180
+                            if angle_robot_actuel > 180:
+                                angle_robot_actuel -= 360
+                            elif angle_robot_actuel <= -180:
+                                angle_robot_actuel += 360
+
                         if(action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]):
                             angle_robot_consigne = math.atan2(y_robot_voulu-y_robot_actuel,x_robot_voulu-x_robot_actuel)
                             if(action_voulu in ["Consigne","Avancer"]):
