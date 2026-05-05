@@ -162,8 +162,8 @@ class CalculHomographie:
         positions = {
             22: np.array([demi_taille, demi_taille]),
             23: np.array([cfg.largeur_totale_mm - demi_taille, demi_taille]),
-            20: np.array([demi_taille, cfg.longueur_totale_mm - demi_taille]),
-            21: np.array([cfg.largeur_totale_mm - demi_taille, cfg.longueur_totale_mm - demi_taille]),
+            20: np.array([demi_taille, 1500]),
+            21: np.array([cfg.largeur_totale_mm - demi_taille, 1500]),
         }
         return positions
 
@@ -662,8 +662,8 @@ class ArUcoTrackingSystem:
             coins_elevated_mm = [
                 np.array([0, 0]),
                 np.array([cfg.largeur_totale_mm, 0]),
-                np.array([cfg.largeur_totale_mm, cfg.longueur_totale_mm]),
-                np.array([0, cfg.longueur_totale_mm])
+                np.array([cfg.largeur_totale_mm, 1500]),
+                np.array([0, 1500])
             ]
 
             objets_jaunes_valides, objets_bleus_valides = [], []
@@ -739,8 +739,8 @@ class ArUcoTrackingSystem:
             coins_elev = [
                 np.array([0, 0]),
                 np.array([cfg.largeur_totale_mm, 0]),
-                np.array([cfg.largeur_totale_mm, cfg.longueur_totale_mm]),
-                np.array([0, cfg.longueur_totale_mm]),
+                np.array([cfg.largeur_totale_mm, 1500]),
+                np.array([0, 1500]),
             ]
             pixels_elev = [self.homographie.point_elevated_to_cam(p) for p in coins_elev]
             if all(p is not None for p in pixels_elev):
