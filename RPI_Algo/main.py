@@ -7,7 +7,7 @@ Strategie = True
 Astars = True
 
 Simul_mvt = True
-Simul_mvt_ennemi = False
+Simul_mvt_ennemi = True
 Simul_action = True
 
 Maj_Noisette = False
@@ -1539,10 +1539,12 @@ if __name__ == '__main__':
             angle_ennemi = np.degrees(math.atan2(y_ennemi-y_ennemi_old,x_ennemi-x_ennemi_old))
             mouvement_ennemi = math.sqrt((x_ennemi - x_ennemi_old)**2 + (y_ennemi - y_ennemi_old)**2)
             
-            if action_voulu in ["Consigne","ReculerPrecis"]:
-                distance_consigne_ennemi = math.sqrt((x_robot_voulu - x_ennemi)**2 + (y_robot_voulu - y_ennemi)**2)
-            else:
-                distance_consigne_ennemi = 100000
+            distance_consigne_ennemi = 100000
+            for action in Liste_actions:
+                if action[0] in ["Consigne","ReculerPrecis"]:
+                    distance_consigne_ennemi = math.sqrt((action[1] - x_ennemi)**2 + (action[2] - y_ennemi)**2)
+                    break
+                
 
             # =========== Détection demande_recalcul_traj ============= #
             """if Astars :
@@ -1568,6 +1570,7 @@ if __name__ == '__main__':
 
             if distance_robot_ennemi <= R_securite:
                 Astars_a_fail = True
+                demande_recalcul_traj = True
                 if Debug_Mouv:
                     print("Ennemi trop proche du robot")
                     
@@ -1595,6 +1598,7 @@ if __name__ == '__main__':
                         Astars_a_fail = False
 
             else:
+                Astars_a_fail = False
                 if Debug_Mouv:
                     print("Ennemi assez loin du robot")
                 if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper:
@@ -1641,10 +1645,10 @@ if __name__ == '__main__':
                         Astars_a_fail = True
                         if Debug_Mouv:
                             print("⏱️ Timeout calcul A* - pas de résultat reçu")
-                        kgjhb
+                            
                         if distance_consigne_ennemi <= R_securite:
                             print("Point dans zone interdite autour de l'ennemi")
-                        demande_nouvelle_strat = True
+                            demande_nouvelle_strat = True
                         
                     else:
                         # ✅ Résultat valide reçu
@@ -1692,45 +1696,6 @@ if __name__ == '__main__':
                             
                             Astars_a_fail = False
                             
-                        else:
-                            # ❌ Aucun chemin trouvé
-                            x_case_robot = max(0, min(width - 1, int(x_robot_actuel // CASE_MM)))
-                            y_case_robot = max(0, min(height - 1, int(y_robot_actuel // CASE_MM)))
-                            if Debug_Mouv:
-                                print("❌ Aucun chemin trouvé par A*")
-
-                            if grid_expanded[x_case_robot, y_case_robot]:
-                                print("⚠️ Robot dans zone interdite — recherche case libre proche")
-                                x_libre, y_libre = trouver_case_libre_proche(
-                                    x_robot_actuel, y_robot_actuel,
-                                    grid_expanded, CASE_MM, width, height,
-                                    rayon_max_mm=500
-                                )
-                                if x_libre is not None and y_libre is not None:
-                                    x_prochain = Liste_actions[0][1]
-                                    y_prochain = Liste_actions[0][2]
-                                    distance_sortie = math.sqrt((x_prochain - x_libre)**2 + (y_prochain - y_libre)**2)
-                                    print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
-                                    # Insérer un Avancer prioritaire vers ce point
-                                    if distance_sortie > 50:
-                                        angle_vers_libre = np.degrees(math.atan2(y_libre - y_robot_actuel, x_libre - x_robot_actuel))
-                                        x_plusloin = x_libre + 40 * math.cos(math.radians(angle_vers_libre))
-                                        y_plusloin = y_libre + 40 * math.sin(math.radians(angle_vers_libre))
-                                        if action_voulu in ["Consigne", "Avancer"]:
-                                            Liste_actions.insert(0, ["ReculerPrecis", int(x_plusloin), int(y_plusloin)])
-                                        elif action_voulu in ["ReculerPrecis", "Reculer"]:
-                                            Liste_actions.insert(0, ["Consigne", int(x_plusloin), int(y_plusloin)])
-                                        demande_recalcul_traj = True
-                                        Astars_a_fail = False
-                                else:
-                                    print("❌ Aucune case libre trouvée dans le rayon de recherche")
-                                    demande_nouvelle_strat = True
-                                    Astars_a_fail = True
-                            else:
-                                # Robot pas dans zone rouge mais chemin inaccessible
-                                print("⚠️ Chemin inaccessible — destination peut-être bloquée")
-                                demande_nouvelle_strat = True
-                                Astars_a_fail = True
 
             if Debug_Mouv:
                 print("demande_recalcul_traj : ",demande_recalcul_traj)
