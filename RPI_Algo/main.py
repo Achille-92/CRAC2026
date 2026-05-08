@@ -479,7 +479,7 @@ distance_robot_consigne = 3000
 # ==================== PARAMÈTRES DE L'ALGORITHME ====================
 
 SAFETY_WEIGHT = 2.0  # Poids de sécurité pour A*
-MIN_CLEARANCE = 2.0
+MIN_CLEARANCE = 2.5
 SMOOTHNESS = 1.0
 DISTANCE_AJUSTABLE = 5  # Distance seuil pour pénalité sécurité (en cases)
 
@@ -1206,10 +1206,12 @@ if __name__ == '__main__':
             tache_Astar = threading.Thread(target=calcul_traj, args=(stop_event,), daemon=False)
             tache_Astar.start()
 
-        #n = random.randint(8, 15)
+        n = random.randint(20, 60)
         Liste_actions_ennemi = [[300,800],[1500,1000]]
-        """for i in range(n):
-            Liste_actions_ennemi.append([random.randint(100, 2900),random.randint(100, 1900)])"""
+        if not Strat_agressive:
+            Liste_actions_ennemi.append([650,200])
+        for i in range(n):
+            Liste_actions_ennemi.append([random.randint(100, 2900),random.randint(100, 1900)])
         n_init = len(Liste_actions_ennemi)
 
         while (not stop_event.is_set() and temps_restant >=0 and not RPI_decharge and not etat_bau): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
@@ -1350,8 +1352,8 @@ if __name__ == '__main__':
 
                 angle_ennemi_consigne = np.degrees(math.atan2(y_ennemi_voulu - y_ennemi, x_ennemi_voulu - x_ennemi))
 
-                x_ennemi += round(35*np.cos(math.radians(angle_ennemi_consigne)),0)
-                y_ennemi += round(35*np.sin(math.radians(angle_ennemi_consigne)),0)
+                x_ennemi += round(50*np.cos(math.radians(angle_ennemi_consigne)),0)
+                y_ennemi += round(50*np.sin(math.radians(angle_ennemi_consigne)),0)
             
             if Wifi and not Lidar_on:
                 x_ennemi = x_ennemi_cam
@@ -1449,7 +1451,7 @@ if __name__ == '__main__':
             if Strategie:
                 print("Liste_strategie : ",Liste_strategie)
 
-            if (0<=x_ennemi<=1000 and 0<=y_ennemi<=1000)or(2000<x_ennemi<3000 and 0<y_ennemi<1000):
+            if (0<=x_ennemi<=500 and 0<=y_ennemi<=1000)or(2500<x_ennemi<3000 and 0<y_ennemi<1000):
                 if Liste_actions[0][0] in ["Curseur_Jaune","Curseur_Bleu"]:
                     demande_nouvelle_strat = True
 
@@ -1484,7 +1486,7 @@ if __name__ == '__main__':
                             if Liste_actions[0][0] in ['Curseur_Bleu','Curseur_Jaune']:
                                 print("Changement de stratégie")
                                 couple_strat = Liste_strategie.pop(0)   
-                                Liste_strategie.append(couple_strat)
+                                #Liste_strategie.append(couple_strat)
 
                         if len(Liste_strategie[0])==2:
                             x_strategie = Liste_strategie[0][0]
@@ -1544,35 +1546,24 @@ if __name__ == '__main__':
                 if action[0] in ["Consigne","ReculerPrecis"]:
                     distance_consigne_ennemi = math.sqrt((action[1] - x_ennemi)**2 + (action[2] - y_ennemi)**2)
                     break
-                
-
-            # =========== Détection demande_recalcul_traj ============= #
-            """if Astars :
-                if verifier_segments_trajectoire_ennemi(Liste_actions,x_ennemi, y_ennemi,R_securite, MARGE_TRAJECTOIRE,x_robot_actuel, y_robot_actuel):
-                    demande_recalcul_traj = True
-                    if Debug_Mouv:
-                        print("Ennemi coupe trajectoire")
-                else :
-                    for action in Liste_actions:
-                        if action[0] in ["Consigne","Avancer","Reculer","ReculerPrecis"]:
-                            distance_point_ennemi = math.sqrt((action[1] - x_ennemi)**2 + (action[2] - y_ennemi)**2)
-                            rayon_detection = (R_securite + MARGE_TRAJECTOIRE)  # Marge de sécurité supplémentaire
-                            if distance_point_ennemi <= rayon_detection:
-                                if Debug_Mouv:
-                                    print("Point de Traj dans Périmètre ennemi")
-                                demande_recalcul_traj = True
-                                break"""
+               
             
             # ======================== CALCUL DE LA TRAJECTOIRE A* =================== #
             
             x_case_robot = max(0, min(width - 1, int(x_robot_actuel // CASE_MM)))
             y_case_robot = max(0, min(height - 1, int(y_robot_actuel // CASE_MM)))
-
+            
             if distance_robot_ennemi <= R_securite:
-                Astars_a_fail = True
-                demande_recalcul_traj = True
+                
                 if Debug_Mouv:
                     print("Ennemi trop proche du robot")
+
+                if action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis","Rotation"]:
+                    demande_recalcul_traj = True
+                    Astars_a_fail = True
+                    
+                else:
+                    Astars_a_fail = False
                     
             elif grid_expanded[x_case_robot, y_case_robot] and not mode_attraper:
                 print("⚠️ Robot dans zone interdite — recherche case libre proche abcd")
@@ -1589,18 +1580,32 @@ if __name__ == '__main__':
                     # Insérer un Avancer prioritaire vers ce point
                     if distance_sortie > 50:
                         angle_vers_libre = np.degrees(math.atan2(y_libre - y_robot_actuel, x_libre - x_robot_actuel))
-                        x_plusloin = x_libre + 40 * math.cos(math.radians(angle_vers_libre))
-                        y_plusloin = y_libre + 40 * math.sin(math.radians(angle_vers_libre))
+                        x_plusloin = x_libre + 50 * math.cos(math.radians(angle_vers_libre))
+                        y_plusloin = y_libre + 50 * math.sin(math.radians(angle_vers_libre))
                         if action_voulu in ["Consigne", "Avancer"]:
                             Liste_actions.insert(0, ["ReculerPrecis", int(x_plusloin), int(y_plusloin)])
                         elif action_voulu in ["ReculerPrecis", "Reculer"]:
                             Liste_actions.insert(0, ["Consigne", int(x_plusloin), int(y_plusloin)])
                         Astars_a_fail = False
 
+            elif distance_robot_ennemi <= R_securite+30:
+                Astars_a_fail = False
+                print("Robot un peu proche du robot adverse")
+                if action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]:
+                    angle_robot_ennemi = math.atan2(y_ennemi - y_robot_actuel, x_ennemi - x_robot_actuel)
+                    x_futur = x_robot_actuel + 50*math.cos(math.pi+angle_robot_ennemi)
+                    y_futur = y_robot_actuel + 50*math.sin(math.pi+angle_robot_ennemi)
+                    x_case_futur = max(0, min(width - 1, int(x_futur // CASE_MM)))
+                    y_case_futur = max(0, min(height - 1, int(y_futur // CASE_MM)))
+                    if math.sqrt((Liste_actions[0][1] - x_futur)**2 + (Liste_actions[0][2] - y_futur)**2)>40 and not grid_expanded[x_case_futur, y_case_futur]:
+                        if action_voulu in ["Consigne", "Avancer"]:
+                            Liste_actions.insert(0, ["ReculerPrecis", int(x_futur), int(y_futur)])
+                        elif action_voulu in ["ReculerPrecis", "Reculer"]:
+                            Liste_actions.insert(0, ["Consigne", int(x_futur), int(y_futur)])
             else:
                 Astars_a_fail = False
-                if Debug_Mouv:
-                    print("Ennemi assez loin du robot")
+                print("Ennemi assez loin du robot")
+
                 if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper:
                     Astars_a_fail = False
                     demande_recalcul_traj = False
@@ -1638,18 +1643,16 @@ if __name__ == '__main__':
                         except queue.Empty:
                             # Pas encore de résultat, continuer à attendre
                             continue
-                    print("points_bruts après attente : ",points_bruts)
+
                     # ⭐ ÉTAPE 4 : TRAITER LE RÉSULTAT
                     if points_bruts is None:
                         # Timeout dépassé
                         Astars_a_fail = True
                         if Debug_Mouv:
                             print("⏱️ Timeout calcul A* - pas de résultat reçu")
-                            
-                        if distance_consigne_ennemi <= R_securite:
-                            print("Point dans zone interdite autour de l'ennemi")
+                        if distance_consigne_ennemi <= R_securite+10:
                             demande_nouvelle_strat = True
-                        
+
                     else:
                         # ✅ Résultat valide reçu
                         print("points_bruts : ",points_bruts)
@@ -1678,13 +1681,14 @@ if __name__ == '__main__':
                             
                             # ⭐ AJOUT DES POINTS DANS Liste_actions
                             verif_mouv = 0
+                            verif_mouv_rpi = 0
                             verif_angle = 0
                             
                             if len(points_bruts) > 2:
                                 for i in range(len(points_bruts)-1, 0, -1):
                                     x_cible, y_cible = points_bruts[i]
                                     distance_ab = math.sqrt((x_cible - x_robot_voulu)**2 + (y_cible - y_robot_voulu)**2)
-                                    if distance_ab > 20:
+                                    if distance_ab > 10:
                                         if action_voulu in ["Consigne"]:
                                             Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
                                         elif action_voulu in ["ReculerPrecis"]:
@@ -1695,7 +1699,6 @@ if __name__ == '__main__':
                                                 and len(action) >= 2 and action[0] in ["Avancer","Reculer"])]
                             
                             Astars_a_fail = False
-                            
 
             if Debug_Mouv:
                 print("demande_recalcul_traj : ",demande_recalcul_traj)
