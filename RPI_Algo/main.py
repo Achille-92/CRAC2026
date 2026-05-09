@@ -1,13 +1,13 @@
 couleur = "B"
 Reel = False
-Wifi = True
+Wifi = False
 Lidar_on = False
 affichage = True
 Strategie = True
 Astars = True
 
 Simul_mvt = True
-Simul_mvt_ennemi = True
+Simul_mvt_ennemi = False
 Simul_action = True
 
 Maj_Noisette = False
@@ -21,6 +21,7 @@ Recalage = True
 lancement_cartes = True
 faire_Ninja = False
 Strat_agressive = False
+Pousser = True
 Faire_curseur = True
 TOL_PRECIS = 15
 TOL_PASPRECIS = 70
@@ -46,13 +47,14 @@ from functools import partial
 from matplotlib.widgets import Button
 import multiprocessing as mp
 from scipy.ndimage import binary_dilation
-from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes,fenetre_selection_couleur,fenetre_selection_agression
+from affichage import init_affichage, bring_to_front,afficher_obstacles,afficher_zone_securite_ennemi, mettre_a_jour_zone_ennemi,afficher_batteries,dessiner_noisettes,fenetre_selection_couleur,fenetre_selection_agression,fenetre_selection_pousser
 from calcul_mouv import  calculer_trajectoire_complete,actualiser_zones_jeu,verifier_segments_trajectoire_ennemi
 from fonction import Obstacles,associer_noisette_a_emplacement,detecter_changements_noisettes, distance
 from fichier_strategie import trouver_groupes_initiaux, separer_groupe,regrouper_par_quatre,remplir_Liste_actions
 ########################################################################
 couleur = fenetre_selection_couleur()
 Strat_agressive = fenetre_selection_agression()
+Pousser = fenetre_selection_pousser()
 
 # Config CAN 
 Liste_ID_recoit = [0x02,0x03,0x04,0x05,0x06,0x008,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
@@ -579,7 +581,7 @@ def lidar_udp(stop_event):
                 
                 # Vérification des conditions de validité
                 
-                if MARGE_BORDUREPISTE_X <= x_point <= 1500-MARGE_BORDUREPISTE_X and \
+                if 1500+MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
                    MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y and \
                    distance_robot_point > DISTANCE_MIN_ROBOT and not (600<x_point<2400 and 1550<y_point<2000):
                     # Point valide
@@ -1499,7 +1501,7 @@ if __name__ == '__main__':
                         if len(Liste_strategie[0])==2:
                             x_strategie = Liste_strategie[0][0]
                             y_strategie = Liste_strategie[0][1]
-                            Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded)
+                            Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded,Pousser)
                             demande_recalcul_traj = True
 
                         else:
