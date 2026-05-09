@@ -162,8 +162,8 @@ class CalculHomographie:
         positions = {
             22: np.array([demi_taille, demi_taille]),
             23: np.array([cfg.largeur_totale_mm - demi_taille, demi_taille]),
-            20: np.array([demi_taille, 1500]),
-            21: np.array([cfg.largeur_totale_mm - demi_taille, 1500]),
+            20: np.array([demi_taille, 1500-demi_taille]),
+            21: np.array([cfg.largeur_totale_mm - demi_taille, 1500-demi_taille]),
         }
         return positions
 
@@ -180,8 +180,8 @@ class CalculHomographie:
         positions = {
             22: np.array([demi_taille, demi_taille]),                    # (50, 50)
             23: np.array([cfg.largeur_totale_mm - demi_taille, demi_taille]),  # (2950, 50)
-            20: np.array([demi_taille, 1500.0]),                         # (50, 1500)
-            21: np.array([cfg.largeur_totale_mm - demi_taille, 1500.0]), # (2950, 1500)
+            20: np.array([demi_taille, 1500-demi_taille]),                         # (50, 1500)
+            21: np.array([cfg.largeur_totale_mm - demi_taille, 1500.0-demi_taille]), # (2950, 1500)
         }
         return positions
 
