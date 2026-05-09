@@ -1,6 +1,6 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 Lidar_on = False
 affichage = True
 Strategie = True
@@ -1233,22 +1233,30 @@ if __name__ == '__main__':
             if not Noisette_init:
                 Liste_noisette_xya_cam_copie = Liste_noisette_xya_cam.copy()
                 
-                """for i in Liste_noisette_xya_cam:
+                for Noisette in Liste_noisette_xya_cam_copie:
+                    if 1000<Noisette[0]<2000 and 600<Noisette[1]<1000:
+                        Noisette[1]+=20
+                    if 1000<Noisette[1]<1400 and (0<Noisette[0]<400 or 2600<Noisette[0]<3000):
+                        Noisette[1]+=22
+
+                """for i in Liste_noisette_xya_cam_copie:
                     Liste_noisette_xya.append(i)"""
                 
-                for Noisette_posconnue in Liste_noisette_xya:
-                    if Noisette_posconnue[3] == "R":
-                        for Noisette_couleurconnue in Liste_noisette_xya_cam_copie:
+                for Noisette_couleurconnue in Liste_noisette_xya_cam_copie:
+                    associee = False
+                    for Noisette_posconnue in Liste_noisette_xya:
+                        if Noisette_posconnue[3] == "R":
+                        
                             # Distance euclidienne
                             distance_NN = math.sqrt(
                                 (Noisette_posconnue[0] - Noisette_couleurconnue[0])**2 + 
                                 (Noisette_posconnue[1] - Noisette_couleurconnue[1])**2
                             )
-                            
-                            # Garder la meilleure correspondance dans la tolérance
-                            if distance_NN <= TOL_CAM_NOISETTE:
+
+                            if distance_NN <= TOL_CAM_NOISETTE and not associee:
                                 Noisette_posconnue[3] = Noisette_couleurconnue[3]
-                                Liste_noisette_xya_cam_copie.remove(Noisette_couleurconnue)
+                                associee = True
+                                #Liste_noisette_xya_cam_copie.remove(Noisette_couleurconnue)
 
                 Liste_noisettes_restantes = [n for n in Liste_noisette_xya if n[3] == "R"]
                 if len(Liste_noisettes_restantes) != 0 :
