@@ -1,13 +1,13 @@
 couleur = "B"
 Reel = False
-Wifi = True
+Wifi = False
 Lidar_on = False
 affichage = True
 Strategie = True
 Astars = True
 
 Simul_mvt = True
-Simul_mvt_ennemi = False
+Simul_mvt_ennemi = True
 Simul_action = True
 
 Maj_Noisette = False
@@ -481,7 +481,7 @@ distance_robot_consigne = 3000
 # ==================== PARAMÈTRES DE L'ALGORITHME ====================
 
 SAFETY_WEIGHT = 2.0  # Poids de sécurité pour A*
-MIN_CLEARANCE = 2.5
+MIN_CLEARANCE = 3.0
 SMOOTHNESS = 1.0
 DISTANCE_AJUSTABLE = 5  # Distance seuil pour pénalité sécurité (en cases)
 
@@ -1286,7 +1286,7 @@ if __name__ == '__main__':
                                 if zone_depart[0][0] <= Noisette[0] <= zone_depart[1][0] and zone_depart[0][1] <= Noisette[1] <= zone_depart[1][1]:
                                     Noisette_groupee_debut[i].append(Noisette)
                                 i+=1
-                                
+
                         for Noisette_restante in Liste_noisettes_restantes:
                             for num_zone_depart in range(len(Noisette_groupee_debut)):
                                 if Noisette_restante in Noisette_groupee_debut[num_zone_depart]:
@@ -1609,28 +1609,28 @@ if __name__ == '__main__':
                     # Insérer un Avancer prioritaire vers ce point
                     if distance_sortie > 50:
                         angle_vers_libre = np.degrees(math.atan2(y_libre - y_robot_actuel, x_libre - x_robot_actuel))
-                        x_plusloin = x_libre + 50 * math.cos(math.radians(angle_vers_libre))
-                        y_plusloin = y_libre + 50 * math.sin(math.radians(angle_vers_libre))
+                        x_plusloin = x_libre + 70 * math.cos(math.radians(angle_vers_libre))
+                        y_plusloin = y_libre + 70 * math.sin(math.radians(angle_vers_libre))
                         if action_voulu in ["Consigne", "Avancer"]:
                             Liste_actions.insert(0, ["ReculerPrecis", int(x_plusloin), int(y_plusloin)])
                         elif action_voulu in ["ReculerPrecis", "Reculer"]:
                             Liste_actions.insert(0, ["Consigne", int(x_plusloin), int(y_plusloin)])
                         Astars_a_fail = False
 
-            elif distance_robot_ennemi <= R_securite+30:
+                """elif distance_robot_ennemi <= R_securite+30:
                 Astars_a_fail = False
                 print("Robot un peu proche du robot adverse")
                 if action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis"]:
                     angle_robot_ennemi = math.atan2(y_ennemi - y_robot_actuel, x_ennemi - x_robot_actuel)
-                    x_futur = x_robot_actuel + 50*math.cos(math.pi+angle_robot_ennemi)
-                    y_futur = y_robot_actuel + 50*math.sin(math.pi+angle_robot_ennemi)
+                    x_futur = x_robot_actuel + 100*math.cos(math.pi+angle_robot_ennemi)
+                    y_futur = y_robot_actuel + 100*math.sin(math.pi+angle_robot_ennemi)
                     x_case_futur = max(0, min(width - 1, int(x_futur // CASE_MM)))
                     y_case_futur = max(0, min(height - 1, int(y_futur // CASE_MM)))
-                    if math.sqrt((Liste_actions[0][1] - x_futur)**2 + (Liste_actions[0][2] - y_futur)**2)>40 and not grid_expanded[x_case_futur, y_case_futur]:
+                    if math.sqrt((Liste_actions[0][1] - x_futur)**2 + (Liste_actions[0][2] - y_futur)**2)>50 and not grid_expanded[x_case_futur, y_case_futur]:
                         if action_voulu in ["Consigne", "Avancer"]:
                             Liste_actions.insert(0, ["ReculerPrecis", int(x_futur), int(y_futur)])
                         elif action_voulu in ["ReculerPrecis", "Reculer"]:
-                            Liste_actions.insert(0, ["Consigne", int(x_futur), int(y_futur)])
+                            Liste_actions.insert(0, ["Consigne", int(x_futur), int(y_futur)])"""
             else:
                 Astars_a_fail = False
                 print("Ennemi assez loin du robot")
@@ -1717,7 +1717,7 @@ if __name__ == '__main__':
                                 for i in range(len(points_bruts)-1, 0, -1):
                                     x_cible, y_cible = points_bruts[i]
                                     distance_ab = math.sqrt((x_cible - x_robot_voulu)**2 + (y_cible - y_robot_voulu)**2)
-                                    if distance_ab > 10:
+                                    if distance_ab > 5:
                                         if action_voulu in ["Consigne"]:
                                             Liste_actions.insert(0, ["Avancer", x_cible, y_cible])
                                         elif action_voulu in ["ReculerPrecis"]:

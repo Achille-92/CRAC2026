@@ -1023,7 +1023,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                     y_arrivee_Astar = y_cote + distanceA*math.sin(angle_centre_cote)
 
                     x_poussee = x_cote + 20*math.cos(angle_centre_cote)
-                    y_poussee = y_cote + 20*math.cos(angle_centre_cote)
+                    y_poussee = y_cote + 20*math.sin(angle_centre_cote)
 
                     if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar // CASE_MM)))]:
                         print("Tourner de 90°")
@@ -1055,7 +1055,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                         x_arrivee_Astar = x_cote + distanceA*math.cos(angle_centre_cote)
                         y_arrivee_Astar = y_cote + distanceA*math.sin(angle_centre_cote)
                         x_poussee = x_cote + 20*math.cos(angle_centre_cote)
-                        y_poussee = y_cote + 20*math.cos(angle_centre_cote)
+                        y_poussee = y_cote + 20*math.sin(angle_centre_cote)
                         if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar // CASE_MM)))]:
                             print("Tourner de 90°")
                             angle_robot_gm -= 90
@@ -1086,7 +1086,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                             x_arrivee_Astar = x_cote + distanceA*math.cos(angle_centre_cote)
                             y_arrivee_Astar = y_cote + distanceA*math.sin(angle_centre_cote)
                             x_poussee = x_cote + 20*math.cos(angle_centre_cote)
-                            y_poussee = y_cote + 20*math.cos(angle_centre_cote)
+                            y_poussee = y_cote + 20*math.sin(angle_centre_cote)
                             if grid_expanded[max(0, min(width - 1, int(x_arrivee_Astar // CASE_MM))), max(0, min(height - 1, int(y_arrivee_Astar // CASE_MM)))]:
                                 print("Tourner de 90°")
                                 angle_robot_gm -= 90
@@ -1123,16 +1123,10 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                     demande_nouvelle_strat = True
                                 else:
                                     if pince_a_utilise == 0:
-                                        if distance_Robot_strategie < distanceA:
-                                            Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
-                                        else:
-                                            Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                                        Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                                     else :
-                                        if distance_Robot_strategie < distanceA:
-                                            Liste_actions = [["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
-                                        else:
-                                            Liste_actions = [["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
-                            
+                                        Liste_actions = [["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                                        
                                     if Pousser:
                                         if pince_a_utilise == 0:
                                             Liste_actions[0][0] = "ReculerPrecis" 
@@ -1142,16 +1136,10 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                             Liste_actions.insert(0,["ReculerPrecis",x_poussee,y_poussee])
                             else:
                                 if pince_a_utilise == 0:
-                                    if distance_Robot_strategie < distanceA:
-                                        Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
-                                    else:
-                                        Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                                    Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                                 else :
-                                    if distance_Robot_strategie < distanceA:
-                                        Liste_actions = [["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
-                                    else:
-                                        Liste_actions = [["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
-                                
+                                    Liste_actions = [["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                                    
                                 if Pousser:
                                     if pince_a_utilise == 0:
                                         Liste_actions[0][0] = "ReculerPrecis" 
@@ -1161,16 +1149,10 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                         Liste_actions.insert(0,["ReculerPrecis",x_poussee,y_poussee])
                         else:
                             if pince_a_utilise == 0:
-                                if distance_Robot_strategie < distanceA:
-                                    Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
-                                else:
-                                    Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                                Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                             else :
-                                if distance_Robot_strategie < distanceA:
-                                    Liste_actions = [["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
-                                else:
-                                    Liste_actions = [["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
-                            
+                                Liste_actions = [["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                                
                             if Pousser:
                                 if pince_a_utilise == 0:
                                     Liste_actions[0][0] = "ReculerPrecis" 
@@ -1180,16 +1162,10 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                                     Liste_actions.insert(0,["ReculerPrecis",x_poussee,y_poussee])
                     else:
                         if pince_a_utilise == 0:
-                            if distance_Robot_strategie < distanceA:
-                                Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
-                            else:
-                                Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                            Liste_actions = [["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                         else :
-                            if distance_Robot_strategie < distanceA:
-                                Liste_actions = [["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
-                            else:
-                                Liste_actions = [["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
-                        
+                            Liste_actions = [["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",int(np.degrees(angle_centre_cote))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                            
                         if Pousser:
                             if pince_a_utilise == 0:
                                 Liste_actions[0][0] = "ReculerPrecis" 
@@ -1256,16 +1232,10 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                             
                             angle_arrivee = math.atan2(y_arrivee_Astar - y_arrivee, x_arrivee_Astar - x_arrivee)
                             if pince_a_utilise == 0:
-                                if distance_Robot_strategie < distanceA:
-                                    Liste_actions = [["Consigne",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
-                                else:
-                                    Liste_actions = [["Consigne",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                                Liste_actions = [["Consigne",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                             else :
-                                if distance_Robot_strategie < distanceA:
-                                    Liste_actions = [["ReculerPrecis",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
-                                else:
-                                    Liste_actions = [["ReculerPrecis",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
-                            
+                                Liste_actions = [["ReculerPrecis",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                                
                             if Pousser:
                                 if pince_a_utilise == 0:
                                     Liste_actions[0][0] = "ReculerPrecis" 
@@ -1332,15 +1302,10 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                             
                             angle_arrivee = math.atan2(y_arrivee_Astar - y_arrivee, x_arrivee_Astar - x_arrivee)
                             if pince_a_utilise == 0:
-                                if distance_Robot_strategie < distanceA:
-                                    Liste_actions = [["Rotation",int(np.degrees(angle_arrivee)-180)],["Consigne",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
-                                else:
-                                    Liste_actions = [["Consigne",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                                Liste_actions = [["Consigne",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                             else :
-                                if distance_Robot_strategie < distanceA:
-                                    Liste_actions = [["Rotation",int(np.degrees(angle_arrivee))],["ReculerPrecis",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
-                                else:
-                                    Liste_actions = [["ReculerPrecis",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                                Liste_actions = [["ReculerPrecis",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                            
                             if Pousser:
                                 if pince_a_utilise == 0:
                                     Liste_actions[0][0] = "ReculerPrecis" 
@@ -1425,15 +1390,10 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                             
                             angle_arrivee = math.atan2(y_arrivee_Astar - y_arrivee, x_arrivee_Astar - x_arrivee)
                             if pince_a_utilise == 0:
-                                if distance_Robot_strategie < distanceA:
-                                    Liste_actions = [["Rotation",int(np.degrees(angle_arrivee)-180)],["Consigne",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
-                                else:
-                                    Liste_actions = [["Consigne",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
+                                Liste_actions = [["Consigne",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee)-180)],["Relacher",pince_a_utilise,sous_pince],["ReculerPrecis",x_arrivee_Astar,y_arrivee_Astar]]
                             else :
-                                if distance_Robot_strategie < distanceA:
-                                    Liste_actions = [["Rotation",int(np.degrees(angle_arrivee))],["ReculerPrecis",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
-                                else:
-                                    Liste_actions = [["ReculerPrecis",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]] 
+                                Liste_actions = [["ReculerPrecis",x_arrivee,y_arrivee],["Rotation",int(np.degrees(angle_arrivee))],["Relacher",pince_a_utilise,sous_pince],["Consigne",x_arrivee_Astar,y_arrivee_Astar]]
+                            
                             if Pousser:
                                 if pince_a_utilise == 0:
                                     Liste_actions[0][0] = "ReculerPrecis" 
