@@ -1,13 +1,13 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 Lidar_on = False
 affichage = True
 Strategie = True
 Astars = True
 
-Simul_mvt = True
-Simul_mvt_ennemi = True
+Simul_mvt = False
+Simul_mvt_ennemi = False
 Simul_action = True
 
 Maj_Noisette = False
@@ -495,6 +495,7 @@ distance_map = distance_transform_edt(~grid_expanded)
 
 x_robot_actuel_cam = x_robot_depart
 y_robot_actuel_cam = y_robot_depart
+y_robot_actuel_cam_corr = y_robot_depart
 angle_robot_actuel_cam = angle_robot_depart
 
 x_ennemi_cam = x_ennemi
@@ -1209,9 +1210,20 @@ if __name__ == '__main__':
 
         while (not stop_event.is_set() and temps_restant >=0 and not RPI_decharge and not etat_bau): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
             dico_envoi[0x01]=1
-            if Wifi:
-                print(f"Recu du WiFi : x={x_robot_actuel_cam}, y={y_robot_actuel_cam}, angle={angle_robot_actuel_cam}")
 
+            if Wifi:
+                print(f"Recu du WiFi : x={x_robot_actuel_cam}, y={y_robot_actuel_cam}, angle={angle_robot_actuel_cam}")    
+
+                if 1000 <= y_robot_actuel_cam <= 1550:
+                    # Formule d'erreur : erreur_y = (y / 1500) × 50
+                    erreur_y = (y_robot_actuel_cam / 1500.0) * 40.0
+                    
+                    # Corriger en soustrayant l'erreur
+                    y_corrige = y_robot_actuel_cam + erreur_y
+                    y_robot_actuel_cam_corr = int(round(y_corrige))
+                    print(f"Après : x={x_robot_actuel_cam}, y={y_robot_actuel_cam_corr}, angle={angle_robot_actuel_cam}") 
+                else:
+                    y_robot_actuel_cam_corr = y_robot_actuel_cam
             if x_robot_actuel <= 0 or y_robot_actuel <= 0:
                 stop_event.set()
 
@@ -1930,10 +1942,10 @@ if __name__ == '__main__':
                             x_robot_actuel += round(15*np.cos(angle_robot_consigne),0)
                             y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
 
-            """elif not Reel and Wifi:
+            elif not Reel and Wifi:
                 x_robot_actuel = x_robot_actuel_cam
-                y_robot_actuel = y_robot_actuel_cam
-                angle_robot_actuel = angle_robot_actuel_cam"""             
+                y_robot_actuel = y_robot_actuel_cam_corr
+                angle_robot_actuel = angle_robot_actuel_cam           
 
             # ============== MISE À JOUR AFFICHAGE ==================== #
 
@@ -2308,6 +2320,8 @@ if __name__ == '__main__':
                     verif_action = 0
                     verif_action1 = 0
                     verif_action2 = 0
+                    dico_envoi[0x500+pince_a_utilise]=0
+                    dico_envoi[0x502+pince_a_utilise]=0
                     action_est_supprime = True
                     action_precedente = action_voulu
                     x_sortie_fixe = None
