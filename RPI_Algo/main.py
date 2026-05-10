@@ -1235,11 +1235,24 @@ if __name__ == '__main__':
             if not Noisette_init:
                 Liste_noisette_xya_cam_copie = Liste_noisette_xya_cam.copy()
                 
-                for Noisette in Liste_noisette_xya_cam_copie:
+                """for Noisette in Liste_noisette_xya_cam_copie:
                     if 1000<Noisette[0]<2000 and 600<Noisette[1]<1000:
                         Noisette[1]+=20
                     if 1000<Noisette[1]<1400 and (0<Noisette[0]<400 or 2600<Noisette[0]<3000):
-                        Noisette[1]+=22
+                        Noisette[1]+=22"""
+
+
+                for Noisette in Liste_noisette_xya_cam_copie:
+                    y_detecte = Noisette[1]
+                    
+                    # Zone concernée : Y entre 1000mm et 1550mm
+                    if 1000 <= y_detecte <= 1550:
+                        # Formule d'erreur : erreur_y = (y / 1500) × 50
+                        erreur_y = (y_detecte / 1500.0) * 40.0
+                        
+                        # Corriger en soustrayant l'erreur
+                        y_corrige = y_detecte + erreur_y
+                        Noisette[1] = int(round(y_corrige))
 
                 """for i in Liste_noisette_xya_cam_copie:
                     Liste_noisette_xya.append(i)"""
@@ -1273,12 +1286,18 @@ if __name__ == '__main__':
                                 if zone_depart[0][0] <= Noisette[0] <= zone_depart[1][0] and zone_depart[0][1] <= Noisette[1] <= zone_depart[1][1]:
                                     Noisette_groupee_debut[i].append(Noisette)
                                 i+=1
+                                
                         for Noisette_restante in Liste_noisettes_restantes:
                             for num_zone_depart in range(len(Noisette_groupee_debut)):
                                 if Noisette_restante in Noisette_groupee_debut[num_zone_depart]:
                                     nbr_bleu = sum(1 for n in Noisette_groupee_debut[num_zone_depart] if n[3] == "B")
                                     nbr_jaune = sum(1 for n in Noisette_groupee_debut[num_zone_depart] if n[3] == "J")
                                     nbr_non = sum(1 for n in Noisette_groupee_debut[num_zone_depart] if n[3] == "R")
+
+                                    if nbr_bleu == 3 or nbr_bleu == 4 or nbr_jaune == 3 or nbr_jaune == 4:
+                                        for Nois in Noisette_groupee_debut[num_zone_depart]:
+                                            Nois[3]="R"
+                                        continue
 
                                     if nbr_bleu == 2:
                                         Noisette_restante[3]="J"
