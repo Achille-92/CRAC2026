@@ -1,13 +1,13 @@
 couleur = "B"
 Reel = False
-Wifi = True
+Wifi = False
 Lidar_on = False
 affichage = True
 Strategie = True
 Astars = True
 
-Simul_mvt = False
-Simul_mvt_ennemi = False
+Simul_mvt = True
+Simul_mvt_ennemi = True
 Simul_action = True
 
 Maj_Noisette = False
@@ -739,7 +739,6 @@ def calcul_traj(stop_event):
             if demande is None:  # Signal d'arrêt
                 break
             
-            print("[Thread Astar] Début du calcul")
             x_depart, y_depart, x_cible, y_cible = demande
             
             # ⭐ Calcul A* (longue opération)
@@ -755,8 +754,6 @@ def calcul_traj(stop_event):
             
             # Envoyer le résultat
             queue_resultat_astar.put(points_bruts)
-            
-            print(f"[Thread Astar] Calcul terminé : {len(points_bruts) if points_bruts else 0} points")
             
             queue_demande_astar.task_done()
             
@@ -1559,7 +1556,7 @@ if __name__ == '__main__':
                     mode_attraper = False
             else :
                 mode_attraper = False
-                if (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]) or action_voulu in ["Retourner","Attraper"]:
+                if (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"] and not reset_fin) or action_voulu in ["Retourner","Attraper"]:
                     mode_attraper = True
                     
             print("mode_attraper : ",mode_attraper)
@@ -1611,9 +1608,9 @@ if __name__ == '__main__':
                         x_plusloin = x_libre + 70 * math.cos(angle_vers_libre)
                         y_plusloin = y_libre + 70 * math.sin(angle_vers_libre)
                         if action_voulu in ["Consigne", "Avancer"]:
-                            Liste_actions.insert(0, ["Reculer", int(x_plusloin), int(y_plusloin)])
+                            Liste_actions.insert(0, ["ReculerPrecis", int(x_plusloin), int(y_plusloin)])
                         elif action_voulu in ["ReculerPrecis", "Reculer"]:
-                            Liste_actions.insert(0, ["Avancer", int(x_plusloin), int(y_plusloin)])
+                            Liste_actions.insert(0, ["Consigne", int(x_plusloin), int(y_plusloin)])
                         Astars_a_fail = False
 
                 """elif distance_robot_ennemi <= R_securite+30:
@@ -1639,7 +1636,6 @@ if __name__ == '__main__':
                     demande_recalcul_traj = False
                     grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
                     
-                    print("\n🚀 Déclenchement du calcul A*")
                     
                     # ⭐ ÉTAPE 1 : VIDER LA QUEUE DE RÉSULTATS (supprimer anciens résultats)
                     while not queue_resultat_astar.empty():
@@ -1678,9 +1674,6 @@ if __name__ == '__main__':
                             demande_nouvelle_strat = True
 
                     else:
-                        # ✅ Résultat valide reçu
-                        print("points_bruts : ",points_bruts)
-                        print("x_robot_actuel : ",x_robot_actuel," y_robot_actuel : ",y_robot_actuel)
 
                         if points_bruts is not None and len(points_bruts) > 0:
                             # 10. AFFICHER (OPTIONNEL)
