@@ -659,11 +659,12 @@ class ArUcoTrackingSystem:
             color_results = self.color_detector.detect_colors(undistorted_pour_detection)
 
             cfg = self.config
+            y_max_zone_noisette = 1450.0  # Aligné avec les points de calibration
             coins_elevated_mm = [
                 np.array([0, 0]),
                 np.array([cfg.largeur_totale_mm, 0]),
-                np.array([cfg.largeur_totale_mm, 1500]),
-                np.array([0, 1500])
+                np.array([cfg.largeur_totale_mm, y_max_zone_noisette]),
+                np.array([0, y_max_zone_noisette])
             ]
 
             objets_jaunes_valides, objets_bleus_valides = [], []
@@ -739,8 +740,8 @@ class ArUcoTrackingSystem:
             coins_elev = [
                 np.array([0, 0]),
                 np.array([cfg.largeur_totale_mm, 0]),
-                np.array([cfg.largeur_totale_mm, 1500]),
-                np.array([0, 1500]),
+                np.array([cfg.largeur_totale_mm, y_max_zone_noisette]),
+                np.array([0, y_max_zone_noisette]),
             ]
             pixels_elev = [self.homographie.point_elevated_to_cam(p) for p in coins_elev]
             if all(p is not None for p in pixels_elev):
@@ -751,11 +752,12 @@ class ArUcoTrackingSystem:
         if self.plan_robot_calcule:
             cfg = self.config
             # Les coins du plan Robot : haut complet (y=0), bas tronqué (y=1500)
+            y_max_zone_robot = 1450.0
             coins_robot = [
                 np.array([0, 0]),                        # Coin haut-droit
                 np.array([cfg.largeur_totale_mm, 0]),   # Coin haut-gauche
-                np.array([cfg.largeur_totale_mm, 1500.0]), # Coin bas-gauche (tronqué à y=1500)
-                np.array([0, 1500.0]),                   # Coin bas-droit (tronqué à y=1500)
+                np.array([cfg.largeur_totale_mm, y_max_zone_robot]), # Coin bas-gauche (tronqué à y=1500)
+                np.array([0, y_max_zone_robot]),                   # Coin bas-droit (tronqué à y=1500)
             ]
             pixels_robot = [self.homographie.point_robot_to_cam(p) for p in coins_robot]
             if all(p is not None for p in pixels_robot):

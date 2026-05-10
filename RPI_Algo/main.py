@@ -1,6 +1,6 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 Lidar_on = False
 affichage = True
 Strategie = True
