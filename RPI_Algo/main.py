@@ -12,10 +12,6 @@ Simul_action = True
 
 Maj_Noisette = False
 
-Debug_Action = True
-Debug_strategie = True
-Debug_Mouv = True
-
 Bat_Compet = True
 Recalage = True
 lancement_cartes = True
@@ -541,11 +537,9 @@ def lidar_udp(stop_event):
         try:
             data, addr = sock.recvfrom(BUFFER_SIZE)
         except socket.timeout:
-            # print("Aucune donnée reçue depuis 1s...")
             data = bytes(NB_VALUES * 2)  # Remplir de zéros en cas aucune données reçues
 
         if len(data) != NB_VALUES * 2:  # Chaque valeur est un uint16 (2 bytes)
-            # print(f"Taille inattendue : {len(data)}")
             data = bytes(NB_VALUES * 2)  # Remplir de zéros en cas de données incorrectes
 
         # '720H' = 720 unsigned short (uint16)
@@ -622,7 +616,6 @@ def LectureCAN(stop_event):
 
         # Vérifie qu'on a bien reçu 4 octets avant de décoder
         if msg.arbitration_id not in Liste_ID_recoit:
-            print(f"[Non traité] : ID : {msg.arbitration_id}")
             continue  # on saute les autres trames
 
         if msg.arbitration_id == 0x100:
@@ -966,8 +959,7 @@ if __name__ == '__main__':
     )
 
     if changement_noisettes_detecte:
-        if Debug_Action:
-            print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
+        print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
         
         grid, grid_expanded, obstacle_array, expanded_array, \
         obs_manager, obs_manager_noisettes, \
@@ -1115,7 +1107,6 @@ if __name__ == '__main__':
     while(lancement_strategie==False and etat_jack == 1 and not stop_event.is_set()):
         if current_os == "Linux":
             etat_jack = GPIO.input(26)
-            print("etat_jack : ",etat_jack)
         dico_envoi[0x01]=1
         if not Bat_Compet:                      # Si on est en mode Test
             if Batteries_alert[0]==0:           #   Si il n'y a pas de message d'alerte pour la batterie
@@ -1219,7 +1210,7 @@ if __name__ == '__main__':
         while (not stop_event.is_set() and temps_restant >=0 and not RPI_decharge and not etat_bau): # Tant que le Flag de Thread n'est pas levé, que la batterie RPI est suffisamment chargées, qu'il y a encore des actions à réaliser, que le BAU n'est pas appuyé
             dico_envoi[0x01]=1
             if Wifi:
-                print(f"Envoi WiFi : x={x_robot_actuel_cam}, y={y_robot_actuel_cam}, angle={angle_robot_actuel_cam}")
+                print(f"Recu du WiFi : x={x_robot_actuel_cam}, y={y_robot_actuel_cam}, angle={angle_robot_actuel_cam}")
 
             if x_robot_actuel <= 0 or y_robot_actuel <= 0:
                 stop_event.set()
@@ -1417,8 +1408,7 @@ if __name__ == '__main__':
             )
 
             if changement_noisettes_detecte:
-                if Debug_Action:
-                    print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
+                print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
                 
                 grid, grid_expanded, obstacle_array, expanded_array, \
                 obs_manager, obs_manager_noisettes, \
@@ -1477,8 +1467,7 @@ if __name__ == '__main__':
             # ================================================================================================= #
 
             # ============ Prise de décision ========== #
-            if Strategie:
-                print("Liste_strategie : ",Liste_strategie)
+            print("Liste_strategie : ",Liste_strategie)
 
             if (0<=x_ennemi<=500 and 0<=y_ennemi<=1000)or(2500<x_ennemi<3000 and 0<y_ennemi<1000):
                 if Liste_actions[0][0] in ["Curseur_Jaune","Curseur_Bleu"]:
@@ -1514,13 +1503,12 @@ if __name__ == '__main__':
                         elif len(Liste_strategie[0])==1:
                             if Liste_actions[0][0] in ['Curseur_Bleu','Curseur_Jaune']:
                                 print("Changement de stratégie")
-                                couple_strat = Liste_strategie.pop(0)   
-                                #Liste_strategie.append(couple_strat)
+                                couple_strat = Liste_strategie.pop(0) 
 
                         if len(Liste_strategie[0])==2:
                             x_strategie = Liste_strategie[0][0]
                             y_strategie = Liste_strategie[0][1]
-                            Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded,Pousser)
+                            Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded,Pousser)
                             demande_recalcul_traj = True
 
                         else:
@@ -1561,8 +1549,8 @@ if __name__ == '__main__':
                 mode_attraper = False
                 if (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]) or action_voulu in ["Retourner","Attraper"]:
                     mode_attraper = True
-            if Debug_Mouv:
-                print("mode_attraper : ",mode_attraper)
+                    
+            print("mode_attraper : ",mode_attraper)
 
             # ======================================================================== #
             
@@ -1584,8 +1572,7 @@ if __name__ == '__main__':
             
             if distance_robot_ennemi <= R_securite:
                 
-                if Debug_Mouv:
-                    print("Ennemi trop proche du robot")
+                print("Ennemi trop proche du robot")
 
                 if action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis","Rotation"]:
                     demande_recalcul_traj = True
@@ -1595,7 +1582,7 @@ if __name__ == '__main__':
                     Astars_a_fail = False
                     
             elif grid_expanded[x_case_robot, y_case_robot] and not mode_attraper:
-                print("⚠️ Robot dans zone interdite — recherche case libre proche abcd")
+                print("⚠️ Robot dans zone interdite — recherche case libre proche")
                 x_libre, y_libre = trouver_case_libre_proche(
                     x_robot_actuel, y_robot_actuel,
                     grid_expanded, CASE_MM, width, height,
@@ -1608,13 +1595,13 @@ if __name__ == '__main__':
                     print(f"✅ Case libre trouvée : ({x_libre}, {y_libre})")
                     # Insérer un Avancer prioritaire vers ce point
                     if distance_sortie > 50:
-                        angle_vers_libre = np.degrees(math.atan2(y_libre - y_robot_actuel, x_libre - x_robot_actuel))
-                        x_plusloin = x_libre + 70 * math.cos(math.radians(angle_vers_libre))
-                        y_plusloin = y_libre + 70 * math.sin(math.radians(angle_vers_libre))
+                        angle_vers_libre = math.atan2(y_libre - y_robot_actuel, x_libre - x_robot_actuel)
+                        x_plusloin = x_libre + 70 * math.cos(angle_vers_libre)
+                        y_plusloin = y_libre + 70 * math.sin(angle_vers_libre)
                         if action_voulu in ["Consigne", "Avancer"]:
-                            Liste_actions.insert(0, ["ReculerPrecis", int(x_plusloin), int(y_plusloin)])
+                            Liste_actions.insert(0, ["Reculer", int(x_plusloin), int(y_plusloin)])
                         elif action_voulu in ["ReculerPrecis", "Reculer"]:
-                            Liste_actions.insert(0, ["Consigne", int(x_plusloin), int(y_plusloin)])
+                            Liste_actions.insert(0, ["Avancer", int(x_plusloin), int(y_plusloin)])
                         Astars_a_fail = False
 
                 """elif distance_robot_ennemi <= R_securite+30:
@@ -1640,15 +1627,13 @@ if __name__ == '__main__':
                     demande_recalcul_traj = False
                     grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
                     
-                    if Debug_Mouv:
-                        print("\n🚀 Déclenchement du calcul A*")
+                    print("\n🚀 Déclenchement du calcul A*")
                     
                     # ⭐ ÉTAPE 1 : VIDER LA QUEUE DE RÉSULTATS (supprimer anciens résultats)
                     while not queue_resultat_astar.empty():
                         try:
                             old_result = queue_resultat_astar.get_nowait()
-                            if Debug_Mouv:
-                                print(f"⚠️ Suppression ancien résultat : {len(old_result) if old_result else 0} points")
+                            print(f"⚠️ Suppression ancien résultat : {len(old_result) if old_result else 0} points")
                         except queue.Empty:
                             break
                     
@@ -1667,8 +1652,7 @@ if __name__ == '__main__':
                         try:
                             # Attendre résultat avec timeout court
                             points_bruts = queue_resultat_astar.get(timeout=0.1)
-                            if Debug_Mouv:
-                                print(f"✅ Résultat reçu : {len(points_bruts) if points_bruts else 0} points")
+                            print(f"✅ Résultat reçu : {len(points_bruts) if points_bruts else 0} points")
                         except queue.Empty:
                             # Pas encore de résultat, continuer à attendre
                             continue
@@ -1677,8 +1661,7 @@ if __name__ == '__main__':
                     if points_bruts is None:
                         # Timeout dépassé
                         Astars_a_fail = True
-                        if Debug_Mouv:
-                            print("⏱️ Timeout calcul A* - pas de résultat reçu")
+                        print("⏱️ Timeout calcul A* - pas de résultat reçu")
                         if distance_consigne_ennemi <= R_securite+10:
                             demande_nouvelle_strat = True
 
@@ -1701,8 +1684,7 @@ if __name__ == '__main__':
                                 ax.plot(x_plot, y_plot, 'g-', linewidth=2, label='Chemin A*', 
                                                 marker='o', markersize=4, zorder=10)
                         
-                            if Debug_Mouv:
-                                print(f"✅ Trajectoire calculée : {len(points_bruts)} points")
+                            print(f"✅ Trajectoire calculée : {len(points_bruts)} points")
 
                             # ⭐ NETTOYAGE : Supprimer anciens "Avancer"/"Reculer"
                             Liste_actions = [action for action in Liste_actions if not (isinstance(action, list) 
@@ -1729,8 +1711,7 @@ if __name__ == '__main__':
                             
                             Astars_a_fail = False
 
-            if Debug_Mouv:
-                print("demande_recalcul_traj : ",demande_recalcul_traj)
+            print("demande_recalcul_traj : ",demande_recalcul_traj)
             # ======================================================================== #
             
                                           
@@ -1876,13 +1857,11 @@ if __name__ == '__main__':
                 ordre_mouvement=100
             # ======================================================== #
         
-            if Debug_Mouv:
-                print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
-                print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
+            print("Ordre Mouvement : ",ordre_mouvement) 
+            print(f"X_actuel = {x_robot_actuel} Y_actuel = {y_robot_actuel} Angle_actuel = {angle_robot_actuel}°")
+            print(f"X_voulu = {x_robot_voulu} Y_voulu = {y_robot_voulu} Angle_voulu = {angle_robot_voulu}°")
             print("Liste_actions : ", Liste_actions)
 
-            if Debug_Mouv:
-                print("Ordre Mouvement : ",ordre_mouvement) 
             # ==================================================================== #
 
 
@@ -1901,8 +1880,7 @@ if __name__ == '__main__':
             # ==================================================================== #
 
             # Envoi des Ordres de Manipulation des Noisettes à la Carte Actionneur #
-            if Debug_Action:
-                print(Noisettes_stockees_dans_robot)
+            print(Noisettes_stockees_dans_robot)
             if action_voulu in ["Attraper","Retourner","Relacher"]:
                 dico_envoi[0x502+pince_a_utilise]=noisette_a_manipulee
                 if action_voulu in ["Attraper"]:
@@ -2062,14 +2040,12 @@ if __name__ == '__main__':
             # Si robot est à la position de consigne 
             distance_robot_consigne = math.sqrt((x_robot_actuel - x_robot_voulu)**2 + (y_robot_actuel - y_robot_voulu)**2)
             if((distance_robot_consigne<TOL_PRECIS and action_voulu in ["Consigne","ReculerPrecis"]) or (distance_robot_consigne<TOL_PASPRECIS and action_voulu in ["Avancer","Reculer"])):
-                if Debug_Mouv:
-                    print("Bonne position")
+                print("Bonne position")
                 verif_mouv_rpi = 1
                     
             if not Reel :
                 if(abs(angle_robot_actuel-angle_robot_voulu)<5) and action_voulu in ["Rotation"]:
-                    if Debug_Mouv:
-                        print("Bon Angle")
+                    print("Bon Angle")
                     verif_angle = 1 
                     
             if not Reel:
@@ -2101,16 +2077,7 @@ if __name__ == '__main__':
                 dico_envoi[0x009]=1
             # ==================================================================== #
             
-            if Debug_Mouv:
-                print("verif_mouv : ",verif_mouv_rpi)
-                print("ack mouv : ",dico_envoi[0x207])
-                print("verif_angle : ",verif_angle)
-                print("ack angle : ",dico_envoi[0x208])
-            if Debug_Action:
-                print("verif_action1 : ",verif_action1)
-                print("verif_action2 : ",verif_action2)
-                print("ack action : ",dico_envoi[0x504+pince_a_utilise])
-                print("action_precedente : ",action_precedente)
+            print("action_precedente : ",action_precedente)
 
 
             if not action_est_supprime:
@@ -2128,38 +2095,21 @@ if __name__ == '__main__':
                         if (action_voulu in ["Attraper"]):
                             if(Noisettes_stockees_dans_robot[pince_a_utilise][0] in ["J","B"] and Noisettes_stockees_dans_robot[pince_a_utilise][1] in ["J","B"] and noisette_a_manipulee == 12):
                                 demande_nouvelle_strat = True
-                                if Debug_Action:
-                                    if pince_a_utilise == 0:
-                                        print(f"Pince Avant totalement occupée")
-                                    else:
-                                        print(f"Pince Arrière totalement occupée") 
                                 
                             if(Noisettes_stockees_dans_robot[pince_a_utilise][0] in ["J","B"] and (noisette_a_manipulee == 1 or noisette_a_manipulee == 12)):
                                 demande_nouvelle_strat = True
-                                if Debug_Action:
-                                    if pince_a_utilise == 0:
-                                        print(f"Action impossible, pince Avant 1 occupée")
-                                    else:
-                                        print(f"Action impossible, pince Arrière 1 occupée")
 
                             if((noisette_a_manipulee == 2 or noisette_a_manipulee == 12) and Noisettes_stockees_dans_robot[pince_a_utilise][1]in ["J","B"]):
                                 demande_nouvelle_strat = True
-                                if Debug_Action:
-                                    if pince_a_utilise == 0:
-                                        print(f"Action impossible, pince Avant 2 occupée")
-                                    else:
-                                        print(f"Action impossible, pince Arrière 2 occupée")
 
                             if(Noisettes_stockees_dans_robot[pince_a_utilise][0]=='N' and Noisettes_stockees_dans_robot[pince_a_utilise][1]=='N' and noisette_a_manipulee == 12):
-                                if Debug_Action:
-                                    print("Action possible")
+                                print("Action possible")
                                 for coupleNoisette in Noisettes_groupees:
                                     if len(coupleNoisette)==2:
                                         distance_R_N1 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[0][0],coupleNoisette[0][1]))
                                         distance_R_N2 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[1][0],coupleNoisette[1][1]))
                                         if distance_R_N1<=75+LONGUEUR_ROBOT/2 or distance_R_N2<=75+LONGUEUR_ROBOT/2:
-                                            if Debug_Action:
-                                                print("Supprimer : ", coupleNoisette)
+                                            print("Supprimer : ", coupleNoisette)
                                             Noisettes_groupees.remove(coupleNoisette)
                                             Liste_noisette_xya.remove(coupleNoisette[0])
                                             Liste_noisette_xya.remove(coupleNoisette[1])
@@ -2171,27 +2121,23 @@ if __name__ == '__main__':
                                     else:
                                         distance_R_N = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[0][0],coupleNoisette[0][1]))
                                         if distance_R_N<=50+LONGUEUR_ROBOT/2:          
-                                            if Debug_Action:
-                                                print("Supprimer : ", coupleNoisette)
+                                            print("Supprimer : ", coupleNoisette)
                                             Noisettes_groupees.remove(coupleNoisette)
                                             Liste_noisette_xya.remove(coupleNoisette[0])
                                             Noisettes_stockees_dans_robot[pince_a_utilise][0] = coupleNoisette[0][3]
                                             changement_noisettes_detecte = True
 
                             if (Noisettes_stockees_dans_robot[pince_a_utilise][0]=='N' and noisette_a_manipulee == 1):
-                                if Debug_Action:
-                                    print("Action possible")
+                                print("Action possible")
                                 for coupleNoisette in Noisettes_groupees:
                                     if len(coupleNoisette)==2:
                                         distance_R_N1 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[0][0],coupleNoisette[0][1]))
                                         distance_R_N2 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[1][0],coupleNoisette[1][1]))
                                         if distance_R_N1<=65+LONGUEUR_ROBOT/2 or distance_R_N2<=65+LONGUEUR_ROBOT/2:
-                                            if Debug_Action:
-                                                print("coupleNoisette : ", coupleNoisette)
-                                                if distance_R_N1 < distance_R_N2:
-                                                    print("Supprimer : ", coupleNoisette[0])
-                                                else :
-                                                    print("Supprimer : ", coupleNoisette[1])
+                                            if distance_R_N1 < distance_R_N2:
+                                                print("Supprimer : ", coupleNoisette[0])
+                                            else :
+                                                print("Supprimer : ", coupleNoisette[1])
 
                                             if distance_R_N1 < distance_R_N2:
                                                 Liste_noisette_xya.remove(coupleNoisette[0])
@@ -2206,30 +2152,23 @@ if __name__ == '__main__':
                                     else:
                                         distance_R_N = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[0][0],coupleNoisette[0][1]))
                                         if distance_R_N<=100+LONGUEUR_ROBOT/2:
-                                            if Debug_Action:
-                                                print(coupleNoisette)
+                                            
                                             Noisettes_groupees.remove(coupleNoisette)
                                             Liste_noisette_xya.remove(coupleNoisette[0])
                                             Noisettes_stockees_dans_robot[pince_a_utilise][0] = coupleNoisette[0][3]
                                             changement_noisettes_detecte = True
 
                             if (Noisettes_stockees_dans_robot[pince_a_utilise][1]=='N' and noisette_a_manipulee == 2):
-                                if Debug_Action:
-                                    print("Action possible")
+                                print("Action possible")
                                 for coupleNoisette in Noisettes_groupees:
                                     if len(coupleNoisette)==2:
-                                        print("aqziduhqih")
                                         distance_R_N1 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[0][0],coupleNoisette[0][1]))
                                         distance_R_N2 = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[1][0],coupleNoisette[1][1]))
                                         if distance_R_N1<=65+LONGUEUR_ROBOT/2 or distance_R_N2<=50+65+LONGUEUR_ROBOT/2:
-                                            print("distance_R_N1 : ",distance_R_N1)
-                                            print("distance_R_N2 : ",distance_R_N2)
-                                            if Debug_Action:
-                                                print("coupleNoisette : ", coupleNoisette)
-                                                if distance_R_N1 > distance_R_N2:
-                                                    print("Supprimer : ", coupleNoisette[1], " distance : ", distance_R_N1)
-                                                else :
-                                                    print("Supprimer : ", coupleNoisette[0], " distance : ", distance_R_N2)
+                                            if distance_R_N1 > distance_R_N2:
+                                                print("Supprimer : ", coupleNoisette[1], " distance : ", distance_R_N1)
+                                            else :
+                                                print("Supprimer : ", coupleNoisette[0], " distance : ", distance_R_N2)
 
                                             if distance_R_N1 > distance_R_N2:
                                                 Liste_noisette_xya.remove(coupleNoisette[1])
@@ -2243,10 +2182,7 @@ if __name__ == '__main__':
                                             changement_noisettes_detecte = True
                                     else:
                                         distance_R_N = distance((x_robot_actuel,y_robot_actuel), (coupleNoisette[0][0],coupleNoisette[0][1]))
-                                        print("distance_R_N : ",distance_R_N)
                                         if distance_R_N<=125+LONGUEUR_ROBOT/2:
-                                            if Debug_Action:
-                                                print(coupleNoisette)
                                             Noisettes_groupees.remove(coupleNoisette)
                                             Liste_noisette_xya.remove(coupleNoisette[0])
                                             Noisettes_stockees_dans_robot[pince_a_utilise][1] = coupleNoisette[0][3]
@@ -2256,8 +2192,6 @@ if __name__ == '__main__':
                         if (action_voulu in ["Retourner"]):
                             if(Noisettes_stockees_dans_robot[pince_a_utilise][0] == "N" and Noisettes_stockees_dans_robot[pince_a_utilise][1] == "N" ):
                                 demande_nouvelle_strat = True
-                                if Debug_Action:
-                                    print("Action impossible, pas de Noisette")
                             else :
                                 if noisette_a_manipulee == 1 and Noisettes_stockees_dans_robot[pince_a_utilise][0] != "N":
                                     if Noisettes_stockees_dans_robot[pince_a_utilise][0] == "J":
@@ -2266,11 +2200,6 @@ if __name__ == '__main__':
                                         Noisettes_stockees_dans_robot[pince_a_utilise][0] = "J"
                                 elif  noisette_a_manipulee == 1 and Noisettes_stockees_dans_robot[pince_a_utilise][0] == "N":
                                     demande_nouvelle_strat = True
-                                    if Debug_Action:
-                                        if pince_a_utilise == 0:
-                                            print("Pas de Noisette à retourner sur Pince Avant 1")
-                                        else :
-                                            print("Pas de Noisette à retourner sur Pince Arrière 1")
 
                                 if noisette_a_manipulee == 2 and Noisettes_stockees_dans_robot[pince_a_utilise][1] != "N":
                                     if Noisettes_stockees_dans_robot[pince_a_utilise][1] == "J":
@@ -2279,11 +2208,6 @@ if __name__ == '__main__':
                                         Noisettes_stockees_dans_robot[pince_a_utilise][1] = "J"
                                 elif  noisette_a_manipulee == 2 and Noisettes_stockees_dans_robot[pince_a_utilise][1] == "N":
                                     demande_nouvelle_strat = True
-                                    if Debug_Action:
-                                        if pince_a_utilise == 0:
-                                            print("Pas de Noisette à retourner sur Pince Avant 2")
-                                        else :
-                                            print("Pas de Noisette à retourner sur Pince Arrière 2")
 
                                 if noisette_a_manipulee == 12 and Noisettes_stockees_dans_robot[pince_a_utilise][0] != "N" and Noisettes_stockees_dans_robot[pince_a_utilise][1] != "N":
                                     if Noisettes_stockees_dans_robot[pince_a_utilise][0] == "J":
@@ -2299,11 +2223,6 @@ if __name__ == '__main__':
                             if noisette_a_manipulee == 1:
                                 if Noisettes_stockees_dans_robot[pince_a_utilise][0]=="N":
                                     demande_nouvelle_strat = True
-                                    if Debug_Action:
-                                        if pince_a_utilise == 0:
-                                            print("Pas de Noisette à déposer de la pince Avant 1")
-                                        else :
-                                            print("Pas de Noisette à déposer de la pince Arrière 1")
                                 else:
                                     if pince_a_utilise == 0:
                                         x_noisette = x_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
@@ -2319,11 +2238,6 @@ if __name__ == '__main__':
                             if noisette_a_manipulee == 2:
                                 if Noisettes_stockees_dans_robot[pince_a_utilise][1]=="N":
                                     demande_nouvelle_strat = True
-                                    if Debug_Action:
-                                        if pince_a_utilise == 0:
-                                            print("Pas de Noisette à déposer de la pince Avant 2")
-                                        else :
-                                            print("Pas de Noisette à déposer de la pince Arrière 2")
                                 else:
                                     if pince_a_utilise == 0:
                                         x_noisette = x_robot_actuel + (50+25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
@@ -2339,11 +2253,6 @@ if __name__ == '__main__':
                             if noisette_a_manipulee == 12:
                                 if Noisettes_stockees_dans_robot[pince_a_utilise][0]=="N" or Noisettes_stockees_dans_robot[pince_a_utilise][1]=="N":
                                     demande_nouvelle_strat = True
-                                    if Debug_Action:
-                                        if pince_a_utilise == 0:
-                                            print("Pas de Noisette à déposer de la pince Avant")
-                                        else :
-                                            print("Pas de Noisette à déposer de la pince Arrière")
                                 else:
                                     if pince_a_utilise == 0:
                                         x_noisette_1 = x_robot_actuel + (25+LONGUEUR_ROBOT/2)*math.cos(math.radians(angle_robot_actuel))
@@ -2370,8 +2279,7 @@ if __name__ == '__main__':
 
                     if changement_noisettes_detecte:
                         changement_noisettes_detecte = False
-                        if Debug_Action:
-                            print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
+                        print("🔄 Changement détecté dans Liste_noisette_xya - Mise à jour des grilles")
                         grid, grid_expanded, obstacle_array, expanded_array, \
                         obs_manager, obs_manager_noisettes, \
                         obstacle_scatter, expanded_scatter, distance_map, \

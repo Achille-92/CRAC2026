@@ -92,7 +92,7 @@ def regrouper_par_quatre(groupe_indices, noisettes):
     return groupes_de_quatre
 
 
-def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,Debug_strategie,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded,Pousser):
+def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded,Pousser):
 
     Liste_actions.clear()
     chercher_Noisette = None
@@ -154,9 +154,8 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
             else:
                 demande_nouvelle_strat = True
 
-            if Debug_strategie:
-                print("pince_a_utilise : ",pince_a_utilise)
-                print("sous_pince : ",sous_pince)
+            print("pince_a_utilise : ",pince_a_utilise)
+            print("sous_pince : ",sous_pince)
             point_1_bloquee = False
             point_2_bloquee = False
 
@@ -275,16 +274,15 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                 else:
                     demande_nouvelle_strat = True
 
-            if Debug_strategie:
-                print("pince_a_utilise : ",pince_a_utilise)
-                print("sous_pince : ",sous_pince)
+            print("pince_a_utilise : ",pince_a_utilise)
+            print("sous_pince : ",sous_pince)
 
             distance_robot_n0 = math.sqrt((x_robot_actuel - strategie_en_cours[0][0])**2 + (y_robot_actuel - strategie_en_cours[0][1])**2)
             distance_robot_n1 = math.sqrt((x_robot_actuel - strategie_en_cours[1][0])**2 + (y_robot_actuel - strategie_en_cours[1][1])**2)
-            if Debug_strategie:
-                print("Distance entre robot et n0 : ",distance_robot_n0)
-                print("Distance entre robot et n1 : ",distance_robot_n1)
-                print("Strategie avant tri : ",strategie_en_cours)
+
+            print("Distance entre robot et n0 : ",distance_robot_n0)
+            print("Distance entre robot et n1 : ",distance_robot_n1)
+            print("Strategie avant tri : ",strategie_en_cours)
             # Tri des noisettes par distance
             if distance_robot_n0 > distance_robot_n1:
                 temp = strategie_en_cours[0]
@@ -292,8 +290,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                 strategie_en_cours[1] = temp
                 distance_robot_n0, distance_robot_n1 = distance_robot_n1, distance_robot_n0
             
-            if Debug_strategie:
-                print("Strategie après tri : ",strategie_en_cours)
+            print("Strategie après tri : ",strategie_en_cours)
 
             angle_noisette1 = strategie_en_cours[0][2]
             angle_noisette2 = strategie_en_cours[1][2]
@@ -313,8 +310,7 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
 
             # Déterminer si les noisettes sont horizontales (~0°) ou verticales (~90°)
             if 45 < angle_normalise < 135:  # Noisettes verticales (~90°)
-                if Debug_strategie:
-                    print("Noisettes verticales détectées")
+                
                 # Robot à gauche ou à droite des noisettes ?
                 if x_robot_actuel < x_centre_noisettes:
                     # Approcher par la gauche
@@ -326,8 +322,6 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                     angle_rad2 = math.radians(angle_noisette2 + 90)
 
             else:  # Noisettes horizontales (~0° ou ~180°)
-                if Debug_strategie:
-                    print("Noisettes horizontales détectées")
                 # Robot en haut ou en bas des noisettes ?
                 if y_robot_actuel < y_centre_noisettes:
                     # Approcher par le bas
@@ -338,11 +332,10 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                     angle_rad1 = math.radians(angle_noisette1 + 90)  # En haut
                     angle_rad2 = math.radians(angle_noisette2 - 90)
 
-            if Debug_strategie:
-                print("angle_noisette1 : ",angle_noisette1-90)
-                print("angle_noisette2 : ",angle_noisette2+90)
-                print("Point1 associé à Noisette : ",strategie_en_cours[0])
-                print("Point2 associé à Noisette : ",strategie_en_cours[1])
+            print("angle_noisette1 : ",angle_noisette1-90)
+            print("angle_noisette2 : ",angle_noisette2+90)
+            print("Point1 associé à Noisette : ",strategie_en_cours[0])
+            print("Point2 associé à Noisette : ",strategie_en_cours[1])
 
             x_arrivee_1 = strategie_en_cours[0][0]+distance*math.cos(angle_rad1)
             y_arrivee_1 = strategie_en_cours[0][1]+distance*math.sin(angle_rad1)
