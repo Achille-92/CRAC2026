@@ -91,8 +91,22 @@ def regrouper_par_quatre(groupe_indices, noisettes):
     
     return groupes_de_quatre
 
+def calculer_difference_angulaire(angle_actuel, angle_cible):
+    """
+    Calcule la différence angulaire la plus courte entre deux angles
+    Retourne une valeur entre -180 et 180 degrés
+    """
+    diff = angle_cible - angle_actuel
+    
+    # Normaliser entre -180 et 180
+    while diff > 180:
+        diff -= 360
+    while diff < -180:
+        diff += 360
+    
+    return abs(diff)
 
-def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded,Pousser):
+def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded,Pousser,angle_robot_actuel):
 
     Liste_actions.clear()
     chercher_Noisette = None
@@ -124,7 +138,6 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
         distance_Noisette_strategie = math.sqrt((x_strategie - x_centre)**2 + (y_strategie - y_centre)**2)
         if distance_Noisette_strategie <= TOLERANCE_STRATEGIE_NOISETTE:
             distance_Robot_strategie = math.sqrt((x_robot_actuel - x_centre)**2 + (y_robot_actuel - y_centre)**2)
-            print("distance_Robot_strategie : ",distance_Robot_strategie)
             strategie_en_cours = grpNoisette
             chercher_Noisette = True
             break
@@ -258,7 +271,6 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                 pince_a_utilise = 1
                 sous_pince = 12
             else:
-                print("Ce cas là")
                 if Noisettes_stockees_dans_robot[0]==["N","N"] and Pince_Av_1 and not Pince_Av_2:
                     pince_a_utilise = 0
                     sous_pince = 1
@@ -341,7 +353,6 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
             y_arrivee_1 = strategie_en_cours[0][1]+distance*math.sin(angle_rad1)
             x_arrivee_2 = strategie_en_cours[1][0]+distance*math.cos(angle_rad2)
             y_arrivee_2 = strategie_en_cours[1][1]+distance*math.sin(angle_rad2)
-
             
             if sous_pince == 2:
                 distance = 50 + 50 + 25 + MARGE_NOISETTE+LONGUEUR_ROBOT/2 + 100
@@ -367,33 +378,39 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                 distance_robot_point2 = math.sqrt((x_arrivee_2 - x_robot_actuel)**2 + (y_arrivee_2 - y_robot_actuel)**2)
                 if point_2_bloquee:
                     print("aaaaaaaaa")
+                    # Calculer l'angle requis pour atteindre le point
+                    angle_robot_vers_point = np.degrees(math.atan2(y_arrivee_1 - y_robot_actuel, x_arrivee_1 - x_robot_actuel))
+                    diff_angle = calculer_difference_angulaire(angle_robot_actuel, angle_robot_vers_point)
+
                     angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[0][1] - y_arrivee_1, strategie_en_cours[0][0] - x_arrivee_1)))
                     if pince_a_utilise == 0:
-                        if distance_Robot_strategie < distance:
-                            Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]#,["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1]]
+                        if distance_Robot_strategie < distance and diff_angle<20 :
+                            Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]
                         else:
-                            Liste_actions = [["Consigne",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]#,["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1]]
+                            Liste_actions = [["Consigne",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]
                         
                     else:
-                        if distance_Robot_strategie < distance:
-                            Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]#,["Consigne",x_arrivee_Astar1,y_arrivee_Astar1]]
+                        if distance_Robot_strategie < distance and diff_angle<20 :
+                            Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]
                         else:
-                            Liste_actions = [["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]#,["Consigne",x_arrivee_Astar1,y_arrivee_Astar1]]
+                            Liste_actions = [["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]
                         
                 elif point_1_bloquee:
                     print("bbbbbbbbb")
                     angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[1][1] - y_arrivee_2, strategie_en_cours[1][0] - x_arrivee_2)))
+                    angle_robot_vers_point = np.degrees(math.atan2(y_arrivee_1 - y_robot_actuel, x_arrivee_1 - x_robot_actuel))
+                    diff_angle = calculer_difference_angulaire(angle_robot_actuel, angle_robot_vers_point)
                     if pince_a_utilise == 0:
-                        if distance_Robot_strategie < distance:
-                            Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]#,["ReculerPrecis",x_arrivee_2,y_arrivee_2]]
+                        if distance_Robot_strategie < distance and diff_angle<20 :
+                            Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]
                         else:
-                            Liste_actions = [["Consigne",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]#,["ReculerPrecis",x_arrivee_2,y_arrivee_2]]
+                            Liste_actions = [["Consigne",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]
                         
                     else:
-                        if distance_Robot_strategie < distance:
-                            Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]#,["Consigne",x_arrivee_Astar2,y_arrivee_Astar2]]
+                        if distance_Robot_strategie < distance and diff_angle<20 :
+                            Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]
                         else:
-                            Liste_actions = [["ReculerPrecis",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]#,["Consigne",x_arrivee_Astar2,y_arrivee_Astar2]]
+                            Liste_actions = [["ReculerPrecis",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]
                         
                 else:
                     distance_robot_point1 = math.sqrt((x_arrivee_1 - x_robot_actuel)**2 + (y_arrivee_1 - y_robot_actuel)**2)
@@ -401,32 +418,36 @@ def remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupe
                     if distance_robot_point1 <= distance_robot_point2:
                         print("cccccccccc")
                         angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[0][1] - y_arrivee_1, strategie_en_cours[0][0] - x_arrivee_1)))
+                        angle_robot_vers_point = np.degrees(math.atan2(y_arrivee_1 - y_robot_actuel, x_arrivee_1 - x_robot_actuel))
+                        diff_angle = calculer_difference_angulaire(angle_robot_actuel, angle_robot_vers_point)
                         if pince_a_utilise == 0:
-                            if distance_Robot_strategie < distance:
-                                Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]#,["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1]]
+                            if distance_Robot_strategie < distance and diff_angle<20 :
+                                Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]
                             else:
-                                Liste_actions = [["Consigne",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]#,["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1]]
+                                Liste_actions = [["Consigne",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_1,y_arrivee_1],["Rotation",angle_pointarrivee_noisette]]
                             
                         else:
-                            if distance_Robot_strategie < distance:
-                                Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]#,["Consigne",x_arrivee_Astar1,y_arrivee_Astar1]]
+                            if distance_Robot_strategie < distance and diff_angle<20 :
+                                Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]
                             else:
-                                Liste_actions = [["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]#,["Consigne",x_arrivee_Astar1,y_arrivee_Astar1]]
+                                Liste_actions = [["ReculerPrecis",x_arrivee_Astar1,y_arrivee_Astar1],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_1,y_arrivee_1],["Rotation",180+angle_pointarrivee_noisette]]
                             
                     else:
                         print("dddddddd")
                         angle_pointarrivee_noisette = int(np.degrees(math.atan2(strategie_en_cours[1][1] - y_arrivee_2, strategie_en_cours[1][0] - x_arrivee_2)))
+                        angle_robot_vers_point = np.degrees(math.atan2(y_arrivee_1 - y_robot_actuel, x_arrivee_1 - x_robot_actuel))
+                        diff_angle = calculer_difference_angulaire(angle_robot_actuel, angle_robot_vers_point)
                         if pince_a_utilise == 0:
-                            if distance_Robot_strategie < distance:
-                                Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]#,["ReculerPrecis",x_arrivee_Astar2,y_arrivee_Astar2]]
+                            if distance_Robot_strategie < distance and diff_angle<20 :
+                                Liste_actions = [["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]
                             else:
-                                Liste_actions = [["Consigne",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]#,["ReculerPrecis",x_arrivee_Astar2,y_arrivee_Astar2]]
+                                Liste_actions = [["Consigne",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",angle_pointarrivee_noisette],["Consigne",x_arrivee_2,y_arrivee_2],["Rotation",angle_pointarrivee_noisette]]
                             
                         else:
-                            if distance_Robot_strategie < distance:
-                                Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]#,["Consigne",x_arrivee_Astar2,y_arrivee_Astar2]]
+                            if distance_Robot_strategie < distance and diff_angle<20 :
+                                Liste_actions = [["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]
                             else:
-                                Liste_actions = [["ReculerPrecis",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]#,["Consigne",x_arrivee_Astar2,y_arrivee_Astar2]]
+                                Liste_actions = [["ReculerPrecis",x_arrivee_Astar2,y_arrivee_Astar2],["Rotation",180+angle_pointarrivee_noisette],["ReculerPrecis",x_arrivee_2,y_arrivee_2],["Rotation",180+angle_pointarrivee_noisette]]
                             
                 Liste_actions.append(["Attraper",pince_a_utilise,sous_pince])
 

@@ -1517,7 +1517,7 @@ if __name__ == '__main__':
                         if len(Liste_strategie[0])==2:
                             x_strategie = Liste_strategie[0][0]
                             y_strategie = Liste_strategie[0][1]
-                            Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded,Pousser)
+                            Liste_actions,demande_nouvelle_strat = remplir_Liste_actions(LARGEUR_ROBOT,x_strategie,y_strategie,Noisettes_groupees,strategie_en_cours,demande_nouvelle_strat,Liste_actions,couleur,Liste_zones_gm_coins,TOLERANCE_STRATEGIE_NOISETTE,Noisettes_stockees_dans_robot,MARGE_NOISETTE,MARGE_GM,LONGUEUR_ROBOT,Liste_noisette_xya,x_robot_actuel,y_robot_actuel,Pince_Avant, Pince_Av_1, Pince_Av_2,Pince_Arriere, Pince_Ar_1, Pince_Ar_2,width,height,CASE_MM,grid_expanded,Pousser,angle_robot_actuel)
                             demande_recalcul_traj = True
 
                         else:
