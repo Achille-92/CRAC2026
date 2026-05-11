@@ -797,16 +797,17 @@ if __name__ == '__main__':
                     "couleur": 1 if couleur == "B" else 2,
                     "PAMI_debut_match": PAMI_debut_match,
                 }
-                try:
-                    for i in range(7):
+
+                for i in range(7):
+                    try:
                         message_second = json.dumps(donnees_pour_PAMI)
                         client_socket_second = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         client_socket_second.settimeout(0.1)
                         client_socket_second.connect((IP_PAMI[i], PORT_PAMI))
                         client_socket_second.sendall(message_second.encode())
                         client_socket_second.close()
-                except (socket.timeout, ConnectionRefusedError, OSError) as e:
-                    print(f"WiFi Envoi échoué (second robot) : {e}")
+                    except (socket.timeout, ConnectionRefusedError, OSError) as e:
+                        print(f"WiFi Envoi échoué (second robot) : {e}")
             # MAJ de l'affichage et des Variables de Bouncing
             update_display(background)
             fig.canvas.flush_events()
