@@ -1,13 +1,13 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 Lidar_on = False
 affichage = True
 Strategie = True
 Astars = True
 
-Simul_mvt = True
-Simul_mvt_ennemi = True
+Simul_mvt = False
+Simul_mvt_ennemi = False
 Simul_action = True
 
 Maj_Noisette = False
@@ -1221,8 +1221,6 @@ if __name__ == '__main__':
                     print(f"Après : x={x_robot_actuel_cam}, y={y_robot_actuel_cam_corr}, angle={angle_robot_actuel_cam}") 
                 else:
                     y_robot_actuel_cam_corr = y_robot_actuel_cam
-            if x_robot_actuel <= 0 or y_robot_actuel <= 0:
-                stop_event.set()
 
             temps_ecoules = time.time() - temps_demarage
             temps_restant = temps_max - temps_ecoules

@@ -49,7 +49,7 @@ IP_RECEPTION = '0.0.0.0'
 PORT_RECEPTION = 5000
 
 IP_PAMI = ["192.168.0.103","192.168.0.104","192.168.0.105","192.168.0.106","192.168.0.107","192.168.0.108","192.168.0.109"]
-PORT_PAMI =  [5002,5003,5004,5005,5006,5007,5008]
+PORT_PAMI =  5002
 #################################################
 
 # Perimètre de sécurité
@@ -802,7 +802,7 @@ if __name__ == '__main__':
                         message_second = json.dumps(donnees_pour_PAMI)
                         client_socket_second = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         client_socket_second.settimeout(0.1)
-                        client_socket_second.connect((IP_PAMI[i], PORT_PAMI[i]))
+                        client_socket_second.connect((IP_PAMI[i], PORT_PAMI))
                         client_socket_second.sendall(message_second.encode())
                         client_socket_second.close()
                 except (socket.timeout, ConnectionRefusedError, OSError) as e:
