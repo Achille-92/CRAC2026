@@ -256,6 +256,9 @@ TOL_POS_X = 16
 TOL_POS_Y = 16
 TOL_POS_A = 5
 
+dernier_envoi_pami = 0
+FREQUENCE_ENVOI_PAMI = 0.5  # Envoyer toutes les 200ms (5 fois par seconde)
+
 ################## Fonction Threads ##########################################
 def comm_robot(stop_event):
     print(f"[Récepteur] Serveur en attente sur le port {PORT_RECEPTION}...")
@@ -793,21 +796,31 @@ if __name__ == '__main__':
             # ==================================================================== #
             
             if WiFi and Pami:
-                donnees_pour_PAMI = {
-                    "couleur": 1 if couleur == "B" else 2,
-                    "PAMI_debut_match": PAMI_debut_match,
-                }
+                # ✅ VÉRIFIER SI ASSEZ DE TEMPS S'EST ÉCOULÉ
+                temps_actuel = time.time()
+                
+                if temps_actuel - dernier_envoi_pami >= FREQUENCE_ENVOI_PAMI:
+                    dernier_envoi_pami = temps_actuel
+                    
+                    donnees_pour_PAMI = {
+                        "couleur": 1 if couleur == "B" else 2,
+                        "PAMI_debut_match": PAMI_debut_match,
+                        "temps_restant": int(temps_restant),
+                    }
 
-                for i in range(7):
-                    try:
-                        message_second = json.dumps(donnees_pour_PAMI)
-                        client_socket_second = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                        client_socket_second.settimeout(0.1)
-                        client_socket_second.connect((IP_PAMI[i], PORT_PAMI))
-                        client_socket_second.sendall(message_second.encode())
-                        client_socket_second.close()
-                    except (socket.timeout, ConnectionRefusedError, OSError) as e:
-                        print(f"WiFi Envoi échoué (second robot) : {e}")
+                    # ✅ PAS DE DÉLAI entre les robots (la connexion TCP est déjà séquentielle)
+                    for i in range(7):
+                        try:
+                            message_second = json.dumps(donnees_pour_PAMI)
+                            client_socket_second = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                            client_socket_second.settimeout(0.3)  # ✅ Augmenté à 300ms (plus fiable)
+                            client_socket_second.connect((IP_PAMI[i], PORT_PAMI))
+                            client_socket_second.sendall(message_second.encode())
+                            client_socket_second.close()
+                        except (socket.timeout, ConnectionRefusedError, OSError) as e:
+                            # ⚠️ Afficher quelle IP a échoué pour le debug
+                            print(f"❌ Envoi échoué vers {IP_PAMI[i]}:{PORT_PAMI} - {e}")
+                            
             # MAJ de l'affichage et des Variables de Bouncing
             update_display(background)
             fig.canvas.flush_events()

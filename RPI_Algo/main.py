@@ -1933,10 +1933,10 @@ if __name__ == '__main__':
                             x_robot_actuel += round(15*np.cos(angle_robot_consigne),0)
                             y_robot_actuel += round(15*np.sin(angle_robot_consigne),0)
 
-            elif not Reel and Wifi:
+            """elif not Reel and Wifi:
                 x_robot_actuel = x_robot_actuel_cam
                 y_robot_actuel = y_robot_actuel_cam_corr
-                angle_robot_actuel = angle_robot_actuel_cam           
+                angle_robot_actuel = angle_robot_actuel_cam  """         
 
             # ============== MISE À JOUR AFFICHAGE ==================== #
 
