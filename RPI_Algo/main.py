@@ -1,13 +1,13 @@
 couleur = "B"
 Reel = False
-Wifi = False
+Wifi = True
 Lidar_on = False
 affichage = True
 Strategie = True
 Astars = True
 
-Simul_mvt = False
-Simul_mvt_ennemi = False
+Simul_mvt = True
+Simul_mvt_ennemi = True
 Simul_action = True
 
 Maj_Noisette = False
@@ -576,7 +576,7 @@ def lidar_udp(stop_event):
                 
                 # Vérification des conditions de validité
                 
-                if 1500+MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
+                if MARGE_BORDUREPISTE_X <= x_point <= X_PISTE-MARGE_BORDUREPISTE_X and \
                    MARGE_BORDUREPISTE_Y <= y_point <= Y_PISTE-MARGE_BORDUREPISTE_Y and \
                    distance_robot_point > DISTANCE_MIN_ROBOT and not (600<x_point<2400 and 1550<y_point<2000):
                     # Point valide
@@ -1040,7 +1040,7 @@ if __name__ == '__main__':
             dico_envoi[0x200]=0
             dico_envoi[0x201]=0
             dico_envoi[0x202]=0
-        time.sleep(5)
+        time.sleep(2)
 
         if Recalage: 
             recalage_depart = False
@@ -1211,7 +1211,7 @@ if __name__ == '__main__':
             if Wifi:
                 print(f"Recu du WiFi : x={x_robot_actuel_cam}, y={y_robot_actuel_cam}, angle={angle_robot_actuel_cam}")    
 
-                if 1000 <= y_robot_actuel_cam <= 1550:
+                if 1000 <= y_robot_actuel_cam <= 2000:
                     # Formule d'erreur : erreur_y = (y / 1500) × 50
                     erreur_y = (y_robot_actuel_cam / 1500.0) * 40.0
                     
@@ -1221,6 +1221,7 @@ if __name__ == '__main__':
                     print(f"Après : x={x_robot_actuel_cam}, y={y_robot_actuel_cam_corr}, angle={angle_robot_actuel_cam}") 
                 else:
                     y_robot_actuel_cam_corr = y_robot_actuel_cam
+                    print(f"Après : x={x_robot_actuel_cam}, y={y_robot_actuel_cam_corr}, angle={angle_robot_actuel_cam}")
 
             temps_ecoules = time.time() - temps_demarage
             temps_restant = temps_max - temps_ecoules
@@ -1232,13 +1233,6 @@ if __name__ == '__main__':
 
             if not Noisette_init:
                 Liste_noisette_xya_cam_copie = Liste_noisette_xya_cam.copy()
-                
-                """for Noisette in Liste_noisette_xya_cam_copie:
-                    if 1000<Noisette[0]<2000 and 600<Noisette[1]<1000:
-                        Noisette[1]+=20
-                    if 1000<Noisette[1]<1400 and (0<Noisette[0]<400 or 2600<Noisette[0]<3000):
-                        Noisette[1]+=22"""
-
 
                 for Noisette in Liste_noisette_xya_cam_copie:
                     y_detecte = Noisette[1]
