@@ -1,12 +1,12 @@
 couleur = "B"
 Reel = False
-Wifi = True
+Wifi = False
 Lidar_on = False
 affichage = True
 Strategie = True
 Astars = True
 
-Simul_mvt = False
+Simul_mvt = True
 Simul_mvt_ennemi = False
 Simul_action = True
 
@@ -18,7 +18,7 @@ lancement_cartes = True
 faire_Ninja = False
 Strat_agressive = False
 Pousser = True
-Faire_curseur = True
+Faire_curseur = False
 TOL_PRECIS = 15
 TOL_PASPRECIS = 70
 
@@ -239,6 +239,11 @@ if couleur == "B":
         ]
     else:
         Liste_strategie = [
+            [2825,1250],
+            [2825,1150],
+            [2150,800],
+            [2250,800],
+
             [2825,450],
             [2825,350],
             [2950,850],
@@ -248,11 +253,6 @@ if couleur == "B":
             [1850,175],
             [2350,100],
             [1450,100],
-
-            [1800,800],
-            [1900,800],
-            [1450,800],
-            [2250,800],
 
         ]
  
@@ -296,6 +296,11 @@ else:
         ]
     else:
         Liste_strategie = [
+            [175,1250],
+            [175,1150],
+            [850,800],
+            [750,800],
+
             [175,450],
             [175,350],
             [50,850],
@@ -305,11 +310,6 @@ else:
             [1150,175],
             [650,100],
             [1550,100],
-
-            [1200,800],
-            [1100,800],
-            [1550,800],
-            [750,800],
 
         ]
 
