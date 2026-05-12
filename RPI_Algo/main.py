@@ -6,7 +6,7 @@ affichage = True
 Strategie = True
 Astars = True
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Simul_action = True
 
@@ -200,7 +200,7 @@ PORT_ENVOI = 5000
 
 # Coordonnées et angle de notre robot (coordonnées initiales en haut)
 if couleur == "B":
-    x_robot_depart = int(2850-LARGEUR_ROBOT/2)
+    x_robot_depart = int(2825)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
 
@@ -257,7 +257,7 @@ if couleur == "B":
         ]
  
 else:
-    x_robot_depart = int(150+LARGEUR_ROBOT/2)
+    x_robot_depart = int(175)
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
     
