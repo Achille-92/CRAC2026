@@ -613,9 +613,15 @@ def lidar_udp(stop_event):
         # Calcul de la position moyenne de l'ennemi (moyenne des points valides)
         with lock:
             points_valides = points[points[:, 0] != 10000]
+
             if len(points_valides) > 0:
-                x_ennemi_lidar = np.mean(points_valides[:, 0])
-                y_ennemi_lidar = np.mean(points_valides[:, 1])
+                distances = np.sqrt((points_valides[:, 0] - x_robot_actuel)**2 + 
+                           (points_valides[:, 1] - y_robot_actuel)**2)
+                
+                index_min = np.argmin(distances)
+                x_ennemi_lidar = points_valides[index_min, 0]
+                y_ennemi_lidar = points_valides[index_min, 1]
+                
             else:
                 # Aucun point valide détecté - placer hors du graphique
                 x_ennemi_lidar = -1000
