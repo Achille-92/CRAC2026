@@ -1,5 +1,5 @@
 couleur = "B"
-Reel = False
+Reel = True
 Wifi = False
 Lidar_on = True
 affichage = True
@@ -74,7 +74,7 @@ LARGEUR_ROBOT = 250
 LONGUEUR_ROBOT = 138
 R_ROBOT = int(math.sqrt((LARGEUR_ROBOT/2)**2+(LONGUEUR_ROBOT/2)**2))
 R_ROBOT = 170
-R_ENNEMI = 150
+R_ENNEMI = 350
 MARGE_ENNEMI = 100
 MARGE_NOISETTE = 10
 MARGE_GM = -35
