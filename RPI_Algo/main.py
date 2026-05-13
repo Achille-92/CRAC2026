@@ -1,10 +1,10 @@
 couleur = "B"
-Reel = True
+Reel = False
 Wifi = False
 Lidar_on = True
 affichage = True
-Strategie = False
-Astars = False
+Strategie = True
+Astars = True
 
 Simul_mvt = True
 Simul_mvt_ennemi = False
@@ -18,7 +18,7 @@ lancement_cartes = True
 faire_Ninja = False
 Strat_agressive = False
 Pousser = True
-Faire_curseur = True
+Faire_curseur = False
 TOL_PRECIS = 15
 TOL_PASPRECIS = 70
 
@@ -53,7 +53,7 @@ Strat_agressive = fenetre_selection_agression()
 Pousser = fenetre_selection_pousser()
 
 # Config CAN 
-Liste_ID_recoit = [0x02,0x03,0x04,0x05,0x06,0x008,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F,0x110] # ID sur lesquels la RPI va recevoir des données
+Liste_ID_recoit = [0x02,0x03,0x04,0x05,0x06,0x008,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F,0x110,0x111,0x112] # ID sur lesquels la RPI va recevoir des données
 Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x204,0x205,0x206,0x207,0x208,0x209,0x20A,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
@@ -74,7 +74,7 @@ LARGEUR_ROBOT = 250
 LONGUEUR_ROBOT = 138
 R_ROBOT = int(math.sqrt((LARGEUR_ROBOT/2)**2+(LONGUEUR_ROBOT/2)**2))
 R_ROBOT = 170
-R_ENNEMI = 350
+R_ENNEMI = 250
 MARGE_ENNEMI = 100
 MARGE_NOISETTE = 10
 MARGE_GM = -35
@@ -267,6 +267,8 @@ if couleur == "B":
             [2825,350],
             [2950,850],
             [2950,750],
+            
+            ["Recalage_Y"],
 
             [1950,175],
             [1850,175],
@@ -326,6 +328,8 @@ else:
             [175,350],
             [50,850],
             [50,750],
+            
+            ["Recalage_Y"],
 
             [1050,175],
             [1150,175],

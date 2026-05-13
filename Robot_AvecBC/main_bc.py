@@ -813,7 +813,7 @@ if __name__ == '__main__':
                         try:
                             message_second = json.dumps(donnees_pour_PAMI)
                             client_socket_second = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                            client_socket_second.settimeout(0.3)  # ✅ Augmenté à 300ms (plus fiable)
+                            client_socket_second.settimeout(0.1)  # ✅ Augmenté à 300ms (plus fiable)
                             client_socket_second.connect((IP_PAMI[i], PORT_PAMI))
                             client_socket_second.sendall(message_second.encode())
                             client_socket_second.close()
