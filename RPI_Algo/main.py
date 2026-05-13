@@ -1,13 +1,13 @@
 couleur = "B"
 Reel = False
-Wifi = True
+Wifi = False
 Lidar_on = False
 affichage = True
-Strategie = True
-Astars = True
+Strategie = False
+Astars = False
 
 Simul_mvt = True
-Simul_mvt_ennemi = True
+Simul_mvt_ennemi = False
 Simul_action = True
 
 Maj_Noisette = False
@@ -91,9 +91,23 @@ MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 DISTANCE_MIN_ROBOT = 50  # Distance minimale au robot en mm
 ############################
 
-Liste_actions = [
-    ["Attente"]
-]
+if couleur == "B":
+    Liste_actions = [
+        ["Consigne",2825,int(900+LONGUEUR_ROBOT/2)],
+        ["ReculerPrecis",2825,1200],
+        ["Avancer",2500,1200],
+        ["Consigne",2200,800],
+        ["Attente"]
+    ]
+else:
+    Liste_actions = [
+        ["Consigne",175,int(900+LONGUEUR_ROBOT/2)],
+        ["ReculerPrecis",175,1200],
+        ["Avancer",500,1200],
+        ["Consigne",800,800],
+        ["Attente"]
+    ]
+
 
 Liste_actions_ennemi = []
 
@@ -434,7 +448,7 @@ aller_GM = False
 temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
-temps_retour = 10 # Temps restant pour revenir au départ en fin de match
+temps_retour = 12 # Temps restant pour revenir au départ en fin de match
 temps_max = 100
 reset_fin = False
 
@@ -1475,7 +1489,18 @@ if __name__ == '__main__':
                     demande_nouvelle_strat = True
 
             # === Retour au Nid au bout d'un certains temps === #
-            if not reset_fin :
+            print("reset_fin : ",reset_fin)
+            if not Strategie and not reset_fin:
+                if temps_restant <= temps_retour:
+                    Liste_actions.clear() 
+                    if couleur == "B":
+                        Liste_actions = [["Consigne",int(2700),int(1500)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
+                    if couleur == "J":
+                        Liste_actions = [["Consigne",int(300),int(1500)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
+                    
+                    
+                    reset_fin = True
+            elif not reset_fin and Strategie:
                 if temps_restant <= temps_retour:
                     Liste_actions.clear() 
                     Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour-100)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
@@ -1582,7 +1607,7 @@ if __name__ == '__main__':
                 else:
                     Astars_a_fail = False
                     
-            elif grid_expanded[x_case_robot, y_case_robot] and not mode_attraper:
+            elif Astars and grid_expanded[x_case_robot, y_case_robot] and not mode_attraper:
                 print("⚠️ Robot dans zone interdite — recherche case libre proche")
                 x_libre, y_libre = trouver_case_libre_proche(
                     x_robot_actuel, y_robot_actuel,
@@ -1623,7 +1648,7 @@ if __name__ == '__main__':
                 Astars_a_fail = False
                 print("Ennemi assez loin du robot")
 
-                if (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper:
+                if Astars and (action_voulu in ["Consigne","ReculerPrecis"] or demande_recalcul_traj == True) and not mode_attraper:
                     Astars_a_fail = False
                     demande_recalcul_traj = False
                     grid, grid_expanded, obstacle_array, expanded_array,obs_manager, obs_manager_noisettes,obstacle_scatter, expanded_scatter, distance_map,ax, width, height, CASE_MM = actualiser_zones_jeu(grid, grid_expanded, obstacle_array, expanded_array, obs_manager, obs_manager_noisettes,Liste_noisette_xya,obstacle_scatter, expanded_scatter, distance_map, ax, width, height, CASE_MM)
@@ -2311,10 +2336,11 @@ if __name__ == '__main__':
                     action_precedente = action_voulu
                     x_sortie_fixe = None
                     y_sortie_fixe = None
-                    if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
-                        Liste_strategie.pop(0)
-                        demande_nouvelle_strat = True
-                        demande_recalcul_traj = True
+                    if Strategie:
+                        if Liste_actions[0][0] in ["Attente"] and len(Liste_strategie)>1:
+                            Liste_strategie.pop(0)
+                            demande_nouvelle_strat = True
+                            demande_recalcul_traj = True
             else :
                 action_est_supprime = False
             
