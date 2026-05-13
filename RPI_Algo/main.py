@@ -1,10 +1,10 @@
 couleur = "B"
 Reel = False
 Wifi = False
-Lidar_on = False
+Lidar_on = True
 affichage = True
-Strategie = False
-Astars = False
+Strategie = True
+Astars = True
 
 Simul_mvt = True
 Simul_mvt_ennemi = False
@@ -90,24 +90,25 @@ MARGE_BORDUREPISTE_X = 120 # Détection Lidar
 MARGE_BORDUREPISTE_Y = 80 # Détection Lidar
 DISTANCE_MIN_ROBOT = 50  # Distance minimale au robot en mm
 ############################
-
-if couleur == "B":
-    Liste_actions = [
-        ["Consigne",2825,int(900+LONGUEUR_ROBOT/2)],
-        ["ReculerPrecis",2825,1200],
-        ["Avancer",2500,1200],
-        ["Consigne",2200,800],
-        ["Attente"]
-    ]
+if not Strategie:
+    if couleur == "B":
+        Liste_actions = [
+            ["Consigne",2825,int(900+LONGUEUR_ROBOT/2)],
+            ["ReculerPrecis",2825,1200],
+            ["Avancer",2500,1200],
+            ["Consigne",2200,800],
+            ["Attente"]
+        ]
+    else:
+        Liste_actions = [
+            ["Consigne",175,int(900+LONGUEUR_ROBOT/2)],
+            ["ReculerPrecis",175,1200],
+            ["Avancer",500,1200],
+            ["Consigne",800,800],
+            ["Attente"]
+        ]
 else:
-    Liste_actions = [
-        ["Consigne",175,int(900+LONGUEUR_ROBOT/2)],
-        ["ReculerPrecis",175,1200],
-        ["Avancer",500,1200],
-        ["Consigne",800,800],
-        ["Attente"]
-    ]
-
+    Liste_actions = []
 
 Liste_actions_ennemi = []
 
@@ -258,6 +259,8 @@ if couleur == "B":
             [2150,800],
             [2250,800],
 
+            ["Recalage_X"],
+
             [2825,450],
             [2825,350],
             [2950,850],
@@ -314,6 +317,8 @@ else:
             [175,1150],
             [850,800],
             [750,800],
+            
+            ["Recalage_X"],
 
             [175,450],
             [175,350],
@@ -329,7 +334,7 @@ else:
 
 if Faire_curseur:
     if not Strat_agressive:
-        Liste_strategie.insert(4,['Curseur'])
+        Liste_strategie.insert(8,['Curseur'])
 
 x_robot_actuel = x_robot_depart
 y_robot_actuel = y_robot_depart
@@ -460,6 +465,8 @@ verif_action = 0
 verif_action1 = 0
 verif_action2 = 0
 verif_recalage = 0
+verif_recalageX = 0
+verif_recalageY = 0
 verif_curseur = 0
 
 action_est_supprime = False 
@@ -623,7 +630,7 @@ def LectureCAN(stop_event):
     Si l'ID du message n'est pas dans la Liste_ID, saute
     Sinon, met à jour les coordonées et angle du robot, valeurs des batteries
     """
-    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, bus, verif_mouv, verif_angle,verif_action1,verif_action2,Batteries_alert, carte_actionneur0_active, carte_actionneur1_active, carte_asserv_active, carte_batteries_active, etat_bau,verif_recalage,verif_curseur
+    global x_robot_actuel, y_robot_actuel, angle_robot_actuel, Liste_ID_recoit, Batteries, bus, verif_mouv, verif_angle,verif_action1,verif_action2,Batteries_alert, carte_actionneur0_active, carte_actionneur1_active, carte_asserv_active, carte_batteries_active, etat_bau,verif_recalage,verif_curseur, verif_recalageX, verif_recalageY
     while not stop_event.is_set():
         msg = bus.recv(0.05)
         if msg is None:
@@ -695,6 +702,11 @@ def LectureCAN(stop_event):
         elif msg.arbitration_id == 0x008:
             if msg.dlc >= 1:
                 verif_curseur = msg.data[0]
+                
+        elif msg.arbitration_id == 0x111:
+            verif_recalageX = struct.unpack('f', bytes(msg.data))[0]
+        elif msg.arbitration_id == 0x112:
+            verif_recalageY = struct.unpack('f', bytes(msg.data))[0]
     
 # Fonction pour recevoir des données de la RPI
 def comm_bc(stop_event):
@@ -834,7 +846,7 @@ def bouton_attraper_callback(event):
     """
     Callback pour le bouton Attraper.
     """
-    global verif_action1,verif_action2,verif_action, action_voulu,verif_curseur
+    global verif_action1,verif_action2,verif_action, action_voulu,verif_curseur,verif_recalageX,verif_recalageY
     
     # Vérifier qu il y a une action en cours
     if len(Liste_actions) > 0 and action_voulu in ["Attraper","Retourner","Relacher"]:
@@ -844,6 +856,10 @@ def bouton_attraper_callback(event):
         verif_action = 1
     if len(Liste_actions) > 0 and action_voulu in ["Curseur_Bleu","Curseur_Jaune"]:
         verif_curseur = 1
+    if len(Liste_actions) > 0 and action_voulu in ["Recalage_X"]:
+        verif_recalageX = 1
+    if len(Liste_actions) > 0 and action_voulu in ["Recalage_Y"]:
+        verif_recalageY = 1
 
 
 def update_display(background):
@@ -1529,7 +1545,9 @@ if __name__ == '__main__':
                         elif len(Liste_strategie[0])==1:
                             if Liste_actions[0][0] in ['Curseur_Bleu','Curseur_Jaune']:
                                 print("Changement de stratégie")
-                                couple_strat = Liste_strategie.pop(0) 
+                                couple_strat = Liste_strategie.pop(0)
+                            if Liste_actions[0][0]in ["Recalage_X","Recalage_Y"]:
+                                pass 
 
                         if len(Liste_strategie[0])==2:
                             x_strategie = Liste_strategie[0][0]
@@ -1538,11 +1556,16 @@ if __name__ == '__main__':
                             demande_recalcul_traj = True
 
                         else:
-                            if couleur == "B":
-                                Liste_actions = [["Curseur_Bleu"],["Attente"],["Attente"]]
-                            if couleur == "J":
-                                Liste_actions = [["Curseur_Jaune"],["Attente"],["Attente"]]
-
+                            if Liste_strategie[0][0] in ["Curseur_Bleu","Curseur_Jaune"]:
+                                if couleur == "B":
+                                    Liste_actions = [["Curseur_Bleu"],["Attente"],["Attente"]]
+                                if couleur == "J":
+                                    Liste_actions = [["Curseur_Jaune"],["Attente"],["Attente"]]
+                            if Liste_strategie[0][0] in ["Recalage_X"]:
+                                Liste_actions = [["Recalage_X"],["Attente"],["Attente"]]
+                            if Liste_strategie[0][0] in ["Recalage_Y"]:
+                                Liste_actions = [["Recalage_Y"],["Attente"],["Attente"]]
+                            
             # ================================================= #
             
 
@@ -1553,7 +1576,7 @@ if __name__ == '__main__':
                 y_robot_voulu = Liste_actions[0][2]
                 angle_robot_voulu = -181
 
-            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Attente","Attente_test","Curseur_Bleu","Curseur_Jaune"]:
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Attente","Attente_test","Curseur_Bleu","Curseur_Jaune","Recalage_X","Recalage_Y"]:
                 action_voulu = Liste_actions[0][0]
                 
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
@@ -1600,7 +1623,7 @@ if __name__ == '__main__':
                 
                 print("Ennemi trop proche du robot")
 
-                if action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis","Rotation"]:
+                if action_voulu in ["Consigne","Avancer","Reculer","ReculerPrecis","Rotation","Recalage_X","Recalage_Y"]:
                     demande_recalcul_traj = True
                     Astars_a_fail = True
                     
@@ -1833,7 +1856,7 @@ if __name__ == '__main__':
                     y_robot_voulu_prochain = y_robot_voulu
                 angle_robot_voulu = -181
 
-            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Attente","Attente_test"]:
+            elif type(Liste_actions[0]) == list and len(Liste_actions[0])==1 and Liste_actions[0][0] in ["Attente","Attente_test","Curseur_Bleu","Curseur_Jaune","Recalage_X","Recalage_Y"]:
                 action_voulu = Liste_actions[0][0]
                 
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
@@ -1875,6 +1898,10 @@ if __name__ == '__main__':
                 ordre_mouvement = 9
             elif action_voulu in ["Curseur_Jaune"]:
                 ordre_mouvement = 10
+            elif action_voulu in ["Recalage_X"]:
+                ordre_mouvement = 11
+            elif action_voulu in ["Recalage_Y"]:
+                ordre_mouvement = 12
             else :
                 ordre_mouvement=100
             # ======================================================== #
@@ -1898,7 +1925,7 @@ if __name__ == '__main__':
             dico_envoi[0x209] = x_robot_voulu
             dico_envoi[0x20A] = y_robot_voulu
             dico_envoi[0x205] = angle_robot_voulu+360
-            dico_envoi[0x206]= ordre_mouvement
+            dico_envoi[0x206] = ordre_mouvement
             # ==================================================================== #
 
             # Envoi des Ordres de Manipulation des Noisettes à la Carte Actionneur #
@@ -1955,7 +1982,7 @@ if __name__ == '__main__':
             """elif not Reel and Wifi:
                 x_robot_actuel = x_robot_actuel_cam
                 y_robot_actuel = y_robot_actuel_cam_corr
-                angle_robot_actuel = angle_robot_actuel_cam  """         
+                angle_robot_actuel = angle_robot_actuel_cam"""         
 
             # ============== MISE À JOUR AFFICHAGE ==================== #
 
@@ -2033,7 +2060,7 @@ if __name__ == '__main__':
                     Batteries_interrupteur[1]=2
                 else :
                     Batteries_interrupteur[1]=1
-                #Batteries_interrupteur[2]=2
+                    
                 if Batteries_alert[2]==0:
                     Batteries_interrupteur[2]=2
                 else :
@@ -2088,6 +2115,16 @@ if __name__ == '__main__':
                 dico_envoi[0x208]=1
 
             
+            if verif_recalageX == 1:
+                dico_envoi[0x20B]=2
+            else :
+                dico_envoi[0x20B]=1
+
+            if verif_recalageY == 1:
+                dico_envoi[0x20C]=2
+            else :
+                dico_envoi[0x20C]=1
+
             if (verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1):
                 dico_envoi[0x504+pince_a_utilise]=2
             else :
@@ -2107,6 +2144,8 @@ if __name__ == '__main__':
                 (action_voulu in ["Rotation"] and verif_angle == 1) or \
                 (action_voulu in ["Attente_test"] and verif_action == 1) or \
                 (action_voulu in ["Curseur_Bleu","Curseur_Jaune"] and verif_curseur == 1) or \
+                (action_voulu in ["Recalage_X"] and verif_recalageX == 1) or \
+                (action_voulu in ["Recalage_Y"] and verif_recalageY == 1) or \
                 (action_voulu in ["Attraper","Retourner","Relacher"] and ((verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1))):
                     if not Reel:
                         if action_voulu in ["Curseur_Bleu","Curseur_Jaune"]:
@@ -2326,6 +2365,8 @@ if __name__ == '__main__':
                     verif_mouv=0
                     verif_mouv_rpi=0
                     verif_angle = 0
+                    verif_recalageX = 0
+                    verif_recalageY = 0
                     angle_robot_voulu = -181
                     verif_action = 0
                     verif_action1 = 0
