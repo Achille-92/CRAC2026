@@ -3,8 +3,8 @@ Reel = False
 Wifi = False
 Lidar_on = True
 affichage = True
-Strategie = True
-Astars = True
+Strategie = False
+Astars = False
 
 Simul_mvt = True
 Simul_mvt_ennemi = False
@@ -18,7 +18,7 @@ lancement_cartes = True
 faire_Ninja = False
 Strat_agressive = False
 Pousser = True
-Faire_curseur = False
+Faire_curseur = True
 TOL_PRECIS = 15
 TOL_PASPRECIS = 70
 
@@ -96,7 +96,8 @@ if not Strategie:
             ["Consigne",2825,int(900+LONGUEUR_ROBOT/2)],
             ["ReculerPrecis",2825,1200],
             ["Avancer",2500,1200],
-            ["Consigne",2200,800],
+            ["Consigne",2600,400],
+            ["Rotation",90],
             ["Attente"]
         ]
     else:
@@ -104,7 +105,8 @@ if not Strategie:
             ["Consigne",175,int(900+LONGUEUR_ROBOT/2)],
             ["ReculerPrecis",175,1200],
             ["Avancer",500,1200],
-            ["Consigne",800,800],
+            ["Consigne",400,400],
+            ["Rotation",90],
             ["Attente"]
         ]
 else:
@@ -334,7 +336,7 @@ else:
 
 if Faire_curseur:
     if not Strat_agressive:
-        Liste_strategie.insert(8,['Curseur'])
+        Liste_strategie.insert(9,['Curseur'])
 
 x_robot_actuel = x_robot_depart
 y_robot_actuel = y_robot_depart
@@ -1510,9 +1512,9 @@ if __name__ == '__main__':
                 if temps_restant <= temps_retour:
                     Liste_actions.clear() 
                     if couleur == "B":
-                        Liste_actions = [["Consigne",int(2700),int(1500)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
+                        Liste_actions = [["Consigne",int(2500),int(1300)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
                     if couleur == "J":
-                        Liste_actions = [["Consigne",int(300),int(1500)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
+                        Liste_actions = [["Consigne",int(500),int(1300)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
                     
                     
                     reset_fin = True
@@ -1546,6 +1548,7 @@ if __name__ == '__main__':
                             if Liste_actions[0][0] in ['Curseur_Bleu','Curseur_Jaune']:
                                 print("Changement de stratégie")
                                 couple_strat = Liste_strategie.pop(0)
+
                             if Liste_actions[0][0]in ["Recalage_X","Recalage_Y"]:
                                 pass 
 
@@ -1556,15 +1559,16 @@ if __name__ == '__main__':
                             demande_recalcul_traj = True
 
                         else:
-                            if Liste_strategie[0][0] in ["Curseur_Bleu","Curseur_Jaune"]:
+                            if Liste_strategie[0][0] in ["Curseur"]:
                                 if couleur == "B":
                                     Liste_actions = [["Curseur_Bleu"],["Attente"],["Attente"]]
                                 if couleur == "J":
                                     Liste_actions = [["Curseur_Jaune"],["Attente"],["Attente"]]
-                            if Liste_strategie[0][0] in ["Recalage_X"]:
-                                Liste_actions = [["Recalage_X"],["Attente"],["Attente"]]
-                            if Liste_strategie[0][0] in ["Recalage_Y"]:
-                                Liste_actions = [["Recalage_Y"],["Attente"],["Attente"]]
+                            else:
+                                if Liste_strategie[0][0] in ["Recalage_X"]:
+                                    Liste_actions = [["Recalage_X"],["Attente"],["Attente"]]
+                                if Liste_strategie[0][0] in ["Recalage_Y"]:
+                                    Liste_actions = [["Recalage_Y"],["Attente"],["Attente"]]
                             
             # ================================================= #
             
