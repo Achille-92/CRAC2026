@@ -455,7 +455,7 @@ aller_GM = False
 temps_demarage = 0
 temps_ecoules = 0
 temps_restant = 100
-temps_retour = 12 # Temps restant pour revenir au départ en fin de match
+temps_retour = 8 # Temps restant pour revenir au départ en fin de match
 temps_max = 100
 reset_fin = False
 
@@ -1512,9 +1512,9 @@ if __name__ == '__main__':
                 if temps_restant <= temps_retour:
                     Liste_actions.clear() 
                     if couleur == "B":
-                        Liste_actions = [["Consigne",int(2500),int(1300)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
+                        Liste_actions = [["Avancer",int(2700),int(1300)],["Avancer",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
                     if couleur == "J":
-                        Liste_actions = [["Consigne",int(500),int(1300)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
+                        Liste_actions = [["Avancer",int(300),int(1300)],["Avancer",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
                     
                     
                     reset_fin = True
