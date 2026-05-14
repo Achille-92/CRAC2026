@@ -1,6 +1,6 @@
 couleur = "B"
-Reel = True
-Wifi = True
+Reel = False
+Wifi = False
 Lidar_on = True
 affichage = True
 Strategie = True
@@ -2412,7 +2412,7 @@ if __name__ == '__main__':
             if Reel :
                 for key, value in dico_envoi.items() :
                     if value != 0:
-                        if key in [0x01,0x206,0x207,0x208,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]:
+                        if key in [0x01,0x206,0x207,0x208,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505,0x506]:
                             format_value = struct.pack('<i',dico_envoi[key])
                         else:
                             format_value = struct.pack('<f',dico_envoi[key])

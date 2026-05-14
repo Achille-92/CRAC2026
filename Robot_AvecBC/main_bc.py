@@ -1,7 +1,7 @@
 couleur = "B"
 Camera = True
 Camera_active = Camera
-WiFi = False
+WiFi = True
 Pami = True
 Strategie = False
 Debug_strategie = False
@@ -499,7 +499,7 @@ if __name__ == '__main__':
             system.homographie.calcul_homographie_robot(system.calibration_mode_robot.calibration_points)
             system.plan_robot_calcule = True
 
-        cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         if not cap.isOpened():
             print("Erreur: impossible d'ouvrir la caméra")
 
