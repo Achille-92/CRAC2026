@@ -1,7 +1,7 @@
 couleur = "B"
 Camera = True
 Camera_active = Camera
-WiFi = True
+WiFi = False
 Pami = True
 Strategie = False
 Debug_strategie = False
@@ -499,7 +499,7 @@ if __name__ == '__main__':
             system.homographie.calcul_homographie_robot(system.calibration_mode_robot.calibration_points)
             system.plan_robot_calcule = True
 
-        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
         if not cap.isOpened():
             print("Erreur: impossible d'ouvrir la caméra")
 
@@ -809,12 +809,8 @@ if __name__ == '__main__':
                         "temps_restant": int(temps_restant),
                     }
                     message_second = json.dumps(donnees_pour_PAMI).encode()
+                    socket_pami_udp.sendto(message_second, ("192.168.0.255", PORT_PAMI))
 
-                    for i in range(7):
-                        try:
-                            socket_pami_udp.sendto(message_second, (IP_PAMI[i], PORT_PAMI))
-                        except OSError as e:
-                            print(f"❌ Envoi UDP échoué vers {IP_PAMI[i]}:{PORT_PAMI} - {e}")
                             
             # MAJ de l'affichage et des Variables de Bouncing
             update_display(background)

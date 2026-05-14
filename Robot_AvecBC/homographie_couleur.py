@@ -168,20 +168,13 @@ class CalculHomographie:
         return positions
 
     def position_tag_robot(self) -> Dict[int, np.ndarray]:
-        """
-        Positions d'étalonnage pour le plan Robot.
-        Tag 22: coin haut-droit  (50, 50)
-        Tag 23: coin haut-gauche (2950, 50)
-        Tag 20: coin bas-droit   (50, 1500)  <- MODIFIÉ
-        Tag 21: coin bas-gauche  (2950, 1500) <- MODIFIÉ
-        """
         cfg = self.config
         demi_taille = cfg.tag_taille_mm / 2
         positions = {
-            22: np.array([demi_taille, demi_taille]),                    # (50, 50)
-            23: np.array([cfg.largeur_totale_mm - demi_taille, demi_taille]),  # (2950, 50)
-            20: np.array([demi_taille, 1500-demi_taille]),                         # (50, 1500)
-            21: np.array([cfg.largeur_totale_mm - demi_taille, 1500.0-demi_taille]), # (2950, 1500)
+            22: np.array([demi_taille, demi_taille]),
+            23: np.array([cfg.largeur_totale_mm - demi_taille, demi_taille]),
+            20: np.array([demi_taille, 1500-demi_taille]),
+            21: np.array([cfg.largeur_totale_mm - demi_taille, 1500.0-demi_taille]),
         }
         return positions
 
@@ -282,21 +275,17 @@ class CalculHomographie:
     # ── Homographie plan Robot ────────────────────────────────────────────────
 
     def calcul_homographie_robot(self, calibration_points: Dict[int, np.ndarray]) -> bool:
-        """
-        Calcule l'homographie pour le plan robot à partir des 4 positions calibrées.
-        Utilise position_tag_robot() avec les coordonnées spécifiques au plan robot.
-        """
         if len(calibration_points) != 4:
             return False
 
-        position_robot = self.position_tag_robot()  # <- MODIFIÉ
+        position_robot = self.position_tag_robot()
         src_points, dst_points = [], []
 
         for tag_id in [20, 21, 22, 23]:
             if tag_id in calibration_points and tag_id in position_robot:
                 centre_tag = np.mean(calibration_points[tag_id], axis=0)
                 src_points.append(centre_tag)
-                dst_points.append(position_robot[tag_id])  # <- MODIFIÉ
+                dst_points.append(position_robot[tag_id])
 
         if len(src_points) == 4:
             src = np.array(src_points, dtype=np.float32)
@@ -479,19 +468,19 @@ class ArUcoTrackingSystem:
         self.plan_reference_calcule = False
 
         # Mémoire des objets colorés détectés (filtre passe-bas)
-        self.color_memory_jaune = {}  # {id: {'obj': dict, 'frames_missing': int, 'last_seen': int}}
+        self.color_memory_jaune = {}
         self.color_memory_bleu = {}
         self.color_object_id_counter = 0
-        self.max_frames_missing = 2  # Nombre de frames avant suppression
-        self.distance_threshold_mm = 50.0  # Distance max pour considérer 2 objets identiques
+        self.max_frames_missing = 2
+        self.distance_threshold_mm = 50.0
         self.frame_counter = 0
 
         # Mémoire des paires (noisettes) détectées (filtre passe-bas)
-        self.pair_memory_jaune = {}  # {id: {'pair': dict, 'frames_missing': int, 'last_seen': int}}
+        self.pair_memory_jaune = {}
         self.pair_memory_bleu = {}
         self.pair_id_counter = 0
-        self.max_frames_missing_pairs = 2  # Nombre de frames avant suppression d'une paire
-        self.pair_distance_threshold_mm = 50.0  # Distance max pour considérer 2 paires identiques
+        self.max_frames_missing_pairs = 2
+        self.pair_distance_threshold_mm = 50.0
 
         if matrice_antidstorsion:
             self.load_calibration(matrice_antidstorsion)
@@ -501,35 +490,13 @@ class ArUcoTrackingSystem:
     def _draw_text_with_background(self, image, text, position, font=cv2.FONT_HERSHEY_SIMPLEX, 
                                 font_scale=0.6, text_color=(0, 255, 255), thickness=2,
                                 bg_color=(255, 255, 255), padding=5):
-        """
-        Dessine du texte avec un fond rectangulaire pour améliorer la lisibilité.
-        
-        Args:
-            image: Image sur laquelle dessiner
-            text: Texte à afficher
-            position: Tuple (x, y) de la position du texte
-            font: Police de caractères OpenCV
-            font_scale: Taille de la police
-            text_color: Couleur du texte (BGR)
-            thickness: Épaisseur du texte
-            bg_color: Couleur du fond (BGR) - blanc par défaut
-            padding: Espace entre le texte et le bord du rectangle (pixels)
-        """
         x, y = position
-        
-        # Obtenir la taille du texte
         (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
-        
-        # Calculer les coordonnées du rectangle de fond
         rect_x1 = x - padding
         rect_y1 = y - text_height - padding
         rect_x2 = x + text_width + padding
         rect_y2 = y + baseline + padding
-        
-        # Dessiner le rectangle de fond blanc
         cv2.rectangle(image, (rect_x1, rect_y1), (rect_x2, rect_y2), bg_color, -1)
-        
-        # Dessiner le texte par-dessus
         cv2.putText(image, text, (x, y), font, font_scale, text_color, thickness)
 
     def load_calibration(self, filepath: str):
@@ -652,36 +619,39 @@ class ArUcoTrackingSystem:
                 self.plan_robot_calcule = True
                 results['homographie_robot_ok'] = True
 
-        # ── Détection des couleurs (plan Noisette) ────────────────────────────
-        if self.plan_elevated_calcule:
-            self.frame_counter += 1  # Incrémenter le compteur de frames
-            
+        # ══════════════════════════════════════════════════════════════════════
+        # ── DÉTECTION DES COULEURS (PLAN DE RÉFÉRENCE) ── MODIFIÉ
+        # ══════════════════════════════════════════════════════════════════════
+        if self.plan_reference_calcule:  # ← MODIFIÉ : était plan_elevated_calcule
+            self.frame_counter += 1
+
             color_results = self.color_detector.detect_colors(undistorted_pour_detection)
 
             cfg = self.config
-            y_max_zone_noisette = 1450.0  # Aligné avec les points de calibration
-            coins_elevated_mm = [
-                np.array([0, 0]),
-                np.array([cfg.largeur_totale_mm, 0]),
-                np.array([cfg.largeur_totale_mm, y_max_zone_noisette]),
-                np.array([0, y_max_zone_noisette])
-            ]
+            # Zone de filtrage dans le plan de référence (sol)
+            # Origine (0,0) = tag 22, s'étend avec les marges
+            coins_ref_zone_mm = [
+                np.array([-cfg.ajout_horizontal_mm, -cfg.ajout_vertical_mm]),
+                np.array([cfg.tags_largeur_mm + cfg.ajout_horizontal_mm, -cfg.ajout_vertical_mm]),
+                np.array([cfg.tags_largeur_mm + cfg.ajout_horizontal_mm, cfg.tags_longueur_mm + cfg.ajout_vertical_mm]),
+                np.array([-cfg.ajout_horizontal_mm, cfg.tags_longueur_mm + cfg.ajout_vertical_mm])
+            ]  # ← MODIFIÉ : zone adaptée au plan de référence
 
             objets_jaunes_valides, objets_bleus_valides = [], []
             filtre_jaune, filtre_bleu = 0, 0
 
             for obj in color_results['jaune']:
-                pos_elevated = self.homographie.point_cam_to_elevated(obj['centre_pixel'])
-                if pos_elevated is not None and self.point_dans_polygone(pos_elevated, coins_elevated_mm):
-                    obj['pos_elevated'] = pos_elevated
+                pos_ref = self.homographie.point_cam_to_ref(obj['centre_pixel'])  # ← MODIFIÉ
+                if pos_ref is not None and self.point_dans_polygone(pos_ref, coins_ref_zone_mm):
+                    obj['pos_ref'] = pos_ref  # ← MODIFIÉ : pos_elevated → pos_ref
                     objets_jaunes_valides.append(obj)
                 else:
                     filtre_jaune += 1
 
             for obj in color_results['bleu']:
-                pos_elevated = self.homographie.point_cam_to_elevated(obj['centre_pixel'])
-                if pos_elevated is not None and self.point_dans_polygone(pos_elevated, coins_elevated_mm):
-                    obj['pos_elevated'] = pos_elevated
+                pos_ref = self.homographie.point_cam_to_ref(obj['centre_pixel'])  # ← MODIFIÉ
+                if pos_ref is not None and self.point_dans_polygone(pos_ref, coins_ref_zone_mm):
+                    obj['pos_ref'] = pos_ref  # ← MODIFIÉ
                     objets_bleus_valides.append(obj)
                 else:
                     filtre_bleu += 1
@@ -693,7 +663,17 @@ class ArUcoTrackingSystem:
             objets_jaunes_avec_memoire = self._update_color_memory(objets_jaunes_valides, self.color_memory_jaune, 'jaune')
             objets_bleus_avec_memoire = self._update_color_memory(objets_bleus_valides, self.color_memory_bleu, 'bleu')
 
-            # ANALYSE DE PAIRES : Créer les Noisettes à partir des zones de couleur
+            # ── Affichage des centres des zones de couleur dans le plan de référence ──
+            for obj in objets_jaunes_avec_memoire:
+                pos = obj.get('pos_ref')
+                if pos is not None:
+                    print(f"[JAUNE] X={pos[0]:.1f} mm, Y={pos[1]:.1f} mm")
+            for obj in objets_bleus_avec_memoire:
+                pos = obj.get('pos_ref')
+                if pos is not None:
+                    print(f"[BLEU]  X={pos[0]:.1f} mm, Y={pos[1]:.1f} mm")
+
+            """# ANALYSE DE PAIRES : Créer les Noisettes à partir des zones de couleur
             paires_jaunes = self._analyze_color_pairs(objets_jaunes_avec_memoire, 'jaune', objets_bleus_avec_memoire)
             paires_bleues = self._analyze_color_pairs(objets_bleus_avec_memoire, 'bleu', objets_jaunes_avec_memoire)
 
@@ -711,10 +691,10 @@ class ArUcoTrackingSystem:
 
             # Affichage uniquement des objets individuels (avec mémoire)
             for obj in objets_jaunes_avec_memoire:
-                if obj.get('pos_elevated') is not None:
+                if obj.get('pos_ref') is not None:  # ← MODIFIÉ
                     self._process_colored_object(obj, undistorted_copie, results, (0, 255, 255))
             for obj in objets_bleus_avec_memoire:
-                if obj.get('pos_elevated') is not None:
+                if obj.get('pos_ref') is not None:  # ← MODIFIÉ
                     self._process_colored_object(obj, undistorted_copie, results, (140, 91, 0))
 
             # Construction de Liste_noisette_xya
@@ -733,41 +713,32 @@ class ArUcoTrackingSystem:
                     int(paire['angle_deg']),
                     'B'
                 ])
-            results['Liste_noisette_xya'] = Liste_noisette_xya
+            results['Liste_noisette_xya'] = Liste_noisette_xya"""
 
-            # Rectangle étendu plan surélevé Noisette (cyan)
-            cfg = self.config
-            coins_elev = [
-                np.array([0, 0]),
-                np.array([cfg.largeur_totale_mm, 0]),
-                np.array([cfg.largeur_totale_mm, y_max_zone_noisette]),
-                np.array([0, y_max_zone_noisette]),
-            ]
-            pixels_elev = [self.homographie.point_elevated_to_cam(p) for p in coins_elev]
-            if all(p is not None for p in pixels_elev):
-                rect_elev = np.array([p.astype(int) for p in pixels_elev], dtype=np.int32)
-                cv2.polylines(undistorted_copie, [rect_elev], True, (255, 255, 0), 3)
+            # Rectangle de la zone de détection couleurs (cyan) ← MODIFIÉ
+            pixels_zone = [self.homographie.point_ref_to_cam(p) for p in coins_ref_zone_mm]  # ← MODIFIÉ
+            if all(p is not None for p in pixels_zone):
+                rect_zone = np.array([p.astype(int) for p in pixels_zone], dtype=np.int32)
+                cv2.polylines(undistorted_copie, [rect_zone], True, (255, 255, 0), 3)
 
         # ── Dessin du rectangle étendu du plan Robot (orange) ────────────────
         if self.plan_robot_calcule:
             cfg = self.config
-            # Les coins du plan Robot : haut complet (y=0), bas tronqué (y=1500)
             y_max_zone_robot = 1450.0
             coins_robot = [
-                np.array([0, 0]),                        # Coin haut-droit
-                np.array([cfg.largeur_totale_mm, 0]),   # Coin haut-gauche
-                np.array([cfg.largeur_totale_mm, y_max_zone_robot]), # Coin bas-gauche (tronqué à y=1500)
-                np.array([0, y_max_zone_robot]),                   # Coin bas-droit (tronqué à y=1500)
+                np.array([0, 0]),
+                np.array([cfg.largeur_totale_mm, 0]),
+                np.array([cfg.largeur_totale_mm, y_max_zone_robot]),
+                np.array([0, y_max_zone_robot]),
             ]
             pixels_robot = [self.homographie.point_robot_to_cam(p) for p in coins_robot]
             if all(p is not None for p in pixels_robot):
                 rect_robot = np.array([p.astype(int) for p in pixels_robot], dtype=np.int32)
-                cv2.polylines(undistorted_copie, [rect_robot], True, (0, 165, 255), 3)  # Orange
+                cv2.polylines(undistorted_copie, [rect_robot], True, (0, 165, 255), 3)
 
         # ── Détection des tags robot et ennemi (plan Robot) ───────────────────
         if self.plan_robot_calcule:
             cfg = self.config
-            # Zone de filtrage : rectangle complet en largeur, tronqué à y=1500 en hauteur
             for tag_id, coins in detected_tags_list:
                 est_robot  = tag_id in self.config.tag_robot
                 est_ennemi = tag_id in self.config.tag_ennemi
@@ -780,33 +751,25 @@ class ArUcoTrackingSystem:
                 if pos_robot is None:
                     continue
 
-                # Calcul de l'angle du tag dans le plan robot
-                # Transformer les 4 coins du tag dans le plan robot
                 coins_robot_plan = []
                 for coin_pixel in coins:
                     coin_mm = self.homographie.point_cam_to_robot(coin_pixel)
                     if coin_mm is not None:
                         coins_robot_plan.append(coin_mm)
-                
-                # Calculer l'angle si les 4 coins sont disponibles
+
                 angle_deg = 0.0
                 if len(coins_robot_plan) == 4:
-                    # Vecteur du coin 0 vers coin 1 (côté du tag)
                     vec_x = coins_robot_plan[1][0] - coins_robot_plan[0][0]
                     vec_y = coins_robot_plan[1][1] - coins_robot_plan[0][1]
-                    # Angle en degrés par rapport à l'axe X horizontal
                     angle_rad = np.arctan2(vec_y, vec_x)
                     angle_deg = np.degrees(angle_rad)
 
-                # Vert pour nos robots, rouge pour les ennemis
                 color_display = (0, 255, 0) if est_robot else (0, 0, 255)
                 label = "ROBOT" if est_robot else "ENNEMI"
 
-                # Contour et centre
                 cv2.polylines(undistorted_copie, [coins.astype(np.int32)], True, color_display, 2)
                 cv2.circle(undistorted_copie, tuple(centre_pixel.astype(int)), 6, color_display, -1)
 
-                # Carré projeté
                 demi = self.config.tag_taille_mm_robot / 2
                 corners_robot_mm = np.array([
                     pos_robot + np.array([-demi, -demi]),
@@ -820,8 +783,7 @@ class ArUcoTrackingSystem:
                     cv2.polylines(undistorted_copie,
                                   [np.array(projected, dtype=np.int32)],
                                   True, color_display, 2)
-                
-                # Dessiner une flèche indiquant l'orientation du tag
+
                 if len(coins_robot_plan) == 4:
                     arrow_length = 40
                     end_x = int(centre_pixel[0] + arrow_length * np.cos(angle_rad))
@@ -842,10 +804,6 @@ class ArUcoTrackingSystem:
                 else:
                     results['tag_ennemi_detectes'].append(entry)
 
-                #print(f"{label} Tag {tag_id}: X={pos_robot[0]:.1f}mm, Y={pos_robot[1]:.1f}mm, Angle={angle_deg:.1f}°")
-
-            # Construction de Liste_robots_xy
-            # Format : [tag_id, X_mm, Y_mm, angle_deg, 'R' ou 'E']
             Liste_robots_xy = []
             for entry in results['tag_robot_detectes']:
                 Liste_robots_xy.append([
@@ -944,8 +902,8 @@ class ArUcoTrackingSystem:
         cv2.circle(image, tuple(centre_pixel.astype(int)), 8, color_bgr, -1)
         cv2.circle(image, tuple(centre_pixel.astype(int)), 10, (255, 255, 255), 2)
 
-        pos_elevated_tags = obj.get('pos_elevated')
-        if pos_elevated_tags is not None:
+        pos_ref = obj.get('pos_ref')  # ← MODIFIÉ
+        if pos_ref is not None:
             cross_size = 15
             cx, cy = int(centre_pixel[0]), int(centre_pixel[1])
             cv2.line(image, (cx - cross_size, cy), (cx + cross_size, cy), (255, 255, 255), 2)
@@ -953,8 +911,7 @@ class ArUcoTrackingSystem:
 
             results['objets_colores'].append({
                 'couleur': obj['couleur'],
-                'elevated_extended_mm': pos_elevated_tags.tolist(),
-                'elevated_tags_mm': pos_elevated_tags.tolist(),
+                'ref_mm': pos_ref.tolist(),  # ← MODIFIÉ
                 'pixel_center': centre_pixel.tolist(),
                 'aire_pixels': obj['aire']
             })
@@ -977,56 +934,36 @@ class ArUcoTrackingSystem:
         return inside
 
     def _update_color_memory(self, detected_objects: List[Dict], color_memory: Dict, color_name: str) -> List[Dict]:
-        """
-        Met à jour la mémoire des objets colorés avec un filtre passe-bas.
-        Conserve les objets même s'ils ne sont plus détectés pendant quelques frames.
-        
-        Args:
-            detected_objects: Liste des objets détectés dans la frame actuelle
-            color_memory: Dictionnaire de mémoire (self.color_memory_jaune ou self.color_memory_bleu)
-            color_name: Nom de la couleur ('jaune' ou 'bleu')
-            
-        Returns:
-            Liste des objets à afficher (détectés + mémoire récente)
-        """
         current_frame = self.frame_counter
         matched_ids = set()
         result_objects = []
-        
-        # Filtrer les objets détectés pour ne garder que ceux avec pos_elevated valide
-        valid_detected = [obj for obj in detected_objects if obj.get('pos_elevated') is not None]
-        
-        #print(f"[{color_name}] Frame {current_frame}: {len(valid_detected)} objets détectés, {len(color_memory)} en mémoire")
-        
-        # 1. Associer les objets détectés aux objets en mémoire
+
+        valid_detected = [obj for obj in detected_objects if obj.get('pos_ref') is not None]  # ← MODIFIÉ
+
         for obj in valid_detected:
-            pos_current = obj['pos_elevated']
+            pos_current = obj['pos_ref']  # ← MODIFIÉ
             best_match_id = None
             best_distance = self.distance_threshold_mm
-            
-            # Chercher l'objet le plus proche en mémoire
+
             for obj_id, mem_data in color_memory.items():
                 mem_obj = mem_data['obj']
-                if mem_obj.get('pos_elevated') is None:
+                if mem_obj.get('pos_ref') is None:  # ← MODIFIÉ
                     continue
-                    
-                pos_memory = mem_obj['pos_elevated']
+
+                pos_memory = mem_obj['pos_ref']  # ← MODIFIÉ
                 distance = np.linalg.norm(pos_current - pos_memory)
-                
+
                 if distance < best_distance:
                     best_distance = distance
                     best_match_id = obj_id
-            
+
             if best_match_id is not None:
-                # Objet existant : mettre à jour
                 color_memory[best_match_id]['obj'] = obj
                 color_memory[best_match_id]['frames_missing'] = 0
                 color_memory[best_match_id]['last_seen'] = current_frame
                 matched_ids.add(best_match_id)
                 result_objects.append(obj)
-                #print(f"  - Objet ID={best_match_id} mis à jour (distance={best_distance:.1f}mm)")
             else:
-                # Nouvel objet : ajouter à la mémoire
                 new_id = self.color_object_id_counter
                 self.color_object_id_counter += 1
                 color_memory[new_id] = {
@@ -1036,75 +973,47 @@ class ArUcoTrackingSystem:
                 }
                 matched_ids.add(new_id)
                 result_objects.append(obj)
-                #print(f"  - Nouvel objet ID={new_id} créé à [{pos_current[0]:.0f}, {pos_current[1]:.0f}]mm")
-        
-        # 2. Incrémenter le compteur de frames manquantes pour les objets non détectés
+
         ids_to_remove = []
         for obj_id, mem_data in color_memory.items():
             if obj_id not in matched_ids:
                 mem_data['frames_missing'] += 1
-                
-                # Si l'objet n'a pas été vu depuis trop longtemps, le supprimer
                 if mem_data['frames_missing'] > self.max_frames_missing:
                     ids_to_remove.append(obj_id)
-                    #print(f"  - Objet ID={obj_id} supprimé (absent depuis {mem_data['frames_missing']} frames)")
                 else:
-                    # Conserver l'objet en mémoire
                     result_objects.append(mem_data['obj'])
-                    #print(f"  - Objet ID={obj_id} conservé en mémoire (absent {mem_data['frames_missing']}/{self.max_frames_missing})")
-        
-        # 3. Supprimer les objets trop anciens
+
         for obj_id in ids_to_remove:
             del color_memory[obj_id]
-        
-        #print(f"  → Total objets affichés: {len(result_objects)}")
+
         return result_objects
 
     def _update_pair_memory(self, detected_pairs: List[Dict], pair_memory: Dict, color_name: str) -> List[Dict]:
-        """
-        Met à jour la mémoire des paires (noisettes) avec un filtre passe-bas.
-        Conserve les paires même si elles ne sont plus détectées pendant quelques frames.
-        
-        Args:
-            detected_pairs: Liste des paires détectées dans la frame actuelle
-            pair_memory: Dictionnaire de mémoire (self.pair_memory_jaune ou self.pair_memory_bleu)
-            color_name: Nom de la couleur ('jaune' ou 'bleu')
-            
-        Returns:
-            Liste des paires à afficher (détectées + mémoire récente)
-        """
         current_frame = self.frame_counter
         matched_ids = set()
         result_pairs = []
-        
-        #print(f"[{color_name} PAIRES] Frame {current_frame}: {len(detected_pairs)} paires détectées, {len(pair_memory)} en mémoire")
-        
-        # 1. Associer les paires détectées aux paires en mémoire
+
         for pair in detected_pairs:
             centre_current = np.array(pair['centre_mm'])
             best_match_id = None
             best_distance = self.pair_distance_threshold_mm
-            
-            # Chercher la paire la plus proche en mémoire
+
             for pair_id, mem_data in pair_memory.items():
                 mem_pair = mem_data['pair']
                 centre_memory = np.array(mem_pair['centre_mm'])
                 distance = np.linalg.norm(centre_current - centre_memory)
-                
+
                 if distance < best_distance:
                     best_distance = distance
                     best_match_id = pair_id
-            
+
             if best_match_id is not None:
-                # Paire existante : mettre à jour
                 pair_memory[best_match_id]['pair'] = pair
                 pair_memory[best_match_id]['frames_missing'] = 0
                 pair_memory[best_match_id]['last_seen'] = current_frame
                 matched_ids.add(best_match_id)
                 result_pairs.append(pair)
-                #print(f"  - Paire ID={best_match_id} mise à jour (distance={best_distance:.1f}mm)")
             else:
-                # Nouvelle paire : ajouter à la mémoire
                 new_id = self.pair_id_counter
                 self.pair_id_counter += 1
                 pair_memory[new_id] = {
@@ -1114,30 +1023,24 @@ class ArUcoTrackingSystem:
                 }
                 matched_ids.add(new_id)
                 result_pairs.append(pair)
-                #print(f"  - Nouvelle paire ID={new_id} créée à [{centre_current[0]:.0f}, {centre_current[1]:.0f}]mm")
-        
-        # 2. Incrémenter le compteur de frames manquantes pour les paires non détectées
+
         ids_to_remove = []
         for pair_id, mem_data in pair_memory.items():
             if pair_id not in matched_ids:
                 mem_data['frames_missing'] += 1
-                
-                # Si la paire n'a pas été vue depuis trop longtemps, la supprimer
                 if mem_data['frames_missing'] > self.max_frames_missing_pairs:
                     ids_to_remove.append(pair_id)
-                    #print(f"  - Paire ID={pair_id} supprimée (absente depuis {mem_data['frames_missing']} frames)")
                 else:
-                    # Conserver la paire en mémoire
                     result_pairs.append(mem_data['pair'])
-                    #print(f"  - Paire ID={pair_id} conservée en mémoire (absente {mem_data['frames_missing']}/{self.max_frames_missing_pairs})")
-        
-        # 3. Supprimer les paires trop anciennes
+
         for pair_id in ids_to_remove:
             del pair_memory[pair_id]
-        
-        #print(f"  → Total paires affichées: {len(result_pairs)}")
+
         return result_pairs
 
+    # ══════════════════════════════════════════════════════════════════════════
+    # ── _split_large_objects : MODIFIÉ pour utiliser le plan de référence
+    # ══════════════════════════════════════════════════════════════════════════
     def _split_large_objects(self, objects: List[Dict]) -> List[Dict]:
         result = []
         for obj in objects:
@@ -1151,7 +1054,7 @@ class ArUcoTrackingSystem:
             box_pixels = cv2.boxPoints(rect)
             coins_mm = []
             for pt in box_pixels:
-                pt_mm = self.homographie.point_cam_to_elevated(np.array(pt))
+                pt_mm = self.homographie.point_cam_to_ref(np.array(pt))  # ← MODIFIÉ
                 if pt_mm is not None:
                     coins_mm.append(pt_mm)
 
@@ -1165,43 +1068,25 @@ class ArUcoTrackingSystem:
             if largeur_mm < hauteur_mm:
                 largeur_mm, hauteur_mm = hauteur_mm, largeur_mm
 
-            # Déterminer si c'est un groupe de noisettes collées
-            # Les noisettes sont espacées de 50mm chacune
-            # 1 noisette seule : ~50mm de large
-            # 2 noisettes côte à côte : ~100mm de large (50mm + 50mm)
-            # 3 noisettes alignées : ~150mm de large (50mm + 50mm + 50mm)
-            # 4 noisettes alignées : ~200mm de large (50mm + 50mm + 50mm + 50mm)
-            
             nb_noisettes = 0
-            
-            if 30 < hauteur_mm < 70:  # Hauteur cohérente avec des noisettes
-                if 70 < largeur_mm < 130:  # Environ 100mm = 2 noisettes
+
+            if 30 < hauteur_mm < 70:
+                if 70 < largeur_mm < 130:
                     nb_noisettes = 2
-                    #print(f"  → Détecté : Groupe de 2 noisettes (largeur={largeur_mm:.1f}mm)")
-                elif 130 < largeur_mm < 180:  # Environ 150mm = 3 noisettes
+                elif 130 < largeur_mm < 180:
                     nb_noisettes = 3
-                    #print(f"  → Détecté : Groupe de 3 noisettes (largeur={largeur_mm:.1f}mm)")
-                elif 180 < largeur_mm < 230:  # Environ 200mm = 4 noisettes
+                elif 180 < largeur_mm < 230:
                     nb_noisettes = 4
-                    #print(f"  → Détecté : Groupe de 4 noisettes (largeur={largeur_mm:.1f}mm)")
-            
-            # Si ce n'est pas un groupe de noisettes collées, garder tel quel
+
             if nb_noisettes == 0:
                 result.append(obj)
                 continue
 
-            # Calculer la direction principale (axe le plus long du rectangle)
-            centre_mm = obj['pos_elevated']
+            centre_mm = obj['pos_ref']  # ← MODIFIÉ
             v1 = coins_mm[1] - coins_mm[0]
             v2 = coins_mm[2] - coins_mm[1]
             direction = v1 / np.linalg.norm(v1) if np.linalg.norm(v1) > np.linalg.norm(v2) else v2 / np.linalg.norm(v2)
 
-            # Créer les positions pour chaque noisette
-            # Les noisettes individuelles font 50mm de large et sont espacées de 50mm entre leurs centres
-            # Pour 2 noisettes : centres à -25, +25 (espacement total de 50mm)
-            # Pour 3 noisettes : centres à -50, 0, +50 (espacements de 50mm)
-            # Pour 4 noisettes : centres à -75, -25, +25, +75 (espacements de 50mm)
-            
             if nb_noisettes == 2:
                 offsets = [-25.0, 25.0]
             elif nb_noisettes == 3:
@@ -1210,21 +1095,20 @@ class ArUcoTrackingSystem:
                 offsets = [-75.0, -25.0, 25.0, 75.0]
             else:
                 offsets = []
-            
-            # Créer un objet pour chaque noisette
+
             aire_par_noisette = obj['aire'] / nb_noisettes
-            
+
             for offset in offsets:
                 pos_mm = centre_mm + direction * offset
-                centre_pixel = self.homographie.point_elevated_to_cam(pos_mm)
-                
+                centre_pixel = self.homographie.point_ref_to_cam(pos_mm)  # ← MODIFIÉ
+
                 if centre_pixel is not None:
                     result.append({
                         'centre_pixel': centre_pixel,
                         'contour': contour,
                         'aire': aire_par_noisette,
                         'couleur': obj['couleur'],
-                        'pos_elevated': pos_mm
+                        'pos_ref': pos_mm  # ← MODIFIÉ
                     })
 
         return result
@@ -1239,24 +1123,22 @@ class ArUcoTrackingSystem:
             if i in used_indices:
                 continue
             obj1 = objects[i]
-            pos1 = obj1['pos_elevated']
+            pos1 = obj1['pos_ref']  # ← MODIFIÉ
 
             for j in range(i + 1, len(objects)):
                 if j in used_indices:
                     continue
                 obj2 = objects[j]
-                pos2 = obj2['pos_elevated']
+                pos2 = obj2['pos_ref']  # ← MODIFIÉ
                 distance = np.linalg.norm(pos2 - pos1)
 
                 if min_distance <= distance <= max_distance:
-                    # NOUVELLE VÉRIFICATION : Pas d'objet de même couleur entre obj1 et obj2
                     if self._check_same_color_between(pos1, pos2, objects, i, j, color_name):
-                        continue  # Il y a un objet de même couleur entre les deux → pas de paire
-                    
-                    # Vérification originale : pas d'interférence avec l'autre couleur
+                        continue
+
                     if self._check_interference(pos1, pos2, other_objects):
                         continue
-                    
+
                     centre = (pos1 + pos2) / 2
                     delta_x, delta_y = pos2[0] - pos1[0], pos2[1] - pos1[1]
                     angle_deg = np.degrees(np.arctan2(delta_y, delta_x))
@@ -1273,7 +1155,6 @@ class ArUcoTrackingSystem:
                     })
                     break
 
-        # NOUVELLE ÉTAPE : Détecter les configurations partielles (3 objets sur 4 détectés)
         partial_pairs = self._detect_partial_configurations(objects, used_indices, color_name, other_objects)
         pairs.extend(partial_pairs)
 
@@ -1281,69 +1162,39 @@ class ArUcoTrackingSystem:
 
     def _detect_partial_configurations(self, objects: List[Dict], used_indices: set, 
                                        color_name: str, other_objects: List[Dict]) -> List[Dict]:
-        """
-        Détecte les configurations partielles où seulement 3 des 4 zones de couleur sont détectées
-        pour un groupe de 2 noisettes côte à côte.
-        
-        Configuration attendue pour 2 noisettes côte à côte :
-        ●─50mm─●     ●─50mm─●
-        Noisette1    Noisette2
-        (100mm d'écart entre les noisettes)
-        
-        Configurations partielles possibles (3 objets détectés) :
-        - Cas A : Manque obj4 → ●─50─●─100─●  
-        - Cas B : Manque obj3 → ●─100─●─50─●
-        - Cas C : Manque obj2 → ●─150─●
-        - Cas D : Manque obj1 → ●─150─●
-        
-        Args:
-            objects: Liste de tous les objets de la couleur
-            used_indices: Indices des objets déjà utilisés en paires
-            color_name: Nom de la couleur
-            other_objects: Objets de l'autre couleur (pour vérifier les interférences)
-            
-        Returns:
-            Liste des paires détectées à partir de configurations partielles
-        """
         partial_pairs = []
         remaining_objects = [obj for idx, obj in enumerate(objects) if idx not in used_indices]
-        
+
         if len(remaining_objects) < 3:
             return partial_pairs
-        
-        # Parcourir tous les triplets d'objets non utilisés
+
         for i in range(len(remaining_objects)):
             for j in range(i + 1, len(remaining_objects)):
                 for k in range(j + 1, len(remaining_objects)):
                     obj1 = remaining_objects[i]
                     obj2 = remaining_objects[j]
                     obj3 = remaining_objects[k]
-                    
-                    pos1 = obj1['pos_elevated']
-                    pos2 = obj2['pos_elevated']
-                    pos3 = obj3['pos_elevated']
-                    
-                    # Calculer les distances entre les 3 objets
+
+                    pos1 = obj1['pos_ref']  # ← MODIFIÉ
+                    pos2 = obj2['pos_ref']  # ← MODIFIÉ
+                    pos3 = obj3['pos_ref']  # ← MODIFIÉ
+
                     d12 = np.linalg.norm(pos2 - pos1)
                     d23 = np.linalg.norm(pos3 - pos2)
                     d13 = np.linalg.norm(pos3 - pos1)
-                    
-                    # Vérifier si les 3 objets sont approximativement alignés
+
                     if not self._are_aligned(pos1, pos2, pos3, max_deviation_mm=30.0):
                         continue
-                    
-                    # CAS A : Configuration ●─50─●─100─● (manque obj4 à droite)
-                    # Distances : 50mm, 100mm, 150mm
+
+                    # CAS A : ●─50─●─100─●
                     if (40 < d12 < 60 and 90 < d23 < 110 and 140 < d13 < 160):
-                        # Les 3 objets forment une configuration partielle
-                        # Noisette 1 = obj1 + obj2, Noisette 2 = obj3 + [obj4 manquant]
                         centre_noisette1 = (pos1 + pos2) / 2
-                        centre_noisette2 = pos3 + (pos3 - pos2)  # Extrapoler la position de obj4
-                        
+                        centre_noisette2 = pos3 + (pos3 - pos2)
+
                         centre_paire = (centre_noisette1 + centre_noisette2) / 2
                         delta = centre_noisette2 - centre_noisette1
                         angle_deg = np.degrees(np.arctan2(delta[1], delta[0]))
-                        
+
                         partial_pairs.append({
                             'couleur': color_name,
                             'objet1': {'position_mm': centre_noisette1.tolist(), 'aire_pixels': (obj1['aire'] + obj2['aire']) / 2},
@@ -1352,22 +1203,20 @@ class ArUcoTrackingSystem:
                             'distance_mm': float(np.linalg.norm(delta)),
                             'angle_deg': float(angle_deg),
                             'pixel_centers': [obj1['centre_pixel'].tolist(), obj3['centre_pixel'].tolist()],
-                            'partial': True,  # Marqueur pour indiquer que c'est une configuration partielle
+                            'partial': True,
                             'missing': 'obj4'
                         })
-                        #print(f"  ✓ [{color_name}] Configuration partielle détectée (CAS A - manque obj4)")
                         return partial_pairs
-                    
-                    # CAS B : Configuration ●─100─●─50─● (manque obj3 au milieu-droite)
-                    # Distances : 100mm, 50mm, 150mm
+
+                    # CAS B : ●─100─●─50─●
                     if (90 < d12 < 110 and 40 < d23 < 60 and 140 < d13 < 160):
-                        centre_noisette1 = pos1 + (pos2 - pos1) / 2  # Centre entre obj1 et position extrapolée
+                        centre_noisette1 = pos1 + (pos2 - pos1) / 2
                         centre_noisette2 = (pos2 + pos3) / 2
-                        
+
                         centre_paire = (centre_noisette1 + centre_noisette2) / 2
                         delta = centre_noisette2 - centre_noisette1
                         angle_deg = np.degrees(np.arctan2(delta[1], delta[0]))
-                        
+
                         partial_pairs.append({
                             'couleur': color_name,
                             'objet1': {'position_mm': centre_noisette1.tolist(), 'aire_pixels': obj1['aire']},
@@ -1379,48 +1228,41 @@ class ArUcoTrackingSystem:
                             'partial': True,
                             'missing': 'obj3'
                         })
-                        #print(f"  ✓ [{color_name}] Configuration partielle détectée (CAS B - manque obj3)")
                         return partial_pairs
-                    
-                    # CAS C/D : Configuration ●─150─● (manque obj2 ou obj4)
-                    # Distance : 150mm entre obj1 et obj2, obj3 est un autre objet non lié
-                    # On cherche 2 objets espacés de ~150mm
-                    
-        # Recherche de paires espacées de 150mm (2 noisettes sans 2 zones intermédiaires)
+
+        # Recherche de paires espacées de 150mm
         for i in range(len(remaining_objects)):
             for j in range(i + 1, len(remaining_objects)):
                 obj1 = remaining_objects[i]
                 obj2 = remaining_objects[j]
-                pos1 = obj1['pos_elevated']
-                pos2 = obj2['pos_elevated']
+                pos1 = obj1['pos_ref']  # ← MODIFIÉ
+                pos2 = obj2['pos_ref']  # ← MODIFIÉ
                 distance = np.linalg.norm(pos2 - pos1)
-                
-                # Configuration ●─150mm─● (2 noisettes avec 2 zones manquantes au milieu)
+
                 if 140 < distance < 160:
-                    # Vérifier qu'il n'y a pas d'autre objet entre les deux
                     has_object_between = False
                     for k in range(len(remaining_objects)):
                         if k == i or k == j:
                             continue
                         obj_k = remaining_objects[k]
-                        pos_k = obj_k['pos_elevated']
-                        
+                        pos_k = obj_k['pos_ref']  # ← MODIFIÉ
+
                         vec = pos2 - pos1
                         vec_unit = vec / np.linalg.norm(vec)
                         to_k = pos_k - pos1
                         proj = np.dot(to_k, vec_unit)
-                        
+
                         if 0 < proj < distance:
                             perp_dist = np.linalg.norm(pos_k - (pos1 + proj * vec_unit))
                             if perp_dist < 40:
                                 has_object_between = True
                                 break
-                    
+
                     if not has_object_between:
                         centre_paire = (pos1 + pos2) / 2
                         delta = pos2 - pos1
                         angle_deg = np.degrees(np.arctan2(delta[1], delta[0]))
-                        
+
                         partial_pairs.append({
                             'couleur': color_name,
                             'objet1': {'position_mm': pos1.tolist(), 'aire_pixels': obj1['aire']},
@@ -1432,98 +1274,54 @@ class ArUcoTrackingSystem:
                             'partial': True,
                             'missing': 'obj2_and_obj3'
                         })
-                        #print(f"  ✓ [{color_name}] Configuration partielle détectée (CAS C/D - manque 2 zones centrales)")
                         return partial_pairs
-        
+
         return partial_pairs
 
     def _are_aligned(self, pos1: np.ndarray, pos2: np.ndarray, pos3: np.ndarray, 
                      max_deviation_mm: float = 30.0) -> bool:
-        """
-        Vérifie si 3 points sont approximativement alignés.
-        
-        Args:
-            pos1, pos2, pos3: Positions des 3 objets
-            max_deviation_mm: Déviation maximale perpendiculaire tolérée
-            
-        Returns:
-            True si les 3 points sont alignés
-        """
-        # Vecteur de pos1 vers pos3
         vec = pos3 - pos1
         vec_length = np.linalg.norm(vec)
-        
+
         if vec_length == 0:
             return False
-        
+
         vec_unit = vec / vec_length
-        
-        # Projection de pos2 sur l'axe pos1→pos3
         to_pos2 = pos2 - pos1
         projection_length = np.dot(to_pos2, vec_unit)
         projection_point = pos1 + projection_length * vec_unit
-        
-        # Distance perpendiculaire
         perpendicular_distance = np.linalg.norm(pos2 - projection_point)
-        
+
         return perpendicular_distance < max_deviation_mm
 
     def _check_same_color_between(self, pos1: np.ndarray, pos2: np.ndarray, same_color_objects: List[Dict], 
                                     idx1: int, idx2: int, color_name: str, margin_mm: float = 40.0) -> bool:
-        """
-        Vérifie s'il existe un objet de même couleur entre pos1 et pos2.
-        
-        Args:
-            pos1: Position du premier objet
-            pos2: Position du deuxième objet
-            same_color_objects: Liste de tous les objets de la même couleur
-            idx1: Index du premier objet dans la liste
-            idx2: Index du deuxième objet dans la liste
-            color_name: Nom de la couleur (pour les logs)
-            margin_mm: Distance maximale perpendiculaire pour considérer qu'un objet est "entre" les deux
-            
-        Returns:
-            True s'il y a au moins un objet entre pos1 et pos2
-        """
-        # Vecteur directeur entre pos1 et pos2
         vec = pos2 - pos1
         vec_length = np.linalg.norm(vec)
-        
+
         if vec_length == 0:
             return False
-        
+
         vec_unit = vec / vec_length
-        
-        # Parcourir tous les objets de même couleur (sauf pos1 et pos2)
+
         for k, other_obj in enumerate(same_color_objects):
-            # Ignorer les objets pos1 et pos2 eux-mêmes
             if k == idx1 or k == idx2:
                 continue
-            
-            other_pos = other_obj['pos_elevated']
-            
-            # Vecteur de pos1 vers l'autre objet
+
+            other_pos = other_obj['pos_ref']  # ← MODIFIÉ
+
             to_other = other_pos - pos1
-            
-            # Projection sur l'axe pos1→pos2
             projection_length = np.dot(to_other, vec_unit)
-            
-            # L'objet doit être entre pos1 et pos2 (pas avant ni après)
+
             if projection_length <= 0 or projection_length >= vec_length:
                 continue
-            
-            # Point projeté sur l'axe pos1→pos2
+
             projection_point = pos1 + projection_length * vec_unit
-            
-            # Distance perpendiculaire entre l'objet et l'axe pos1→pos2
             perpendicular_distance = np.linalg.norm(other_pos - projection_point)
-            
-            # Si l'objet est proche de l'axe (< margin_mm), il est "entre" les deux
+
             if perpendicular_distance < margin_mm:
-                #print(f"  ⚠️ [{color_name}] Objet intermédiaire détecté entre objets {idx1} et {idx2} "
-                      #f"(projection={projection_length:.1f}mm, distance_perp={perpendicular_distance:.1f}mm)")
                 return True
-        
+
         return False
 
     def _check_interference(self, pos1, pos2, other_objects):
@@ -1537,7 +1335,7 @@ class ArUcoTrackingSystem:
         margin_mm = vec_length * 1.5
 
         for other_obj in other_objects:
-            other_pos = other_obj['pos_elevated']
+            other_pos = other_obj['pos_ref']  # ← MODIFIÉ
             to_other = other_pos - pos1
             projection_length = np.dot(to_other, vec_unit)
             marge_bord = vec_length * 0.15
@@ -1548,6 +1346,9 @@ class ArUcoTrackingSystem:
                 return True
         return False
 
+    # ══════════════════════════════════════════════════════════════════════════
+    # ── _draw_color_pair : MODIFIÉ pour utiliser le plan de référence
+    # ══════════════════════════════════════════════════════════════════════════
     def _draw_color_pair(self, paire, image, color_bgr):
         for pixel_center in paire['pixel_centers']:
             cv2.circle(image, tuple(np.array(pixel_center).astype(int)), 6, color_bgr, -1)
@@ -1556,7 +1357,7 @@ class ArUcoTrackingSystem:
         cv2.line(image, pt1, pt2, color_bgr, 2)
 
         centre_mm = np.array(paire['centre_mm'])
-        centre_pixel = self.homographie.point_elevated_to_cam(centre_mm)
+        centre_pixel = self.homographie.point_ref_to_cam(centre_mm)  # ← MODIFIÉ
         if centre_pixel is not None:
             centre_pixel_int = tuple(centre_pixel.astype(int))
             cv2.circle(image, centre_pixel_int, 12, color_bgr, -1)
@@ -1575,16 +1376,13 @@ class ColorDetector:
     def __init__(self, config: Config):
         self.config = config
         self.calibration_file = "color_calibration.json"
-        
-        # Valeurs par défaut
+
         default_jaune_lower = [17, 105, 205]
         default_jaune_upper = [36, 255, 255]
         default_bleu_lower = [47, 105, 101]
         default_bleu_upper = [135, 255, 255]
-        
-        # Charger depuis le fichier JSON si disponible
+
         if not self.load_calibration():
-            # Utiliser les valeurs par défaut si le chargement échoue
             self.jaune_lower = np.array(default_jaune_lower)
             self.jaune_upper = np.array(default_jaune_upper)
             self.bleu_lower = np.array(default_bleu_lower)
@@ -1597,16 +1395,13 @@ class ColorDetector:
         print(f"  -> Plage HSV: {self.bleu_lower} à {self.bleu_upper}")
 
     def load_calibration(self) -> bool:
-        """Charge les valeurs HSV depuis le fichier JSON"""
         try:
             with open(self.calibration_file, 'r') as f:
                 data = json.load(f)
-            
             self.jaune_lower = np.array(data['jaune_lower'])
             self.jaune_upper = np.array(data['jaune_upper'])
             self.bleu_lower = np.array(data['bleu_lower'])
             self.bleu_upper = np.array(data['bleu_upper'])
-            
             print(f"Calibration couleurs chargée depuis {self.calibration_file}")
             return True
         except FileNotFoundError:
@@ -1615,9 +1410,8 @@ class ColorDetector:
         except Exception as e:
             print(f"Erreur lors du chargement de la calibration couleurs: {e}")
             return False
-    
+
     def save_calibration(self):
-        """Sauvegarde les valeurs HSV dans le fichier JSON"""
         try:
             data = {
                 'jaune_lower': self.jaune_lower.tolist(),
@@ -1625,10 +1419,8 @@ class ColorDetector:
                 'bleu_lower': self.bleu_lower.tolist(),
                 'bleu_upper': self.bleu_upper.tolist()
             }
-            
             with open(self.calibration_file, 'w') as f:
                 json.dump(data, f, indent=2)
-            
             print(f"Calibration couleurs sauvegardée dans {self.calibration_file}")
             return True
         except Exception as e:
@@ -1667,39 +1459,31 @@ class ColorDetector:
         return detected_objects
 
     def calibrate_interactive(self, image: np.ndarray):
-        # Réduire la taille de l'image pour l'affichage
         scale_factor = 0.5
         display_width = int(image.shape[1] * scale_factor)
         display_height = int(image.shape[0] * scale_factor)
 
         cv2.namedWindow('Calibration HSV')
         cv2.namedWindow('Image Originale')
-
-        # Redimensionner les fenêtres
         cv2.resizeWindow('Calibration HSV', display_width, display_height)
         cv2.resizeWindow('Image Originale', display_width, display_height)
 
-        # Position et dimensions du bouton "Sauvegarder" (en haut à gauche)
         button_x = 10
         button_y = 10
         button_width = 120
         button_height = 30
-        button_color = (0, 150, 0)  # Vert
+        button_color = (0, 150, 0)
 
-        # Variable pour indiquer si la sauvegarde est terminée
         saved = False
 
-        # Fonction pour dessiner le bouton
         def draw_save_button(img):
             cv2.rectangle(img, (button_x, button_y), (button_x + button_width, button_y + button_height), button_color, -1)
             cv2.putText(img, "Sauvegarder", (button_x + 10, button_y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
-        # Fonction de callback pour gérer les clics sur le bouton
         def mouse_callback(event, x, y, flags, param):
             nonlocal saved
             if event == cv2.EVENT_LBUTTONDOWN:
                 if button_x <= x <= button_x + button_width and button_y <= y <= button_y + button_height:
-                    # Sauvegarder les valeurs des sliders
                     j_lower = np.array([cv2.getTrackbarPos('Jaune H min', 'Calibration HSV'),
                                         cv2.getTrackbarPos('Jaune S min', 'Calibration HSV'),
                                         cv2.getTrackbarPos('Jaune V min', 'Calibration HSV')])
@@ -1711,18 +1495,13 @@ class ColorDetector:
 
                     self.jaune_lower, self.jaune_upper = j_lower, j_upper
                     self.bleu_lower,  self.bleu_upper  = b_lower, b_upper
-                    
-                    # Sauvegarder dans le fichier JSON
                     self.save_calibration()
-                    
                     print(f"Valeurs sauvegardées — Jaune: {j_lower}→{j_upper} | Bleu: {b_lower}→{b_upper}")
-                    saved = True  # Indiquer que la sauvegarde est terminée
+                    saved = True
                     self.stop_requested = True
 
-        # Associer la fonction de callback à la fenêtre
         cv2.setMouseCallback('Calibration HSV', mouse_callback)
 
-        # Créer les sliders
         for label, val, maxval in [
             ('Jaune H min', self.jaune_lower[0], 180),
             ('Jaune S min', self.jaune_lower[1], 255), 
@@ -1736,12 +1515,10 @@ class ColorDetector:
         print("\n=== MODE CALIBRATION COULEURS ===")
         print("Ajustez les trackbars | Cliquez sur 'Sauvegarder' ou 'Q' pour quitter")
 
-        while not saved:  # Boucle jusqu'à ce que la sauvegarde soit terminée
-            # Redimensionner l'image pour l'affichage
+        while not saved:
             image_display = cv2.resize(image, (display_width, display_height))
             hsv = cv2.cvtColor(image_display, cv2.COLOR_BGR2HSV)
 
-            # Récupérer les valeurs des sliders
             j_lower = np.array([cv2.getTrackbarPos('Jaune H min', 'Calibration HSV'),
                                 cv2.getTrackbarPos('Jaune S min', 'Calibration HSV'),
                                 cv2.getTrackbarPos('Jaune V min', 'Calibration HSV')])
@@ -1750,12 +1527,11 @@ class ColorDetector:
                                 cv2.getTrackbarPos('Bleu S min', 'Calibration HSV'),
                                 cv2.getTrackbarPos('Bleu V min', 'Calibration HSV')])
             b_upper = self.bleu_upper
-            # Créer une image noire pour afficher les masques et le bouton
-            combined = np.zeros_like(image_display)
-            combined[:, :, 2] = cv2.inRange(hsv, j_lower, j_upper)  # Jaune en rouge (canal R)
-            combined[:, :, 0] = cv2.inRange(hsv, b_lower, b_upper)   # Bleu en bleu (canal B)
 
-            # Dessiner le bouton "Sauvegarder"
+            combined = np.zeros_like(image_display)
+            combined[:, :, 2] = cv2.inRange(hsv, j_lower, j_upper)
+            combined[:, :, 0] = cv2.inRange(hsv, b_lower, b_upper)
+
             draw_save_button(combined)
 
             cv2.imshow('Image Originale', image_display)
@@ -1765,7 +1541,6 @@ class ColorDetector:
             if key == ord('q'):
                 break
 
-        # Fermer les fenêtres après la sauvegarde ou la sortie
         cv2.destroyWindow('Calibration HSV')
         cv2.destroyWindow('Image Originale')
 
@@ -1776,7 +1551,7 @@ class ColorDetector:
 
 if __name__ == "__main__":
 
-    couleur = "B"  # ← Changer ici : "B" pour Bleu, "J" pour Jaune
+    couleur = "B"
 
     config = Config()
     config = appliquer_couleur(config, couleur)
@@ -1814,18 +1589,16 @@ if __name__ == "__main__":
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.camera_longueur)
     print(f"Résolution effective: {cap.get(cv2.CAP_PROP_FRAME_WIDTH):.0f}x{cap.get(cv2.CAP_PROP_FRAME_HEIGHT):.0f}")
 
-    # Créer la fenêtre et le gestionnaire de boutons
     window_name = "Systeme de Tracking ArUco"
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(window_name, 1280, 720)
-    
+
     button_manager = ButtonManager(window_name)
-    
-    # Ajouter les boutons (position en bas de l'écran redimensionné)
-    btn_y = 680  # Position Y des boutons
-    btn_h = 35   # Hauteur des boutons
+
+    btn_y = 680
+    btn_h = 35
     btn_spacing = 5
-    
+
     buttons_config = [
         (10, "Plan Noisette", (0, 100, 150)),
         (150, "Plan Robot", (0, 150, 100)),
@@ -1836,13 +1609,12 @@ if __name__ == "__main__":
         (820, "Debug", (100, 100, 0)),
         (930, "Quitter", (150, 0, 0)),
     ]
-    
+
     for btn_x, btn_text, btn_color in buttons_config:
         button_manager.add_button(Button_A(btn_x, btn_y, 130, btn_h, btn_text, btn_color))
 
     try:
         while True:
-
             ret, frame = cap.read()
             if not ret:
                 print("Erreur de lecture de la caméra")
@@ -1851,8 +1623,8 @@ if __name__ == "__main__":
             annotated, results = system.process_frame(frame)
             Liste_noisette_xya = results['Liste_noisette_xya']
             Liste_robots_xy    = results['Liste_robots_xy']
-            print(Liste_noisette_xya)
-            print(Liste_robots_xy)
+            """print(Liste_noisette_xya)
+            print(Liste_robots_xy)"""
 
             if hasattr(system, 'show_debug') and system.show_debug:
                 system.color_detector.show_debug_masks(frame)
@@ -1861,28 +1633,26 @@ if __name__ == "__main__":
                 print("Plan de référence calculé et verrouillé.")
                 system.plan_reference_calcule = True
 
-            # Dessiner les boutons sur l'image
             button_manager.draw_all(annotated)
-            
+
             cv2.imshow(window_name, annotated)
-            
-            # Gérer les clics de boutons
+
             button_click = button_manager.get_last_click()
-            
+
             if button_click == "Plan Noisette":
                 system.mode_calibration_active = True
                 system.calibration_mode.reset()
                 print("\nMode calibration NOISETTE activé")
                 print(f"Positionner le tag {config.tag_calibration_Noisette} au-dessus du tag "
                       f"{system.calibration_mode.get_current_target()} et appuyer sur CAPTURER")
-            
+
             elif button_click == "Plan Robot":
                 system.mode_calibration_robot_active = True
                 system.calibration_mode_robot.reset()
                 print("\nMode calibration ROBOT activé")
                 print(f"Positionner le tag {config.tag_calibration_robot} au-dessus du tag "
                       f"{system.calibration_mode_robot.get_current_target()} et appuyer sur CAPTURER")
-            
+
             elif button_click == "Capturer":
                 detected_tags_list, _ = system.detecteur.detect(system.undistort_image(frame))
                 if system.mode_calibration_active:
@@ -1891,7 +1661,7 @@ if __name__ == "__main__":
                     system.handle_calibration_capture_robot(detected_tags_list)
                 else:
                     print("Aucune calibration active. Cliquez d'abord sur 'Plan Noisette' ou 'Plan Robot'")
-            
+
             elif button_click == "Sauvegarder":
                 if system.mode_calibration_active and system.calibration_mode.is_complete():
                     system.calibration_mode.save_calibration()
@@ -1905,7 +1675,7 @@ if __name__ == "__main__":
                     print("Calibration ROBOT sauvegardée.")
                 else:
                     print("Aucune calibration complète à sauvegarder")
-            
+
             elif button_click == "Chargement":
                 if not system.mode_calibration_active and not system.mode_calibration_robot_active:
                     if system.calibration_mode.load_calibration():
@@ -1916,11 +1686,11 @@ if __name__ == "__main__":
                         system.plan_robot_calcule = True
                 else:
                     print("Impossible de charger pendant une calibration active")
-            
+
             elif button_click == "Couleurs":
                 print("\n=== Entrée en mode calibration couleurs ===")
                 system.color_detector.calibrate_interactive(frame)
-            
+
             elif button_click == "Debug":
                 if not hasattr(system, 'show_debug'):
                     system.show_debug = False
@@ -1931,12 +1701,11 @@ if __name__ == "__main__":
                     print("\nMode debug DÉSACTIVÉ")
                     for win in ["Masque Jaune", "Masque Bleu", "Masques Combinés (Bleu=Bleu, Jaune=Rouge)"]:
                         cv2.destroyWindow(win)
-            
+
             elif button_click == "Quitter":
                 break
-            
-            key = cv2.waitKey(1) & 0xFF
 
+            key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 break
 
