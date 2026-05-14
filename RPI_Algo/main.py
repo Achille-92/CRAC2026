@@ -1,12 +1,12 @@
 couleur = "N"
 Reel = False
-Wifi = True
-Lidar_on = False
+Wifi = False
+Lidar_on = True
 affichage = True
 Strategie = True
 Astars = True
 
-Simul_mvt = False
+Simul_mvt = True
 Simul_mvt_ennemi = False
 Simul_action = True
 
@@ -156,7 +156,10 @@ if not Wifi:
         [1825+20,175-20,90-2,"B"],[1875+20,175-20,90+2,"J"],[1925+20,175-20,90-2,"J"],[1975+20,175-20,90+2,"B"],
 
     ] 
-
+if not Wifi:
+    code_couleur_noisette = ["A","E","C","F","B","E","D","C"]
+else:
+    code_couleur_noisette = ["N","N","N","N","N","N","N","N"]
 Liste_association_Noisette_zone = [[] for i in range(8)]
 for Noisette_posconnue in Liste_noisette_xya:
     for num_zonedepart in range(len(Liste_zones_Noisette_depart)):
@@ -721,7 +724,7 @@ def LectureCAN(stop_event):
 # Fonction pour recevoir des données de la RPI
 def comm_bc(stop_event):
     print(f"[Récepteur] Serveur en attente sur le port {PORT_RECEPTION}...")
-    global Liste_noisette_xya_cam,x_robot_actuel_cam,y_robot_actuel_cam,angle_robot_actuel_cam,x_ennemi_cam,y_ennemi_cam,angle_ennemi_cam
+    global Liste_noisette_xya_cam,x_robot_actuel_cam,y_robot_actuel_cam,angle_robot_actuel_cam,x_ennemi_cam,y_ennemi_cam,angle_ennemi_cam,code_couleur_noisette
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -754,6 +757,7 @@ def comm_bc(stop_event):
                 x_ennemi_cam = donnees_de_bc["x_ennemi_cam"]
                 y_ennemi_cam = donnees_de_bc["y_ennemi_cam"]
                 angle_ennemi_cam  = donnees_de_bc["angle_ennemi_cam"]
+                code_couleur_noisette = donnees_de_bc["code_couleur_noisette"] 
                 
             except json.JSONDecodeError:
                 print("[Récepteur] Erreur : données JSON invalides")
@@ -1316,81 +1320,79 @@ if __name__ == '__main__':
             print("step :",step)
             
             # =============== Association Couleur CAM à Noisette Aveugle ==================== #
-
             if not Noisette_init:
-                Liste_noisette_xya_cam_copie = Liste_noisette_xya_cam.copy()
-
-                for Noisette in Liste_noisette_xya_cam_copie:
-                    y_detecte = Noisette[1]
-                    
-                    # Zone concernée : Y entre 1000mm et 1550mm
-                    if 1000 <= y_detecte <= 1550:
-                        # Formule d'erreur : erreur_y = (y / 1500) × 50
-                        erreur_y = (y_detecte / 1500.0) * 40.0
-                        
-                        # Corriger en soustrayant l'erreur
-                        y_corrige = y_detecte + erreur_y
-                        Noisette[1] = int(round(y_corrige))
-
-                """for i in Liste_noisette_xya_cam_copie:
-                    Liste_noisette_xya.append(i)"""
-                
-                for Noisette_couleurconnue in Liste_noisette_xya_cam_copie:
-                    associee = False
-                    for Noisette_posconnue in Liste_noisette_xya:
-                        if Noisette_posconnue[3] == "R":
-                        
-                            # Distance euclidienne
-                            distance_NN = math.sqrt(
-                                (Noisette_posconnue[0] - Noisette_couleurconnue[0])**2 + 
-                                (Noisette_posconnue[1] - Noisette_couleurconnue[1])**2
-                            )
-
-                            if distance_NN <= TOL_CAM_NOISETTE and not associee:
-                                Noisette_posconnue[3] = Noisette_couleurconnue[3]
-                                associee = True
-                                #Liste_noisette_xya_cam_copie.remove(Noisette_couleurconnue)
-
-                Liste_noisettes_restantes = [n for n in Liste_noisette_xya if n[3] == "R"]
-                if len(Liste_noisettes_restantes) != 0 :
-                    print("Il reste encore des Noisettes dont les couleurs sont inconnues")
-                    if temps_ecoules > 1:
-                        Liste_noisette_xya_copie = Liste_noisette_xya
-                        print("Faire tri par déduction")
-                        Noisette_groupee_debut = [[],[],[],[],[],[],[],[]]
-                        for Noisette in Liste_noisette_xya_copie:
-                            i = 0
-                            for zone_depart in Liste_zones_Noisette_depart:
-                                if zone_depart[0][0] <= Noisette[0] <= zone_depart[1][0] and zone_depart[0][1] <= Noisette[1] <= zone_depart[1][1]:
-                                    Noisette_groupee_debut[i].append(Noisette)
-                                i+=1
-
-                        for Noisette_restante in Liste_noisettes_restantes:
-                            for num_zone_depart in range(len(Noisette_groupee_debut)):
-                                if Noisette_restante in Noisette_groupee_debut[num_zone_depart]:
-                                    nbr_bleu = sum(1 for n in Noisette_groupee_debut[num_zone_depart] if n[3] == "B")
-                                    nbr_jaune = sum(1 for n in Noisette_groupee_debut[num_zone_depart] if n[3] == "J")
-                                    nbr_non = sum(1 for n in Noisette_groupee_debut[num_zone_depart] if n[3] == "R")
-
-                                    if nbr_bleu == 3 or nbr_bleu == 4 or nbr_jaune == 3 or nbr_jaune == 4:
-                                        for Nois in Noisette_groupee_debut[num_zone_depart]:
-                                            Nois[3]="R"
-                                        continue
-
-                                    if nbr_bleu == 2:
-                                        Noisette_restante[3]="J"
-                                    if nbr_jaune == 2:
-                                        Noisette_restante[3]="B"
-                                    if nbr_jaune == 1 and nbr_bleu == 1 or nbr_non == 3:
-                                        val = random.randint(0,1)
-                                        if val == 0:
-                                            Noisette_restante[3]="B"
-                                        if val == 1:
-                                            Noisette_restante[3]="J"
-                    
-                else:
+                for i in range(8):
+                    print(f"Code de la zone N°{i} : {code_couleur_noisette[i]}")
+                    n1 = Liste_noisette_xya[4*i]
+                    n2 = Liste_noisette_xya[4*i+1]
+                    n3 = Liste_noisette_xya[4*i+2]
+                    n4 = Liste_noisette_xya[4*i+3]
+                    if code_couleur_noisette[i] != "N" and n1[3]=="R":
+                        if 0<=i<=3:
+                            if code_couleur_noisette[i] == "A":
+                                n1[3]="J"
+                                n2[3]="J"
+                                n3[3]="B"
+                                n4[3]="B"
+                            if code_couleur_noisette[i] == "B":
+                                n1[3]="B"
+                                n2[3]="B"
+                                n3[3]="J"
+                                n4[3]="J"
+                            if code_couleur_noisette[i] == "C":
+                                n1[3]="B"
+                                n2[3]="J"
+                                n3[3]="J"
+                                n4[3]="B"
+                            if code_couleur_noisette[i] == "D":
+                                n1[3]="J"
+                                n2[3]="B"
+                                n3[3]="B"
+                                n4[3]="J"
+                            if code_couleur_noisette[i] == "E":
+                                n1[3]="J"
+                                n2[3]="B"
+                                n3[3]="J"
+                                n4[3]="B"
+                            if code_couleur_noisette[i] == "F":
+                                n1[3]="B"
+                                n2[3]="J"
+                                n3[3]="B"
+                                n4[3]="J"
+                        else:
+                            if code_couleur_noisette[i] == "A":
+                                n1[3]="B"
+                                n2[3]="B"
+                                n3[3]="J"
+                                n4[3]="J"
+                            if code_couleur_noisette[i] == "B":
+                                n1[3]="J"
+                                n2[3]="J"
+                                n3[3]="B"
+                                n4[3]="B"
+                            if code_couleur_noisette[i] == "C":
+                                n1[3]="B"
+                                n2[3]="J"
+                                n3[3]="J"
+                                n4[3]="B"
+                            if code_couleur_noisette[i] == "D":
+                                n1[3]="J"
+                                n2[3]="B"
+                                n3[3]="B"
+                                n4[3]="J"
+                            if code_couleur_noisette[i] == "E":
+                                n1[3]="B"
+                                n2[3]="J"
+                                n3[3]="B"
+                                n4[3]="J"
+                            if code_couleur_noisette[i] == "F":
+                                n1[3]="J"
+                                n2[3]="B"
+                                n3[3]="J"
+                                n4[3]="B"
+                Noisette_restantes = [n for n in Liste_noisette_xya if n[3]=="R"]
+                if len(Noisette_restantes)==0:
                     Noisette_init = True
-
             #else:
             if Maj_Noisette:
                 print("Mettre à jour les positions des noisettes dans Liste_noisette_xya à partir de la CAM")
@@ -2546,6 +2548,7 @@ if __name__ == '__main__':
             tache_Astar.join(timeout=2)
         if Wifi:
             tache_Wifi.join()
+            tache_PAMI.join()
             
         
     except Exception as e:
@@ -2567,6 +2570,7 @@ if __name__ == '__main__':
             tache_Astar.join(timeout=2)
         if Wifi:
             tache_Wifi.join()
+            tache_PAMI.join()
             
         plt.close(fig)
 
