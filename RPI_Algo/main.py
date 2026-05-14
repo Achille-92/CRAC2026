@@ -1,7 +1,7 @@
 couleur = "N"
 Reel = False
 Wifi = True
-Lidar_on = True
+Lidar_on = False
 affichage = True
 Strategie = True
 Astars = True
@@ -926,7 +926,7 @@ def trouver_case_libre_proche(x_robot, y_robot, grid_expanded,
 
 def comm_PAMI(stop_event):
     global match_demarre,couleur, temps_restant
-    old_match_demarre = False
+    old_match_demarre = match_demarre
     decompte = False
     int_temps_restant_old = 100
     while not stop_event.is_set():
@@ -2455,15 +2455,22 @@ if __name__ == '__main__':
             
             if Reel :
                 for key, value in dico_envoi.items() :
-                    if value != 0:
-                        if key in [0x01,0x206,0x207,0x208,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505,0x506]:
-                            format_value = struct.pack('<i',dico_envoi[key])
-                        else:
-                            format_value = struct.pack('<f',dico_envoi[key])
+                    if key in [0x500,0x501]:
+                        format_value = struct.pack('<i',dico_envoi[key])
                         msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
                         bus.send(msg)
                         dico_envoi[key]=0
                         time.sleep(0.0006)
+                    else:
+                        if value != 0:
+                            if key in [0x01,0x206,0x207,0x208,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505,0x506]:
+                                format_value = struct.pack('<i',dico_envoi[key])
+                            else:
+                                format_value = struct.pack('<f',dico_envoi[key])
+                            msg = can.Message(arbitration_id=key, data=format_value, is_extended_id=False)
+                            bus.send(msg)
+                            dico_envoi[key]=0
+                            time.sleep(0.0006)
             
 
             # MAJ de l'affichage et des Variables de Bouncing

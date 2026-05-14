@@ -2,19 +2,16 @@ couleur = "B"
 Camera = True
 Camera_active = Camera
 WiFi = True
-Pami = True
+Pami = False
 Strategie = False
 Debug_strategie = False
 Astars = False
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Debug_Mouv = False
 
-Simul_action = True
-Debug_Action = False
 
-Lidar_on = False
 Bat_Compet = False
 Mode_pince = True
 lancement_cartes = False
@@ -98,6 +95,18 @@ Liste_zones_gm_coins = [
     [[600,0],[800,200]],
     [[1400,0],[1600,200]],
     [[2200,0],[2400,200]],
+]
+
+zone_Noisette = [
+    [(0,1000),(350,1400)],
+    [(0,200),(350,600)],
+    [(2650,1000),(3000,1400)],
+    [(2650,200),(3000,600)],
+    
+    [(1350,625),(1500,975)],
+    [(1650,625),(2050,975)],
+    [(900,0),(1300,350)],
+    [(1700,0),(2200,350)],
 ]
 
 ###########################################
@@ -549,8 +558,8 @@ if __name__ == '__main__':
                     break
 
                 annotated, results = system.process_frame(frame)
-                Liste_noisette_xya = results['Liste_noisette_xya']
-                Liste_robots_xy    = results['Liste_robots_xy']
+                Liste_robots_xy = results['Liste_robots_xy']
+
                 for robot in Liste_robots_xy:
                     if robot[4]=='R':
                         x_robot_actuel_cam = robot[1]
@@ -561,6 +570,71 @@ if __name__ == '__main__':
                         y_ennemi_cam = robot[2]
                         angle_ennemi_cam = robot[3]
 
+                objet_zone_noisette = [
+                    [],[],[],[],[],[],[],[]
+                ]
+                code_couleur_noisette = ["N","N","N","N","N","N","N","N"]
+
+                for i in range(len(zone_Noisette)):
+                    for j in range(len(results['objets_colores'])):
+                        if (zone_Noisette[i][0][0] <= results['objets_colores'][j]['position_ref_mm'][0] <= zone_Noisette[i][1][0]) and (zone_Noisette[i][0][1] <= results['objets_colores'][j]['position_ref_mm'][1] <= zone_Noisette[i][1][1]):
+                            objet_zone_noisette[i].append(results['objets_colores'][j])
+
+                    print(f"Zone N°{i} : {objet_zone_noisette[i]}")
+
+        
+                for i in range(len(objet_zone_noisette)):
+                    nbr_jaune = 0
+                    nbr_bleu = 0
+                    for objet in objet_zone_noisette[i]:
+                        if objet['couleur'] == 'jaune':
+                            nbr_jaune += 1
+                        elif objet['couleur'] == 'bleu':
+                            nbr_bleu += 1
+                    if nbr_jaune == 2 and nbr_bleu == 4:
+                        code_couleur_noisette[i] = "C"
+                    if nbr_jaune == 4 and nbr_bleu == 2:
+                        code_couleur_noisette[i] = "D"
+                    if nbr_jaune == 2 and nbr_bleu == 2:
+                        bleux = [objet for objet in objet_zone_noisette[i] if objet['couleur'] == 'bleu']
+                        jaunes = [objet for objet in objet_zone_noisette[i] if objet['couleur'] == 'jaune']
+                        if 0<=i<=3:
+                            if (bleux[0]['position_ref_mm'][1] > jaunes[0]['position_ref_mm'][1]):
+                                code_couleur_noisette[i] = "A"
+                            else:
+                                code_couleur_noisette[i] = "B"
+                        else:
+                            if (bleux[0]['position_ref_mm'][0] < jaunes[0]['position_ref_mm'][0]):
+                                code_couleur_noisette[i] = "A"
+                            else:
+                                code_couleur_noisette[i] = "B"
+
+                    if nbr_jaune == 4 and nbr_bleu == 4:
+                        bleux = [objet for objet in objet_zone_noisette[i] if objet['couleur'] == 'bleu']
+                        jaunes = [objet for objet in objet_zone_noisette[i] if objet['couleur'] == 'jaune']
+                        x_plus_petit = 3000
+                        y_plus_petit = 2000
+                        couleur_plus_petite = ""
+                        if 0<=i<=3:
+                            for objet in objet_zone_noisette[i]:
+                                if objet['position_ref_mm'][1] < y_plus_petit:
+                                    y_plus_petit = objet['position_ref_mm'][1]
+                                    couleur_plus_petite = objet['couleur']
+                            if couleur_plus_petite == "bleu":
+                                code_couleur_noisette[i] = "F"
+                            else:
+                                code_couleur_noisette[i] = "E"
+                        else:
+                            for objet in objet_zone_noisette[i]:
+                                if objet['position_ref_mm'][0] < x_plus_petit:
+                                    x_plus_petit = objet['position_ref_mm'][0]
+                                    couleur_plus_petite = objet['couleur']
+                            if couleur_plus_petite == "bleu":
+                                code_couleur_noisette[i] = "E"
+                            else:
+                                code_couleur_noisette[i] = "F"
+                                
+                    print(f"Code de la zone N°{i} : {code_couleur_noisette[i]}")
 
                 if hasattr(system, 'show_debug') and system.show_debug:
                     system.color_detector.show_debug_masks(frame)
@@ -665,6 +739,7 @@ if __name__ == '__main__':
                     "x_ennemi_cam": x_ennemi_cam,
                     "y_ennemi_cam": y_ennemi_cam,
                     "angle_ennemi_cam": angle_ennemi_cam,
+                    "code_couleur_noisette": code_couleur_noisette,
                 }
                 try :
                     message = json.dumps(donnees_pour_robot)
@@ -742,8 +817,8 @@ if __name__ == '__main__':
                     if any(x_min <= coin[0] <= x_max and y_min <= coin[1] <= y_max for coin in coins):
                         Liste_Noisettes_dans_GM.append(Noisette)
                         break  # Sortir dès qu'une zone est trouvée
-            if Debug_Action:
-                print("Liste_Noisettes_dans_GM : ",Liste_Noisettes_dans_GM)      
+
+            print("Liste_Noisettes_dans_GM : ",Liste_Noisettes_dans_GM)      
             # ================================================================================================= #
   
             if changement_noisettes_detecte:
