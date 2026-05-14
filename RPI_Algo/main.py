@@ -1,6 +1,6 @@
 couleur = "B"
-Reel = False
-Wifi = False
+Reel = True
+Wifi = True
 Lidar_on = True
 affichage = True
 Strategie = True
@@ -54,7 +54,7 @@ Pousser = fenetre_selection_pousser()
 
 # Config CAN 
 Liste_ID_recoit = [0x02,0x03,0x04,0x05,0x06,0x008,0x100, 0x101, 0x102,0x103,0x104,0x105,0x106,0x107,0x108,0x10A,0x10B,0x10C,0x10D,0x10E,0x10F,0x110,0x111,0x112] # ID sur lesquels la RPI va recevoir des données
-Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x204,0x205,0x206,0x207,0x208,0x209,0x20A,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505]
+Liste_ID_envoi = [0x01,0x002,0x003,0x004,0x005,0x006,0x200,0x201,0x202,0x204,0x205,0x206,0x207,0x208,0x209,0x20A,0x300,0x301,0x302,0x303,0x500,0x501,0x502,0x503,0x504,0x505,0x506]
 Filtre_CAN = [{"can_id": Id, "can_mask": 0x7FF, "extended": False} for Id in Liste_ID_recoit]
 if Reel: 
     os.system('sudo ip link set can0 type can bitrate 500000')
@@ -1518,6 +1518,8 @@ if __name__ == '__main__':
 
             # === Retour au Nid au bout d'un certains temps === #
             print("reset_fin : ",reset_fin)
+            if temps_restant < 2:
+                dico_envoi[0x506]=1
             if not Strategie and not reset_fin:
                 if temps_restant <= temps_retour:
                     Liste_actions.clear() 
@@ -1532,10 +1534,7 @@ if __name__ == '__main__':
                 if temps_restant <= temps_retour:
                     Liste_actions.clear() 
                     Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour-100)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
-                    if Noisettes_stockees_dans_robot[0] != ['N','N']:
-                        Liste_actions.insert(2,["Relacher",0,12])
-                    if Noisettes_stockees_dans_robot[1] != ['N','N']:
-                        Liste_actions.insert(2,["Relacher",1,12])
+
                     if faire_Ninja:
                         if couleur == "J":
                             Liste_actions.insert(0, ["ReculerPrecis",int(600+LONGUEUR_ROBOT/2),1400])
