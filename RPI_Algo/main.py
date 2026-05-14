@@ -1,6 +1,6 @@
 couleur = "B"
-Reel = True
-Wifi = True
+Reel = False
+Wifi = False
 Lidar_on = True
 affichage = True
 Strategie = True
@@ -267,7 +267,7 @@ if couleur == "B":
             [2950,750],
 
             ["Recalage_X"],
-            
+            ["Curseur"],
             ["Recalage_Y"],
 
             [1950,175],
@@ -326,9 +326,9 @@ else:
             [175,350],
             [50,850],
             [50,750],
-            
+
             ["Recalage_X"],
-            
+            ["Curseur"],
             ["Recalage_Y"],
 
             [1050,175],
@@ -338,9 +338,9 @@ else:
 
         ]
 
-if Faire_curseur:
+"""if Faire_curseur:
     if not Strat_agressive:
-        Liste_strategie.insert(9,['Curseur'])
+        Liste_strategie.insert(9,['Curseur'])"""
 
 x_robot_actuel = x_robot_depart
 y_robot_actuel = y_robot_depart
