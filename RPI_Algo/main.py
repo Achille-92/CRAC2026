@@ -1,12 +1,12 @@
-couleur = "B"
+couleur = "N"
 Reel = False
-Wifi = False
+Wifi = True
 Lidar_on = True
 affichage = True
 Strategie = True
 Astars = True
 
-Simul_mvt = True
+Simul_mvt = False
 Simul_mvt_ennemi = False
 Simul_action = True
 
@@ -268,7 +268,6 @@ if couleur == "B":
 
             ["Recalage_X"],
             ["Curseur"],
-            ["Recalage_Y"],
 
             [1950,175],
             [1850,175],
@@ -329,7 +328,6 @@ else:
 
             ["Recalage_X"],
             ["Curseur"],
-            ["Recalage_Y"],
 
             [1050,175],
             [1150,175],
@@ -926,6 +924,49 @@ def trouver_case_libre_proche(x_robot, y_robot, grid_expanded,
                                 ny * CASE_MM + CASE_MM // 2)
     return None, None
 
+def comm_PAMI(stop_event):
+    global match_demarre,couleur, temps_restant
+    old_match_demarre = False
+    decompte = False
+    int_temps_restant_old = 100
+    while not stop_event.is_set():
+        
+        if stop_event.is_set():
+            break
+        
+        if not match_demarre:
+            if couleur == "B":
+                sendPamis(1, 255, "192.168.0.255")
+            if couleur == "J":
+                sendPamis(2, 255, "192.168.0.255")
+        else:
+            if match_demarre != old_match_demarre:
+                decompte = True
+            if decompte:
+                int_temps_restant = int(temps_restant)
+                if int_temps_restant != int_temps_restant_old:
+                    if couleur == "B":
+                        sendPamis(1, int_temps_restant, "192.168.0.255")
+                    if couleur == "J":
+                        sendPamis(2, int_temps_restant, "192.168.0.255")
+
+                int_temps_restant_old = int_temps_restant
+        old_match_demarre = match_demarre
+        time.sleep(0.1)  # Petite pause pour éviter de saturer le CPU
+
+
+
+def sendPamis(couleur, temps = 255, UDP_IP = "192.168.0.255"):
+    UDP_PORT = 5002
+    # message de 2 octets
+    MESSAGE = bytes([couleur, temps])
+    # print("UDP target IP: %s" % UDP_IP)
+    # print("UDP target port: %s" % UDP_PORT)
+    # print("message: %s" % MESSAGE)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # Enable broadcast
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    sock.sendto(MESSAGE, (UDP_IP, UDP_PORT))
 
 ########################################################################
 
@@ -950,6 +991,9 @@ if __name__ == '__main__':
     if Wifi:
         tache_Wifi = threading.Thread(target=comm_bc, args=(stop_event,),daemon=True)
         tache_Wifi.start()
+
+        tache_PAMI = threading.Thread(target=comm_PAMI, args=(stop_event,),daemon=True)
+        tache_PAMI.start()
 
     fig, ax, robot_plot, ennemi_plot, consigne_plot, scat, robot_info_text,ax_button_stop,bouton_stop,ax_button_start,bouton_start,point_voulu_plot,x_voulu_text,y_voulu_text,A_voulu_text, robot_angle_line,robot_angle_voulu_line,background,info_alim_rpi,chronometre_text,cercle_robot_patch,noisette_text,match_text = init_affichage(x_robot_depart,y_robot_depart,R_ROBOT)
     
