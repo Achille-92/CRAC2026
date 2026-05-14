@@ -1,6 +1,6 @@
 couleur = "B"
-Reel = False
-Wifi = False
+Reel = True
+Wifi = True
 Lidar_on = True
 affichage = True
 Strategie = True
@@ -18,7 +18,7 @@ lancement_cartes = True
 faire_Ninja = False
 Strat_agressive = False
 Pousser = True
-Faire_curseur = False
+Faire_curseur = True
 TOL_PRECIS = 15
 TOL_PASPRECIS = 70
 
@@ -76,7 +76,7 @@ R_ROBOT = int(math.sqrt((LARGEUR_ROBOT/2)**2+(LONGUEUR_ROBOT/2)**2))
 R_ROBOT = 170
 R_ENNEMI = 250
 MARGE_ENNEMI = 100
-MARGE_NOISETTE = 10
+MARGE_NOISETTE = 0
 MARGE_GM = -35
 MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
@@ -221,7 +221,7 @@ if couleur == "B":
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
 
-    x_robot_retour = 3000-LARGEUR_ROBOT/2-150
+    x_robot_retour = 3000-LARGEUR_ROBOT/2-100
     y_robot_retour = 1800
     angle_robot_retour = -90
     
@@ -261,12 +261,12 @@ if couleur == "B":
             [2150,800],
             [2250,800],
 
-            ["Recalage_X"],
-
             [2825,450],
             [2825,350],
             [2950,850],
             [2950,750],
+
+            ["Recalage_X"],
             
             ["Recalage_Y"],
 
@@ -282,7 +282,7 @@ else:
     y_robot_depart = int(1550+LONGUEUR_ROBOT/2+100)
     angle_robot_depart = -90
     
-    x_robot_retour = LARGEUR_ROBOT/2+150
+    x_robot_retour = LARGEUR_ROBOT/2+100
     y_robot_retour = 1800
     angle_robot_retour = -90
 
@@ -321,13 +321,13 @@ else:
             [175,1150],
             [850,800],
             [750,800],
-            
-            ["Recalage_X"],
 
             [175,450],
             [175,350],
             [50,850],
             [50,750],
+            
+            ["Recalage_X"],
             
             ["Recalage_Y"],
 
@@ -1578,7 +1578,10 @@ if __name__ == '__main__':
                                 if Liste_strategie[0][0] in ["Recalage_X"]:
                                     Liste_actions = [["Recalage_X"],["Attente"],["Attente"]]
                                 if Liste_strategie[0][0] in ["Recalage_Y"]:
-                                    Liste_actions = [["Recalage_Y"],["Attente"],["Attente"]]
+                                    if couleur == "B":
+                                        Liste_actions = [["ReculerPrecis",2700,175],["Recalage_Y"],["Attente"],["Attente"]]
+                                    if couleur == "J":
+                                        Liste_actions = [["ReculerPrecis",300,175],["Recalage_Y"],["Attente"],["Attente"]]
                             
             # ================================================= #
             
