@@ -1,10 +1,10 @@
-couleur = "N"
-Reel = False
-Wifi = False
+Reel = True
+Wifi = True
 Lidar_on = True
 affichage = True
 Strategie = True
 Astars = True
+Faire_curseur = False
 
 Simul_mvt = True
 Simul_mvt_ennemi = False
@@ -18,7 +18,7 @@ lancement_cartes = True
 faire_Ninja = False
 Strat_agressive = False
 Pousser = True
-Faire_curseur = True
+couleur = "N"
 TOL_PRECIS = 15
 TOL_PASPRECIS = 70
 
@@ -270,7 +270,6 @@ if couleur == "B":
             [2950,750],
 
             ["Recalage_X"],
-            ["Curseur"],
 
             [1950,175],
             [1850,175],
@@ -330,7 +329,6 @@ else:
             [50,750],
 
             ["Recalage_X"],
-            ["Curseur"],
 
             [1050,175],
             [1150,175],
@@ -339,9 +337,9 @@ else:
 
         ]
 
-"""if Faire_curseur:
+if Faire_curseur:
     if not Strat_agressive:
-        Liste_strategie.insert(9,['Curseur'])"""
+        Liste_strategie.insert(9,['Curseur'])
 
 x_robot_actuel = x_robot_depart
 y_robot_actuel = y_robot_depart
@@ -1391,6 +1389,20 @@ if __name__ == '__main__':
                                 n3[3]="J"
                                 n4[3]="B"
                 Noisette_restantes = [n for n in Liste_noisette_xya if n[3]=="R"]
+
+                lettres = ["A","B","C","D","E","F"]
+                if temps_ecoules > 1.5:
+                    for Nois in Noisette_restantes:
+                        indice = None
+                        for num_zonedepart in range(len(Liste_zones_Noisette_depart)):
+                            # Vérifier si la noisette est dans cette zone
+                            if (Liste_zones_Noisette_depart[num_zonedepart][0][0] < Nois[0] < Liste_zones_Noisette_depart[num_zonedepart][1][0] and 
+                                Liste_zones_Noisette_depart[num_zonedepart][0][1] < Nois[1] < Liste_zones_Noisette_depart[num_zonedepart][1][1]):
+                                indice = num_zonedepart
+                                break
+                        code_couleur_noisette[indice] = random.choice(lettres)
+                        
+
                 if len(Noisette_restantes)==0:
                     Noisette_init = True
             #else:
