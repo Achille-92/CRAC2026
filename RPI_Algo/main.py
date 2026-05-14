@@ -1532,6 +1532,10 @@ if __name__ == '__main__':
                 if temps_restant <= temps_retour:
                     Liste_actions.clear() 
                     Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour-100)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
+                    if Noisettes_stockees_dans_robot[0] != ['N','N']:
+                        Liste_actions.insert(2,["Relacher",0,12])
+                    if Noisettes_stockees_dans_robot[1] != ['N','N']:
+                        Liste_actions.insert(2,["Relacher",1,12])
                     if faire_Ninja:
                         if couleur == "J":
                             Liste_actions.insert(0, ["ReculerPrecis",int(600+LONGUEUR_ROBOT/2),1400])

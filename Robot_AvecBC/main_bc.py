@@ -798,7 +798,8 @@ if __name__ == '__main__':
             if WiFi and Pami:
                 # ✅ VÉRIFIER SI ASSEZ DE TEMPS S'EST ÉCOULÉ
                 temps_actuel = time.time()
-                
+                socket_pami_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
                 if temps_actuel - dernier_envoi_pami >= FREQUENCE_ENVOI_PAMI:
                     dernier_envoi_pami = temps_actuel
                     
@@ -807,19 +808,13 @@ if __name__ == '__main__':
                         "PAMI_debut_match": PAMI_debut_match,
                         "temps_restant": int(temps_restant),
                     }
+                    message_second = json.dumps(donnees_pour_PAMI).encode()
 
-                    # ✅ PAS DE DÉLAI entre les robots (la connexion TCP est déjà séquentielle)
                     for i in range(7):
                         try:
-                            message_second = json.dumps(donnees_pour_PAMI)
-                            client_socket_second = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                            client_socket_second.settimeout(0.1)  # ✅ Augmenté à 300ms (plus fiable)
-                            client_socket_second.connect((IP_PAMI[i], PORT_PAMI))
-                            client_socket_second.sendall(message_second.encode())
-                            client_socket_second.close()
-                        except (socket.timeout, ConnectionRefusedError, OSError) as e:
-                            # ⚠️ Afficher quelle IP a échoué pour le debug
-                            print(f"❌ Envoi échoué vers {IP_PAMI[i]}:{PORT_PAMI} - {e}")
+                            socket_pami_udp.sendto(message_second, (IP_PAMI[i], PORT_PAMI))
+                        except OSError as e:
+                            print(f"❌ Envoi UDP échoué vers {IP_PAMI[i]}:{PORT_PAMI} - {e}")
                             
             # MAJ de l'affichage et des Variables de Bouncing
             update_display(background)
