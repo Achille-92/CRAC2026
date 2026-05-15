@@ -1,9 +1,9 @@
-Reel = True
-Wifi = True
+Reel = False
+Wifi = False
 Lidar_on = True
 affichage = True
-Strategie = True
-Astars = True
+Strategie = False
+Astars = False
 Faire_curseur = False
 
 Simul_mvt = True
@@ -76,7 +76,7 @@ R_ROBOT = int(math.sqrt((LARGEUR_ROBOT/2)**2+(LONGUEUR_ROBOT/2)**2))
 R_ROBOT = 170
 R_ENNEMI = 250
 MARGE_ENNEMI = 100
-MARGE_NOISETTE = 0
+MARGE_NOISETTE = 10
 MARGE_GM = -35
 MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
@@ -102,11 +102,13 @@ if not Strategie:
         ]
     else:
         Liste_actions = [
-            ["Consigne",175,int(900+LONGUEUR_ROBOT/2)],
-            ["ReculerPrecis",175,1200],
-            ["Avancer",500,1200],
-            ["Consigne",400,400],
-            ["Rotation",90],
+            ["Consigne",175,int(1300+LONGUEUR_ROBOT/2)],
+            ["Baisser",0],
+            ["OuvrirPince",0],
+            ["Consigne",175,800],
+            ["Rotation",0],
+            ["Consigne",int(700-LONGUEUR_ROBOT/2),800],
+            ["ReculerPrecis",500,800],
             ["Attente"]
         ]
 else:
@@ -1664,7 +1666,11 @@ if __name__ == '__main__':
                 
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==2:
                 action_voulu = Liste_actions[0][0]
-                angle_robot_voulu = round(Liste_actions[0][1],0)
+                if action_voulu in ["Rotation"]:
+                    angle_robot_voulu = round(Liste_actions[0][1],0)
+                if action_voulu in ["Baisser","Lever","OuvrirPince","FermerPince"]:
+                    pince_a_utilise = Liste_actions[0][1]
+                    print("pince_a_utilise : ",pince_a_utilise)
                 
             elif type(Liste_actions[0]) == list and len(Liste_actions[0])==3 and Liste_actions[0][0] in ["Attraper","Retourner","Relacher"]:
                 action_voulu = Liste_actions[0][0]
@@ -1672,17 +1678,18 @@ if __name__ == '__main__':
                 noisette_a_manipulee = Liste_actions[0][2]
 
             # ====== Bouger si Robot dans Zone interdite pour Attraper et Relacher === #
-            if len(Liste_actions)>2 and not reset_fin:
-                if (action_voulu in ["Attraper","Retourner","Relacher"]) or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Attraper","Relacher","Retourner"]) or (action_voulu in ["Consigne","ReculerPrecis"] and Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper","Retourner"] and Liste_actions[3][0] not in ["Relacher"] )  or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Consigne","ReculerPrecis"] and Liste_actions[2][0] in ["Rotation"] and Liste_actions[3][0] in ["Attraper","Relacher","Retourner"]) or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]):
-                    mode_attraper = True
-                else : 
+            if Astars:
+                if len(Liste_actions)>2 and not reset_fin:
+                    if (action_voulu in ["Attraper","Retourner","Relacher"]) or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Attraper","Relacher","Retourner"]) or (action_voulu in ["Consigne","ReculerPrecis"] and Liste_actions[1][0] in ["Rotation"] and Liste_actions[2][0] in ["Attraper","Retourner"] and Liste_actions[3][0] not in ["Relacher"] )  or (action_voulu in ["Rotation"] and Liste_actions[1][0] in ["Consigne","ReculerPrecis"] and Liste_actions[2][0] in ["Rotation"] and Liste_actions[3][0] in ["Attraper","Relacher","Retourner"]) or (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"]):
+                        mode_attraper = True
+                    else : 
+                        mode_attraper = False
+                else :
                     mode_attraper = False
-            else :
-                mode_attraper = False
-                if (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"] and not reset_fin) or action_voulu in ["Retourner","Attraper"]:
-                    mode_attraper = True
+                    if (action_precedente in ["Relacher"] and action_voulu in ["Consigne","ReculerPrecis","Reculer","Avancer"] and not reset_fin) or action_voulu in ["Retourner","Attraper"]:
+                        mode_attraper = True
                     
-            print("mode_attraper : ",mode_attraper)
+                print("mode_attraper : ",mode_attraper)
 
             # ======================================================================== #
             
