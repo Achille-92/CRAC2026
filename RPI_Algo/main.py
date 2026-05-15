@@ -1,5 +1,5 @@
-Reel = False
-Wifi = False
+Reel = True
+Wifi = True
 Lidar_on = True
 affichage = True
 Strategie = True
