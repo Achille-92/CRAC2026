@@ -1391,7 +1391,7 @@ if __name__ == '__main__':
                 Noisette_restantes = [n for n in Liste_noisette_xya if n[3]=="R"]
 
                 lettres = ["A","B","C","D","E","F"]
-                if temps_ecoules > 1.5:
+                if temps_ecoules >= 1:
                     for Nois in Noisette_restantes:
                         indice = None
                         for num_zonedepart in range(len(Liste_zones_Noisette_depart)):
@@ -1637,9 +1637,9 @@ if __name__ == '__main__':
                         else:
                             if Liste_strategie[0][0] in ["Curseur"]:
                                 if couleur == "B":
-                                    Liste_actions = [["Curseur_Bleu"],["Attente"],["Attente"]]
+                                    Liste_actions = [["Rotation",-90],["Curseur_Bleu"],["Attente"],["Attente"]]
                                 if couleur == "J":
-                                    Liste_actions = [["Curseur_Jaune"],["Attente"],["Attente"]]
+                                    Liste_actions = [["Rotation",90],["Curseur_Jaune"],["Attente"],["Attente"]]
                             else:
                                 if Liste_strategie[0][0] in ["Recalage_X"]:
                                     Liste_actions = [["Recalage_X"],["Attente"],["Attente"]]
