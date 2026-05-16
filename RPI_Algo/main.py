@@ -1,9 +1,9 @@
-Reel = True
-Wifi = True
+Reel = False
+Wifi = False
 Lidar_on = True
 affichage = True
-Strategie = True
-Astars = True
+Strategie = False
+Astars = False
 Faire_curseur = False
 
 Simul_mvt = True
@@ -93,30 +93,30 @@ DISTANCE_MIN_ROBOT = 50  # Distance minimale au robot en mm
 if not Strategie:
     if couleur == "B":
         Liste_actions = [
-            ["Consigne",175,int(1300+LONGUEUR_ROBOT/2)],
+            ["Consigne",3000-175,int(1300+LONGUEUR_ROBOT/2)],
             ["Rotation",-90],
             ["Baisser",0],
             ["OuvrirPince",0],
-            ["Consigne",175,800],
-            ["Rotation",0],
-            ["Consigne",int(700-LONGUEUR_ROBOT/2),800],
+            ["Consigne",3000-175,800],
+            ["Rotation",180],
+            ["Consigne",3000-int(700-LONGUEUR_ROBOT/2),800],
             ["FermerPince",0],
             ["Lever",0],
-            ["ReculerPrecis",500,800],
+            ["ReculerPrecis",3000-500,800],
 
-            ["Consigne",500,150],
-            ["Consigne",175,150],
-            ["Consigne",175,int(300-LONGUEUR_ROBOT/2)],
+            ["Consigne",3000-500,150],
+            ["Consigne",3000-175,150],
+            ["Consigne",3000-175,int(300-LONGUEUR_ROBOT/2)],
             ["Rotation",90],
             ["Baisser",0],
             ["OuvrirPince",0],
-            ["Consigne",200,int(700-LONGUEUR_ROBOT/2)],
+            ["Consigne",3000-200,int(700-LONGUEUR_ROBOT/2)],
             ["FermerPince",0],
             ["Lever",0],
 
-            ["ReculerPrecis",500,200],
-            ["Consigne",500,200],
-            ["Consigne",500,800],
+            ["ReculerPrecis",3000-500,200],
+            ["Consigne",3000-500,200],
+            ["Consigne",3000-500,800],
 
             ["Attente"]
         ]
@@ -907,7 +907,7 @@ def bouton_attraper_callback(event):
     global verif_action1,verif_action2,verif_action, action_voulu,verif_curseur,verif_recalageX,verif_recalageY
     
     # Vérifier qu il y a une action en cours
-    if len(Liste_actions) > 0 and action_voulu in ["Attraper","Retourner","Relacher"]:
+    if len(Liste_actions) > 0 and action_voulu in ["Attraper","Retourner","Relacher","Baisser","Lever","OuvrirPince","FermerPince"]:
         verif_action1 = 1
         verif_action2 = 1
     if len(Liste_actions) > 0 and action_voulu in ["Attente_test"]:
@@ -2289,6 +2289,7 @@ if __name__ == '__main__':
                 (action_voulu in ["Curseur_Bleu","Curseur_Jaune"] and verif_curseur == 1) or \
                 (action_voulu in ["Recalage_X"] and verif_recalageX == 1) or \
                 (action_voulu in ["Recalage_Y"] and verif_recalageY == 1) or \
+                (action_voulu in ["Baisser","Lever","OuvrirPince","FermerPince"] and ((verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1))) or \
                 (action_voulu in ["Attraper","Retourner","Relacher"] and ((verif_action1 == 1 and pince_a_utilise == 0)or(verif_action2 == 1 and pince_a_utilise == 1))):
                     if not Reel:
                         if action_voulu in ["Curseur_Bleu","Curseur_Jaune"]:
