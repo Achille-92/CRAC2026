@@ -1,9 +1,9 @@
-Reel = False
-Wifi = False
+Reel = True
+Wifi = True
 Lidar_on = True
 affichage = True
-Strategie = False
-Astars = False
+Strategie = True
+Astars = True
 Faire_curseur = False
 
 Simul_mvt = True
@@ -21,7 +21,7 @@ Pousser = True
 couleur = "N"
 TOL_PRECIS = 15
 TOL_PASPRECIS = 70
-
+recalageX_fait = 0
 Noisettes_stockees_dans_robot = [["N","N"],["N","N"]]
 ################## Librairies ##########################################
 import matplotlib
@@ -76,7 +76,7 @@ R_ROBOT = int(math.sqrt((LARGEUR_ROBOT/2)**2+(LONGUEUR_ROBOT/2)**2))
 R_ROBOT = 170
 R_ENNEMI = 250
 MARGE_ENNEMI = 100
-MARGE_NOISETTE = 10
+MARGE_NOISETTE = 0
 MARGE_GM = -35
 MARGE_TRAJECTOIRE = 20
 R_securite = R_ROBOT + R_ENNEMI + MARGE_ENNEMI
@@ -93,22 +93,60 @@ DISTANCE_MIN_ROBOT = 50  # Distance minimale au robot en mm
 if not Strategie:
     if couleur == "B":
         Liste_actions = [
-            ["Consigne",2825,int(900+LONGUEUR_ROBOT/2)],
-            ["ReculerPrecis",2825,1200],
-            ["Avancer",2500,1200],
-            ["Consigne",2600,400],
-            ["Rotation",90],
-            ["Attente"]
-        ]
-    else:
-        Liste_actions = [
             ["Consigne",175,int(1300+LONGUEUR_ROBOT/2)],
+            ["Rotation",-90],
             ["Baisser",0],
             ["OuvrirPince",0],
             ["Consigne",175,800],
             ["Rotation",0],
             ["Consigne",int(700-LONGUEUR_ROBOT/2),800],
+            ["FermerPince",0],
+            ["Lever",0],
             ["ReculerPrecis",500,800],
+
+            ["Consigne",500,150],
+            ["Consigne",175,150],
+            ["Consigne",175,int(300-LONGUEUR_ROBOT/2)],
+            ["Rotation",90],
+            ["Baisser",0],
+            ["OuvrirPince",0],
+            ["Consigne",200,int(700-LONGUEUR_ROBOT/2)],
+            ["FermerPince",0],
+            ["Lever",0],
+
+            ["ReculerPrecis",500,200],
+            ["Consigne",500,200],
+            ["Consigne",500,800],
+
+            ["Attente"]
+        ]
+    else:
+        Liste_actions = [
+            ["Consigne",175,int(1300+LONGUEUR_ROBOT/2)],
+            ["Rotation",-90],
+            ["Baisser",0],
+            ["OuvrirPince",0],
+            ["Consigne",175,800],
+            ["Rotation",0],
+            ["Consigne",int(700-LONGUEUR_ROBOT/2),800],
+            ["FermerPince",0],
+            ["Lever",0],
+            ["ReculerPrecis",500,800],
+
+            ["Consigne",500,150],
+            ["Consigne",175,150],
+            ["Consigne",175,int(300-LONGUEUR_ROBOT/2)],
+            ["Rotation",90],
+            ["Baisser",0],
+            ["OuvrirPince",0],
+            ["Consigne",200,int(700-LONGUEUR_ROBOT/2)],
+            ["FermerPince",0],
+            ["Lever",0],
+
+            ["ReculerPrecis",500,200],
+            ["Consigne",500,200],
+            ["Consigne",500,800],
+
             ["Attente"]
         ]
 else:
@@ -266,6 +304,8 @@ if couleur == "B":
             [2150,800],
             [2250,800],
 
+            ["Recalage_X"],
+
             [2825,450],
             [2825,350],
             [2950,850],
@@ -324,6 +364,8 @@ else:
             [175,1150],
             [850,800],
             [750,800],
+            
+            ["Recalage_X"],
 
             [175,450],
             [175,350],
@@ -1594,7 +1636,7 @@ if __name__ == '__main__':
                 if temps_restant <= temps_retour:
                     Liste_actions.clear() 
                     
-                    Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour-100)],["Consigne",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
+                    Liste_actions = [["Consigne",int(x_robot_retour),int(y_robot_retour)],["Attente_test"]]
                     """if couleur == "J":
                         Liste_actions.insert(0,["ReculerPrecis",1100,300])
                     if couleur == "B":
@@ -1643,8 +1685,17 @@ if __name__ == '__main__':
                                 if couleur == "J":
                                     Liste_actions = [["Rotation",90],["Curseur_Jaune"],["Attente"],["Attente"]]
                             else:
+
                                 if Liste_strategie[0][0] in ["Recalage_X"]:
-                                    Liste_actions = [["Recalage_X"],["Attente"],["Attente"]]
+                                    if recalageX_fait == 0:
+                                        if couleur == "B":
+                                            Liste_actions = [["Consigne",2800,800],["Recalage_X"],["Attente"],["Attente"]]
+                                        else:
+                                            Liste_actions = [["Consigne",200,800],["Recalage_X"],["Attente"],["Attente"]]
+                                    else:
+                                        Liste_actions = [["Recalage_X"],["Attente"],["Attente"]]
+
+
                                 if Liste_strategie[0][0] in ["Recalage_Y"]:
                                     if couleur == "B":
                                         Liste_actions = [["ReculerPrecis",2700,175],["Recalage_Y"],["Attente"],["Attente"]]
@@ -2242,6 +2293,9 @@ if __name__ == '__main__':
                             x_robot_actuel = x_fin_curseur
                             y_robot_actuel = y_fin_curseur
                     
+                    if action_voulu in ["Recalage_X"] and recalageX_fait == 0:
+                        recalageX_fait = 1
+
                     if Simul_action:
                         if (action_voulu in ["Attraper"]):
                             if(Noisettes_stockees_dans_robot[pince_a_utilise][0] in ["J","B"] and Noisettes_stockees_dans_robot[pince_a_utilise][1] in ["J","B"] and noisette_a_manipulee == 12):
