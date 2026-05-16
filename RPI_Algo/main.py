@@ -312,6 +312,7 @@ if couleur == "B":
             [2950,750],
 
             ["Recalage_X"],
+            ["Recalage_Y"],
 
             [1950,175],
             [1850,175],
@@ -373,6 +374,7 @@ else:
             [50,750],
 
             ["Recalage_X"],
+            ["Recalage_Y"],
 
             [1050,175],
             [1150,175],
@@ -1698,9 +1700,9 @@ if __name__ == '__main__':
 
                                 if Liste_strategie[0][0] in ["Recalage_Y"]:
                                     if couleur == "B":
-                                        Liste_actions = [["ReculerPrecis",2700,175],["Recalage_Y"],["Attente"],["Attente"]]
+                                        Liste_actions = [["ReculerPrecis",2300,175],["Recalage_Y"],["Attente"],["Attente"]]
                                     if couleur == "J":
-                                        Liste_actions = [["ReculerPrecis",300,175],["Recalage_Y"],["Attente"],["Attente"]]
+                                        Liste_actions = [["ReculerPrecis",700,175],["Recalage_Y"],["Attente"],["Attente"]]
                             
             # ================================================= #
             
