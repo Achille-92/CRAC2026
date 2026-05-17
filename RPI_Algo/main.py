@@ -2,8 +2,8 @@ Reel = False
 Wifi = False
 Lidar_on = True
 affichage = True
-Strategie = False
-Astars = False
+Strategie = True
+Astars = True
 Faire_curseur = False
 
 Simul_mvt = True
