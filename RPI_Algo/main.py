@@ -66,7 +66,7 @@ if Reel:
         can_filters=Filtre_CAN)
 dico_envoi = {}
 for ID in Liste_ID_envoi:
-    dico_envoi[ID]= 0
+    dico_envoi[ID]= 0 
 #################################################
 
 # Perimètre de sécurité
