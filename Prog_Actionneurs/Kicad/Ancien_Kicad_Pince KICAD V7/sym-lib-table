@@ -1,0 +1,5 @@
+(sym_lib_table
+  (lib (name "0_Ge2")(type "KiCad")(uri "${KIPRJMOD}/LibGe2/0_Ge2.kicad_sym")(options "")(descr ""))
+  (lib (name "0_CRAC")(type "KiCad")(uri "${KIPRJMOD}/LibCRAC/0_CRAC.kicad_sym")(options "")(descr ""))
+  (lib (name "0_SymbGamelGe2_v6")(type "KiCad")(uri "${KIPRJMOD}/LibGamelGe2_v6/0_SymbGamelGe2_v6.kicad_sym")(options "")(descr ""))
+)

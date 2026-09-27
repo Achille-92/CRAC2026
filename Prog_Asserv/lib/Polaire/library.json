@@ -1,0 +1,7 @@
+{
+  "name": "Polaire",
+  "version": "1.0.0",
+  "build": {
+    "srcDir": "."
+  }
+}

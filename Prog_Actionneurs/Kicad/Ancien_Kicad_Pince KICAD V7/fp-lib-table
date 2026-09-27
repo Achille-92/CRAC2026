@@ -1,0 +1,5 @@
+(fp_lib_table
+  (lib (name "FootprintGe2")(type "KiCad")(uri "${KIPRJMOD}/LibGe2/FootprintGe2.pretty")(options "")(descr ""))
+  (lib (name "FootprintCRAC")(type "KiCad")(uri "${KIPRJMOD}/LibCRAC/FootprintCRAC.pretty")(options "")(descr ""))
+  (lib (name "FootprintGamelGe2_v6")(type "KiCad")(uri "${KIPRJMOD}/LibGamelGe2_v6/FootprintGamelGe2_v6.pretty")(options "")(descr ""))
+)
