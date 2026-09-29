@@ -1,0 +1,23 @@
+%TF.GenerationSoftware,KiCad,Pcbnew,8.0.6-1.fc40*%
+%TF.CreationDate,2024-10-29T23:20:25+01:00*%
+%TF.ProjectId,Carte_puissance_crac_v2,43617274-655f-4707-9569-7373616e6365,rev?*%
+%TF.SameCoordinates,Original*%
+%TF.FileFunction,Profile,NP*%
+%FSLAX46Y46*%
+G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
+G04 Created by KiCad (PCBNEW 8.0.6-1.fc40) date 2024-10-29 23:20:25*
+%MOMM*%
+%LPD*%
+G01*
+G04 APERTURE LIST*
+%TA.AperFunction,Profile*%
+%ADD10C,0.100000*%
+%TD*%
+G04 APERTURE END LIST*
+D10*
+X102100000Y-49700000D02*
+X164100000Y-49700000D01*
+X164100000Y-137700000D01*
+X102100000Y-137700000D01*
+X102100000Y-49700000D01*
+M02*

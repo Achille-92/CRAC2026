@@ -1,0 +1,9 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "ALTIUM_EMBEDDED_MODELS")(type "KiCad")(uri "${KIPRJMOD}/ALTIUM_EMBEDDED_MODELS")(options "")(descr ""))
+  (lib (name "0_FootprintGe2")(type "KiCad")(uri "${KIPRJMOD}/LibGe2/0_FootprintGe2.pretty")(options "")(descr ""))
+  (lib (name "lib")(type "KiCad")(uri "${KIPRJMOD}/lib/lib.pretty")(options "")(descr ""))
+  (lib (name "SQM40031EL_GE3")(type "KiCad")(uri "${KIPRJMOD}/SQM40031EL_GE3/footprints.pretty")(options "")(descr ""))
+  (lib (name "FootprintGamelGe2_v6")(type "KiCad")(uri "${KIPRJMOD}/LibGamelGe2_v6/FootprintGamelGe2_v6.pretty")(options "")(descr ""))
+  (lib (name "TSR-2-2450")(type "KiCad")(uri "${KIPRJMOD}/lib_TSR-2-2450/TSR-2-2450.pretty")(options "")(descr ""))
+)
