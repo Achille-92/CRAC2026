@@ -1,0 +1,280 @@
+code pour multiplexeur TCA9545A
+
+#include <Arduino.h>
+#include <Wire.h>
+#include "rgb_lcd.h"
+#include <VL53L0X.h>
+#include <ESP32Servo.h>
+
+// Configuration Pins ESP32-C5
+#define I2C_SDA 2 
+#define I2C_SCL 3
+#define TCAADDR 0x70
+#define SERVO_PIN 0    // Ton servo FT90M
+#define BUTTON_PIN 6   // Ton bouton
+
+// Objets
+rgb_lcd lcd;
+VL53L0X sensor0;
+VL53L0X sensor1;
+Servo myServo;
+
+// Variables pour le bouton et servo
+int pos = 0;
+bool buttonState = false;
+
+void tcaselect(uint8_t i) {
+    if (i > 3) return;
+    Wire.beginTransmission(TCAADDR);
+    Wire.write(1 << i);
+    Wire.endTransmission();
+    delay(5); 
+}
+
+void setup() {
+    Serial.begin(115200);
+    
+    // Config Bouton (INPUT_PULLUP évite d'ajouter une résistance physique)
+    pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+    // Config Servo
+    ESP32PWM::allocateTimer(0);
+    myServo.setPeriodHertz(50);
+    myServo.attach(SERVO_PIN, 500, 2400);
+
+    // Initialisation I2C
+    Wire.begin(I2C_SDA, I2C_SCL);
+    Wire.setClock(100000);
+
+    // Initialisation LCD (Canal 3)
+    tcaselect(3);
+    lcd.begin(16, 2);
+    lcd.setRGB(255, 255, 0);
+    lcd.print("Init System...");
+
+    // Initialisation ToF 0
+    tcaselect(0);
+    sensor0.init();
+    sensor0.setTimeout(500);
+    sensor0.startContinuous();
+
+    // Initialisation ToF 1
+    tcaselect(1);
+    sensor1.init();
+    sensor1.setTimeout(500);
+    sensor1.startContinuous();
+
+    lcd.clear();
+}
+
+void loop() {
+    // 1. Lecture du bouton (LOW quand pressé car en PULLUP)
+    buttonState = !digitalRead(BUTTON_PIN); 
+
+    // 2. Logique Servo : Si bouton pressé, il bouge, sinon il reste à 0
+    if (buttonState) {
+        pos = 90; // Position test
+    } else {
+        pos = 0;
+    }
+    myServo.write(pos);
+
+    // 3. Lecture des capteurs ToF via Multiplexeur
+    tcaselect(0);
+    uint16_t d0 = sensor0.readRangeContinuousMillimeters();
+    
+    tcaselect(1);
+    uint16_t d1 = sensor1.readRangeContinuousMillimeters();
+
+    // 4. Affichage LCD (Canal 3)
+    tcaselect(3);
+    
+    // Ligne 0 : Distances
+    lcd.setCursor(0, 0);
+    lcd.print("C0:"); lcd.print(d0);
+    lcd.print(" C1:"); lcd.print(d1);
+    lcd.print("   ");
+
+    // Ligne 1 : État Bouton et Servo
+    lcd.setCursor(0, 1);
+    lcd.print("BTN:");
+    lcd.print(buttonState ? "ON " : "OFF");
+    lcd.print(" SRV:");
+    lcd.print(pos);
+    lcd.print("deg  ");
+
+    delay(100); 
+}
+
+code servo
+
+#include <Arduino.h>
+
+// On garde tes pins
+const int servoPin = 0; 
+
+// Configuration PWM pour Servo
+const int freq = 50;           // 50Hz est standard pour les servos
+const int resolution = 14;     // 14 bits donne une précision de 0 à 16383
+
+void setServoAngle(int angle) {
+  // Un servo attend une impulsion entre 500us (0°) et 2400us (180°)
+  // Sur une période de 20ms (50Hz) avec 14 bits de résolution :
+  // 0°   -> (500us / 20000us) * 16383 ≈ 410
+  // 180° -> (2400us / 20000us) * 16383 ≈ 1966
+  
+  int duty = map(angle, 0, 180, 410, 1966);
+  ledcWrite(servoPin, duty); 
+}
+
+void setup() {
+  Serial.begin(115200);
+  
+  // Initialisation du PWM sur le GPIO 0
+  // Paramètres : broche, fréquence, résolution
+  if (!ledcAttach(servoPin, freq, resolution)) {
+    Serial.println("Erreur : Impossible d'attacher le PWM sur le GPIO 0");
+  } else {
+    Serial.println("Servo prêt sur GPIO 0 (Mode LEDC Native)");
+  }
+}
+
+void loop() {
+  Serial.println("Angle : 0°");
+  setServoAngle(0);
+  delay(1500);
+
+  Serial.println("Angle : 90°");
+  setServoAngle(90);
+  delay(1500);
+
+  Serial.println("Angle : 180°");
+  setServoAngle(180);
+  delay(1500);
+}
+
+code moteur 
+
+#include <Arduino.h>
+#include <AccelStepper.h>
+
+#define BUTTON_PIN 6
+
+// --- CONFIGURATION DES BROCHES (Source: main.cpp & Brochage PDF) ---
+// Moteur 1 (Généralement Gauche)
+const int stepPin_L = 26; // MOTEUR 1 - STEP
+const int dirPin_L = 25;  // MOTEUR 1 - DIR
+
+// Moteur 2 (Généralement Droit)
+const int stepPin_R = 23; // MOTEUR 2 - STEP
+const int dirPin_R = 24;  // MOTEUR 2 - DIR
+
+// Contrôle Driver
+const int enablePin = 4; // Pin EN (Enable)
+const int mode1Pin = 28;
+const int mode2Pin = 27;
+
+const int stby = 5;
+
+// Paramètres de mouvement
+const float VITESSE = 5000.0;
+const float ACCELERATION = 10000.0;
+const long DISTANCE_TEST = 10000; // Nombre de pas pour le test
+
+// Création des objets moteurs
+AccelStepper stepperL(AccelStepper::DRIVER, stepPin_L, dirPin_L);
+AccelStepper stepperR(AccelStepper::DRIVER, stepPin_R, dirPin_R);
+
+void setup()
+{
+  Serial.begin(115200);
+
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+  delay(1500);
+  Serial.println("\nROBOT DEMARRAGE...");
+
+  pinMode(stby, OUTPUT);
+  digitalWrite(stby, LOW);
+
+  pinMode(enablePin, INPUT_PULLUP);
+  pinMode(mode1Pin, OUTPUT);
+  pinMode(mode2Pin, OUTPUT);
+  // pinMode(dirPin_L, OUTPUT);
+  // pinMode(dirPin_R, OUTPUT);
+  // pinMode(stepPin_L, OUTPUT);
+  // pinMode(stepPin_R, OUTPUT);
+  digitalWrite(mode1Pin, LOW);
+  digitalWrite(mode2Pin, HIGH);
+  // digitalWrite(dirPin_L, HIGH);
+  // digitalWrite(dirPin_R, HIGH);
+  // digitalWrite(stepPin_L, HIGH);
+  // digitalWrite(stepPin_R, HIGH);
+
+  // digitalWrite(enablePin, HIGH);
+
+  // Config Initiale
+  stepperL.setMaxSpeed(VITESSE);
+  stepperL.setAcceleration(ACCELERATION);
+  stepperR.setMaxSpeed(VITESSE);
+  stepperR.setAcceleration(ACCELERATION);
+
+  digitalWrite(stby, HIGH);
+
+  stepperL.setPinsInverted(false, false, false);
+  stepperR.setPinsInverted(true, false, false);
+}
+
+void loop()
+{
+  // 1. AVANCER
+  Serial.println("Mouvement : AVANT");
+  stepperL.move(DISTANCE_TEST);
+  stepperR.move(DISTANCE_TEST);
+
+  // Attendre la fin du mouvement
+  while (stepperL.distanceToGo() != 0 || stepperR.distanceToGo() != 0)
+  {
+    stepperL.run();
+    stepperR.run();
+  }
+
+  // 2. PAUSE
+  Serial.println("Pause...");
+  delay(2000); // Délai de 2 secondes entre les deux fonctions
+
+  // 3. RECULER
+  Serial.println("Mouvement : ARRIERE");
+  stepperL.move(-DISTANCE_TEST);
+  stepperR.move(-DISTANCE_TEST);
+
+  // Attendre la fin du mouvement
+  while (stepperL.distanceToGo() != 0 || stepperR.distanceToGo() != 0)
+  {
+    stepperL.run();
+    stepperR.run();
+  }
+
+  // 4. PAUSE avant de recommencer
+  delay(2000);
+}
+  }
+
+  // 2. PAUSE
+  Serial.println("Pause...");
+  delay(2000); // Délai de 2 secondes entre les deux fonctions
+
+  // 3. RECULER
+  Serial.println("Mouvement : ARRIERE");
+  stepperL.move(-DISTANCE_TEST);
+  stepperR.move(-DISTANCE_TEST);
+
+  // Attendre la fin du mouvement
+  while (stepperL.distanceToGo() != 0 || stepperR.distanceToGo() != 0) {
+    stepperL.run();
+    stepperR.run();
+  }
+
+  // 4. PAUSE avant de recommencer
+  delay(2000);
+}

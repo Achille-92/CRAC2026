@@ -1,0 +1,54 @@
+  // int16_t d0 = sensor0.readRangeContinuousMillimeters();
+  // int16_t d1 = sensor1.readRangeContinuousMillimeters();
+  // int16_t d2 = sensor2.readRangeContinuousMillimeters();
+  // int16_t d3 = sensor3.readRangeContinuousMillimeters();
+
+  // switch (test)
+  // {
+  // case 0:
+  //   stepperL->setSpeedInHz((uint32_t)VITESSE_MAX);
+  //   stepperR->setSpeedInHz((uint32_t)VITESSE_MAX);
+  //   stepperL->move(1000);
+  //   stepperR->move(1000);
+
+  //   if (d1 < 200 || d2 < 200 || d0 < 200 || d3 < 200)
+  //   {
+  //     Serial.println("OBSTACLE DEVANT !");
+  //     stepperL->stopMove();
+  //     stepperR->stopMove();
+  //     timer_obstacle = 0; // reset le timer
+  //     test = 1;
+  //   }
+  //   else
+  //   {
+  //     Serial.println("CHEMIN LIBRE");
+  //   }
+  //   break;
+
+  // case 1:
+  //   if (d1 < 200 || d2 < 200 || d0 < 200 || d3 < 200)
+  //   {
+  //     // obstacle encore là → reset le timer
+  //     timer_obstacle = 0;
+  //   }
+  //   else
+  //   {
+  //     // plus d'obstacle → on commence à compter
+  //     if (timer_obstacle == 0)
+  //     {
+  //       timer_obstacle = millis(); // démarre le timer
+  //     }
+  //     else if (millis() - timer_obstacle >= 1000)
+  //     {
+  //       // 1 seconde écoulée sans obstacle → redémarrage
+  //       Serial.println("Voie libre, redémarrage !");
+  //       timer_obstacle = 0;
+  //       test = 0;
+  //     }
+  //   }
+  //   break;
+
+  // default:
+  //   test = 0;
+  //   break;
+  // }

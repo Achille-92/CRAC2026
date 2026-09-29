@@ -1,0 +1,991 @@
+#include <Arduino.h>
+#include "FastAccelStepper.h"
+#include <VL53L0X.h>
+#include <math.h>
+#include <Wire.h>
+#include "rgb_lcd.h"
+#include <WiFi.h>
+#include <ArduinoJson.h>
+#include <time.h>
+
+float CORRECTION_DERIVE = 1;
+
+// ─────────────────────────────────────────────────────────
+//  CHEMIN DU ROBOT 3
+//  Modifier uniquement ces deux tableaux pour changer la route
+// ─────────────────────────────────────────────────────────
+//  BLEU  : part de (52.5,  53.75), angle 0°  → zone 1
+//  JAUNE : part de (2950,  53.75), angle 0°  → zone 10
+const int CHEMIN_BLEU[]  = {1};
+const int CHEMIN_JAUNE[] = {10};
+const int CHEMIN_BLEU_LEN  = sizeof(CHEMIN_BLEU)  / sizeof(CHEMIN_BLEU[0]);
+const int CHEMIN_JAUNE_LEN = sizeof(CHEMIN_JAUNE) / sizeof(CHEMIN_JAUNE[0]);
+
+// Variables de navigation — ne pas toucher
+const int* chemin_actuel = nullptr;
+int chemin_len      = 0;
+int chemin_index    = 0;
+int zone_actuelle   = 0;
+bool mode_sequence  = false;
+
+// Configuration Pins
+#define I2C_SDA 2
+#define I2C_SCL 3
+#define TCAADDR 0x70
+#define BUTTON_PIN 6
+
+int vBat = 1;
+bool buttonState = false;
+
+// ─── WiFi ─────────────────────────────────────────────────
+const char *SSID = "Iris320"; // PlanetCampus - Prive 016796 WiFi_CDFR_BC_CRAC_5G 
+const char *PASSWORD = "wphc8257";       // CfKYD7EABHyRu 87877748 
+ 
+WiFiServer server(5002);
+
+// ─── LOGIQUE MATCH ────────────────────────────────────────
+int couleur = 0;
+bool PAMI_debut_match = false;
+bool timer_85_demarre = false;
+unsigned long temps_debut_match = 0;
+const unsigned long DELAI_DEPART = 10000;
+
+bool robot_demarre_par_wifi = false;
+
+// Constantes Robot
+const float k_LIN = 14.5513;
+const float k_ROT = 12.381;
+int SYMETRIE = 1;
+
+const int DISTANCE_ARRET = 250;
+const int DISTANCE_LOIN = 160;
+const int PAS_ROTATION = 15;
+
+const float VITESSE_MAX = 2000;   // 5250
+const float ACCELERATION = 10000; // 2000
+
+// Pins Moteurs
+const int enablePin = 5;
+const int mode1Pin = 28;
+const int mode2Pin = 8;
+
+const int stepPin_L = 25;
+const int dirPin_L = 26;
+const int stepPin_R = 23;
+const int dirPin_R = 24;
+const int stby = 4;
+
+// --- FastAccelStepper ---
+FastAccelStepperEngine engine = FastAccelStepperEngine();
+FastAccelStepper *stepperL = NULL;
+FastAccelStepper *stepperR = NULL;
+
+rgb_lcd lcd;
+
+VL53L0X sensor0, sensor1, sensor2, sensor3;
+
+float robot_x = 0, robot_y = 0, robot_a = 0;
+float cible_x = 0, cible_y = 0;
+
+unsigned long timer_clear = 0;
+unsigned long timer_capteur = 0;
+unsigned long timer_pause = 0;
+unsigned long timer_debut_mouvement = 0;
+unsigned long timer_depart_auto = 0;
+bool robot_a_demarre = false;
+
+int compteur_obs = 0;
+
+const int servoPin = 0;
+const int freq = 50;
+const int resolution = 14;
+
+int test = 0;
+unsigned long timer_obstacle = 0;
+
+void setServoAngle(int angle)
+{
+  int duty = map(angle, 0, 180, 410, 1966);
+  ledcWrite(servoPin, duty);
+}
+
+enum Etat
+{
+  ATTENTE,
+  CALCUL_ROT,
+  ROTATION,
+  PAUSE_ROT,
+  CALCUL_AV,
+  AVANCE,
+  PAUSE_SEQUENCE,
+  OBS_STOP
+};
+Etat etat = ATTENTE;
+
+bool ok0 = false, ok1 = false, ok2 = false, ok3 = false;
+
+// ══════════════════════════════════════════════════════════
+//  MULTIPLEXEUR I2C
+// ══════════════════════════════════════════════════════════
+bool tcaselect(uint16_t i)
+{
+  if (i > 7)
+    return false;
+  Wire.beginTransmission(TCAADDR);
+  Wire.write(1 << i);
+  if (Wire.endTransmission() != 0)
+    return false;
+  delay(2);
+  return true;
+}
+
+bool tcaselectAll()
+{
+  Wire.beginTransmission(TCAADDR);
+  Wire.write(0x0F);
+  if (Wire.endTransmission() != 0)
+    return false;
+  delay(2);
+  return true;
+}
+
+// ══════════════════════════════════════════════════════════
+//  FORWARD DECLARATIONS
+// ══════════════════════════════════════════════════════════
+void gestion_entrees();
+void gestion_etats();
+void aller_a_la_zone(int z);
+
+// ══════════════════════════════════════════════════════════
+//  DÉMARRAGE SELON COULEUR
+// ══════════════════════════════════════════════════════════
+void demarrer_sequence_couleur()
+{
+  mode_sequence = true;
+  robot_demarre_par_wifi = true;
+
+  if (couleur == 1)
+  {
+    Serial.println("[MATCH] Départ équipe BLEUE");
+    SYMETRIE = 1;
+    robot_x = 52.5;
+    robot_y = 53.75;
+    robot_a = 0;
+    chemin_actuel = CHEMIN_BLEU;
+    chemin_len    = CHEMIN_BLEU_LEN;
+  }
+  else if (couleur == 2)
+  {
+    Serial.println("[MATCH] Départ équipe JAUNE");
+    SYMETRIE = -1;
+    robot_x = 2950.0;
+    robot_y = 53.75;
+    robot_a = 0;
+    chemin_actuel = CHEMIN_JAUNE;
+    chemin_len    = CHEMIN_JAUNE_LEN;
+  }
+  else
+  {
+    Serial.println("[MATCH] Couleur inconnue, départ annulé.");
+    mode_sequence = false;
+    return;
+  }
+
+  chemin_index  = 0;
+  zone_actuelle = chemin_actuel[chemin_index];
+  aller_a_la_zone(zone_actuelle);
+}
+
+// ══════════════════════════════════════════════════════════
+//  RÉCEPTION TCP
+// ══════════════════════════════════════════════════════════
+void gestion_tcp()
+{
+  WiFiClient client = server.accept();
+  if (!client)
+    return;
+
+  Serial.println("[TCP] Client connecté.");
+
+  String message = "";
+  unsigned long timeout = millis();
+  while (client.connected() && millis() - timeout < 5000)
+  {
+    while (client.available())
+    {
+      char c = client.read();
+      if (c == '\n')
+        goto done;
+      message += c;
+      timeout = millis();
+    }
+  }
+done:
+  message.trim();
+  client.stop();
+
+  Serial.print("[TCP] Reçu : ");
+  Serial.println(message);
+
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, message);
+  if (error)
+  {
+    Serial.print("[JSON] Erreur : ");
+    Serial.println(error.c_str());
+    return;
+  }
+
+  couleur = doc["couleur"] | 0;
+  PAMI_debut_match = doc["PAMI_debut_match"] | false;
+
+  Serial.print("[MATCH] Couleur : ");
+  Serial.println(couleur);
+  Serial.print("[MATCH] PAMI_debut_match : ");
+  Serial.println(PAMI_debut_match);
+
+  if (PAMI_debut_match && !timer_85_demarre)
+  {
+    Serial.println("[MATCH] Signal reçu ! Timer 85s démarré...");
+    temps_debut_match = millis();
+    timer_85_demarre = true;
+  }
+
+  if (!PAMI_debut_match && robot_demarre_par_wifi)
+  {
+    Serial.println("[MATCH] Arrêt reçu !");
+    robot_demarre_par_wifi = false;
+    timer_85_demarre = false;
+    stepperL->stopMove();
+    stepperR->stopMove();
+    etat = ATTENTE;
+    mode_sequence = false;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  AFFICHAGE LCD
+// ══════════════════════════════════════════════════════════
+void afficher_lcd_attente()
+{
+  static unsigned long last_lcd = 0;
+  if (millis() - last_lcd < 500)
+    return;
+  last_lcd = millis();
+
+  lcd.setCursor(0, 0);
+  if (couleur == 1)
+  {
+    lcd.setRGB(0, 0, 255);
+    lcd.print("Equipe BLEUE    ");
+  }
+  else if (couleur == 2)
+  {
+    lcd.setRGB(255, 165, 0);
+    lcd.print("Equipe JAUNE    ");
+  }
+  else
+  {
+    lcd.setRGB(255, 255, 255);
+    lcd.print("En attente...   ");
+  }
+
+  lcd.setCursor(0, 1);
+  if (timer_85_demarre)
+  {
+    unsigned long elapsed = millis() - temps_debut_match;
+    unsigned long restant = (DELAI_DEPART - elapsed) / 1000;
+    lcd.print("Depart dans ");
+    if (restant < 10)
+      lcd.print(" ");
+    lcd.print(restant);
+    lcd.print("s  ");
+  }
+  else
+  {
+    lcd.print("Pas de signal   ");
+  }
+}
+
+void afficher_lcd_match()
+{
+  static unsigned long last_lcd = 0;
+  if (millis() - last_lcd < 500)
+    return;
+  last_lcd = millis();
+
+  lcd.setCursor(0, 0);
+  if (couleur == 1)
+  {
+    lcd.setRGB(0, 0, 255);
+    lcd.print("BLEU - Zone ");
+  }
+  else
+  {
+    lcd.setRGB(255, 165, 0);
+    lcd.print("JAUNE - Zone ");
+  }
+  lcd.print(zone_actuelle);
+  lcd.print("   ");
+
+  lcd.setCursor(0, 1);
+  lcd.print("Robot en marche ");
+}
+
+// ══════════════════════════════════════════════════════════
+//  OUTILS ROBOT
+// ══════════════════════════════════════════════════════════
+int lire_capteur(int id)
+{
+  // if (id == 0)
+  //   return ok0 ? (int)sensor0.readRangeContinuousMillimeters() : 0;
+  // if (id == 1)
+  //   return ok1 ? (int)sensor1.readRangeContinuousMillimeters() : 0;
+  // if (id == 2)
+  //   return ok2 ? (int)sensor2.readRangeContinuousMillimeters() : 0;
+  // if (id == 3)
+  //   return ok3 ? (int)sensor3.readRangeContinuousMillimeters() : 0;
+
+  return 8888;
+}
+
+void reset_moteurs()
+{
+  stepperL->setCurrentPosition(0);
+  stepperR->setCurrentPosition(0);
+}
+
+void maj_pos()
+{
+  float mmL = stepperL->getCurrentPosition() / k_LIN;
+  float mmR = stepperR->getCurrentPosition() / (k_LIN * CORRECTION_DERIVE);
+  float mm = (mmL + mmR) / 2.0;
+  robot_x += mm * cos(robot_a * PI / 180.0);
+  robot_y += mm * sin(robot_a * PI / 180.0);
+}
+
+// Sauvegarde la position puis remet les encodeurs à zéro
+// À appeler AVANT tout reset_moteurs() pour ne jamais perdre de déplacement
+void maj_et_reset()
+{
+  maj_pos();
+  reset_moteurs();
+}
+
+// Stoppe les moteurs, attend l'arrêt complet, puis met à jour la position
+void stop_moteurs_et_maj()
+{
+  stepperL->stopMove();
+  stepperR->stopMove();
+  while (stepperL->isRunning() || stepperR->isRunning())
+    delay(1);
+  maj_et_reset();
+}
+
+// Vérifie si un obstacle est détecté sur les capteurs avant/gauche/droite
+bool obstacle_detecte()
+{
+  int dG = lire_capteur(1);
+  int dD = lire_capteur(2);
+  return ((dG != 8888 && dG < DISTANCE_ARRET) || (dD != 8888 && dD < DISTANCE_ARRET));
+}
+
+void aller_vers(float x, float y)
+{
+  if (SYMETRIE == -1)
+    x = 3000.0 - x;
+  cible_x = x;
+  cible_y = y;
+  etat = CALCUL_ROT;
+}
+
+void aller_a_la_zone(int z)
+{
+  Serial.print("Navigation vers Zone: ");
+  Serial.println(z);
+  switch (z)
+  {
+  // case 0:
+  //   aller_vers(52.5, 53.75);
+  //   break;
+  // case 1:
+  //   aller_vers(100, 1200);
+  //   break;
+  // case 2:
+  //   aller_vers(700, 1900);
+  //   break;
+  // case 3:
+  //   aller_vers(800, 1200);
+  //   break;
+  // case 4:
+  //   aller_vers(1250, 550);
+  //   break;
+  // case 5:
+  //   aller_vers(1500, 1200);
+  //   break;
+  // case 6:
+  //   aller_vers(1500, 1900);
+  //   break;
+  // case 7:
+  //   aller_vers(1750, 550);
+  //   break;
+  // case 8:
+  //   aller_vers(2200, 1200);
+  //   break;
+  // case 9:
+  //   aller_vers(2300, 1900);
+  //   break;
+  // case 10:
+  //   aller_vers(2900, 1200);
+  //   break;
+
+  case 0:
+    aller_vers(52.5, 53.75);
+    break;
+  case 1:
+    aller_vers(100, 1200);
+    break;
+  case 2:
+    aller_vers(700, 1900);
+    break;
+  case 3:
+    aller_vers(800, 1200);
+    break;
+  case 4:
+    aller_vers(1250, 550);
+    break;
+  case 5:
+    aller_vers(1500, 1200);
+    break;
+  case 6:
+    aller_vers(1500, 1900);
+    break;
+  case 7:
+    aller_vers(1750, 550);
+    break;
+  case 8:
+    aller_vers(2200, 1200);
+    break;
+  case 9:
+    aller_vers(2300, 1900);
+    break;
+  case 10:
+    aller_vers(2950, 1200);
+    break;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  LOGIQUE DE MOUVEMENT
+// ══════════════════════════════════════════════════════════
+void gestion_etats()
+{
+  // FastAccelStepper est piloté par timer hardware : plus besoin de stepperL.run() ici
+
+  switch (etat)
+  {
+  case ATTENTE:
+    break;
+
+  case CALCUL_ROT:
+  {
+    float rx = (SYMETRIE == -1) ? (3000.0 - robot_x) : robot_x;
+    float dx = cible_x - rx;
+    float dy = cible_y - robot_y;
+    float dist = sqrt(dx * dx + dy * dy);
+
+    if (dist < 20)
+    {
+      etat = AVANCE;
+      return;
+    }
+
+    float angle_vise = atan2(dx, dy) * 180.0 / PI;
+    float rot = angle_vise - robot_a;
+    while (rot > 180)
+      rot -= 360;
+    while (rot <= -180)
+      rot += 360;
+
+    if (SYMETRIE == -1) rot = -rot;
+
+    reset_moteurs();
+    long pas = (long)(rot * k_ROT);
+
+    // Avec FastAccelStepper : setSpeedInHz() avant move()
+    stepperL->setSpeedInHz((uint32_t)VITESSE_MAX);
+    stepperR->setSpeedInHz((uint32_t)VITESSE_MAX);
+
+    stepperL->move(-pas);
+    stepperR->move(pas);
+
+    robot_a += rot;
+    while (robot_a > 180)
+      robot_a -= 360;
+    while (robot_a <= -180)
+      robot_a += 360;
+
+    etat = ROTATION;
+  }
+  break;
+
+  case ROTATION:
+    // distanceToGo() == 0 remplacé par !isRunning()
+    if (!stepperL->isRunning() && !stepperR->isRunning())
+    {
+      timer_pause = millis();
+      etat = PAUSE_ROT;
+    }
+    break;
+
+  case PAUSE_ROT:
+    if (millis() - timer_pause > 100)
+      etat = CALCUL_AV;
+    break;
+
+  case CALCUL_AV:
+  {
+    float rx = (SYMETRIE == -1) ? (3000.0 - robot_x) : robot_x;
+    float dx = cible_x - rx;
+    float dy = cible_y - robot_y;
+    float dist = sqrt(dx * dx + dy * dy);
+
+    reset_moteurs();
+
+    long pas_G = (long)(dist * k_LIN);
+    long pas_D = (long)(dist * k_LIN * CORRECTION_DERIVE);
+
+    stepperL->setSpeedInHz((uint32_t)VITESSE_MAX);
+    stepperR->setSpeedInHz((uint32_t)(VITESSE_MAX * CORRECTION_DERIVE));
+
+    stepperL->move(pas_G);
+    stepperR->move(pas_D);
+
+    timer_debut_mouvement = millis();
+    timer_capteur = millis();
+    compteur_obs = 0;
+    etat = AVANCE;
+  }
+  break;
+
+  case AVANCE:
+    if (!stepperL->isRunning() && !stepperR->isRunning())
+    {
+      robot_x = (SYMETRIE == -1) ? (3000.0 - cible_x) : cible_x;
+      robot_y = cible_y;
+
+      if (mode_sequence)
+      {
+        Serial.print("Arrive zone ");
+        Serial.println(zone_actuelle);
+        timer_pause = millis();
+        etat = PAUSE_SEQUENCE;
+      }
+      else
+      {
+        Serial.println("Fini.");
+        etat = ATTENTE;
+      }
+    }
+    else if (millis() - timer_capteur > 50)
+    {
+      timer_capteur = millis();
+      if (millis() - timer_debut_mouvement > 500)
+      {
+        int dG = lire_capteur(1);
+        int dD = lire_capteur(2);
+        if ((dG != 8888 && dG < DISTANCE_ARRET) || (dD != 8888 && dD < DISTANCE_ARRET))
+        {
+          compteur_obs++;
+          if (compteur_obs >= 2)
+          {
+            etat = OBS_STOP;
+            Serial.println("OBSTACLE !");
+          }
+        }
+        else
+        {
+          compteur_obs = 0;
+        }
+      }
+    }
+    break;
+
+  // --- LOGIQUE DE SEQUENCE ---
+  case PAUSE_SEQUENCE:
+    if (millis() - timer_pause > 1000)
+    {
+      chemin_index++;
+      if (chemin_index < chemin_len)
+      {
+        zone_actuelle = chemin_actuel[chemin_index];
+        aller_a_la_zone(zone_actuelle);
+      }
+      else
+      {
+        Serial.println("SEQUENCE TERMINEE.");
+        mode_sequence = false;
+        etat = ATTENTE;
+      }
+    }
+    break;
+
+  // ARRET D'URGENCE : STOP & GO (1 Seconde)
+  case OBS_STOP:
+  {
+    // Si les moteurs tournent encore, on les arrête proprement et on sauvegarde la position
+    if (stepperL->isRunning() || stepperR->isRunning())
+    {
+      stepperL->stopMove();
+      stepperR->stopMove();
+      while (stepperL->isRunning() || stepperR->isRunning())
+        delay(1);
+      maj_pos();
+      reset_moteurs();
+      timer_obstacle = millis();
+    }
+
+    // Vérification de la présence de l'obstacle
+    int dG = lire_capteur(1);
+    int dD = lire_capteur(2);
+
+    if ((dG != 8888 && dG < DISTANCE_ARRET) || (dD != 8888 && dD < DISTANCE_ARRET))
+    {
+      // L'obstacle est toujours là, on remet le compteur à zéro (millis actuel)
+      timer_obstacle = millis();
+    }
+    else
+    {
+      // L'obstacle a disparu. On attend 1000 millisecondes (1 seconde)
+      if (millis() - timer_obstacle >= 1000)
+      {
+        Serial.println("Voie libre depuis 1 sec -> Reprise");
+        compteur_obs = 0;
+        etat = CALCUL_AV; // Recalcule la distance avec la position sauvegardée et repart
+      }
+    }
+  }
+  break;
+  }
+}
+
+void gestion_entrees()
+{
+  if (Serial.available() > 0)
+  {
+    char c = Serial.read();
+    if (c == 'S' || c == 's')
+    {
+      stepperL->stopMove();
+      stepperR->stopMove();
+      reset_moteurs();
+      etat = ATTENTE;
+      mode_sequence = false;
+      robot_demarre_par_wifi = false;
+      timer_85_demarre = false;
+      Serial.println("STOP URGENCE");
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  SETUP
+// ══════════════════════════════════════════════════════════
+void setup()
+{
+  Serial.begin(115200);
+  delay(10);
+  Serial.println("\nInitialisation...\n");
+
+  // LCD init anticipée pour afficher les messages d'init
+  Wire.begin(I2C_SDA, I2C_SCL);
+  Wire.setClock(100000);
+  lcd.begin(16, 2);
+  lcd.clear();
+  lcd.setRGB(255, 255, 255);
+  lcd.setCursor(0, 0);
+  lcd.print("Init en cours...");
+  lcd.setCursor(0, 1);
+  lcd.print("                ");
+
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(vBat, INPUT_PULLUP);
+  pinMode(stby, OUTPUT);
+  digitalWrite(stby, LOW);
+  digitalWrite(enablePin, LOW);
+  pinMode(enablePin, OUTPUT_OPEN_DRAIN);
+  pinMode(mode1Pin, OUTPUT);
+  pinMode(mode2Pin, OUTPUT);
+  pinMode(dirPin_L, OUTPUT);
+  pinMode(dirPin_R, OUTPUT);
+  pinMode(stepPin_L, OUTPUT);
+  pinMode(stepPin_R, OUTPUT);
+  digitalWrite(dirPin_L, HIGH);
+  digitalWrite(dirPin_R, HIGH);
+  digitalWrite(stepPin_L, HIGH);
+  digitalWrite(stepPin_R, HIGH);
+  digitalWrite(mode1Pin, HIGH);
+  digitalWrite(mode2Pin, HIGH);
+
+  delay(500);
+  digitalWrite(stby, HIGH);
+  delay(100);
+  digitalWrite(enablePin, HIGH);
+
+  engine.init();
+  stepperL = engine.stepperConnectToPin(stepPin_L);
+  if (stepperL)
+  {
+    stepperL->setDirectionPin(dirPin_L, true);
+    stepperL->setAcceleration((uint32_t)ACCELERATION);
+    stepperL->setSpeedInHz((uint32_t)VITESSE_MAX);
+  }
+  stepperR = engine.stepperConnectToPin(stepPin_R);
+  if (stepperR)
+  {
+    stepperR->setDirectionPin(dirPin_R, false);
+    stepperR->setAcceleration((uint32_t)ACCELERATION);
+    stepperR->setSpeedInHz((uint32_t)VITESSE_MAX);
+  }
+
+  digitalWrite(stby, HIGH);
+  // Wire déjà initialisé au début du setup
+
+  tcaselect(0);
+
+  if (sensor0.init())
+  {
+    Serial.printf("Sensor0 détecté en 0x29\n");
+    sensor0.setAddress(0x40);
+    ok0 = true;
+  }
+  else
+  {
+    sensor0.setAddress(0x40, false);
+    Serial.printf("Sensor0 non détecté en 0x29\n");
+    if (sensor0.init())
+    {
+      Serial.printf("Sensor0 détecté en 0x40\n");
+      ok0 = true;
+    }
+    else
+    {
+      Serial.printf("ERREUR : Sensor0 non détecté\n");
+    }
+  }
+  sensor0.setTimeout(500);
+  sensor0.startContinuous();
+
+  tcaselect(1);
+
+  if (sensor1.init())
+  {
+    Serial.printf("Sensor1 détecté en 0x29\n");
+    sensor1.setAddress(0x41);
+    ok1 = true;
+  }
+  else
+  {
+    sensor1.setAddress(0x41, false);
+    Serial.printf("Sensor1 non détecté en 0x29\n");
+    if (sensor1.init())
+    {
+      Serial.printf("Sensor1 détecté en 0x41\n");
+      ok1 = true;
+    }
+    else
+    {
+      Serial.printf("ERREUR : Sensor1 non détecté\n");
+    }
+  }
+  sensor1.setTimeout(500);
+  sensor1.startContinuous();
+
+  tcaselect(2);
+
+  if (sensor2.init())
+  {
+    Serial.printf("Sensor2 détecté en 0x29\n");
+    sensor2.setAddress(0x42);
+    ok2 = true;
+  }
+  else
+  {
+    sensor2.setAddress(0x42, false);
+    Serial.printf("Sensor2 non détecté en 0x29\n");
+    if (sensor2.init())
+    {
+      Serial.printf("Sensor2 détecté en 0x42\n");
+      ok2 = true;
+    }
+    else
+    {
+      Serial.printf("ERREUR : Sensor2 non détecté\n");
+    }
+  }
+  sensor2.setTimeout(500);
+  sensor2.startContinuous();
+
+  tcaselect(3);
+
+  if (sensor3.init())
+  {
+    Serial.printf("Sensor3 détecté en 0x29\n");
+    sensor3.setAddress(0x43);
+    ok3 = true;
+  }
+  else
+  {
+    sensor3.setAddress(0x43, false);
+    Serial.printf("Sensor3 non détecté en 0x29\n");
+    if (sensor3.init())
+    {
+      Serial.printf("Sensor3 détecté en 0x43\n");
+      ok3 = true;
+    }
+    else
+    {
+      Serial.printf("ERREUR : Sensor3 non détecté\n");
+    }
+  }
+  sensor3.setTimeout(500);
+  sensor3.startContinuous();
+
+  tcaselectAll();
+
+  // La position de départ sera initialisée dans demarrer_sequence_couleur()
+  // quand la couleur sera connue via WiFi.
+  robot_x = 0;
+  robot_y = 0;
+  robot_a = 0;
+
+  if (!ledcAttach(servoPin, freq, resolution))
+    Serial.println("Erreur PWM servo");
+  else
+    Serial.println("Servo prêt");
+
+  // LCD : En attente WiFi (blanc, pas de changement de couleur)
+  lcd.setRGB(255, 255, 255);
+  lcd.setCursor(0, 0);
+  lcd.print("En attente WiFi ");
+  lcd.setCursor(0, 1);
+  lcd.print("                ");
+
+  // — Connexion WiFi —
+  Serial.printf("[WiFi] Connexion à %s ...\n", SSID);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.setTxPower(WIFI_POWER_19_5dBm);
+  WiFi.begin(SSID, PASSWORD);
+
+  // Étape 1 : Attendre l'association WiFi
+  int tentatives = 0;
+  const int MAX_TENTATIVES = 40;
+
+  while (WiFi.status() != WL_CONNECTED && tentatives < MAX_TENTATIVES)
+  {
+    delay(500);
+    Serial.print(".");
+    tentatives++;
+  }
+
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.println("\n[WiFi] ERREUR : Association WiFi impossible !");
+    lcd.setCursor(0, 0);
+    lcd.setRGB(255, 0, 0);
+    lcd.print("WiFi ERREUR !   ");
+  }
+  else
+  {
+    Serial.println("\n[WiFi] Association WiFi réussie !");
+
+    // Étape 2 : Attendre l'attribution IP (DHCP)
+    Serial.println("[WiFi] Attente de l'adresse IP...");
+    int timeout_ip = 0;
+    while (WiFi.localIP() == IPAddress(0, 0, 0, 0) && timeout_ip < 20)
+    {
+      delay(500);
+      Serial.print(".");
+      timeout_ip++;
+    }
+
+    // Vérification finale
+    IPAddress ip = WiFi.localIP();
+    if (ip == IPAddress(0, 0, 0, 0))
+    {
+      Serial.println("\n[WiFi] ERREUR : Pas d'adresse IP obtenue !");
+      Serial.println("[WiFi] Le DHCP n'a pas répondu.");
+      Serial.println("[WiFi] Solutions possibles :");
+      Serial.println("  - Redémarrez le routeur");
+      Serial.println("  - Vérifiez que le DHCP est activé");
+      Serial.println("  - Essayez une IP statique");
+
+      lcd.setCursor(0, 0);
+      lcd.setRGB(255, 165, 0);
+      lcd.print("WiFi: Pas d'IP! ");
+    }
+    else
+    {
+      Serial.printf("\n[WiFi] ✓ CONNEXION RÉUSSIE !\n");
+      Serial.printf("[WiFi] IP    : %s\n", ip.toString().c_str());
+      Serial.printf("[WiFi] Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
+      Serial.printf("[WiFi] Subnet : %s\n", WiFi.subnetMask().toString().c_str());
+      Serial.printf("[WiFi] DNS   : %s\n", WiFi.dnsIP().toString().c_str());
+      Serial.printf("[WiFi] Canal : %d\n", WiFi.channel());
+      Serial.printf("[WiFi] RSSI  : %d dBm\n", WiFi.RSSI());
+      Serial.printf("[WiFi] MAC   : %s\n", WiFi.macAddress().c_str());
+
+      // LCD : WiFi connecté, en attente du signal JSON (blanc)
+      lcd.setRGB(255, 255, 255);
+      lcd.setCursor(0, 0);
+      lcd.print("WiFi connecte   ");
+      lcd.setCursor(0, 1);
+      lcd.print("En attente signal");
+    }
+  }
+
+  server.begin();
+  Serial.println("[TCP] Serveur démarré sur port 5002");
+}
+
+void loop()
+{
+  // ── 1. Écoute TCP ─────────────────────────────────────
+  gestion_tcp();
+
+  // ── 2. Timer 85 secondes ──────────────────────────────
+  if (timer_85_demarre && !robot_demarre_par_wifi)
+  {
+    unsigned long elapsed = millis() - temps_debut_match;
+    if (elapsed >= DELAI_DEPART)
+    {
+      Serial.println("[MATCH] 85 secondes écoulées → DÉPART !");
+      demarrer_sequence_couleur();
+    }
+    else
+    {
+      static unsigned long last_print = 0;
+      if (millis() - last_print > 1000)
+      {
+        last_print = millis();
+        Serial.printf("[MATCH] Départ dans %lu secondes...\n",
+                      (DELAI_DEPART - elapsed) / 1000);
+      }
+    }
+  }
+
+  // ── 3. Logique robot ──────────────────────────────────
+  if (robot_demarre_par_wifi) //robot_demarre_par_wifi
+  {
+    gestion_entrees();
+    gestion_etats();
+    afficher_lcd_match();
+  }
+  else
+  {
+    afficher_lcd_attente();
+  }
+
+  delay(10);
+}

@@ -1,0 +1,156 @@
+#include <Arduino.h>
+#include <VL53L0X.h>
+#include <Wire.h>
+
+// Configuration Pins
+#define I2C_SDA 2
+#define I2C_SCL 3
+#define TCAADDR 0x70
+
+// Capteurs
+VL53L0X sensor0;
+VL53L0X sensor1;
+VL53L0X sensor2;
+VL53L0X sensor3;
+
+bool tcaselect(uint16_t i)
+{
+  if (i > 7)
+    return false; // Sécurité (le TCA9548A a 8 canaux, pas 3)
+
+  Wire.beginTransmission(TCAADDR);
+  Wire.write(1 << i);
+  // On vérifie le résultat de la transmission
+  if (Wire.endTransmission() != 0)
+  {
+    return false; // Échec de communication avec le multiplexeur
+  }
+  delay(2); // Petit délai pour laisser le temps au multiplexeur de commuter
+  return true;
+}
+
+bool tcaselectAll()
+{
+  Wire.beginTransmission(TCAADDR);
+  Wire.write(0x0F);
+  // On vérifie le résultat de la transmission
+  if (Wire.endTransmission() != 0)
+  {
+    return false; // Échec de communication avec le multiplexeur
+  }
+  delay(2); // Petit délai pour laisser le temps au multiplexeur de commuter
+  return true;
+}
+
+bool ok0=false, ok1=false, ok2=false, ok3=false;
+// setup
+void setup()
+{
+  Serial.begin(115200);
+
+  // Initialisation I2C
+  Wire.begin(I2C_SDA, I2C_SCL);
+  Wire.setClock(100000);
+
+  // Initialisation Capteurs ToF
+  tcaselect(0);
+  
+  if (sensor0.init()) {
+    Serial.printf("Sensor0 détecté en 0x29\n");
+    sensor0.setAddress(0x30);
+    ok0 = true;
+  } else {
+    Serial.printf("Sensor0 non détecté en 0x29\n");
+    sensor0.setAddress(0x30, false);
+    if (sensor0.init()) {
+      Serial.printf("Sensor0 détecté en 0x30\n");
+      ok0 = true;
+    } else {
+      Serial.printf("ERREUR : Sensor0 non détecté\n");
+    }
+  }
+  sensor0.setTimeout(500);
+  sensor0.startContinuous();
+
+  tcaselect(1);
+
+  if (sensor1.init()) {
+    Serial.printf("Sensor1 détecté en 0x29\n");
+    sensor1.setAddress(0x31);
+    ok1 = true;
+  } else {
+    sensor1.setAddress(0x31, false);
+    Serial.printf("Sensor1 non détecté en 0x29\n");
+    if (sensor1.init()) {
+      Serial.printf("Sensor1 détecté en 0x31\n");
+      ok1 = true;
+    } else {
+      Serial.printf("ERREUR : Sensor1 non détecté\n");
+    }
+  }
+  sensor1.setTimeout(500);
+  sensor1.startContinuous();
+
+  tcaselect(2);
+
+  if (sensor2.init()) {
+    Serial.printf("Sensor2 détecté en 0x29\n");
+    sensor2.setAddress(0x32);
+    ok2 = true;
+  } else {
+    sensor2.setAddress(0x32, false);
+    Serial.printf("Sensor2 non détecté en 0x29\n");
+    if (sensor2.init()) {
+      Serial.printf("Sensor2 détecté en 0x32\n");
+      ok2 = true;
+    } else {
+      Serial.printf("ERREUR : Sensor2 non détecté\n");
+    }
+  }
+  sensor2.setTimeout(500);
+  sensor2.startContinuous();
+
+  tcaselect(3);
+
+  if (sensor3.init()) {
+    Serial.printf("Sensor3 détecté en 0x29\n");
+    sensor3.setAddress(0x33);
+    ok3 = true;
+  } else {
+    sensor3.setAddress(0x33, false);
+    Serial.printf("Sensor3 non détecté en 0x29\n");
+    if (sensor3.init()) {
+      Serial.printf("Sensor3 détecté en 0x33\n");
+      ok3 = true;
+    } else {
+      Serial.printf("ERREUR : Sensor3 non détecté\n");
+    }
+  }
+  sensor3.setTimeout(500);
+  sensor3.startContinuous();
+
+  tcaselectAll();
+}
+
+void loop()
+{
+  if (ok0) {
+    int16_t d0 = sensor0.readRangeContinuousMillimeters();
+    Serial.printf("%hd ", d0);
+  } else Serial.printf("ERR ");
+  if (ok1) {
+    int16_t d1 = sensor1.readRangeContinuousMillimeters();
+    Serial.printf("%hd ", d1);
+  } else Serial.printf("ERR ");
+  if (ok2) {
+    int16_t d2 = sensor2.readRangeContinuousMillimeters();
+    Serial.printf("%hd ", d2);
+  } else Serial.printf("ERR ");
+  if (ok3) {
+    int16_t d3 = sensor3.readRangeContinuousMillimeters();
+    Serial.printf("%hd ", d3);
+  } else Serial.printf("ERR ");
+  
+  Serial.println();
+  delay(100);
+}
